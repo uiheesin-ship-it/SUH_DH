@@ -38,7 +38,9 @@ def _fetch_live() -> list[dict]:
 
     fos = Overview()
     fos.set_filter(signal="New High")
-    df = fos.screener_view(order="Market Cap", ascend=False, verbose=0)
+    # Sort happens later in group_by_sector, so we don't pass an `order` here
+    # (Finviz's order names are finicky, e.g. "Market Cap." with a trailing dot).
+    df = fos.screener_view(verbose=0)
     if df is None or df.empty:
         return []
 
