@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, charts, screener
+from . import __version__, charts, news, screener
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -55,6 +55,18 @@ def chart(ticker: str, range: str = "max"):
         return JSONResponse(
             status_code=502,
             content={"error": f"Failed to fetch chart for {ticker}.", "detail": str(e)},
+        )
+
+
+@app.get("/api/news")
+def global_news():
+    """Curated global financial-news digest (10~20 items, Korean summaries)."""
+    try:
+        return news.get_news()
+    except Exception as e:  # surface upstream/network failures cleanly to the UI
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Failed to build the global news digest.", "detail": str(e)},
         )
 
 

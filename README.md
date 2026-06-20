@@ -1,7 +1,14 @@
-# SUH_DH — 미국 52주 신고가 대시보드
+# SUH_DH 대시보드
 
-매일 미국 증시 마감 후(한국시간 아침) **52주 신고가**를 기록한 미국 주식을
-섹터·소섹터별로 한눈에 훑어보기 위한 대시보드입니다.
+투자/리서치 프로그램을 카드로 모아 둔 대시보드입니다. 현재 두 가지 프로그램이 있습니다.
+
+1. **미국 52주 신고가** — 매일 미국 증시 마감 후(한국시간 아침) **52주 신고가**를 기록한
+   미국 주식을 섹터·소섹터별로 한눈에.
+2. **글로벌 투자 뉴스** — Reuters·Bloomberg·FT·WSJ·CNBC·Nikkei에서 투자 관련성 높은
+   뉴스만 선별해 하루 10~20건, 한국어 1~2줄 요약 + 원문 링크로.
+
+아래 설명은 주로 52주 신고가 프로그램 기준이며, 뉴스 프로그램은
+[글로벌 투자 뉴스 프로그램](#글로벌-투자-뉴스-프로그램) 절을 참고하세요.
 
 **두 가지 방식으로 쓸 수 있습니다:**
 1. **항상 켜져 있는 웹 주소(추천)** — GitHub가 매일 자동으로 갱신. PC를 켜둘 필요 없이
@@ -74,22 +81,42 @@ GitHub가 매일 미장 마감 후 자동으로 데이터를 갱신해 줍니다
 build.py                 정적 사이트 생성(GitHub Actions가 매일 실행) -> ./site
 .github/workflows/       매일 빌드 + GitHub Pages 배포
 app/
-  main.py        FastAPI 앱 + JSON API (/api/highs, /api/reason/{t}, /api/chart/{t})
+  main.py        FastAPI 앱 + JSON API (/api/highs, /api/reason/{t}, /api/chart/{t}, /api/news)
   screener.py    Finviz "New High" 스크리닝 → 섹터/소섹터 그룹, 시총 정렬
   charts.py      Yahoo 과거 시세(차트) + 뉴스/실적(상승 이유)
+  news.py        주요 외신 RSS 수집 → 투자 관련성 선별/중복제거 → 한국어 요약
   indicators.py  이동평균(MA5/20/50/120) 계산
   cache.py       짧은 TTL 인메모리 캐시
+  translate.py   영어 → 한국어 번역(무료 Google, 실패 시 원문)
   demo_data.py   오프라인 샘플 데이터(SUH_DH_DEMO=1)
   static/
     index.html   대시보드 허브(런처) — 프로그램 카드 목록
     hub.css
     highs/       52주 신고가 프로그램(HTML/CSS/JS, 차트는 Plotly)
+    news/        글로벌 투자 뉴스 프로그램(HTML/CSS/JS)
 ```
 
 ### 화면 구조 (허브 + 프로그램)
 
 - `/` — **대시보드 허브**. 프로그램들을 카드로 보여주고 눌러서 들어갑니다.
 - `/highs/` — 52주 신고가 프로그램.
+- `/news/` — 글로벌 투자 뉴스 프로그램.
+
+### 글로벌 투자 뉴스 프로그램
+
+Reuters·Bloomberg·FT·WSJ·CNBC·Nikkei의 RSS를 모아 **투자자가 알면 좋을 뉴스만
+선별**해 한국어로 간결하게 전달합니다. 긴 분석이 아니라 "적절한 선별 + 간결한 전달"이
+목표입니다.
+
+- **선별 기준**: 주식·금리·환율·원자재·산업·기업 실적에 영향을 줄 수 있는 뉴스 우선.
+  AI·반도체·데이터센터·전력 인프라·에너지·미중 갈등·관세·수출규제·미국 금리·원자재·
+  주요 기업 실적/가이던스 관련 뉴스를 가중치로 점수화해 상위만 노출하고, 투자 관련성이
+  낮은 단순 정치/사회 뉴스는 제외합니다(`app/news.py`의 `CATEGORIES`).
+- **중복 제거**: 같은 이슈가 여러 매체에 있으면 제목 유사도로 묶어 **가장 신뢰도 높은
+  매체 1건**만 남깁니다.
+- **출력**: 하루 10~20건, 각 뉴스 한국어 1~2줄 요약 + **원문 링크** + 출처 + 보도 시각.
+- 동작 파라미터는 환경변수로 조정: `SUH_DH_NEWS_MAX`(기본 18), `SUH_DH_NEWS_MAX_AGE`
+  (시간, 기본 36), `SUH_DH_NEWS_MIN_SCORE`(기본 2), `SUH_DH_NEWS_TTL`(초, 기본 1800).
 
 새 프로그램을 추가하려면: `static/<프로그램>/` 폴더를 만들고,
 `static/index.html` 의 `APPS` 배열에 카드 한 줄(`name/emoji/desc/href`)만 추가하면
@@ -102,10 +129,13 @@ API 예시:
 | `GET /api/highs` | 섹터→소섹터로 그룹된 신고가 종목(시총순) |
 | `GET /api/reason/{ticker}` | 최신 뉴스 + 최근 실적발표 여부 |
 | `GET /api/chart/{ticker}?range=max\|6mo` | OHLCV + 거래량 + MA5/20/50/120 |
+| `GET /api/news` | 선별된 글로벌 투자 뉴스 10~20건(한국어 요약 + 원문 링크) |
 
 ## 네트워크 접근 안내 (중요)
 
-이 대시보드는 `finviz.com` 과 `query1/query2.finance.yahoo.com` 으로
+이 대시보드는 `finviz.com`, `query1/query2.finance.yahoo.com`,
+그리고 글로벌 뉴스 RSS 호스트(`feeds.bloomberg.com`, `feeds.a.dj.com`,
+`www.cnbc.com`, `www.ft.com`, `asia.nikkei.com`, `www.reutersagency.com`)로
 아웃바운드 요청을 보냅니다. 로컬 PC에서는 보통 문제없이 동작하지만,
 **Claude Code on the web 같은 egress allowlist가 적용된 샌드박스에서는 차단**됩니다.
 그런 환경에서 라이브로 쓰려면 해당 호스트를 네트워크 허용 목록에 추가하거나,

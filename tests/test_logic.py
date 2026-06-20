@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.indicators import attach_moving_averages, moving_average
 from app.screener import _normalize_change, group_by_sector
-from app import demo_data
+from app import demo_data, news
 
 
 def test_moving_average_padding_and_value():
@@ -55,3 +55,97 @@ def test_demo_chart_has_consistent_lengths():
     for k in ("open", "high", "low", "close", "volume"):
         assert len(d[k]) == n
     assert n > 100
+
+
+# ---------- global news digest ----------
+def test_score_item_picks_relevant_categories():
+    score, cats = news.score_item(
+        {"title": "US weighs tighter export controls on AI chips to China", "summary": ""}
+    )
+    assert score >= news.MIN_SCORE
+    # Hits export-control, AI, semiconductor and China topics.
+    assert {"수출규제", "AI", "반도체", "미중갈등"} <= set(cats)
+
+
+def test_score_item_ignores_generic_non_investment_news():
+    score, cats = news.score_item(
+        {"title": "Local council debates new park bench design", "summary": "A community meeting."}
+    )
+    assert score == 0 and cats == []
+
+
+def test_select_filters_dedupes_and_caps():
+    import time
+
+    now = time.time()
+    fresh = now
+    items = [
+        # Same story from two outlets -> the more reliable (Reuters) should win.
+        {"title": "Fed holds interest rates steady, signals one cut this year",
+         "summary": "", "source": "Reuters", "reliability": 5, "published_ts": fresh},
+        {"title": "Fed holds interest rates steady and signals one cut this year",
+         "summary": "", "source": "CNBC", "reliability": 4, "published_ts": fresh},
+        # Distinct relevant story.
+        {"title": "TSMC raises capex on surging AI data-center chip demand",
+         "summary": "", "source": "Nikkei", "reliability": 4, "published_ts": fresh},
+        # Too old -> dropped.
+        {"title": "OPEC extends oil output cuts to support crude prices",
+         "summary": "", "source": "Bloomberg", "reliability": 5,
+         "published_ts": now - (news.MAX_AGE_HOURS + 5) * 3600},
+        # Not investment-relevant -> dropped.
+        {"title": "Celebrity wedding draws huge crowd downtown",
+         "summary": "", "source": "CNBC", "reliability": 4, "published_ts": fresh},
+    ]
+    out = news.select(items, max_items=5, now_ts=now)
+    titles = [o["title"] for o in out]
+    assert len(out) == 2  # one Fed (deduped) + TSMC; old & irrelevant dropped
+    assert any("Fed holds" in t for t in titles)
+    fed = next(o for o in out if "Fed holds" in o["title"])
+    assert fed["source"] == "Reuters"  # most reliable kept on dedupe
+    assert all("_tokens" not in o for o in out)  # internal field cleaned up
+
+
+def test_select_respects_max_items():
+    import time
+
+    now = time.time()
+    # Distinct, investment-relevant stories (as real outlets would phrase them).
+    headlines = [
+        "Nvidia unveils next-generation AI accelerator at developer conference",
+        "Fed minutes reveal divided views on timing of interest rate cuts",
+        "TSMC ramps advanced packaging output to meet data-center demand",
+        "Oil climbs as OPEC weighs deeper production cuts next quarter",
+        "Broadcom raises annual revenue forecast on custom AI silicon",
+        "China tightens rare-earth export curbs amid trade tensions",
+        "US imposes fresh tariffs on imported electric vehicles",
+        "Micron beats estimates as high-bandwidth memory demand surges",
+        "Yen tumbles to multi-decade low against the dollar",
+        "Copper prices hit record on supply disruptions and grid spending",
+        "Microsoft commits billions to new data-center power deals",
+        "Apple guides services revenue higher despite hardware softness",
+        "Treasury yields jump after hotter-than-expected inflation report",
+        "ASML lands large orders for next-generation lithography machines",
+        "Saudi Arabia trims crude output to defend oil prices",
+        "Intel secures government funding for new chip foundry plant",
+        "Gold rallies to all-time high as investors seek safe havens",
+        "Boeing wins major jet order, lifts full-year delivery outlook",
+        "Qualcomm forecasts strong demand for AI smartphone chips",
+        "Nuclear utilities surge on soaring electricity demand from AI",
+    ]
+    items = [
+        {"title": h, "summary": "", "source": "WSJ", "reliability": 5,
+         "published_ts": now - i * 60}
+        for i, h in enumerate(headlines)
+    ]
+    out = news.select(items, max_items=18, now_ts=now)
+    assert len(out) == 18
+
+
+def test_demo_news_shape_and_count():
+    d = demo_data.demo_news()
+    assert d["demo"] is True
+    assert 10 <= d["count"] <= 20
+    assert d["count"] == len(d["items"])
+    for it in d["items"]:
+        assert it["title_ko"] and it["link"] and it["source"]
+        assert it["categories"]

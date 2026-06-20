@@ -1,0 +1,87 @@
+:root {
+  --bg: #0f172a; --panel: #1e293b; --panel-2: #273548;
+  --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --link: #7dd3fc;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, #1b2a44, var(--bg));
+  color: var(--text);
+}
+
+/* top bar */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 5;
+  background: rgba(15, 23, 42, .92); backdrop-filter: blur(6px);
+}
+.title { display: flex; align-items: center; gap: 12px; }
+.title h1 { margin: 0; font-size: 18px; }
+.home-link {
+  text-decoration: none; color: var(--muted); font-size: 20px; line-height: 1;
+  border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px;
+}
+.home-link:hover { color: var(--accent); border-color: var(--accent); }
+.controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.status { color: var(--muted); font-size: 13px; }
+.auto { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.auto select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 4px; }
+#refresh-btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px;
+}
+#refresh-btn:hover { border-color: var(--accent); }
+
+.badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+}
+.badge.demo { background: #7c2d12; color: #fed7aa; }
+.hidden { display: none !important; }
+
+/* feed */
+#content { max-width: 880px; margin: 0 auto; padding: 18px 20px 48px; }
+.loading, .error { color: var(--muted); padding: 32px 8px; text-align: center; }
+.error { color: #fca5a5; }
+
+.news-item {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 12px;
+  transition: border-color .12s, background .12s;
+}
+.news-item:hover { border-color: var(--accent); background: var(--panel-2); }
+
+.news-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.source {
+  font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px;
+  background: #0b3a4a; color: #bae6fd; border: 1px solid #155e75;
+}
+.source[data-src="Reuters"]  { background: #3b0a0a; color: #fecaca; border-color: #7f1d1d; }
+.source[data-src="Bloomberg"]{ background: #0a1f3b; color: #bfdbfe; border-color: #1e3a8a; }
+.source[data-src="FT"]       { background: #3a2410; color: #fde6c8; border-color: #92400e; }
+.source[data-src="WSJ"]      { background: #1a1a1a; color: #e5e5e5; border-color: #525252; }
+.source[data-src="CNBC"]     { background: #1e1040; color: #ddd6fe; border-color: #5b21b6; }
+.source[data-src="Nikkei"]   { background: #102a1e; color: #bbf7d0; border-color: #166534; }
+.time { color: var(--muted); font-size: 12px; }
+
+.cats { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+.cat {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+}
+
+.news-title { margin: 2px 0 5px; font-size: 16px; line-height: 1.4; font-weight: 600; }
+.news-title a { color: var(--text); text-decoration: none; }
+.news-title a:hover { color: var(--accent); text-decoration: underline; }
+.news-summary { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0 0 8px; }
+.news-foot { display: flex; align-items: center; gap: 12px; }
+.ext-link { color: var(--link); font-size: 13px; text-decoration: none; font-weight: 600; }
+.ext-link:hover { text-decoration: underline; }
+.orig-title { color: var(--muted); font-size: 12px; font-style: italic; }
+
+.footer {
+  max-width: 880px; margin: 0 auto; padding: 0 20px 36px;
+  color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center;
+}

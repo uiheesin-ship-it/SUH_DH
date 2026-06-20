@@ -21,7 +21,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app import charts, screener
+from app import charts, news, screener
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site"
@@ -49,13 +49,29 @@ def main() -> None:
     # Copy frontend (hub + highs program) into the site root.
     shutil.copytree(STATIC, SITE)
 
-    # Flip the frontend into static mode.
+    # Flip each program's frontend into static mode.
     built = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    (SITE / "highs" / "config.js").write_text(
+    static_cfg = (
         "window.SUH_DH_STATIC = true;\n"
-        f'window.SUH_DH_BUILT = "{built}";\n',
-        encoding="utf-8",
+        f'window.SUH_DH_BUILT = "{built}";\n'
     )
+    for program in ("highs", "news"):
+        (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
+
+    # Global news digest (independent of the 52-week-high fetch; never let a
+    # news failure abort the highs build or vice versa).
+    print("Building global news digest ...")
+    try:
+        digest = news.get_news()
+        write_json(SITE / "data" / "news.json", digest)
+        print(f"  {digest.get('count', 0)} news items selected.")
+    except Exception as e:
+        print(f"  news digest failed: {e}")
+        write_json(
+            SITE / "data" / "news.json",
+            {"built": built, "count": 0, "items": [], "demo": False,
+             "error": "news digest unavailable", "detail": str(e)},
+        )
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()

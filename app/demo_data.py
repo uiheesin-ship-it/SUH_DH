@@ -96,6 +96,99 @@ def demo_reason(ticker: str) -> dict:
     }
 
 
+def demo_news() -> dict:
+    """Sample global-news digest (already in Korean) for offline/sandbox use.
+
+    Shape matches ``news.get_news()`` output so the frontend renders identically.
+    """
+    now = datetime.utcnow()
+
+    def ts(hours: float) -> float:
+        return (now - timedelta(hours=hours)).timestamp()
+
+    raw = [
+        # (source, reliability, hours_ago, categories, en_title, ko_title, ko_summary)
+        ("Reuters", 5, 1.5, ["반도체", "AI", "수출규제"],
+         "US weighs tighter curbs on AI chip exports to China",
+         "미국, 중국向 AI 반도체 수출 규제 추가 강화 검토",
+         "미 상무부가 엔비디아 등 첨단 AI 가속기의 대중국 수출을 더 옥죄는 추가 규제를 검토 중인 것으로 알려졌다."),
+        ("Bloomberg", 5, 2.0, ["미국금리"],
+         "Fed holds rates, signals one cut later this year",
+         "연준, 금리 동결…올해 한 차례 인하 시사",
+         "FOMC가 기준금리를 동결하고 연내 1회 인하 가능성을 점도표로 시사하며 시장의 기대를 일부 되돌렸다."),
+        ("Nikkei", 4, 3.0, ["반도체", "데이터센터"],
+         "TSMC raises capex as AI data-center orders surge",
+         "TSMC, AI 데이터센터 수주 급증에 설비투자 상향",
+         "세계 최대 파운드리 TSMC가 AI 서버용 첨단 패키징 수요 폭증에 연간 설비투자 전망을 상향했다."),
+        ("FT", 5, 4.0, ["에너지", "원자재"],
+         "Oil jumps 3% as Middle East tensions threaten supply",
+         "중동 긴장에 공급 우려…유가 3% 급등",
+         "중동 지정학적 리스크가 다시 부각되며 브렌트유가 장중 3% 넘게 올라 배럴당 90달러에 근접했다."),
+        ("WSJ", 5, 5.0, ["실적·가이던스", "AI", "반도체"],
+         "Broadcom lifts AI revenue forecast, shares rally",
+         "브로드컴, AI 매출 전망 상향에 주가 급등",
+         "브로드컴이 맞춤형 AI 칩 수요를 근거로 연간 AI 매출 가이던스를 올리며 시간외 주가가 크게 뛰었다."),
+        ("Reuters", 5, 6.0, ["관세", "미중갈등"],
+         "China retaliates with tariffs on US farm goods",
+         "중국, 미국산 농산물에 보복 관세",
+         "미국의 관세 인상에 맞서 중국이 대두·돼지고기 등 미국산 농산물에 보복 관세를 부과하기로 했다."),
+        ("Bloomberg", 5, 7.0, ["전력·인프라", "데이터센터", "에너지"],
+         "Power demand from data centers strains US grid",
+         "데이터센터 전력 수요에 미 전력망 '비상'",
+         "AI 데이터센터 급증으로 미국 전력 수요가 빠르게 늘며 전력 인프라·유틸리티 투자 확대 논의가 가속화되고 있다."),
+        ("CNBC", 4, 8.0, ["증시", "미국금리"],
+         "S&P 500 hits record as cooling inflation lifts stocks",
+         "인플레 둔화에 S&P500 사상 최고치",
+         "예상보다 낮은 물가 지표에 금리 인하 기대가 살아나며 S&P500과 나스닥이 사상 최고치로 마감했다."),
+        ("FT", 5, 9.0, ["환율"],
+         "Yen slides to fresh low, raising intervention risk",
+         "엔화 추가 약세…일본 개입 경계감 고조",
+         "미일 금리차 확대로 엔화가 다시 연저점을 경신하며 일본 당국의 외환시장 개입 가능성이 거론된다."),
+        ("Nikkei", 4, 10.0, ["반도체", "수출규제"],
+         "Japan tightens chip-tool export rules to China",
+         "일본, 중국向 반도체 장비 수출 규제 강화",
+         "일본이 미국과 보조를 맞춰 첨단 반도체 제조장비의 대중국 수출 통제 품목을 추가로 확대했다."),
+        ("WSJ", 5, 12.0, ["원자재"],
+         "Copper hits record on supply fears and AI demand",
+         "구리, 공급 차질·AI 수요에 사상 최고가",
+         "주요 광산 차질과 전력·AI 인프라 수요가 맞물리며 구리 선물 가격이 사상 최고 수준으로 올랐다."),
+        ("Bloomberg", 5, 14.0, ["실적·가이던스"],
+         "Micron beats on memory demand, guides higher",
+         "마이크론, 메모리 호황에 실적·가이던스 동반 상회",
+         "마이크론이 AI용 고대역폭메모리(HBM) 수요 덕에 분기 실적이 컨센서스를 웃돌고 다음 분기 전망도 상향했다."),
+        ("Reuters", 5, 16.0, ["에너지", "원자재"],
+         "OPEC+ extends output cuts to support prices",
+         "OPEC+, 가격 방어 위해 감산 연장",
+         "OPEC+가 유가 하단을 떠받치기 위해 기존 감산 조치를 다음 분기까지 연장하기로 합의했다."),
+        ("CNBC", 4, 18.0, ["AI", "데이터센터"],
+         "Microsoft, OpenAI plan multibillion-dollar data-center buildout",
+         "MS·오픈AI, 수십억 달러 데이터센터 증설 추진",
+         "마이크로소프트와 오픈AI가 차세대 AI 모델 학습을 위해 대규모 데이터센터 증설 계획을 추진 중인 것으로 전해졌다."),
+    ]
+
+    items = []
+    for source, rel, hours, cats, en, ko, summary in raw:
+        items.append(
+            {
+                "title": en,
+                "title_ko": ko,
+                "summary_ko": summary,
+                "source": source,
+                "reliability": rel,
+                "categories": cats,
+                "link": "https://www.example.com/markets/" + en.lower().replace(" ", "-")[:60],
+                "published": (now - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M UTC"),
+                "published_ts": ts(hours),
+            }
+        )
+    return {
+        "built": now.replace(microsecond=0).isoformat() + "+00:00",
+        "count": len(items),
+        "items": items,
+        "demo": True,
+    }
+
+
 def demo_chart(ticker: str, rng: str) -> dict:
     """Deterministic synthetic OHLCV so charts render without network."""
     days = 130 if rng == "6mo" else 500

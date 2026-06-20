@@ -4,3 +4,4 @@ yfinance>=0.2.40
 finvizfinance>=0.14
 pandas>=2.0
 deep-translator>=1.11
+feedparser>=6.0
