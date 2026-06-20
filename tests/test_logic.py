@@ -74,6 +74,38 @@ def test_score_item_ignores_generic_non_investment_news():
     assert score == 0 and cats == []
 
 
+def test_score_item_covers_ai_infra_supply_chain():
+    # GPU/HBM/CPO/SOFC/gas-turbine style stories should land in "AI인프라".
+    for title in [
+        "Broadcom ramps co-packaged optics (CPO) for AI networking",
+        "SK Hynix accelerates HBM4 and DDR5 DRAM output",
+        "Bloom Energy supplies solid oxide fuel cells (SOFC) to data centers",
+        "GE Vernova gas turbine orders surge on data-center power demand",
+        "TSMC expands CoWoS advanced packaging capacity",
+    ]:
+        score, cats = news.score_item({"title": title, "summary": ""})
+        assert "AI인프라" in cats, title
+        assert score >= news.MIN_SCORE, title
+
+
+def test_dedupe_prefers_free_over_paywalled():
+    import time
+
+    now = time.time()
+    items = [
+        # Same story; paywalled WSJ is more "reliable" but free CNBC should win.
+        {"title": "Nvidia unveils new Blackwell AI accelerator for data centers",
+         "summary": "", "source": "WSJ", "reliability": 5, "paywall": True,
+         "published_ts": now},
+        {"title": "Nvidia unveils new Blackwell AI accelerator for data centers",
+         "summary": "", "source": "CNBC", "reliability": 4, "paywall": False,
+         "published_ts": now},
+    ]
+    out = news.select(items, max_items=5, now_ts=now)
+    assert len(out) == 1
+    assert out[0]["source"] == "CNBC" and out[0]["paywall"] is False
+
+
 def test_select_filters_dedupes_and_caps():
     import time
 
@@ -149,3 +181,6 @@ def test_demo_news_shape_and_count():
     for it in d["items"]:
         assert it["title_ko"] and it["link"] and it["source"]
         assert it["categories"]
+        assert isinstance(it["paywall"], bool)
+    # The digest should include AI-infra supply-chain coverage.
+    assert any("AI인프라" in it["categories"] for it in d["items"])

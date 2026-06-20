@@ -164,8 +164,26 @@ def demo_news() -> dict:
          "Microsoft, OpenAI plan multibillion-dollar data-center buildout",
          "MS·오픈AI, 수십억 달러 데이터센터 증설 추진",
          "마이크로소프트와 오픈AI가 차세대 AI 모델 학습을 위해 대규모 데이터센터 증설 계획을 추진 중인 것으로 전해졌다."),
+        # --- AI 인프라 공급망(무료 매체 위주) ---
+        ("The Register", 3, 2.5, ["AI인프라", "반도체", "데이터센터"],
+         "Broadcom, Nvidia push co-packaged optics for next-gen AI networking",
+         "브로드컴·엔비디아, 차세대 AI 네트워킹용 CPO(공동패키지 광학) 도입 가속",
+         "전력·지연을 줄이려는 CPO 채택이 빨라지며 실리콘 포토닉스·광 트랜시버 공급망이 수혜를 볼 전망이다."),
+        ("Yahoo Finance", 3, 4.5, ["AI인프라", "반도체"],
+         "SK Hynix, Samsung race to ramp HBM4 for AI accelerators",
+         "SK하이닉스·삼성, AI 가속기용 HBM4 양산 경쟁",
+         "차세대 GPU에 탑재될 HBM4 양산 시점을 놓고 메모리 3사가 경쟁하며 DRAM 업황 회복을 견인하고 있다."),
+        ("DataCenterDynamics", 3, 6.5, ["AI인프라", "전력·인프라", "데이터센터"],
+         "Bloom Energy to supply solid-oxide fuel cells for AI data center power",
+         "블룸에너지, AI 데이터센터에 SOFC 연료전지 전력 공급",
+         "전력망 접속 지연을 피하려는 데이터센터들이 SOFC 연료전지 등 온사이트 발전으로 눈을 돌리고 있다."),
+        ("CNBC", 4, 9.5, ["AI인프라", "전력·인프라"],
+         "GE Vernova orders jump as data centers scramble for gas turbines",
+         "GE버노바, 데이터센터 가스터빈 수요 급증에 수주 확대",
+         "AI 전력 수요 폭증으로 발전엔진·가스터빈 공급이 빠듯해지며 관련 설비 업체 주문이 크게 늘었다."),
     ]
 
+    paywalled = {"Bloomberg", "FT", "WSJ", "Nikkei"}
     items = []
     for source, rel, hours, cats, en, ko, summary in raw:
         items.append(
@@ -175,12 +193,15 @@ def demo_news() -> dict:
                 "summary_ko": summary,
                 "source": source,
                 "reliability": rel,
+                "paywall": source in paywalled,
                 "categories": cats,
                 "link": "https://www.example.com/markets/" + en.lower().replace(" ", "-")[:60],
                 "published": (now - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M UTC"),
                 "published_ts": ts(hours),
             }
         )
+    # Newest-first, like the live digest.
+    items.sort(key=lambda x: x["published_ts"], reverse=True)
     return {
         "built": now.replace(microsecond=0).isoformat() + "+00:00",
         "count": len(items),

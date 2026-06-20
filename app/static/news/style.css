@@ -65,6 +65,11 @@ body {
 .source[data-src="CNBC"]     { background: #1e1040; color: #ddd6fe; border-color: #5b21b6; }
 .source[data-src="Nikkei"]   { background: #102a1e; color: #bbf7d0; border-color: #166534; }
 .time { color: var(--muted); font-size: 12px; }
+.paywall {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  background: #3a2a0a; color: #fcd34d; border: 1px solid #854d0e;
+}
+.news-item.is-paywall { opacity: .82; }
 
 .cats { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
 .cat {

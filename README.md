@@ -112,11 +112,19 @@ Reuters·Bloomberg·FT·WSJ·CNBC·Nikkei의 RSS를 모아 **투자자가 알면
   AI·반도체·데이터센터·전력 인프라·에너지·미중 갈등·관세·수출규제·미국 금리·원자재·
   주요 기업 실적/가이던스 관련 뉴스를 가중치로 점수화해 상위만 노출하고, 투자 관련성이
   낮은 단순 정치/사회 뉴스는 제외합니다(`app/news.py`의 `CATEGORIES`).
-- **중복 제거**: 같은 이슈가 여러 매체에 있으면 제목 유사도로 묶어 **가장 신뢰도 높은
+- **AI 인프라 공급망**: `AI인프라` 카테고리로 GPU·HBM/DRAM·DDR5·NAND, CPO(공동패키지
+  광학)·실리콘 포토닉스·광 트랜시버·InfiniBand, CoWoS·어드밴스드 패키징, 액침/수랭 냉각,
+  SOFC·연료전지·가스터빈·발전엔진·변압기/배전 등 깊은 공급망 키워드를 함께 잡습니다.
+- **무료 매체 우선**: 매체별로 유료(paywall) 여부를 표시하고, 피드 우선순위·중복 제거·
+  일일 컷에서 **무료로 읽을 수 있는 매체**(Reuters·CNBC·Yahoo Finance·
+  DataCenterDynamics·The Register 등)를 우대합니다. 유료 매체(Bloomberg·FT·WSJ·Nikkei)는
+  커버리지를 위해 남기되 후순위로 두고 화면에 `🔒 유료` 배지를 붙입니다.
+- **중복 제거**: 같은 이슈가 여러 매체에 있으면 제목 유사도로 묶어 **무료 + 신뢰도 높은
   매체 1건**만 남깁니다.
 - **출력**: 하루 10~20건, 각 뉴스 한국어 1~2줄 요약 + **원문 링크** + 출처 + 보도 시각.
 - 동작 파라미터는 환경변수로 조정: `SUH_DH_NEWS_MAX`(기본 18), `SUH_DH_NEWS_MAX_AGE`
-  (시간, 기본 36), `SUH_DH_NEWS_MIN_SCORE`(기본 2), `SUH_DH_NEWS_TTL`(초, 기본 1800).
+  (시간, 기본 36), `SUH_DH_NEWS_MIN_SCORE`(기본 2), `SUH_DH_NEWS_FREE_BONUS`(기본 1),
+  `SUH_DH_NEWS_TTL`(초, 기본 1800).
 
 새 프로그램을 추가하려면: `static/<프로그램>/` 폴더를 만들고,
 `static/index.html` 의 `APPS` 배열에 카드 한 줄(`name/emoji/desc/href`)만 추가하면
@@ -134,8 +142,9 @@ API 예시:
 ## 네트워크 접근 안내 (중요)
 
 이 대시보드는 `finviz.com`, `query1/query2.finance.yahoo.com`,
-그리고 글로벌 뉴스 RSS 호스트(`feeds.bloomberg.com`, `feeds.a.dj.com`,
-`www.cnbc.com`, `www.ft.com`, `asia.nikkei.com`, `www.reutersagency.com`)로
+그리고 글로벌 뉴스 RSS 호스트(`www.reutersagency.com`, `www.cnbc.com`,
+`finance.yahoo.com`, `www.datacenterdynamics.com`, `www.theregister.com`,
+`asia.nikkei.com`, `feeds.bloomberg.com`, `feeds.a.dj.com`, `www.ft.com`)로
 아웃바운드 요청을 보냅니다. 로컬 PC에서는 보통 문제없이 동작하지만,
 **Claude Code on the web 같은 egress allowlist가 적용된 샌드박스에서는 차단**됩니다.
 그런 환경에서 라이브로 쓰려면 해당 호스트를 네트워크 허용 목록에 추가하거나,

@@ -61,9 +61,12 @@ function newsCard(item) {
     .map((c) => `<span class="cat">${esc(c)}</span>`).join("");
   const title = item.title_ko || item.title || "";
   const showOrig = item.title && item.title_ko && item.title !== item.title_ko;
-  return `<article class="news-item">
+  const paywall = item.paywall
+    ? `<span class="paywall" title="원문이 유료 구독 매체입니다">🔒 유료</span>` : "";
+  return `<article class="news-item${item.paywall ? " is-paywall" : ""}">
     <div class="news-meta">
       <span class="source" data-src="${esc(item.source)}">${esc(item.source)}</span>
+      ${paywall}
       <span class="time">${esc(fmtTime(item))}</span>
       <span class="cats">${cats}</span>
     </div>

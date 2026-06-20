@@ -30,23 +30,36 @@ MIN_SCORE = int(os.environ.get("SUH_DH_NEWS_MIN_SCORE", "2"))
 
 _AGENT = "Mozilla/5.0 (compatible; SUH-DH-NewsBot/1.0; +https://github.com/uiheesin-ship-it/SUH_DH)"
 
-# (source, reliability, feed URL). Reliability breaks ties when the same story
-# shows up in several outlets — the most authoritative source wins.
-FEEDS: list[tuple[str, int, str]] = [
-    ("Reuters", 5, "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best"),
-    ("Reuters", 5, "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best"),
-    ("Bloomberg", 5, "https://feeds.bloomberg.com/markets/news.rss"),
-    ("Bloomberg", 5, "https://feeds.bloomberg.com/economics/news.rss"),
-    ("Bloomberg", 5, "https://feeds.bloomberg.com/technology/news.rss"),
-    ("FT", 5, "https://www.ft.com/rss/home"),
-    ("WSJ", 5, "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"),
-    ("WSJ", 5, "https://feeds.a.dj.com/rss/RSSWorldNews.xml"),
-    ("WSJ", 5, "https://feeds.a.dj.com/rss/RSSWSJD.xml"),
-    ("CNBC", 4, "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
-    ("CNBC", 4, "https://www.cnbc.com/id/20910258/device/rss/rss.html"),
-    ("CNBC", 4, "https://www.cnbc.com/id/19854910/device/rss/rss.html"),
-    ("Nikkei", 4, "https://asia.nikkei.com/rss/feed/nar"),
+# (source, reliability, paywall, feed URL). Reliability breaks ties when the
+# same story shows up in several outlets. `paywall` flags outlets whose article
+# pages mostly sit behind a subscription — we keep them for coverage but prefer
+# free-to-read sources (see select()). Free sources are listed first.
+FEEDS: list[tuple[str, int, bool, str]] = [
+    # --- free to read ---
+    ("Reuters", 5, False, "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best"),
+    ("Reuters", 5, False, "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best"),
+    ("CNBC", 4, False, "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
+    ("CNBC", 4, False, "https://www.cnbc.com/id/20910258/device/rss/rss.html"),
+    ("CNBC", 4, False, "https://www.cnbc.com/id/19854910/device/rss/rss.html"),
+    ("Yahoo Finance", 3, False, "https://finance.yahoo.com/news/rssindex"),
+    # AI-infrastructure supply-chain specialists (free): data centers, power,
+    # cooling, optics, chips — exactly the deep supply chain to track.
+    ("DataCenterDynamics", 3, False, "https://www.datacenterdynamics.com/rss/"),
+    ("The Register", 3, False, "https://www.theregister.com/data_centre/headlines.atom"),
+    # --- paywalled (kept for coverage, de-prioritized vs. free) ---
+    ("Nikkei", 4, True, "https://asia.nikkei.com/rss/feed/nar"),
+    ("Bloomberg", 5, True, "https://feeds.bloomberg.com/markets/news.rss"),
+    ("Bloomberg", 5, True, "https://feeds.bloomberg.com/economics/news.rss"),
+    ("Bloomberg", 5, True, "https://feeds.bloomberg.com/technology/news.rss"),
+    ("FT", 5, True, "https://www.ft.com/rss/home"),
+    ("WSJ", 5, True, "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"),
+    ("WSJ", 5, True, "https://feeds.a.dj.com/rss/RSSWorldNews.xml"),
+    ("WSJ", 5, True, "https://feeds.a.dj.com/rss/RSSWSJD.xml"),
 ]
+
+# A free article, all else equal, is nudged above an equally-relevant paywalled
+# one in the daily cut (and always wins on de-duplication).
+FREE_BONUS = int(os.environ.get("SUH_DH_NEWS_FREE_BONUS", "1"))
 
 # Korean category label -> (weight, keyword list). A higher weight means the
 # topic is more decision-relevant for an investor. Keywords are matched
@@ -57,8 +70,28 @@ CATEGORIES: dict[str, tuple[int, list[str]]] = {
     "반도체": (3, ["semiconductor", "semiconductors", "chip", "chips", "chipmaker",
                 "tsmc", "foundry", "asml", "wafer", "nvidia", "micron", "samsung electronics",
                 "sk hynix", "memory chip", "hbm"]),
+    # AI build-out supply chain: compute, memory, optics/interconnect, advanced
+    # packaging, cooling, and the power gear that feeds data centers.
+    "AI인프라": (3, [
+        # accelerators / compute
+        "gpu", "graphics card", "accelerator", "blackwell", "hopper", "h100",
+        "h200", "b200", "gb200", "mi300", "instinct", "tpu", "asic",
+        # memory
+        "dram", "hbm3", "hbm4", "ddr5", "nand", "high bandwidth memory",
+        # optics / interconnect (CPO etc.)
+        "co-packaged optics", "cpo", "silicon photonics", "optical transceiver",
+        "optical interconnect", "infiniband", "nvlink", "800g", "1.6t",
+        # advanced packaging / substrate
+        "cowos", "advanced packaging", "interposer", "abf substrate", "chiplet",
+        # data-center thermal
+        "liquid cooling", "immersion cooling",
+        # power for AI (SOFC / fuel cells / turbines / gensets / grid gear)
+        "sofc", "solid oxide", "fuel cell", "bloom energy", "gas turbine",
+        "ge vernova", "power generation", "genset", "switchgear", "transformer",
+        "substation", "backup power",
+    ]),
     "데이터센터": (3, ["data center", "data centre", "data centers", "hyperscaler",
-                  "cloud capacity", "server demand"]),
+                  "cloud capacity", "server demand", "colocation"]),
     "전력·인프라": (2, ["power grid", "electricity", "nuclear power", "utility", "utilities",
                    "power demand", "transmission line", "smr", "power plant"]),
     "에너지": (2, ["oil", "crude", "opec", "natural gas", "lng", "energy", "barrel", "refinery"]),
@@ -121,7 +154,7 @@ def _to_ts(entry) -> float | None:
         return None
 
 
-def _parse_feed(source: str, reliability: int, url: str) -> list[dict]:
+def _parse_feed(source: str, reliability: int, paywall: bool, url: str) -> list[dict]:
     import feedparser
 
     parsed = feedparser.parse(url, agent=_AGENT)
@@ -139,6 +172,7 @@ def _parse_feed(source: str, reliability: int, url: str) -> list[dict]:
                 "link": link,
                 "source": source,
                 "reliability": reliability,
+                "paywall": paywall,
                 "published_ts": _to_ts(e),
             }
         )
@@ -147,9 +181,9 @@ def _parse_feed(source: str, reliability: int, url: str) -> list[dict]:
 
 def _fetch_live() -> list[dict]:
     items: list[dict] = []
-    for source, reliability, url in FEEDS:
+    for source, reliability, paywall, url in FEEDS:
         try:
-            items.extend(_parse_feed(source, reliability, url))
+            items.extend(_parse_feed(source, reliability, paywall, url))
         except Exception:
             # A single dead/blocked feed must not break the whole digest.
             continue
@@ -211,12 +245,17 @@ def select(items: list[dict], max_items: int = MAX_ITEMS, now_ts: float | None =
         enriched = dict(it)
         enriched["score"] = score
         enriched["categories"] = labels
+        enriched.setdefault("paywall", False)
         enriched["_tokens"] = _tokens(it.get("title", ""))
         scored.append(enriched)
 
-    # Most authoritative & relevant first, so de-dup keeps the best version.
+    # De-dup keeps the *first* version of a story, so order by what we'd rather
+    # keep: free over paywalled, then most authoritative, relevant, recent.
+    def _free(x: dict) -> int:
+        return 0 if x.get("paywall") else 1
+
     scored.sort(
-        key=lambda x: (x["reliability"], x["score"], x.get("published_ts") or 0),
+        key=lambda x: (_free(x), x["reliability"], x["score"], x.get("published_ts") or 0),
         reverse=True,
     )
     kept: list[dict] = []
@@ -225,8 +264,13 @@ def select(items: list[dict], max_items: int = MAX_ITEMS, now_ts: float | None =
             continue
         kept.append(it)
 
-    # Pick the top N by relevance, then present newest-first.
-    kept.sort(key=lambda x: (x["score"], x.get("published_ts") or 0), reverse=True)
+    # Pick the top N by relevance — a free article gets a small bonus so it
+    # outranks an equally-relevant paywalled one — then present newest-first.
+    kept.sort(
+        key=lambda x: (x["score"] + (FREE_BONUS if not x.get("paywall") else 0),
+                       x.get("published_ts") or 0),
+        reverse=True,
+    )
     chosen = kept[:max_items]
     chosen.sort(key=lambda x: x.get("published_ts") or 0, reverse=True)
     for it in chosen:
@@ -256,6 +300,7 @@ def _localize(items: list[dict]) -> list[dict]:
                 "summary_ko": translate.summary_korean(it.get("summary")) or "",
                 "source": it["source"],
                 "reliability": it["reliability"],
+                "paywall": bool(it.get("paywall")),
                 "categories": it["categories"],
                 "link": it["link"],
                 "published": _fmt_published(it.get("published_ts")),
