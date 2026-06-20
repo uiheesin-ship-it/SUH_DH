@@ -18,12 +18,9 @@ function fmtCap(v) {
 }
 function fmtPct(v) {
   if (v == null) return "-";
-  const sign = v > 0 ? "+" : "";
-  return sign + v.toFixed(2) + "%";
+  return (v > 0 ? "+" : "") + v.toFixed(2) + "%";
 }
-function fmtPrice(v) {
-  return v == null ? "-" : "$" + v.toFixed(2);
-}
+function fmtPrice(v) { return v == null ? "-" : "$" + v.toFixed(2); }
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -70,15 +67,20 @@ function stockRow(s) {
     <td class="num ${cls}">${fmtPct(s.change_pct)}</td>
     <td class="num">${fmtPrice(s.price)}</td>
     <td class="num">${fmtCap(s.market_cap)}</td>
+    <td class="desc" data-desc="${esc(s.ticker)}"><span class="pending">설명 불러오는 중…</span></td>
     <td class="reason" data-reason="${esc(s.ticker)}"><span class="pending">상승 이유 불러오는 중…</span></td>
   </tr>`;
 }
 
 function stockTable(stocks) {
   return `<table>
+    <colgroup>
+      <col class="c-ticker"><col class="c-chg"><col class="c-price">
+      <col class="c-cap"><col class="c-desc"><col class="c-reason">
+    </colgroup>
     <thead><tr>
       <th>티커</th><th class="num">전일대비</th><th class="num">가격</th>
-      <th class="num">시총</th><th>상승 이유 (뉴스 · 실적)</th>
+      <th class="num">시총</th><th>사업 개요</th><th>상승 이유 (뉴스 · 실적)</th>
     </tr></thead>
     <tbody>${stocks.map(stockRow).join("")}</tbody>
   </table>`;
@@ -110,8 +112,7 @@ function render(data) {
   loadReasons(data.sectors);
 }
 
-// ---------- reasons ----------
-// Static builds embed the reason in each stock; live mode fetches lazily.
+// ---------- reasons + descriptions (static: embedded, live: lazy) ----------
 let reasonQueue = [];
 const REASON_CONCURRENCY = 3;
 const reasonSeen = new Set();
@@ -147,16 +148,24 @@ async function pumpReasons() {
 }
 
 function fillReason(ticker, data) {
+  // description column
+  document.querySelectorAll(`[data-desc="${CSS.escape(ticker)}"]`).forEach((cell) => {
+    cell.innerHTML = data.description
+      ? esc(data.description)
+      : `<span class="src">설명 없음</span>`;
+  });
+  // reason column (Korean headline, link preserved)
   document.querySelectorAll(`[data-reason="${CSS.escape(ticker)}"]`).forEach((cell) => {
     let html = "";
     if (data.earnings_recent) {
-      html += `<span class="badge earnings">실적발표 ${esc(data.earnings_date || "")}</span> `;
+      html += `<span class="badge earnings">실적발표 ${esc(data.earnings_date || "")}</span>`;
     }
     if (data.news && data.news.length) {
       const n = data.news[0];
+      const title = n.title_ko || n.title;
       const link = n.link
-        ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>`
-        : esc(n.title);
+        ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(title)}</a>`
+        : esc(title);
       html += `${link} <span class="src">— ${esc(n.publisher || "")} ${esc(n.published || "")}</span>`;
     } else if (!data.earnings_recent) {
       html += `<span class="src">관련 뉴스 없음 (섹터 강세로 추정)</span>`;
@@ -165,26 +174,18 @@ function fillReason(ticker, data) {
   });
 }
 
-// ---------- chart modal ----------
+// ---------- chart panel (slide-in, resizable) ----------
 let currentTicker = null;
-let currentRange = "max";
+let chartData = null;
+let suppressRelayout = false;
 
-function sliceChart(d, n) {
-  if (!d.dates || d.dates.length <= n) return d;
-  const keys = ["dates", "open", "high", "low", "close", "volume", "ma5", "ma20", "ma50", "ma120"];
-  const out = { ...d };
-  keys.forEach((k) => { if (Array.isArray(d[k])) out[k] = d[k].slice(-n); });
-  return out;
-}
-
-async function fetchChart(ticker, range) {
+async function fetchChart(ticker) {
   if (STATIC) {
     const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
-    if (!res.ok) throw new Error("no static chart");
-    const full = await res.json();
-    return range === "6mo" ? sliceChart(full, 126) : full;
+    if (!res.ok) throw new Error("저장된 차트가 없습니다");
+    return res.json();
   }
-  const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=${range}`);
+  const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=max`);
   const d = await res.json();
   if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
   return d;
@@ -192,30 +193,38 @@ async function fetchChart(ticker, range) {
 
 function openChart(ticker, company) {
   currentTicker = ticker;
-  currentRange = "max";
   $("#chart-ticker").textContent = ticker;
   $("#chart-company").textContent = company || "";
   $("#chart-external").href = `https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}`;
-  document.querySelectorAll(".range-toggle button").forEach((b) =>
-    b.classList.toggle("active", b.dataset.range === "max"));
-  $("#chart-modal").classList.remove("hidden");
+
+  $("#chart-pane").classList.remove("hidden");
+  $("#divider").classList.remove("hidden");
+  $("#list-pane").classList.add("chart-open");
+  document.querySelectorAll("tr.active").forEach((r) => r.classList.remove("active"));
+  document.querySelectorAll(`tr[data-ticker="${CSS.escape(ticker)}"]`).forEach((r) => r.classList.add("active"));
+
   drawChart();
 }
 
 function closeChart() {
-  $("#chart-modal").classList.add("hidden");
+  $("#chart-pane").classList.add("hidden");
+  $("#divider").classList.add("hidden");
+  $("#list-pane").classList.remove("chart-open");
+  document.querySelectorAll("tr.active").forEach((r) => r.classList.remove("active"));
   Plotly.purge("chart-area");
+  chartData = null;
 }
 
 async function drawChart() {
   const area = $("#chart-area");
   area.innerHTML = `<div class="loading">차트 로딩 중…</div>`;
   try {
-    const d = await fetchChart(currentTicker, currentRange);
+    const d = await fetchChart(currentTicker);
     if (!d.dates || !d.dates.length) {
       area.innerHTML = `<div class="error">차트 데이터가 없습니다. 위의 Yahoo 링크로 확인해 주세요.</div>`;
       return;
     }
+    chartData = d;
     area.innerHTML = "";
     plotChart(area, d);
   } catch (e) {
@@ -224,10 +233,8 @@ async function drawChart() {
 }
 
 function maTrace(x, y, name, color) {
-  return {
-    x, y, name, type: "scatter", mode: "lines",
-    line: { color, width: 1.3 }, connectgaps: false, xaxis: "x", yaxis: "y",
-  };
+  return { x, y, name, type: "scatter", mode: "lines",
+    line: { color, width: 1.3 }, connectgaps: false, xaxis: "x", yaxis: "y" };
 }
 
 function plotChart(area, d) {
@@ -241,10 +248,9 @@ function plotChart(area, d) {
   };
   const volColors = d.close.map((c, i) =>
     i > 0 && c < d.close[i - 1] ? "rgba(239,68,68,.5)" : "rgba(34,197,94,.5)");
-  const volume = {
-    x, y: d.volume, type: "bar", name: "거래량",
-    marker: { color: volColors }, xaxis: "x", yaxis: "y2",
-  };
+  const volume = { x, y: d.volume, type: "bar", name: "거래량",
+    marker: { color: volColors }, xaxis: "x", yaxis: "y2" };
+
   const traces = [
     volume, candles,
     maTrace(x, d.ma5, "MA5", "#f59e0b"),
@@ -255,27 +261,81 @@ function plotChart(area, d) {
   const layout = {
     paper_bgcolor: "#1e293b", plot_bgcolor: "#1e293b",
     font: { color: "#e2e8f0", size: 11 },
-    showlegend: false, margin: { l: 55, r: 20, t: 10, b: 30 }, height: 520,
-    dragmode: "pan",
-    xaxis: { rangeslider: { visible: false }, gridcolor: "#334155", domain: [0, 1], anchor: "y" },
-    yaxis: { domain: [0.26, 1], gridcolor: "#334155", title: "가격", side: "right" },
-    yaxis2: { domain: [0, 0.2], gridcolor: "#334155", title: "거래량", side: "right" },
+    showlegend: false, margin: { l: 55, r: 18, t: 8, b: 28 },
+    dragmode: "zoom",
+    // category axis: only trading days, so no weekend/holiday gaps in candles
+    xaxis: { type: "category", gridcolor: "#334155", domain: [0, 1], anchor: "y",
+             nticks: 8, rangeslider: { visible: false } },
+    yaxis: { domain: [0.24, 1], gridcolor: "#334155", title: "가격", side: "right", autorange: true },
+    yaxis2: { domain: [0, 0.18], gridcolor: "#334155", title: "거래량", side: "right", autorange: true },
   };
-  Plotly.newPlot(area, traces, layout, { responsive: true, scrollZoom: true, displaylogo: false });
+  Plotly.newPlot("chart-area", traces, layout,
+    { responsive: true, scrollZoom: true, displaylogo: false,
+      modeBarButtonsToRemove: ["select2d", "lasso2d"] });
+  // Rescale the price/volume axes to whatever slice of time is visible.
+  document.getElementById("chart-area").on("plotly_relayout", (ev) => rescaleY(ev));
 }
+
+function rescaleY(ev) {
+  if (suppressRelayout || !chartData) return;
+  const n = chartData.dates.length;
+  let lo, hi;
+  if (ev["xaxis.autorange"] || ev["autosize"]) {
+    lo = 0; hi = n - 1;
+  } else if (ev["xaxis.range[0]"] !== undefined) {
+    lo = Math.floor(ev["xaxis.range[0]"]);
+    hi = Math.ceil(ev["xaxis.range[1]"]);
+  } else if (Array.isArray(ev["xaxis.range"])) {
+    lo = Math.floor(ev["xaxis.range"][0]);
+    hi = Math.ceil(ev["xaxis.range"][1]);
+  } else {
+    return;
+  }
+  lo = Math.max(0, lo); hi = Math.min(n - 1, hi);
+  if (hi <= lo) return;
+
+  let pmin = Infinity, pmax = -Infinity, vmax = 0;
+  for (let i = lo; i <= hi; i++) {
+    if (chartData.low[i] < pmin) pmin = chartData.low[i];
+    if (chartData.high[i] > pmax) pmax = chartData.high[i];
+    if (chartData.volume[i] > vmax) vmax = chartData.volume[i];
+  }
+  if (!isFinite(pmin) || !isFinite(pmax)) return;
+  const pad = (pmax - pmin) * 0.06 || 1;
+  suppressRelayout = true;
+  Plotly.relayout("chart-area", {
+    "yaxis.range": [pmin - pad, pmax + pad],
+    "yaxis2.range": [0, vmax * 1.15],
+  }).then(() => { suppressRelayout = false; });
+}
+
+// ---------- divider drag (resize left/right) ----------
+(function setupDivider() {
+  const divider = $("#divider");
+  const pane = $("#chart-pane");
+  let dragging = false;
+  divider.addEventListener("mousedown", (e) => {
+    dragging = true; divider.classList.add("dragging");
+    document.body.style.userSelect = "none"; e.preventDefault();
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const w = Math.min(Math.max(window.innerWidth - e.clientX, 300), window.innerWidth - 200);
+    pane.style.width = w + "px";
+  });
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false; divider.classList.remove("dragging");
+    document.body.style.userSelect = "";
+    if (chartData) Plotly.Plots.resize("chart-area");
+  });
+})();
 
 // ---------- events ----------
 $("#refresh-btn").addEventListener("click", loadDashboard);
 $("#chart-close").addEventListener("click", closeChart);
-$("#chart-modal").addEventListener("click", (e) => { if (e.target.id === "chart-modal") closeChart(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
-document.querySelectorAll(".range-toggle button").forEach((b) =>
-  b.addEventListener("click", () => {
-    currentRange = b.dataset.range;
-    document.querySelectorAll(".range-toggle button").forEach((x) =>
-      x.classList.toggle("active", x === b));
-    drawChart();
-  }));
+window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
 
 // ---------- auto refresh (live mode only) ----------
 let timer = null;
@@ -289,7 +349,6 @@ $("#auto-interval").addEventListener("change", scheduleAuto);
 
 window.openChart = openChart;
 
-// In static mode the data only changes once a day, so hide live auto-refresh.
 if (STATIC) {
   const auto = document.querySelector(".auto");
   if (auto) auto.classList.add("hidden");

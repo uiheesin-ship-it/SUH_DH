@@ -52,18 +52,33 @@ def demo_new_highs() -> list[dict]:
 
 
 def demo_reason(ticker: str) -> dict:
+    # (English title, Korean title, publisher)
     headlines = {
-        "NVDA": [("NVIDIA tops earnings estimates as data-center demand surges", "Reuters")],
-        "MU": [("Micron guides above consensus on AI memory boom", "Bloomberg")],
-        "LLY": [("Eli Lilly weight-loss drug shows strong trial data", "CNBC")],
-        "FCX": [("Copper prices hit record as supply tightens", "MarketWatch")],
+        "NVDA": [("NVIDIA tops earnings estimates as data-center demand surges",
+                  "엔비디아, 데이터센터 수요 급증으로 실적 추정치 상회", "Reuters")],
+        "MU": [("Micron guides above consensus on AI memory boom",
+                "마이크론, AI 메모리 호황에 가이던스 컨센서스 상회", "Bloomberg")],
+        "LLY": [("Eli Lilly weight-loss drug shows strong trial data",
+                 "일라이릴리 비만 치료제, 임상서 강력한 데이터 확인", "CNBC")],
+        "FCX": [("Copper prices hit record as supply tightens",
+                 "공급 위축에 구리 가격 사상 최고치", "MarketWatch")],
     }
     items = headlines.get(
-        ticker, [(f"{ticker} hits fresh 52-week high amid sector strength", "Yahoo Finance")]
+        ticker,
+        [(f"{ticker} hits fresh 52-week high amid sector strength",
+          f"{ticker}, 섹터 강세 속 52주 신고가 경신", "Yahoo Finance")],
     )
+    descriptions = {
+        "NVDA": "AI·데이터센터용 GPU와 가속 컴퓨팅 플랫폼을 설계하는 반도체 기업.",
+        "MU": "D램·낸드 등 메모리 반도체를 생산하는 글로벌 메모리 제조사.",
+        "TSM": "세계 최대 반도체 위탁생산(파운드리) 업체.",
+        "LLY": "당뇨·비만·항암 등 의약품을 개발·판매하는 글로벌 제약사.",
+        "FCX": "구리·금 등을 채굴하는 광산·원자재 기업.",
+    }
     now = datetime.utcnow()
     return {
         "ticker": ticker,
+        "description": descriptions.get(ticker, f"{ticker}의 사업 개요(데모 데이터)."),
         "earnings_recent": ticker in {"NVDA", "MU"},
         "earnings_date": (now - timedelta(days=1)).strftime("%Y-%m-%d")
         if ticker in {"NVDA", "MU"}
@@ -71,11 +86,12 @@ def demo_reason(ticker: str) -> dict:
         "news": [
             {
                 "title": title,
+                "title_ko": title_ko,
                 "publisher": pub,
                 "link": f"https://finance.yahoo.com/quote/{ticker}",
                 "published": (now - timedelta(hours=i * 3)).strftime("%Y-%m-%d %H:%M"),
             }
-            for i, (title, pub) in enumerate(items)
+            for i, (title, title_ko, pub) in enumerate(items)
         ],
     }
 

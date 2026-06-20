@@ -103,6 +103,19 @@ def _news_items(raw_news: list) -> list[dict]:
     return items
 
 
+def _business_summary(tk) -> str | None:
+    try:
+        info = tk.get_info()
+    except Exception:
+        try:
+            info = tk.info
+        except Exception:
+            return None
+    if not isinstance(info, dict):
+        return None
+    return info.get("longBusinessSummary")
+
+
 def _earnings_recent(tk) -> tuple[bool, str | None]:
     """True if the company reported earnings within the last ~5 days."""
     try:
@@ -132,15 +145,22 @@ def _earnings_recent(tk) -> tuple[bool, str | None]:
 def _fetch_reason_live(ticker: str) -> dict:
     import yfinance as yf
 
+    from . import translate
+
     tk = yf.Ticker(ticker)
     try:
         raw = tk.news
     except Exception:
         raw = []
+    news = _news_items(raw)
+    # Translate the headline we actually display (first item) to Korean.
+    if news:
+        news[0]["title_ko"] = translate.to_korean(news[0]["title"])
     earnings_recent, earnings_date = _earnings_recent(tk)
     return {
         "ticker": ticker,
-        "news": _news_items(raw),
+        "description": translate.summary_korean(_business_summary(tk)),
+        "news": news,
         "earnings_recent": earnings_recent,
         "earnings_date": earnings_date,
     }

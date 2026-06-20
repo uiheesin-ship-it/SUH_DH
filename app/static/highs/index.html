@@ -30,43 +30,43 @@
     </div>
   </header>
 
-  <main id="content">
-    <div class="loading">데이터를 불러오는 중입니다…</div>
-  </main>
+  <div id="split">
+    <!-- Left: the stock list -->
+    <div id="list-pane">
+      <main id="content">
+        <div class="loading">데이터를 불러오는 중입니다…</div>
+      </main>
+      <footer class="footer">
+        데이터 출처: Finviz (신고가 스크리닝) · Yahoo Finance (차트/뉴스). 무료 소스는 약 15분 지연될 수 있습니다.
+      </footer>
+    </div>
 
-  <!-- Chart modal -->
-  <div id="chart-modal" class="modal hidden">
-    <div class="modal-box">
-      <div class="modal-head">
-        <div>
+    <!-- Draggable divider -->
+    <div id="divider" class="hidden" title="좌우로 끌어 너비 조절"></div>
+
+    <!-- Right: the chart, slides in -->
+    <aside id="chart-pane" class="hidden">
+      <div class="chart-head">
+        <div class="chart-title">
           <span id="chart-ticker" class="chart-ticker"></span>
           <span id="chart-company" class="chart-company"></span>
         </div>
-        <div class="modal-actions">
-          <div class="range-toggle">
-            <button data-range="max" class="active">전체기간</button>
-            <button data-range="6mo">6개월</button>
-          </div>
+        <div class="chart-actions">
           <a id="chart-external" href="#" target="_blank" rel="noopener" class="ext-link">Yahoo ↗</a>
-          <button id="chart-close" class="close">✕</button>
+          <button id="chart-close" class="close" title="닫기">✕</button>
         </div>
       </div>
-      <div id="chart-area" class="chart-area">
-        <div class="loading">차트 로딩 중…</div>
-      </div>
+      <div id="chart-area" class="chart-area"></div>
       <div class="legend">
         <span class="lg vol">거래량</span>
         <span class="lg ma5">MA5</span>
         <span class="lg ma20">MA20</span>
         <span class="lg ma50">MA50</span>
         <span class="lg ma120">MA120</span>
+        <span class="hint">· 드래그로 확대 / 빈 곳 더블클릭 시 원래대로</span>
       </div>
-    </div>
+    </aside>
   </div>
-
-  <footer class="footer">
-    데이터 출처: Finviz (신고가 스크리닝) · Yahoo Finance (차트/뉴스). 무료 소스는 약 15분 지연될 수 있습니다.
-  </footer>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
