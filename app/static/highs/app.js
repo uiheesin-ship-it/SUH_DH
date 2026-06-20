@@ -2,6 +2,12 @@
 
 const $ = (sel) => document.querySelector(sel);
 
+// Two run modes (see config.js):
+//   STATIC=false -> live FastAPI backend (/api/*), used when running locally
+//   STATIC=true  -> pre-built daily JSON in ../data/*, used on GitHub Pages
+const STATIC = !!window.SUH_DH_STATIC;
+const BUILT = window.SUH_DH_BUILT || null;
+
 // ---------- formatting ----------
 function fmtCap(v) {
   if (v == null) return "-";
@@ -27,19 +33,24 @@ function esc(s) {
 async function loadDashboard() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const res = await fetch("/api/highs");
+    const url = STATIC ? "../data/highs.json" : "/api/highs";
+    const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);
       return;
     }
     render(data);
-    const now = new Date();
-    $("#status").textContent =
-      `${data.count}개 종목 · 업데이트 ${now.toLocaleTimeString("ko-KR")}`;
     $("#demo-badge").classList.toggle("hidden", !data.demo);
+    if (STATIC) {
+      const when = BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근";
+      $("#status").textContent = `${data.count}개 종목 · 마지막 갱신 ${when} · 매일 자동 갱신`;
+    } else {
+      $("#status").textContent =
+        `${data.count}개 종목 · 업데이트 ${new Date().toLocaleTimeString("ko-KR")}`;
+    }
   } catch (e) {
-    renderError("네트워크 오류", e.message);
+    renderError("데이터를 불러오지 못했습니다", e.message);
   }
 }
 
@@ -96,42 +107,43 @@ function render(data) {
     </section>`;
   }).join("");
   $("#content").innerHTML = html;
-  queueReasons(data.sectors);
+  loadReasons(data.sectors);
 }
 
-// ---------- reasons (lazy, throttled) ----------
+// ---------- reasons ----------
+// Static builds embed the reason in each stock; live mode fetches lazily.
 let reasonQueue = [];
-let reasonActive = 0;
 const REASON_CONCURRENCY = 3;
 const reasonSeen = new Set();
 
-function queueReasons(sectors) {
+function loadReasons(sectors) {
   reasonQueue = [];
   reasonSeen.clear();
-  const push = (s) => {
-    if (!reasonSeen.has(s.ticker)) { reasonSeen.add(s.ticker); reasonQueue.push(s.ticker); }
+  const handle = (s) => {
+    if (s.reason) {
+      fillReason(s.ticker, s.reason);
+    } else if (!reasonSeen.has(s.ticker)) {
+      reasonSeen.add(s.ticker);
+      reasonQueue.push(s.ticker);
+    }
   };
   sectors.forEach((sec) => {
-    sec.industries.forEach((ind) => ind.stocks.forEach(push));
-    sec.stocks.forEach(push);
+    sec.industries.forEach((ind) => ind.stocks.forEach(handle));
+    sec.stocks.forEach(handle);
   });
   for (let i = 0; i < REASON_CONCURRENCY; i++) pumpReasons();
 }
 
 async function pumpReasons() {
   if (!reasonQueue.length) return;
-  reasonActive++;
   const ticker = reasonQueue.shift();
   try {
     const res = await fetch(`/api/reason/${encodeURIComponent(ticker)}`);
-    const data = await res.json();
-    fillReason(ticker, data);
+    fillReason(ticker, await res.json());
   } catch (_) {
     fillReason(ticker, { news: [] });
-  } finally {
-    reasonActive--;
-    pumpReasons();
   }
+  pumpReasons();
 }
 
 function fillReason(ticker, data) {
@@ -157,6 +169,27 @@ function fillReason(ticker, data) {
 let currentTicker = null;
 let currentRange = "max";
 
+function sliceChart(d, n) {
+  if (!d.dates || d.dates.length <= n) return d;
+  const keys = ["dates", "open", "high", "low", "close", "volume", "ma5", "ma20", "ma50", "ma120"];
+  const out = { ...d };
+  keys.forEach((k) => { if (Array.isArray(d[k])) out[k] = d[k].slice(-n); });
+  return out;
+}
+
+async function fetchChart(ticker, range) {
+  if (STATIC) {
+    const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
+    if (!res.ok) throw new Error("no static chart");
+    const full = await res.json();
+    return range === "6mo" ? sliceChart(full, 126) : full;
+  }
+  const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=${range}`);
+  const d = await res.json();
+  if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
+  return d;
+}
+
 function openChart(ticker, company) {
   currentTicker = ticker;
   currentRange = "max";
@@ -178,24 +211,22 @@ async function drawChart() {
   const area = $("#chart-area");
   area.innerHTML = `<div class="loading">차트 로딩 중…</div>`;
   try {
-    const res = await fetch(`/api/chart/${encodeURIComponent(currentTicker)}?range=${currentRange}`);
-    const d = await res.json();
-    if (!res.ok || d.error || !d.dates || !d.dates.length) {
-      area.innerHTML = `<div class="error">차트 데이터를 불러오지 못했습니다.${d.detail ? "<br><small>" + esc(d.detail) + "</small>" : ""}</div>`;
+    const d = await fetchChart(currentTicker, currentRange);
+    if (!d.dates || !d.dates.length) {
+      area.innerHTML = `<div class="error">차트 데이터가 없습니다. 위의 Yahoo 링크로 확인해 주세요.</div>`;
       return;
     }
     area.innerHTML = "";
     plotChart(area, d);
   } catch (e) {
-    area.innerHTML = `<div class="error">차트 오류: ${esc(e.message)}</div>`;
+    area.innerHTML = `<div class="error">차트를 불러오지 못했습니다.<br><small>${esc(e.message)}</small><br>위의 Yahoo 링크로 확인해 주세요.</div>`;
   }
 }
 
 function maTrace(x, y, name, color) {
   return {
     x, y, name, type: "scatter", mode: "lines",
-    line: { color, width: 1.3 }, connectgaps: false,
-    xaxis: "x", yaxis: "y",
+    line: { color, width: 1.3 }, connectgaps: false, xaxis: "x", yaxis: "y",
   };
 }
 
@@ -215,20 +246,16 @@ function plotChart(area, d) {
     marker: { color: volColors }, xaxis: "x", yaxis: "y2",
   };
   const traces = [
-    volume,
-    candles,
+    volume, candles,
     maTrace(x, d.ma5, "MA5", "#f59e0b"),
     maTrace(x, d.ma20, "MA20", "#3b82f6"),
     maTrace(x, d.ma50, "MA50", "#a855f7"),
     maTrace(x, d.ma120, "MA120", "#ef4444"),
   ];
   const layout = {
-    paper_bgcolor: "#1e293b",
-    plot_bgcolor: "#1e293b",
+    paper_bgcolor: "#1e293b", plot_bgcolor: "#1e293b",
     font: { color: "#e2e8f0", size: 11 },
-    showlegend: false,
-    margin: { l: 55, r: 20, t: 10, b: 30 },
-    height: 520,
+    showlegend: false, margin: { l: 55, r: 20, t: 10, b: 30 }, height: 520,
     dragmode: "pan",
     xaxis: { rangeslider: { visible: false }, gridcolor: "#334155", domain: [0, 1], anchor: "y" },
     yaxis: { domain: [0.26, 1], gridcolor: "#334155", title: "가격", side: "right" },
@@ -250,19 +277,23 @@ document.querySelectorAll(".range-toggle button").forEach((b) =>
     drawChart();
   }));
 
-// ---------- auto refresh ----------
+// ---------- auto refresh (live mode only) ----------
 let timer = null;
 function scheduleAuto() {
   if (timer) clearInterval(timer);
   if (!$("#auto-toggle").checked) return;
-  const sec = parseInt($("#auto-interval").value, 10);
-  timer = setInterval(loadDashboard, sec * 1000);
+  timer = setInterval(loadDashboard, parseInt($("#auto-interval").value, 10) * 1000);
 }
 $("#auto-toggle").addEventListener("change", scheduleAuto);
 $("#auto-interval").addEventListener("change", scheduleAuto);
 
 window.openChart = openChart;
 
-// init
+// In static mode the data only changes once a day, so hide live auto-refresh.
+if (STATIC) {
+  const auto = document.querySelector(".auto");
+  if (auto) auto.classList.add("hidden");
+}
+
 loadDashboard();
 scheduleAuto();

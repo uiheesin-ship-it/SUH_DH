@@ -1,7 +1,14 @@
 # SUH_DH — 미국 52주 신고가 대시보드
 
 매일 미국 증시 마감 후(한국시간 아침) **52주 신고가**를 기록한 미국 주식을
-섹터·소섹터별로 한눈에 훑어보기 위한 실시간 대시보드입니다.
+섹터·소섹터별로 한눈에 훑어보기 위한 대시보드입니다.
+
+**두 가지 방식으로 쓸 수 있습니다:**
+1. **항상 켜져 있는 웹 주소(추천)** — GitHub가 매일 자동으로 갱신. PC를 켜둘 필요 없이
+   링크만 즐겨찾기 해두고 들어가면 됩니다. → 아래 [매일 자동 갱신 웹사이트](#매일-자동-갱신-웹사이트-github-pages) 참고.
+2. **내 PC에서 실행** — 클릭할 때마다 진짜 실시간 데이터. → 아래 [빠른 시작](#빠른-시작) 참고.
+
+둘 다 화면은 똑같습니다.
 
 - **데이터 소스**: 신고가 스크리닝은 [Finviz](https://finviz.com) `New High` 시그널,
   차트·뉴스·실적은 [Yahoo Finance](https://finance.yahoo.com) (모두 무료 소스).
@@ -34,9 +41,34 @@ pip install -r requirements.txt
 - ⚠️ 무료 데이터(Yahoo/Finviz)는 실시간 대비 **약 15분 지연**될 수 있습니다.
   진짜 틱 단위 실시간이 필요하면 유료 API(Polygon, IEX 등) 연동이 필요합니다.
 
+## 매일 자동 갱신 웹사이트 (GitHub Pages)
+
+PC를 켜지 않아도 **고정 주소에 접속하면 매일 최신 데이터가 떠 있는** 방식입니다.
+GitHub가 매일 미장 마감 후 자동으로 데이터를 갱신해 줍니다 (무료).
+
+**최초 1회 설정 (마우스 클릭만, 약 3분):**
+
+1. 깃허브 저장소 페이지에서 위쪽 **Settings**(설정) 탭 클릭.
+2. 왼쪽 메뉴에서 **Pages** 클릭.
+3. **Build and deployment → Source** 를 **`GitHub Actions`** 로 선택.
+4. 위쪽 **Actions** 탭으로 이동 → 왼쪽에서 **"Build & deploy dashboard"** 선택 →
+   오른쪽 **Run workflow** 버튼으로 한 번 수동 실행(첫 데이터 생성).
+5. 1~3분 뒤 다시 **Settings → Pages** 로 가면 맨 위에 **사이트 주소**가 나옵니다
+   (보통 `https://uiheesin-ship-it.github.io/SUH_DH/`). 이 주소를 **즐겨찾기**!
+
+이후로는 **매일 평일 한국시간 아침(미장 마감 후)에 자동으로 갱신**됩니다.
+즉시 갱신하고 싶으면 **Actions → Run workflow** 를 누르면 됩니다.
+
+> 참고: 자동 실행 시각은 `.github/workflows/daily.yml` 의 `cron` 으로 조정할 수 있고
+> (기본 21:30 UTC = 약 06:30 KST), 한 번에 차트를 만들 종목 수는 `SUH_DH_BUILD_LIMIT`
+> (기본 150) 로 조정합니다. 차트는 그날 마감 기준이며, 진짜 실시간 차트는 각 종목의
+> **Yahoo ↗** 링크로 볼 수 있습니다.
+
 ## 동작 방식 / 구조
 
 ```
+build.py                 정적 사이트 생성(GitHub Actions가 매일 실행) -> ./site
+.github/workflows/       매일 빌드 + GitHub Pages 배포
 app/
   main.py        FastAPI 앱 + JSON API (/api/highs, /api/reason/{t}, /api/chart/{t})
   screener.py    Finviz "New High" 스크리닝 → 섹터/소섹터 그룹, 시총 정렬
