@@ -13,7 +13,9 @@ from datetime import datetime, timedelta, timezone
 from . import cache, demo_data
 from .indicators import attach_moving_averages
 
-CHART_TTL = float(os.environ.get("SUH_DH_CHART_TTL", "600"))
+# Charts are viewed "live", so keep this short — just enough to absorb rapid
+# re-clicks and range toggles without re-hitting Yahoo on every interaction.
+CHART_TTL = float(os.environ.get("SUH_DH_CHART_TTL", "30"))
 REASON_TTL = float(os.environ.get("SUH_DH_REASON_TTL", "1800"))
 
 VALID_RANGES = {"max", "6mo"}

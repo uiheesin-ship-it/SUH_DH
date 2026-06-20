@@ -3,70 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>미국 52주 신고가 대시보드 · SUH_DH</title>
-  <link rel="stylesheet" href="/style.css" />
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <title>대시보드 · SUH_DH</title>
+  <link rel="stylesheet" href="/hub.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="title">
-      <h1>🇺🇸 52주 신고가 대시보드</h1>
-      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
-    </div>
-    <div class="controls">
-      <span id="status" class="status">불러오는 중…</span>
-      <label class="auto">
-        <input type="checkbox" id="auto-toggle" checked />
-        자동 새로고침
-        <select id="auto-interval">
-          <option value="30">30초</option>
-          <option value="60" selected>1분</option>
-          <option value="180">3분</option>
-          <option value="300">5분</option>
-        </select>
-      </label>
-      <button id="refresh-btn">새로고침</button>
-    </div>
+  <header class="hub-top">
+    <h1>📊 SUH_DH 대시보드</h1>
+    <p class="sub">투자/리서치 프로그램 모음. 카드를 눌러 들어가세요.</p>
   </header>
 
-  <main id="content">
-    <div class="loading">데이터를 불러오는 중입니다…</div>
-  </main>
+  <main class="grid" id="grid"></main>
 
-  <!-- Chart modal -->
-  <div id="chart-modal" class="modal hidden">
-    <div class="modal-box">
-      <div class="modal-head">
-        <div>
-          <span id="chart-ticker" class="chart-ticker"></span>
-          <span id="chart-company" class="chart-company"></span>
-        </div>
-        <div class="modal-actions">
-          <div class="range-toggle">
-            <button data-range="max" class="active">전체기간</button>
-            <button data-range="6mo">6개월</button>
-          </div>
-          <a id="chart-external" href="#" target="_blank" rel="noopener" class="ext-link">Yahoo ↗</a>
-          <button id="chart-close" class="close">✕</button>
-        </div>
-      </div>
-      <div id="chart-area" class="chart-area">
-        <div class="loading">차트 로딩 중…</div>
-      </div>
-      <div class="legend">
-        <span class="lg vol">거래량</span>
-        <span class="lg ma5">MA5</span>
-        <span class="lg ma20">MA20</span>
-        <span class="lg ma50">MA50</span>
-        <span class="lg ma120">MA120</span>
-      </div>
-    </div>
-  </div>
-
-  <footer class="footer">
-    데이터 출처: Finviz (신고가 스크리닝) · Yahoo Finance (차트/뉴스). 무료 소스는 약 15분 지연될 수 있습니다.
+  <footer class="hub-foot">
+    새 프로그램을 추가하려면 <code>app/static/index.html</code> 의
+    <code>APPS</code> 배열에 항목 하나만 추가하면 됩니다.
   </footer>
 
-  <script src="/app.js"></script>
+  <script>
+    // 프로그램 레지스트리 — 새 프로그램은 여기 한 줄만 추가.
+    const APPS = [
+      {
+        name: "미국 52주 신고가",
+        emoji: "🇺🇸",
+        desc: "미장 마감 후 52주 신고가 종목을 섹터·소섹터별, 시총순으로. 상승 이유(뉴스·실적)와 이평선 차트 포함.",
+        href: "/highs/",
+        status: "ready",
+      },
+      // 예) { name: "급등 거래량 스캐너", emoji: "🔥", desc: "...", href: "/volume/", status: "soon" },
+    ];
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML = APPS.map((a) => {
+      const soon = a.status === "soon";
+      const inner = `
+        <div class="card-emoji">${a.emoji}</div>
+        <div class="card-body">
+          <div class="card-name">${a.name}${soon ? '<span class="soon">준비중</span>' : ""}</div>
+          <div class="card-desc">${a.desc}</div>
+        </div>
+        <div class="card-go">${soon ? "" : "열기 →"}</div>`;
+      return soon
+        ? `<div class="card disabled">${inner}</div>`
+        : `<a class="card" href="${a.href}">${inner}</a>`;
+    }).join("");
+  </script>
 </body>
 </html>

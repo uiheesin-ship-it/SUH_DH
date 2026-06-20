@@ -44,8 +44,20 @@ app/
   indicators.py  이동평균(MA5/20/50/120) 계산
   cache.py       짧은 TTL 인메모리 캐시
   demo_data.py   오프라인 샘플 데이터(SUH_DH_DEMO=1)
-  static/        대시보드 프론트엔드(HTML/CSS/JS, 차트는 Plotly)
+  static/
+    index.html   대시보드 허브(런처) — 프로그램 카드 목록
+    hub.css
+    highs/       52주 신고가 프로그램(HTML/CSS/JS, 차트는 Plotly)
 ```
+
+### 화면 구조 (허브 + 프로그램)
+
+- `/` — **대시보드 허브**. 프로그램들을 카드로 보여주고 눌러서 들어갑니다.
+- `/highs/` — 52주 신고가 프로그램.
+
+새 프로그램을 추가하려면: `static/<프로그램>/` 폴더를 만들고,
+`static/index.html` 의 `APPS` 배열에 카드 한 줄(`name/emoji/desc/href`)만 추가하면
+허브에 자동으로 나타납니다.
 
 API 예시:
 

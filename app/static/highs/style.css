@@ -34,6 +34,11 @@ body {
 }
 .title { display: flex; align-items: center; gap: 10px; }
 .title h1 { font-size: 18px; margin: 0; }
+.home-link {
+  text-decoration: none; color: var(--muted); font-size: 20px; line-height: 1;
+  border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px;
+}
+.home-link:hover { color: var(--accent); border-color: var(--accent); }
 .controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .status { color: var(--muted); font-size: 13px; }
 .auto { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }

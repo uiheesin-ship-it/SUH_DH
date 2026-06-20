@@ -1,0 +1,40 @@
+:root {
+  --bg: #0f172a; --panel: #1e293b; --panel-2: #273548;
+  --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, #1b2a44, var(--bg));
+  color: var(--text);
+}
+.hub-top { text-align: center; padding: 48px 20px 24px; }
+.hub-top h1 { margin: 0 0 8px; font-size: 28px; }
+.hub-top .sub { color: var(--muted); margin: 0; font-size: 14px; }
+
+.grid {
+  display: grid; gap: 16px; padding: 16px 24px 40px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  max-width: 980px; margin: 0 auto;
+}
+.card {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px; text-decoration: none; color: var(--text);
+  transition: transform .12s, border-color .12s, background .12s;
+}
+.card:hover { transform: translateY(-3px); border-color: var(--accent); background: var(--panel-2); }
+.card.disabled { opacity: .55; cursor: default; }
+.card.disabled:hover { transform: none; border-color: var(--border); background: var(--panel); }
+.card-emoji { font-size: 34px; line-height: 1; }
+.card-body { flex: 1; }
+.card-name { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+.card-desc { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.card-go { color: var(--accent); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.soon {
+  font-size: 11px; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
+  background: var(--panel-2); color: var(--muted); vertical-align: middle;
+}
+.hub-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 0 20px 40px; }
+.hub-foot code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
