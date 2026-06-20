@@ -262,18 +262,46 @@ function plotChart(area, d) {
     paper_bgcolor: "#1e293b", plot_bgcolor: "#1e293b",
     font: { color: "#e2e8f0", size: 11 },
     showlegend: false, margin: { l: 55, r: 18, t: 8, b: 28 },
-    dragmode: "zoom",
+    dragmode: "pan",  // click-drag pans left/right; mouse wheel zooms
     // category axis: only trading days, so no weekend/holiday gaps in candles
     xaxis: { type: "category", gridcolor: "#334155", domain: [0, 1], anchor: "y",
              nticks: 8, rangeslider: { visible: false } },
-    yaxis: { domain: [0.24, 1], gridcolor: "#334155", title: "가격", side: "right", autorange: true },
-    yaxis2: { domain: [0, 0.18], gridcolor: "#334155", title: "거래량", side: "right", autorange: true },
+    yaxis: { domain: [0.24, 1], gridcolor: "#334155", title: "가격", side: "right" },
+    yaxis2: { domain: [0, 0.18], gridcolor: "#334155", title: "거래량", side: "right" },
   };
   Plotly.newPlot("chart-area", traces, layout,
     { responsive: true, scrollZoom: true, displaylogo: false,
       modeBarButtonsToRemove: ["select2d", "lasso2d"] });
   // Rescale the price/volume axes to whatever slice of time is visible.
   document.getElementById("chart-area").on("plotly_relayout", (ev) => rescaleY(ev));
+
+  // Open on the most recent ~6 months; panning left / zooming out reveals more.
+  const n = d.dates.length;
+  const win = Math.min(126, n);
+  const start = n - win;
+  suppressRelayout = true;
+  Plotly.relayout("chart-area", { "xaxis.range": [start - 0.5, n - 0.5] })
+    .then(() => { suppressRelayout = false; setYForWindow(start, n - 1); });
+}
+
+function setYForWindow(lo, hi) {
+  if (!chartData) return;
+  const n = chartData.dates.length;
+  lo = Math.max(0, lo); hi = Math.min(n - 1, hi);
+  if (hi <= lo) return;
+  let pmin = Infinity, pmax = -Infinity, vmax = 0;
+  for (let i = lo; i <= hi; i++) {
+    if (chartData.low[i] < pmin) pmin = chartData.low[i];
+    if (chartData.high[i] > pmax) pmax = chartData.high[i];
+    if (chartData.volume[i] > vmax) vmax = chartData.volume[i];
+  }
+  if (!isFinite(pmin) || !isFinite(pmax)) return;
+  const pad = (pmax - pmin) * 0.06 || 1;
+  suppressRelayout = true;
+  Plotly.relayout("chart-area", {
+    "yaxis.range": [pmin - pad, pmax + pad],
+    "yaxis2.range": [0, vmax * 1.15],
+  }).then(() => { suppressRelayout = false; });
 }
 
 function rescaleY(ev) {
@@ -291,22 +319,7 @@ function rescaleY(ev) {
   } else {
     return;
   }
-  lo = Math.max(0, lo); hi = Math.min(n - 1, hi);
-  if (hi <= lo) return;
-
-  let pmin = Infinity, pmax = -Infinity, vmax = 0;
-  for (let i = lo; i <= hi; i++) {
-    if (chartData.low[i] < pmin) pmin = chartData.low[i];
-    if (chartData.high[i] > pmax) pmax = chartData.high[i];
-    if (chartData.volume[i] > vmax) vmax = chartData.volume[i];
-  }
-  if (!isFinite(pmin) || !isFinite(pmax)) return;
-  const pad = (pmax - pmin) * 0.06 || 1;
-  suppressRelayout = true;
-  Plotly.relayout("chart-area", {
-    "yaxis.range": [pmin - pad, pmax + pad],
-    "yaxis2.range": [0, vmax * 1.15],
-  }).then(() => { suppressRelayout = false; });
+  setYForWindow(lo, hi);
 }
 
 // ---------- divider drag (resize left/right) ----------
