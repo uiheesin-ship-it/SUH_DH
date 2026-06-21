@@ -64,6 +64,10 @@ def main() -> None:
     try:
         digest = news.get_news()
         write_json(SITE / "data" / "news.json", digest)
+        # Also keep a tracked copy at the repo root so the Telegram job can send
+        # exactly what the dashboard shows by reading this committed file
+        # (no dependency on the published — possibly private — Pages URL).
+        write_json(ROOT / "data" / "news.json", digest)
         print(f"  {digest.get('count', 0)} news items selected.")
     except Exception as e:
         print(f"  news digest failed: {e}")

@@ -27,6 +27,7 @@ Flags:
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -35,24 +36,29 @@ from app import news, telegram
 
 STATE_PATH = os.environ.get("TELEGRAM_STATE", "state/telegram_sent.json")
 MAX_PER_RUN = int(os.environ.get("TELEGRAM_MAX_PER_RUN", "10"))
-# The dashboard's published news.json. Mirroring it keeps the channel identical
-# to the dashboard instead of a separate live fetch that drifts apart.
-DEFAULT_NEWS_URL = "https://uiheesin-ship-it.github.io/SUH_DH/data/news.json"
-NEWS_URL = os.environ.get("TELEGRAM_NEWS_URL", DEFAULT_NEWS_URL).strip()
+# The dashboard build commits its news digest here (build.py). Reading this
+# committed file keeps the channel identical to the dashboard, with no live
+# re-fetch that drifts apart. Can be an http(s):// URL instead if preferred.
+DEFAULT_NEWS_SOURCE = "data/news.json"
+NEWS_SOURCE = os.environ.get("TELEGRAM_NEWS_URL", DEFAULT_NEWS_SOURCE).strip()
 
 
 def load_digest() -> dict:
     """Mirror the dashboard's news.json by default; fall back to a live fetch."""
     demo = os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
-    if demo or "--live" in sys.argv or not NEWS_URL:
+    if demo or "--live" in sys.argv or not NEWS_SOURCE:
         return news.get_news()
     try:
-        digest = telegram.fetch_digest(NEWS_URL)
-        print(f"Loaded dashboard digest from {NEWS_URL}")
+        if NEWS_SOURCE.startswith(("http://", "https://", "file:")):
+            digest = telegram.fetch_digest(NEWS_SOURCE)
+        else:
+            with open(NEWS_SOURCE, encoding="utf-8") as f:
+                digest = json.load(f)
+        print(f"Loaded dashboard digest from {NEWS_SOURCE}")
         return digest
     except Exception as e:
-        # Don't go silent if the site is briefly unavailable — fetch live so the
-        # channel still gets news (it may differ from the dashboard this once).
+        # Don't go silent if the file/site is briefly unavailable — fetch live so
+        # the channel still gets news (it may differ from the dashboard this once).
         print(f"Dashboard digest unavailable ({e}); falling back to live fetch.")
         return news.get_news()
 
