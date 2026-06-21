@@ -39,6 +39,10 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Optional: set to 1 (as a repo secret) to also send on the first
+          # ever run instead of only seeding the state. Secrets are not exposed
+          # to the script unless mapped here.
+          TELEGRAM_SEND_FIRST_RUN: ${{ secrets.TELEGRAM_SEND_FIRST_RUN }}
         run: |
           if [ "${{ inputs.seed }}" = "true" ]; then
             python notify_telegram.py --seed
