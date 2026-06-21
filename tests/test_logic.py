@@ -74,18 +74,45 @@ def test_score_item_ignores_generic_non_investment_news():
     assert score == 0 and cats == []
 
 
-def test_score_item_covers_ai_infra_supply_chain():
-    # GPU/HBM/CPO/SOFC/gas-turbine style stories should land in "AI인프라".
+def test_ai_scope_covers_full_supply_chain_and_themes():
+    # Every facet of the AI / data-center ecosystem the feed targets should be
+    # recognized as in-scope (AI-relevant) and clear the minimum score.
     for title in [
         "Broadcom ramps co-packaged optics (CPO) for AI networking",
         "SK Hynix accelerates HBM4 and DDR5 DRAM output",
         "Bloom Energy supplies solid oxide fuel cells (SOFC) to data centers",
-        "GE Vernova gas turbine orders surge on data-center power demand",
+        "GE Vernova gas turbine orders surge on data center power demand",
         "TSMC expands CoWoS advanced packaging capacity",
+        "Nvidia pushes 800VDC power architecture for AI data centers",
+        "Solar and SMR deals signed to power hyperscale data centers",
+        "Grid transformer shortage threatens data center buildout",
+        "Gulf state launches sovereign AI compute program",
+        "Qualcomm ramps edge AI chips for on-device inference",
+        "Nvidia bets on humanoid robotics and physical AI",
+        "AI startup raises billions in funding for compute clusters",
+        "Developer pauses data center as power hookup is delayed",
     ]:
         score, cats = news.score_item({"title": title, "summary": ""})
-        assert "AI인프라" in cats, title
+        assert news.is_ai_relevant({"title": title, "summary": ""}), title
         assert score >= news.MIN_SCORE, title
+
+
+def test_non_ai_macro_news_is_excluded():
+    import time
+
+    now = time.time()
+    macro = [
+        "Fed holds interest rates steady, signals one cut this year",
+        "Yen tumbles to a multi-decade low against the dollar",
+        "OPEC extends oil output cuts to support crude prices",
+        "Gold rallies to an all-time high as investors seek safe havens",
+        "Boeing wins major jet order, lifts delivery outlook",
+        "US imposes fresh tariffs on imported steel",
+    ]
+    items = [{"title": t, "summary": "", "source": "Reuters", "reliability": 5,
+              "paywall": False, "published_ts": now} for t in macro]
+    # None of these touch the AI/data-center ecosystem -> all filtered out.
+    assert news.select(items, now_ts=now) == []
 
 
 def test_dedupe_prefers_free_over_paywalled():
@@ -113,27 +140,31 @@ def test_select_filters_dedupes_and_caps():
     fresh = now
     items = [
         # Same story from two outlets -> the more reliable (Reuters) should win.
-        {"title": "Fed holds interest rates steady, signals one cut this year",
-         "summary": "", "source": "Reuters", "reliability": 5, "published_ts": fresh},
-        {"title": "Fed holds interest rates steady and signals one cut this year",
-         "summary": "", "source": "CNBC", "reliability": 4, "published_ts": fresh},
-        # Distinct relevant story.
-        {"title": "TSMC raises capex on surging AI data-center chip demand",
-         "summary": "", "source": "Nikkei", "reliability": 4, "published_ts": fresh},
-        # Too old -> dropped.
-        {"title": "OPEC extends oil output cuts to support crude prices",
-         "summary": "", "source": "Bloomberg", "reliability": 5,
+        {"title": "TSMC raises capex on surging AI data center chip demand",
+         "summary": "", "source": "Reuters", "reliability": 5, "paywall": False,
+         "published_ts": fresh},
+        {"title": "TSMC raises capex on surging AI data center chip demand",
+         "summary": "", "source": "CNBC", "reliability": 4, "paywall": False,
+         "published_ts": fresh},
+        # Distinct in-scope story.
+        {"title": "Nvidia unveils Blackwell AI accelerator for data centers",
+         "summary": "", "source": "Nikkei", "reliability": 4, "paywall": True,
+         "published_ts": fresh},
+        # In scope but too old -> dropped.
+        {"title": "Micron ramps HBM4 memory for AI accelerators",
+         "summary": "", "source": "Bloomberg", "reliability": 5, "paywall": True,
          "published_ts": now - (news.MAX_AGE_HOURS + 5) * 3600},
-        # Not investment-relevant -> dropped.
-        {"title": "Celebrity wedding draws huge crowd downtown",
-         "summary": "", "source": "CNBC", "reliability": 4, "published_ts": fresh},
+        # Out of scope (macro) -> dropped.
+        {"title": "Fed holds interest rates steady this year",
+         "summary": "", "source": "CNBC", "reliability": 4, "paywall": False,
+         "published_ts": fresh},
     ]
     out = news.select(items, max_items=5, now_ts=now)
     titles = [o["title"] for o in out]
-    assert len(out) == 2  # one Fed (deduped) + TSMC; old & irrelevant dropped
-    assert any("Fed holds" in t for t in titles)
-    fed = next(o for o in out if "Fed holds" in o["title"])
-    assert fed["source"] == "Reuters"  # most reliable kept on dedupe
+    assert len(out) == 2  # one TSMC (deduped) + Nvidia; old & out-of-scope dropped
+    tsmc = next(o for o in out if "TSMC" in o["title"])
+    assert tsmc["source"] == "Reuters"  # most reliable free source kept on dedupe
+    assert all("Fed" not in t for t in titles)  # macro filtered out
     assert all("_tokens" not in o for o in out)  # internal field cleaned up
 
 
@@ -141,32 +172,32 @@ def test_select_respects_max_items():
     import time
 
     now = time.time()
-    # Distinct, investment-relevant stories (as real outlets would phrase them).
+    # Distinct, in-scope AI / data-center stories.
     headlines = [
         "Nvidia unveils next-generation AI accelerator at developer conference",
-        "Fed minutes reveal divided views on timing of interest rate cuts",
-        "TSMC ramps advanced packaging output to meet data-center demand",
-        "Oil climbs as OPEC weighs deeper production cuts next quarter",
-        "Broadcom raises annual revenue forecast on custom AI silicon",
-        "China tightens rare-earth export curbs amid trade tensions",
-        "US imposes fresh tariffs on imported electric vehicles",
-        "Micron beats estimates as high-bandwidth memory demand surges",
-        "Yen tumbles to multi-decade low against the dollar",
-        "Copper prices hit record on supply disruptions and grid spending",
-        "Microsoft commits billions to new data-center power deals",
-        "Apple guides services revenue higher despite hardware softness",
-        "Treasury yields jump after hotter-than-expected inflation report",
-        "ASML lands large orders for next-generation lithography machines",
-        "Saudi Arabia trims crude output to defend oil prices",
-        "Intel secures government funding for new chip foundry plant",
-        "Gold rallies to all-time high as investors seek safe havens",
-        "Boeing wins major jet order, lifts full-year delivery outlook",
-        "Qualcomm forecasts strong demand for AI smartphone chips",
-        "Nuclear utilities surge on soaring electricity demand from AI",
+        "TSMC ramps CoWoS advanced packaging to meet data center demand",
+        "Broadcom raises revenue forecast on custom AI silicon",
+        "SK Hynix ships HBM4 memory for next-gen AI accelerators",
+        "Microsoft commits billions to new data center power deals",
+        "ASML lands orders for next-generation EUV lithography machines",
+        "Bloom Energy supplies SOFC fuel cells to AI data centers",
+        "GE Vernova gas turbine backlog swells on data center demand",
+        "OpenAI expands Stargate data center buildout to new sites",
+        "Qualcomm ramps edge AI chips for on-device inference",
+        "Nvidia bets on humanoid robotics in physical AI push",
+        "Sovereign AI fund launches national data center program",
+        "Co-packaged optics adoption accelerates for AI networking",
+        "Grid transformer shortage threatens data center construction",
+        "SMR nuclear deal signed to power hyperscale data centers",
+        "AI startup raises $4bn in funding for compute clusters",
+        "Marvell guides higher on AI networking silicon demand",
+        "Solar and battery storage tapped to power AI data centers",
+        "Arm Holdings expands data center CPU roadmap for AI",
+        "Amazon plans gigawatt data center campus for AI training",
     ]
     items = [
-        {"title": h, "summary": "", "source": "WSJ", "reliability": 5,
-         "published_ts": now - i * 60}
+        {"title": h, "summary": "", "source": "Reuters", "reliability": 5,
+         "paywall": False, "published_ts": now - i * 60}
         for i, h in enumerate(headlines)
     ]
     out = news.select(items, max_items=18, now_ts=now)
@@ -182,5 +213,8 @@ def test_demo_news_shape_and_count():
         assert it["title_ko"] and it["link"] and it["source"]
         assert it["categories"]
         assert isinstance(it["paywall"], bool)
-    # The digest should include AI-infra supply-chain coverage.
-    assert any("AI인프라" in it["categories"] for it in d["items"])
+        # Every demo headline is within the AI / data-center scope of the feed.
+        assert news.is_ai_relevant({"title": it["title"], "summary": ""}), it["title"]
+    # The digest should span the AI ecosystem (supply chain + themes).
+    seen = set().union(*(it["categories"] for it in d["items"]))
+    assert {"AI인프라", "데이터센터투자", "에너지"} <= seen

@@ -61,54 +61,69 @@ FEEDS: list[tuple[str, int, bool, str]] = [
 # one in the daily cut (and always wins on de-duplication).
 FREE_BONUS = int(os.environ.get("SUH_DH_NEWS_FREE_BONUS", "1"))
 
-# Korean category label -> (weight, keyword list). A higher weight means the
-# topic is more decision-relevant for an investor. Keywords are matched
-# case-insensitively on whole words, so short tokens like "ai"/"fed" are safe.
+# Korean category label -> (weight, keyword list). This feed is AI-investment
+# focused: it ONLY surfaces news about the AI / data-center ecosystem. Most
+# categories below are "AI-qualifying" (listed in AI_QUALIFYING) — an article
+# must match at least one of them to be included. A few macro categories at the
+# bottom (수출규제·미중갈등·관세) are *context only*: they add a tag/score when an
+# AI story also touches them, but never let a non-AI story in on their own.
+# Keywords are matched case-insensitively on whole words.
 CATEGORIES: dict[str, tuple[int, list[str]]] = {
-    "AI": (3, ["artificial intelligence", "ai", "openai", "chatgpt", "generative ai",
-               "anthropic", "llm", "copilot", "ai chip"]),
-    "반도체": (3, ["semiconductor", "semiconductors", "chip", "chips", "chipmaker",
-                "tsmc", "foundry", "asml", "wafer", "nvidia", "micron", "samsung electronics",
-                "sk hynix", "memory chip", "hbm"]),
-    # AI build-out supply chain: compute, memory, optics/interconnect, advanced
-    # packaging, cooling, and the power gear that feeds data centers.
-    "AI인프라": (3, [
-        # accelerators / compute
-        "gpu", "graphics card", "accelerator", "blackwell", "hopper", "h100",
-        "h200", "b200", "gb200", "mi300", "instinct", "tpu", "asic",
-        # memory
-        "dram", "hbm3", "hbm4", "ddr5", "nand", "high bandwidth memory",
-        # optics / interconnect (CPO etc.)
-        "co-packaged optics", "cpo", "silicon photonics", "optical transceiver",
-        "optical interconnect", "infiniband", "nvlink", "800g", "1.6t",
-        # advanced packaging / substrate
-        "cowos", "advanced packaging", "interposer", "abf substrate", "chiplet",
-        # data-center thermal
-        "liquid cooling", "immersion cooling",
-        # power for AI (SOFC / fuel cells / turbines / gensets / grid gear)
-        "sofc", "solid oxide", "fuel cell", "bloom energy", "gas turbine",
-        "ge vernova", "power generation", "genset", "switchgear", "transformer",
-        "substation", "backup power",
-    ]),
-    "데이터센터": (3, ["data center", "data centre", "data centers", "hyperscaler",
-                  "cloud capacity", "server demand", "colocation"]),
-    "전력·인프라": (2, ["power grid", "electricity", "nuclear power", "utility", "utilities",
-                   "power demand", "transmission line", "smr", "power plant"]),
-    "에너지": (2, ["oil", "crude", "opec", "natural gas", "lng", "energy", "barrel", "refinery"]),
-    "미중갈등": (3, ["china", "beijing", "u.s.-china", "us-china", "taiwan", "xi jinping"]),
-    "관세": (3, ["tariff", "tariffs", "trade war", "trade deal", "import duties", "levy", "levies"]),
-    "수출규제": (3, ["export control", "export controls", "export curb", "export curbs",
-                 "sanction", "sanctions", "chip ban", "blacklist", "entity list"]),
-    "미국금리": (3, ["federal reserve", "the fed", "fomc", "interest rate", "interest rates",
-                 "rate cut", "rate hike", "powell", "treasury yield", "treasury yields",
-                 "inflation", "cpi", "pce", "jobs report"]),
-    "환율": (2, ["dollar", "yen", "currency", "forex", "exchange rate", "yuan", "euro", "won"]),
-    "원자재": (2, ["gold", "copper", "commodity", "commodities", "metals", "iron ore",
-                "silver", "lithium", "rare earth"]),
-    "실적·가이던스": (3, ["earnings", "guidance", "profit", "revenue", "quarterly results",
-                    "forecast", "outlook", "beats estimates", "misses estimates", "results"]),
-    "증시": (1, ["stocks", "stock market", "s&p 500", "nasdaq", "dow", "equities",
-               "shares", "wall street", "ipo", "bond market"]),
+    "AI": (3, ["artificial intelligence", "ai", "a.i.", "generative ai", "ai model",
+               "ai models", "foundation model", "frontier model", "large language model",
+               "llm", "openai", "anthropic", "chatgpt", "gemini", "copilot", "ai agent",
+               "ai inference", "ai training", "ai cluster", "ai supercomputer", "ai boom",
+               "ai race", "ai demand", "ai workload", "ai bubble", "ai spending"]),
+    "반도체": (3, ["semiconductor", "semiconductors", "chip", "chips", "chipmaker", "ai chip",
+                "gpu", "graphics card", "accelerator", "asic", "tsmc", "nvidia", "amd",
+                "broadcom", "arm holdings", "asml", "wafer", "foundry", "micron",
+                "sk hynix", "samsung electronics", "applied materials", "marvell"]),
+    # AI build-out supply chain: compute, memory, advanced packaging, cooling.
+    "AI인프라": (3, ["blackwell", "hopper", "h100", "h200", "b200", "gb200", "gb300",
+                  "mi300", "mi350", "instinct", "tpu", "trainium",
+                  "dram", "hbm", "hbm3", "hbm4", "ddr5", "nand", "high bandwidth memory",
+                  "cowos", "advanced packaging", "interposer", "abf substrate", "chiplet",
+                  "liquid cooling", "immersion cooling", "ai server", "server rack",
+                  "rack-scale", "superchip"]),
+    "데이터센터": (3, ["data center", "data centre", "data centers", "datacenter",
+                  "hyperscaler", "colocation", "server farm", "cloud capacity",
+                  "compute capacity", "ai data center", "global data center",
+                  "gigawatt data center", "stargate"]),
+    "데이터센터투자": (3, ["data center investment", "data center spending", "data center capex",
+                    "data center buildout", "data center construction", "ai capex",
+                    "ai investment", "ai funding", "ai startup", "compute spending",
+                    "capital expenditure", "data center delay", "data center delays",
+                    "data center glut", "data center oversupply", "paused data center",
+                    "scaled back", "circular financing", "ai infrastructure deal"]),
+    "전력·인프라": (3, ["power grid", "electricity grid", "substation", "transformer",
+                   "switchgear", "transmission line", "power demand", "power capacity",
+                   "power shortage", "grid connection", "data center power", "backup power",
+                   "800v", "800vdc", "hvdc", "dc power", "power shelf", "busbar"]),
+    "에너지": (3, ["solar", "photovoltaic", "renewable energy", "wind power", "battery storage",
+                "energy storage", "grid storage", "smr", "small modular reactor",
+                "nuclear power", "nuclear reactor", "nuclear plant", "geothermal", "sofc",
+                "solid oxide", "fuel cell", "gas turbine", "ge vernova", "bloom energy"]),
+    "광통신": (3, ["silicon photonics", "co-packaged optics", "cpo", "optical transceiver",
+                "optical interconnect", "optical networking", "800g", "1.6t", "dwdm",
+                "fiber optic", "photonics", "nvlink", "infiniband"]),
+    "소버린AI": (3, ["sovereign ai", "national ai", "state-backed ai", "government ai compute"]),
+    "엣지AI": (3, ["edge ai", "on-device ai", "edge computing", "edge inference",
+                 "ai pc", "ai smartphone", "ai laptop"]),
+    "피지컬AI": (3, ["physical ai", "embodied ai", "humanoid", "robotics", "robot", "robots",
+                  "autonomous", "self-driving", "robotaxi", "factory automation",
+                  "industrial automation"]),
+    # --- context tags only (do NOT qualify a story by themselves) ---
+    "수출규제": (2, ["export control", "export controls", "export curb", "export curbs",
+                 "chip ban", "entity list", "sanction", "sanctions"]),
+    "미중갈등": (1, ["china", "beijing", "u.s.-china", "us-china", "taiwan"]),
+    "관세": (1, ["tariff", "tariffs"]),
+}
+
+# Categories that make an article count as AI-investment news. A story must hit
+# at least one of these to be included; the rest are context only.
+AI_QUALIFYING: set[str] = {
+    "AI", "반도체", "AI인프라", "데이터센터", "데이터센터투자",
+    "전력·인프라", "에너지", "광통신", "소버린AI", "엣지AI", "피지컬AI",
 }
 
 # Pre-compile one regex per keyword (whole-word, case-insensitive).
@@ -205,6 +220,12 @@ def score_item(item: dict) -> tuple[int, list[str]]:
     return score, labels
 
 
+def is_ai_relevant(item: dict) -> bool:
+    """True if the item is about the AI / data-center ecosystem (the feed's scope)."""
+    _score, labels = score_item(item)
+    return bool(set(labels) & AI_QUALIFYING)
+
+
 def _tokens(title: str) -> set[str]:
     words = re.findall(r"[a-z0-9]+", title.lower())
     return {w for w in words if len(w) > 3 and w not in _STOPWORDS}
@@ -230,14 +251,16 @@ def _is_duplicate(item: dict, kept: list[dict]) -> bool:
 
 
 def select(items: list[dict], max_items: int = MAX_ITEMS, now_ts: float | None = None) -> list[dict]:
-    """Filter to investment-relevant, de-duplicated, recent items (ranked)."""
+    """Filter to AI/data-center news, de-duplicated, recent (ranked)."""
     now_ts = now_ts if now_ts is not None else datetime.now(timezone.utc).timestamp()
     cutoff = now_ts - MAX_AGE_HOURS * 3600
 
     scored: list[dict] = []
     for it in items:
         score, labels = score_item(it)
-        if score < MIN_SCORE:
+        # AI-investment scope: must touch the AI/data-center ecosystem, not just
+        # a generic macro topic, and clear the minimum relevance score.
+        if score < MIN_SCORE or not (set(labels) & AI_QUALIFYING):
             continue
         ts = it.get("published_ts")
         if ts is not None and ts < cutoff:
