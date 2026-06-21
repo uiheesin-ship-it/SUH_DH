@@ -1,0 +1,58 @@
+name: Telegram AI news
+
+# Every 30 minutes, fetch the AI news digest and push any new headlines to the
+# Telegram channel. State (which items were already sent) is committed back so
+# the next run doesn't repeat them. You can also run it manually from the
+# Actions tab ("Run workflow").
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Seed the state without sending (prime first run)"
+        type: boolean
+        default: false
+
+# Needed to commit the updated sent-state back to the branch.
+permissions:
+  contents: write
+
+# Never let two runs send at once (would risk duplicate posts).
+concurrency:
+  group: telegram-news
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - name: Send new items to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ inputs.seed }}" = "true" ]; then
+            python notify_telegram.py --seed
+          else
+            python notify_telegram.py
+          fi
+      - name: Persist sent-state
+        run: |
+          if [ -n "$(git status --porcelain state/)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add state/telegram_sent.json
+            git commit -m "chore: update telegram sent-state"
+            git push origin HEAD:claude/funny-carson-ent3s7
+          else
+            echo "No state change."
+          fi

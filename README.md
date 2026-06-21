@@ -80,12 +80,14 @@ GitHub가 매일 미장 마감 후 자동으로 데이터를 갱신해 줍니다
 
 ```
 build.py                 정적 사이트 생성(GitHub Actions가 매일 실행) -> ./site
-.github/workflows/       매일 빌드 + GitHub Pages 배포
+notify_telegram.py       선별된 AI 뉴스를 텔레그램 채널로 전송(30분마다)
+.github/workflows/       매일 빌드 + GitHub Pages 배포, 텔레그램 전송
 app/
   main.py        FastAPI 앱 + JSON API (/api/highs, /api/reason/{t}, /api/chart/{t}, /api/news)
   screener.py    Finviz "New High" 스크리닝 → 섹터/소섹터 그룹, 시총 정렬
   charts.py      Yahoo 과거 시세(차트) + 뉴스/실적(상승 이유)
   news.py        주요 외신 RSS 수집 → AI/데이터센터 뉴스 선별/중복제거 → 한국어 요약
+  telegram.py    텔레그램 메시지 포맷 + 전송 + 전송이력 상태(표준 라이브러리만)
   indicators.py  이동평균(MA5/20/50/120) 계산
   cache.py       짧은 TTL 인메모리 캐시
   translate.py   영어 → 한국어 번역(무료 Google, 실패 시 원문)
@@ -130,6 +132,41 @@ app/
   (시간, 기본 36), `SUH_DH_NEWS_MIN_SCORE`(기본 2), `SUH_DH_NEWS_FREE_BONUS`(기본 1),
   `SUH_DH_NEWS_TTL`(초, 기본 1800).
 
+### 텔레그램 채널로 자동 전송
+
+선별된 AI 뉴스를 텔레그램 채널로 **30분마다 새 기사만** 보냅니다
+(`.github/workflows/telegram.yml`). 서버가 필요 없는 무료 방식이며, 이미 보낸 기사는
+`state/telegram_sent.json` 으로 기억해 중복 전송하지 않습니다.
+
+**최초 1회 설정 (약 5분):**
+
+1. 텔레그램에서 **@BotFather** 와 대화 → `/newbot` 으로 봇을 만들고 **봇 토큰**을 받습니다
+   (예: `123456:ABC-DEF...`). 토큰은 비밀이니 어디에도 붙여넣지 마세요.
+2. 뉴스를 받을 **채널을 생성**하고, 방금 만든 봇을 그 채널의 **관리자(Administrator)** 로
+   추가합니다(메시지 게시 권한 필요).
+3. **채널 ID** 확인:
+   - 공개 채널이면 `@채널이름` 을 그대로 쓰면 됩니다.
+   - 비공개 채널이면 채널에 글을 하나 올린 뒤
+     `https://api.telegram.org/bot<토큰>/getUpdates` 를 열어 `"chat":{"id":-100...}` 의
+     숫자(`-100`으로 시작)를 사용합니다.
+4. 깃허브 저장소 **Settings → Secrets and variables → Actions → New repository secret** 에서
+   두 개를 등록:
+   - `TELEGRAM_BOT_TOKEN` = 1번의 봇 토큰
+   - `TELEGRAM_CHAT_ID` = 3번의 채널 ID(`@채널이름` 또는 `-100...`)
+5. **Actions → "Telegram AI news" → Run workflow** 로 한 번 수동 실행해 동작을 확인합니다.
+
+이후로는 **30분마다 자동**으로 새 뉴스가 채널에 올라옵니다.
+
+> **참고**
+> - 비밀 값(봇 토큰/채널 ID)은 **GitHub Secrets 에만** 두고 코드/커밋에 넣지 마세요.
+> - **첫 실행은 "시딩"** 입니다 — 그 시점의 기존 뉴스를 한꺼번에 쏟아내지 않으려고
+>   "이미 본 것"으로만 표시하고 전송은 안 합니다. 그다음 실행부터 진짜 새 기사가 전송됩니다.
+>   처음부터 현재 목록을 보내고 싶으면 Secret `TELEGRAM_SEND_FIRST_RUN=1` 을 추가하세요.
+> - 한 번에 보낼 최대 건수는 `TELEGRAM_MAX_PER_RUN`(기본 10), 전송 주기는 워크플로의
+>   `cron`(기본 `*/30 * * * *`)으로 조정합니다.
+> - 자격증명 없이 로컬에서 미리 보려면: `SUH_DH_DEMO=1 python3 notify_telegram.py --dry-run`
+>   (실제 전송 없이 메시지만 출력).
+
 새 프로그램을 추가하려면: `static/<프로그램>/` 폴더를 만들고,
 `static/index.html` 의 `APPS` 배열에 카드 한 줄(`name/emoji/desc/href`)만 추가하면
 허브에 자동으로 나타납니다.
@@ -148,7 +185,8 @@ API 예시:
 이 대시보드는 `finviz.com`, `query1/query2.finance.yahoo.com`,
 그리고 글로벌 뉴스 RSS 호스트(`www.reutersagency.com`, `www.cnbc.com`,
 `finance.yahoo.com`, `www.datacenterdynamics.com`, `www.theregister.com`,
-`asia.nikkei.com`, `feeds.bloomberg.com`, `feeds.a.dj.com`, `www.ft.com`)로
+`asia.nikkei.com`, `feeds.bloomberg.com`, `feeds.a.dj.com`, `www.ft.com`), 그리고
+텔레그램 전송 시 `api.telegram.org` 로
 아웃바운드 요청을 보냅니다. 로컬 PC에서는 보통 문제없이 동작하지만,
 **Claude Code on the web 같은 egress allowlist가 적용된 샌드박스에서는 차단**됩니다.
 그런 환경에서 라이브로 쓰려면 해당 호스트를 네트워크 허용 목록에 추가하거나,

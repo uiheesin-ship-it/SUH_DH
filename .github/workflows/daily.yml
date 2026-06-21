@@ -11,6 +11,8 @@ on:
     branches: ["claude/funny-carson-ent3s7"]
     paths-ignore:
       - "README.md"
+      # The Telegram job commits sent-state every 30 min; don't rebuild the site for that.
+      - "state/**"
 
 permissions:
   contents: read

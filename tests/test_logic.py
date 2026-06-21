@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.indicators import attach_moving_averages, moving_average
 from app.screener import _normalize_change, group_by_sector
-from app import demo_data, news
+from app import demo_data, news, telegram
 
 
 def test_moving_average_padding_and_value():
@@ -218,3 +218,50 @@ def test_demo_news_shape_and_count():
     # The digest should span the AI ecosystem (supply chain + themes).
     seen = set().union(*(it["categories"] for it in d["items"]))
     assert {"AI인프라", "데이터센터투자", "에너지"} <= seen
+
+
+# ---------- telegram delivery ----------
+def test_telegram_format_message_has_key_fields_and_escapes():
+    item = {
+        "title": "Nvidia & AMD <ship> chips",
+        "title_ko": "엔비디아 & AMD <신제품> 출시",
+        "summary_ko": "AI 가속기 경쟁 심화.",
+        "source": "Reuters",
+        "paywall": False,
+        "categories": ["반도체", "AI"],
+        "link": "https://example.com/a?b=1&c=2",
+        "published": "2026-06-21 02:00 UTC",
+        "published_ts": 1_781_000_000,
+    }
+    msg = telegram.format_message(item)
+    assert "엔비디아 &amp; AMD &lt;신제품&gt; 출시" in msg  # HTML-escaped
+    assert "AI 가속기 경쟁 심화." in msg
+    assert "Reuters" in msg and "반도체 · AI" in msg
+    assert 'href="https://example.com/a?b=1&amp;c=2"' in msg
+    assert "KST" in msg  # localized from published_ts
+
+
+def test_telegram_format_message_marks_paywall():
+    item = {"title_ko": "유료 기사", "source": "WSJ", "paywall": True, "link": "https://x.y"}
+    assert "🔒유료" in telegram.format_message(item)
+
+
+def test_telegram_new_items_filters_already_sent():
+    items = [
+        {"title": "A", "link": "https://x/1"},
+        {"title": "B", "link": "https://x/2"},
+        {"title": "C", "link": "https://x/3"},
+    ]
+    sent = {"https://x/2"}
+    fresh = telegram.new_items(items, sent)
+    assert [telegram.item_id(i) for i in fresh] == ["https://x/1", "https://x/3"]
+
+
+def test_telegram_state_roundtrip_and_bound(tmp_path):
+    path = str(tmp_path / "state" / "sent.json")
+    ids = [f"https://x/{i}" for i in range(600)]
+    telegram.save_state(path, ids, keep=500)
+    state = telegram.load_state(path)
+    assert len(state["sent"]) == 500  # bounded
+    assert state["sent"][-1] == "https://x/599"  # keeps the most recent
+    assert telegram.load_state(str(tmp_path / "missing.json")) == {"sent": [], "updated": None}
