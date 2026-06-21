@@ -265,3 +265,15 @@ def test_telegram_state_roundtrip_and_bound(tmp_path):
     assert len(state["sent"]) == 500  # bounded
     assert state["sent"][-1] == "https://x/599"  # keeps the most recent
     assert telegram.load_state(str(tmp_path / "missing.json")) == {"sent": [], "updated": None}
+
+
+def test_telegram_fetch_digest_reads_dashboard_json(tmp_path):
+    # Mirror the dashboard by reading its published news.json verbatim.
+    path = tmp_path / "news.json"
+    path.write_text(
+        '{"count": 1, "items": [{"title": "x", "link": "https://x/1"}]}',
+        encoding="utf-8",
+    )
+    digest = telegram.fetch_digest(path.as_uri())
+    assert digest["count"] == 1
+    assert digest["items"][0]["link"] == "https://x/1"

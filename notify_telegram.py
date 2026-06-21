@@ -2,7 +2,8 @@
 """Push newly-selected AI news items to a Telegram channel.
 
 Run on a schedule (see .github/workflows/telegram.yml, every 30 min). Each run:
-  1. builds the AI news digest (app.news.get_news),
+  1. loads the AI news digest — by default the *same* news.json the dashboard
+     publishes (TELEGRAM_NEWS_URL), so the channel mirrors the dashboard exactly,
   2. drops items already sent (tracked in a small JSON state file),
   3. posts the rest to the channel, newest at the bottom,
   4. updates the state file (the workflow commits it back so the next run
@@ -11,6 +12,8 @@ Run on a schedule (see .github/workflows/telegram.yml, every 30 min). Each run:
 Env:
   TELEGRAM_BOT_TOKEN     bot token from @BotFather
   TELEGRAM_CHAT_ID       "@channel" (public) or "-100..." (private channel id)
+  TELEGRAM_NEWS_URL      dashboard news.json to mirror (default: the GitHub Pages
+                         site). Set empty to fetch news live instead.
   TELEGRAM_STATE         state file path (default: state/telegram_sent.json)
   TELEGRAM_MAX_PER_RUN   cap messages per run (default 10; 0 = no cap)
   TELEGRAM_SEND_FIRST_RUN  set to 1 to also send on the very first (seeding) run
@@ -19,6 +22,7 @@ Env:
 Flags:
   --dry-run   print messages instead of sending (also auto-enabled if creds missing)
   --seed      mark current items as sent without sending (prime the state file)
+  --live      fetch news live (ignore TELEGRAM_NEWS_URL) instead of the dashboard
 """
 
 from __future__ import annotations
@@ -31,6 +35,26 @@ from app import news, telegram
 
 STATE_PATH = os.environ.get("TELEGRAM_STATE", "state/telegram_sent.json")
 MAX_PER_RUN = int(os.environ.get("TELEGRAM_MAX_PER_RUN", "10"))
+# The dashboard's published news.json. Mirroring it keeps the channel identical
+# to the dashboard instead of a separate live fetch that drifts apart.
+DEFAULT_NEWS_URL = "https://uiheesin-ship-it.github.io/SUH_DH/data/news.json"
+NEWS_URL = os.environ.get("TELEGRAM_NEWS_URL", DEFAULT_NEWS_URL).strip()
+
+
+def load_digest() -> dict:
+    """Mirror the dashboard's news.json by default; fall back to a live fetch."""
+    demo = os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
+    if demo or "--live" in sys.argv or not NEWS_URL:
+        return news.get_news()
+    try:
+        digest = telegram.fetch_digest(NEWS_URL)
+        print(f"Loaded dashboard digest from {NEWS_URL}")
+        return digest
+    except Exception as e:
+        # Don't go silent if the site is briefly unavailable — fetch live so the
+        # channel still gets news (it may differ from the dashboard this once).
+        print(f"Dashboard digest unavailable ({e}); falling back to live fetch.")
+        return news.get_news()
 
 
 def main() -> int:
@@ -42,7 +66,7 @@ def main() -> int:
     if dry_run and not (token and chat) and "--dry-run" not in sys.argv:
         print("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set -> dry-run (no messages sent).")
 
-    digest = news.get_news()
+    digest = load_digest()
     items = digest.get("items", [])
     print(f"Digest: {len(items)} item(s){' [DEMO]' if digest.get('demo') else ''}.")
 

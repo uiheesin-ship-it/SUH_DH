@@ -4,8 +4,10 @@ name: Build & deploy dashboard
 # push. You can also run it manually from the Actions tab ("Run workflow").
 on:
   schedule:
-    # 21:30 UTC Mon-Fri = ~06:30 KST next morning (after US close, year-round).
-    - cron: "30 21 * * 1-5"
+    # Refresh news (and the dashboard) every 6 hours so the digest — and the
+    # Telegram channel that mirrors it — stays reasonably fresh.
+    # 00:30 / 06:30 / 12:30 / 18:30 UTC.
+    - cron: "30 */6 * * *"
   workflow_dispatch: {}
   push:
     branches: ["claude/funny-carson-ent3s7"]

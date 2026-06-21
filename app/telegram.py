@@ -108,6 +108,21 @@ def send_with_retry(token: str, chat_id: str, text: str, *, retries: int = 3) ->
 
 
 # --------------------------------------------------------------------------- #
+# Digest source (read the dashboard's pre-built news.json)
+# --------------------------------------------------------------------------- #
+def fetch_digest(url: str, *, timeout: float = 20) -> dict:
+    """Load the dashboard's pre-built news digest (its ``news.json``).
+
+    Reading the same JSON the dashboard publishes guarantees the Telegram
+    channel shows exactly the items on the dashboard, instead of a separate
+    live fetch that drifts apart over time.
+    """
+    req = urllib.request.Request(url, headers={"User-Agent": "SUH-DH-Telegram/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+# --------------------------------------------------------------------------- #
 # De-dup state (which items were already sent)
 # --------------------------------------------------------------------------- #
 def item_id(item: dict) -> str:
