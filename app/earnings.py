@@ -229,13 +229,22 @@ def _make_row(dt: datetime, estimate, reported, *, now: datetime) -> dict:
 
 
 def _fetch_live(ticker: str, limit: int) -> list[dict]:
+    import time as _time
+
     import yfinance as yf
 
     tk = yf.Ticker(ticker)
-    try:
-        df = tk.get_earnings_dates(limit=limit)
-    except Exception:
-        return []
+    # Yahoo intermittently throttles/blocks (esp. from cloud IPs). Retry a few
+    # times with a short backoff before giving up.
+    df = None
+    for attempt in range(3):
+        try:
+            df = tk.get_earnings_dates(limit=limit)
+        except Exception:
+            df = None
+        if df is not None and not df.empty:
+            break
+        _time.sleep(0.8 * (attempt + 1))
     if df is None or df.empty:
         return []
 
@@ -297,7 +306,11 @@ def get_earnings(ticker: str, limit: int = 12) -> dict:
             "quarters": rows,
         }
 
-    return cache.get_or_set(f"earnings:{ticker}:{limit}", EARNINGS_TTL, producer)
+    # Don't pin an empty result (likely a transient Yahoo block) — retry next call.
+    return cache.get_or_set(
+        f"earnings:{ticker}:{limit}", EARNINGS_TTL, producer,
+        cache_when=lambda v: _demo() or v.get("count", 0) > 0,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -397,4 +410,8 @@ def get_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
             "summary": _drift_summary(recent_drifts, offsets),
         }
 
-    return cache.get_or_set(f"drift:{ticker}", EARNINGS_TTL, producer)
+    # Don't pin an empty table (transient upstream failure) — let it retry.
+    return cache.get_or_set(
+        f"drift:{ticker}", EARNINGS_TTL, producer,
+        cache_when=lambda v: _demo() or bool(v.get("quarters")),
+    )
