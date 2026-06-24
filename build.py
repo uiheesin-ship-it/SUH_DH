@@ -99,7 +99,8 @@ def main() -> None:
         # the guidance column fills in only where data/guidance.json has entries.
         default_watch = (
             "MU,NVDA,AAPL,MSFT,GOOGL,GOOG,AMZN,META,AVGO,TSLA,AMD,TSM,ORCL,"
-            "NFLX,CRM,QCOM,ASML,ARM,PLTR,SMCI,MRVL,ANET,INTC,ADBE"
+            "NFLX,CRM,QCOM,ASML,ARM,PLTR,SMCI,MRVL,ANET,INTC,ADBE,"
+            "COIN,UBER,SHOP,PYPL,DIS,ABNB,PANW,NOW"
         )
         watchlist = [t.strip().upper() for t in
                      os.environ.get("SUH_DH_DRIFT_TICKERS", default_watch).split(",") if t.strip()]

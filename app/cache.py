@@ -14,11 +14,15 @@ _lock = threading.Lock()
 _store: dict[str, tuple[float, Any]] = {}
 
 
-def get_or_set(key: str, ttl: float, producer: Callable[[], Any]) -> Any:
+def get_or_set(key: str, ttl: float, producer: Callable[[], Any],
+               cache_when: Callable[[Any], bool] | None = None) -> Any:
     """Return cached value for ``key`` or compute it with ``producer``.
 
     The producer is run outside the lock so a slow network call does not block
     other cache keys, but each key is recomputed at most once per TTL window.
+    If ``cache_when`` is given and returns False for the produced value, the
+    value is returned but NOT cached — so transient failures (e.g. an empty
+    upstream response) are retried on the next call instead of being pinned.
     """
     now = time.time()
     with _lock:
@@ -28,8 +32,9 @@ def get_or_set(key: str, ttl: float, producer: Callable[[], Any]) -> Any:
 
     value = producer()  # may raise; caller decides how to handle
 
-    with _lock:
-        _store[key] = (time.time(), value)
+    if cache_when is None or cache_when(value):
+        with _lock:
+            _store[key] = (time.time(), value)
     return value
 
 
