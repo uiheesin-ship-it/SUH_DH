@@ -78,6 +78,21 @@ FastAPI(`/api/*`)에 붙는 라이브라서 **아무 티커나** 조회됩니다
 경고 페이지가 한 번 뜰 수 있고, 터널을 켜 둔 동안에만 접속됩니다(끄면 GitHub Pages 정적
 사이트를 쓰세요).
 
+## 아무 티커나 보기 (무료 백엔드 연결, 선택)
+
+GitHub Pages는 정적 사이트라 **미리 빌드한 종목만** 조회됩니다. 임의 티커를 항상
+조회하려면 **무료 백엔드 1개**를 연결하면 됩니다(리포에 `render.yaml` 포함).
+
+1. <https://dashboard.render.com> → **New → Blueprint** → 이 저장소 연결 → 자동 배포.
+   배포되면 `https://suh-dh-api.onrender.com` 같은 주소가 생깁니다.
+2. 깃허브 저장소 **Settings → Secrets and variables → Actions → Variables → New variable** 에
+   `SUH_DH_API_BASE = https://suh-dh-api.onrender.com` 등록.
+3. **Actions → "Build & deploy dashboard" → Run workflow** 한 번 실행.
+
+이제 Pages의 실적 페이지에서 **미리 빌드 안 된 티커**를 입력하면 이 백엔드에서 라이브로
+가져옵니다(무료 플랜은 유휴 15분 후 잠들어 첫 요청이 ~30~60초 걸릴 수 있음). 로컬
+`./run.sh` 의 `/api/*` 도 같은 백엔드라, ngrok 주소를 `SUH_DH_API_BASE` 로 써도 됩니다.
+
 ## 매일 자동 갱신 웹사이트 (GitHub Pages)
 
 PC를 켜지 않아도 **고정 주소에 접속하면 매일 최신 데이터가 떠 있는** 방식입니다.

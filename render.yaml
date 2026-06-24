@@ -1,0 +1,24 @@
+# Render Blueprint — deploys the SUH_DH FastAPI backend as a free always-on
+# web service so the GitHub Pages site can query ANY ticker live.
+#
+# One-time setup:
+#   1) Push this file (already in the repo).
+#   2) https://dashboard.render.com → New → Blueprint → connect this repo.
+#   3) Render builds & runs it, giving a URL like https://suh-dh-api.onrender.com
+#   4) In GitHub: Settings → Secrets and variables → Actions → Variables →
+#      New variable  SUH_DH_API_BASE = https://suh-dh-api.onrender.com
+#   5) Re-run the "Build & deploy dashboard" workflow. The Pages earnings page
+#      now fetches non-prebuilt tickers from this backend.
+#
+# Note: the free plan sleeps after ~15 min idle, so the first query after idle
+# takes ~30-60s to wake (the page shows a loading state).
+services:
+  - type: web
+    name: suh-dh-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"

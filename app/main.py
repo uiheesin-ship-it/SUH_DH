@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -14,6 +15,17 @@ from . import __version__, charts, earnings, news, screener
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="SUH_DH - US 52-Week High Dashboard", version=__version__)
+
+# Allow the static GitHub Pages site (a different origin) to call this API as a
+# backend for any ticker. Read-only public data, so default to any origin;
+# restrict with SUH_DH_CORS_ORIGINS="https://a.com,https://b.com" if desired.
+_cors = os.environ.get("SUH_DH_CORS_ORIGINS", "*").strip()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if _cors == "*" else [o.strip() for o in _cors.split(",") if o.strip()],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/api/health")
