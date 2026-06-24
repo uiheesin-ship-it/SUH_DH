@@ -76,12 +76,14 @@ function guidanceCell(q) {
 function row(q) {
   const d = q.drift;
   const prev = d ? d.prev1_pct : null;
+  const pre7 = d && d.pre_returns ? d.pre_returns["d-7"] : null;
   const r = (n) => (d && d.returns ? d.returns["d" + n] : null);
   const cells = OFFSETS.map((n) =>
     `<td class="num" style="${heatStyle(r(n))}">${fmtPct(r(n))}</td>`).join("");
   return `<tr>
     <td class="date">${esc(q.date)}</td>
     <td class="eps">${epsCell(q)}</td>
+    <td class="num" style="${heatStyle(pre7)}">${fmtPct(pre7)}</td>
     <td class="num">${d ? fmtNum(d.d_minus1_close) : "–"}</td>
     <td class="num strong">${d ? fmtNum(d.d0_close) : (q.upcoming ? "발표 전" : "–")}</td>
     <td class="num" style="${heatStyle(prev)}">${fmtPct(prev)}</td>
@@ -108,7 +110,7 @@ function render(data) {
     <div class="table-wrap">
       <table class="drift">
         <thead><tr>
-          <th>실적발표일</th><th>EPS vs 컨센</th><th>D-1 종가</th><th>발표일 종가</th>
+          <th>실적발표일</th><th>EPS vs 컨센</th><th>D-7</th><th>D-1 종가</th><th>발표일 종가</th>
           <th>직전1일</th><th>D+1</th><th>D+7</th><th>D+30</th><th>D+60</th>
           <th>가이던스 vs 컨센</th>
         </tr></thead>
@@ -122,7 +124,7 @@ function render(data) {
       <span class="swatch s-3"></span><span class="swatch s-2"></span><span class="swatch s-1"></span>
       <span class="lg-down">하락</span>
       <span class="spacer"></span>
-      <span class="muted">D+N = 발표일 이후 N 거래일</span>
+      <span class="muted">D-7 = 발표 전 7거래일 변동(→발표일 종가) · D+N = 발표일 이후 N 거래일</span>
     </div>
     <div class="sum-caption">최근 ${data.summary_window ?? "–"}개 분기 평균</div>
     <div class="summary">${summaryCards(data.summary || {})}</div>`;
