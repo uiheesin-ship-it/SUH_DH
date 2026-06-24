@@ -162,10 +162,11 @@ def test_drift_returns_anchors_on_report_day():
     closes = [90, 95, 100, 105, 100, 110, 121, 130, 140, 150]
     #          0   1    2    3    4    5    6    7    8    9
     # report_date 2025-01-06 -> idx 5 (close 110), D-1 = 100.
-    d = earnings.drift_returns(dates, closes, "2025-01-06", offsets=(1, 3))
+    d = earnings.drift_returns(dates, closes, "2025-01-06", offsets=(1, 3), pre_offsets=(5,))
     assert d["d0_close"] == 110 and d["d_minus1_close"] == 100
     assert d["prev1_pct"] == 10.0          # 100 -> 110
     assert d["returns"]["d1"] == 10.0      # 110 -> 121
+    assert d["pre_returns"]["d-5"] == 22.2  # close[0]=90 -> 110 = +22.2%
     assert d["returns"]["d3"] == round((140 - 110) / 110 * 100, 1)  # 110 -> 140
     # Offsets past the end of the series come back as None, not an error.
     assert earnings.drift_returns(dates, closes, "2025-01-10", offsets=(5,))["returns"]["d5"] is None

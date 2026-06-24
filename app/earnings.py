@@ -305,6 +305,8 @@ def get_earnings(ticker: str, limit: int = 12) -> dict:
 # --------------------------------------------------------------------------- #
 # Trading-day offsets after the report close, matching the attached table.
 DRIFT_OFFSETS = (1, 7, 30, 60)
+# Trading-day windows BEFORE the report (pre-earnings run-up).
+PRE_OFFSETS = (7,)
 
 
 def _pct(base, later) -> float | None:
@@ -316,15 +318,18 @@ def _pct(base, later) -> float | None:
 
 
 def drift_returns(
-    dates: list[str], closes: list, report_date: str, offsets=DRIFT_OFFSETS
+    dates: list[str], closes: list, report_date: str,
+    offsets=DRIFT_OFFSETS, pre_offsets=PRE_OFFSETS,
 ) -> dict | None:
     """Price reaction around an earnings date, in *trading days*.
 
     ``dates`` must be ascending ``YYYY-MM-DD`` trading days with parallel
     ``closes``. D0 is the report day's close (the last trading day on or before
-    ``report_date``); ``prev1_pct`` is the report-day move (D-1→D0) and each
-    ``d{n}`` is the return from D0 to n trading days later. Returns None when
-    there isn't a prior trading day to anchor on.
+    ``report_date``); ``prev1_pct`` is the report-day move (D-1→D0), each
+    ``d{n}`` is the return from D0 to n trading days later, and each
+    ``pre_returns['d-{n}']`` is the run-up over the n trading days into D0
+    (close n days before → D0). Returns None when there isn't a prior trading
+    day to anchor on.
     """
     if not dates or not closes:
         return None
@@ -338,8 +343,12 @@ def drift_returns(
         "d_minus1_close": dm1,
         "d0_close": d0,
         "prev1_pct": _pct(dm1, d0),  # the report-day move itself
+        "pre_returns": {},
         "returns": {},
     }
+    for n in pre_offsets:
+        j = idx - n
+        out["pre_returns"][f"d-{n}"] = _pct(closes[j], d0) if j >= 0 else None
     for n in offsets:
         j = idx + n
         out["returns"][f"d{n}"] = _pct(d0, closes[j]) if j < len(closes) else None
