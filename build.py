@@ -66,6 +66,10 @@ def main() -> None:
         with (SITE / "earnings" / "config.js").open("a", encoding="utf-8") as f:
             f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
+    # Tickers that have curated guidance data — for the earnings side panel.
+    write_json(SITE / "data" / "guidance_tickers.json",
+               {"tickers": earnings.guidance_tickers()})
+
     # Global news digest (independent of the 52-week-high fetch; never let a
     # news failure abort the highs build or vice versa).
     print("Building global news digest ...")

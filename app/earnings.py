@@ -150,6 +150,20 @@ def _index_guidance(entries: list[dict]) -> dict[str, list[dict]]:
     return by_date
 
 
+def guidance_tickers() -> list[str]:
+    """Tickers that have curated guidance-vs-consensus entries (sorted)."""
+    path = Path(GUIDANCE_FILE)
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    return sorted(t for t in data if not t.startswith("_"))
+
+
 def _load_guidance_entries(ticker: str) -> list[dict]:
     path = Path(GUIDANCE_FILE)
     if not path.exists():
