@@ -181,7 +181,7 @@ API 예시:
 |---|---|
 | `GET /api/highs` | 섹터→소섹터로 그룹된 신고가 종목(시총순) |
 | `GET /api/reason/{ticker}` | 최신 뉴스 + 최근 실적발표 여부 |
-| `GET /api/earnings/{ticker}` | 분기별 실적 발표일 + EPS 컨센서스 상회/하회/부합 판정 |
+| `GET /api/earnings/{ticker}` | 분기별 실적 발표일 + EPS 컨센서스 상회/하회/부합 판정 + (있으면) 차분기 가이던스 vs 당시 컨센서스 |
 | `GET /api/chart/{ticker}?range=max\|6mo` | OHLCV + 거래량 + MA5/20/50/120 |
 | `GET /api/news` | 선별된 AI 투자 뉴스 10~20건(한국어 요약 + 원문 링크) |
 

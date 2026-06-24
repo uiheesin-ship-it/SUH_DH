@@ -127,6 +127,37 @@ def demo_earnings(ticker: str) -> list[dict]:
     return rows
 
 
+def demo_guidance(ticker: str) -> list[dict]:
+    """Sample next-quarter guidance vs point-in-time consensus annotations.
+
+    Shape matches one entry of ``data/guidance.json``. Dates are computed the
+    same way as ``demo_earnings`` so the guidance lands on the matching report
+    row. Numbers are illustrative (echoing the attached Micron mock), not real.
+    """
+    if ticker.upper() != "MU":
+        return []
+    now = datetime.now(timezone.utc)
+
+    def d(days_ago: int) -> str:
+        return (now - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+
+    return [
+        {
+            "report_date": d(98), "guided_period": "FY26 Q3", "metric": "revenue",
+            "unit": "B_USD", "guidance_mid": 33.5, "guidance_low": 32.75,
+            "guidance_high": 34.25, "consensus": 22.8,
+            "note": "AI HBM 수요로 차분기 가이던스가 컨센서스를 대폭 상회(데모).",
+            "sources": ["https://investors.micron.com/ (보도자료)"],
+        },
+        {
+            "report_date": d(189), "guided_period": "FY26 Q2", "metric": "revenue",
+            "unit": "B_USD", "guidance_mid": 18.7, "consensus": 13.7,
+            "note": "차분기 매출 가이던스 컨센서스 대비 +36%(데모).",
+            "sources": ["https://investors.micron.com/ (보도자료)"],
+        },
+    ]
+
+
 def demo_news() -> dict:
     """Sample global-news digest (already in Korean) for offline/sandbox use.
 

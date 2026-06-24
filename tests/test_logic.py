@@ -93,6 +93,42 @@ def test_demo_earnings_shape_and_tags():
             assert r["reported_eps"] > r["eps_estimate"]
 
 
+# ---------- earnings: guidance vs consensus ----------
+def test_classify_guidance_bands():
+    assert earnings.classify_guidance(118, 80)[1] == "대폭상회"   # +47.5%
+    assert earnings.classify_guidance(8.8, 8.2)[1] == "상회"       # +7.3%
+    assert earnings.classify_guidance(8.8, 8.6)[1] == "소폭상회"   # +2.3%
+    assert earnings.classify_guidance(8.5, 8.5)[1] == "부합"        # 0%
+    assert earnings.classify_guidance(8.3, 8.5)[1] == "소폭하회"   # -2.4%
+    assert earnings.classify_guidance(7.9, 9.0)[1] == "하회"        # -12.2%
+    assert earnings.classify_guidance(5.0, 9.0)[1] == "대폭하회"   # -44%
+    # Missing / undefined inputs grade to nothing.
+    assert earnings.classify_guidance(None, 8.5) == (None, None)
+    assert earnings.classify_guidance(8.8, None) == (None, None)
+    assert earnings.classify_guidance(8.8, 0) == (None, None)
+
+
+def test_guidance_merges_onto_matching_quarter():
+    os.environ["SUH_DH_DEMO"] = "1"
+    from app import cache as _cache
+
+    _cache.clear()
+    try:
+        data = earnings.get_earnings("MU")
+    finally:
+        _cache.clear()
+    assert data["guidance_count"] >= 1
+    # The quarter carrying guidance has a graded, sourced annotation.
+    guided = [q for q in data["quarters"] if q["guidance"]]
+    assert guided
+    g = guided[0]["guidance"][0]
+    assert g["guidance_result_ko"] in {
+        "대폭상회", "상회", "소폭상회", "부합", "소폭하회", "하회", "대폭하회"
+    }
+    assert g["guidance_surprise_pct"] is not None
+    assert g["sources"]
+
+
 # ---------- global news digest ----------
 def test_score_item_picks_relevant_categories():
     score, cats = news.score_item(
