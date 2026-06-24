@@ -354,9 +354,10 @@ def drift_returns(
     ``closes``. D0 is the report day's close (the last trading day on or before
     ``report_date``); ``prev1_pct`` is the report-day move (D-1→D0), each
     ``d{n}`` is the return from D0 to n trading days later, and each
-    ``pre_returns['d-{n}']`` is the run-up over the n trading days into D0
-    (close n days before → D0). Returns None when there isn't a prior trading
-    day to anchor on.
+    ``pre_returns['d-{n}']`` is the pre-earnings run-up from the close n trading
+    days before the report to the close the day before it (D-{n} → D-1) — i.e.
+    excluding the report-day reaction. Returns None when there isn't a prior
+    trading day to anchor on.
     """
     if not dates or not closes:
         return None
@@ -375,7 +376,8 @@ def drift_returns(
     }
     for n in pre_offsets:
         j = idx - n
-        out["pre_returns"][f"d-{n}"] = _pct(closes[j], d0) if j >= 0 else None
+        # Run-up from D-{n} close to D-1 close (excludes the report-day move).
+        out["pre_returns"][f"d-{n}"] = _pct(closes[j], dm1) if j >= 0 else None
     for n in offsets:
         j = idx + n
         out["returns"][f"d{n}"] = _pct(d0, closes[j]) if j < len(closes) else None
