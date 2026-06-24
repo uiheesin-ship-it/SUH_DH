@@ -70,6 +70,18 @@ def earnings_history(ticker: str):
         )
 
 
+@app.get("/api/drift/{ticker}")
+def earnings_drift(ticker: str):
+    """Earnings table + post-earnings price drift (직전1일 / D+1·7·30·60 + 평균)."""
+    try:
+        return earnings.get_drift(ticker)
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"Failed to compute drift for {ticker}.", "detail": str(e)},
+        )
+
+
 @app.get("/api/news")
 def global_news():
     """Curated global financial-news digest (10~20 items, Korean summaries)."""

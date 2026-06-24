@@ -23,13 +23,14 @@ classifies and merges them onto the matching quarter.
 
 from __future__ import annotations
 
+import bisect
 import json
 import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import cache, demo_data
+from . import cache, charts, demo_data
 
 EARNINGS_TTL = float(os.environ.get("SUH_DH_EARNINGS_TTL", "1800"))
 
@@ -237,3 +238,90 @@ def get_earnings(ticker: str, limit: int = 12) -> dict:
         }
 
     return cache.get_or_set(f"earnings:{ticker}:{limit}", EARNINGS_TTL, producer)
+
+
+# --------------------------------------------------------------------------- #
+# Post-earnings price drift (D-1 / report day / D+N returns)
+# --------------------------------------------------------------------------- #
+# Trading-day offsets after the report close, matching the attached table.
+DRIFT_OFFSETS = (1, 7, 30, 60)
+
+
+def _pct(base, later) -> float | None:
+    b = _num(base)
+    l = _num(later)
+    if b is None or l is None or b == 0:
+        return None
+    return round((l - b) / b * 100, 1)
+
+
+def drift_returns(
+    dates: list[str], closes: list, report_date: str, offsets=DRIFT_OFFSETS
+) -> dict | None:
+    """Price reaction around an earnings date, in *trading days*.
+
+    ``dates`` must be ascending ``YYYY-MM-DD`` trading days with parallel
+    ``closes``. D0 is the report day's close (the last trading day on or before
+    ``report_date``); ``prev1_pct`` is the report-day move (D-1→D0) and each
+    ``d{n}`` is the return from D0 to n trading days later. Returns None when
+    there isn't a prior trading day to anchor on.
+    """
+    if not dates or not closes:
+        return None
+    idx = bisect.bisect_right(dates, report_date) - 1
+    if idx < 1 or idx >= len(closes):
+        return None
+    d0 = _num(closes[idx])
+    dm1 = _num(closes[idx - 1])
+    out = {
+        "d0_date": dates[idx],
+        "d_minus1_close": dm1,
+        "d0_close": d0,
+        "prev1_pct": _pct(dm1, d0),  # the report-day move itself
+        "returns": {},
+    }
+    for n in offsets:
+        j = idx + n
+        out["returns"][f"d{n}"] = _pct(d0, closes[j]) if j < len(closes) else None
+    return out
+
+
+def _drift_summary(drifts: list[dict], offsets=DRIFT_OFFSETS) -> dict:
+    """Average return and up-count per offset across reported quarters."""
+    summary = {}
+    for n in offsets:
+        vals = [d["returns"].get(f"d{n}") for d in drifts]
+        vals = [v for v in vals if v is not None]
+        summary[f"d{n}"] = {
+            "avg": round(sum(vals) / len(vals), 1) if vals else None,
+            "up": sum(1 for v in vals if v > 0),
+            "n": len(vals),
+        }
+    return summary
+
+
+def get_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
+    """Earnings table joined with the post-earnings price drift per quarter."""
+    ticker = ticker.upper().strip()
+
+    def producer():
+        earnings = get_earnings(ticker)
+        chart = charts.get_chart(ticker, "max")
+        dates = chart.get("dates") or []
+        closes = chart.get("close") or []
+        quarters = []
+        for q in earnings["quarters"]:
+            drift = (
+                drift_returns(dates, closes, q["date"], offsets)
+                if q["reported"]
+                else None
+            )
+            quarters.append({**q, "drift": drift})
+        return {
+            "ticker": ticker,
+            "offsets": list(offsets),
+            "quarters": quarters,
+            "summary": _drift_summary([q["drift"] for q in quarters if q["drift"]], offsets),
+        }
+
+    return cache.get_or_set(f"drift:{ticker}", EARNINGS_TTL, producer)

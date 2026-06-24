@@ -129,6 +129,53 @@ def test_guidance_merges_onto_matching_quarter():
     assert g["sources"]
 
 
+# ---------- earnings: post-earnings price drift ----------
+def test_drift_returns_anchors_on_report_day():
+    # 10 trading days; report on day 5 (close 110), prior day close 100.
+    dates = [f"2025-01-{d:02d}" for d in range(1, 11)]
+    closes = [90, 95, 100, 105, 100, 110, 121, 130, 140, 150]
+    #          0   1    2    3    4    5    6    7    8    9
+    # report_date 2025-01-06 -> idx 5 (close 110), D-1 = 100.
+    d = earnings.drift_returns(dates, closes, "2025-01-06", offsets=(1, 3))
+    assert d["d0_close"] == 110 and d["d_minus1_close"] == 100
+    assert d["prev1_pct"] == 10.0          # 100 -> 110
+    assert d["returns"]["d1"] == 10.0      # 110 -> 121
+    assert d["returns"]["d3"] == round((140 - 110) / 110 * 100, 1)  # 110 -> 140
+    # Offsets past the end of the series come back as None, not an error.
+    assert earnings.drift_returns(dates, closes, "2025-01-10", offsets=(5,))["returns"]["d5"] is None
+    # No prior trading day to anchor on -> None.
+    assert earnings.drift_returns(dates, closes, "2024-12-01") is None
+
+
+def test_drift_summary_averages_and_up_count():
+    drifts = [
+        {"returns": {"d1": 10.0, "d7": -5.0}},
+        {"returns": {"d1": -2.0, "d7": None}},
+        {"returns": {"d1": 4.0, "d7": 15.0}},
+    ]
+    s = earnings._drift_summary(drifts, offsets=(1, 7))
+    assert s["d1"] == {"avg": 4.0, "up": 2, "n": 3}     # (10-2+4)/3
+    assert s["d7"] == {"avg": 5.0, "up": 1, "n": 2}     # (-5+15)/2, None skipped
+
+
+def test_get_drift_demo_end_to_end():
+    os.environ["SUH_DH_DEMO"] = "1"
+    from app import cache as _cache
+
+    _cache.clear()
+    try:
+        d = earnings.get_drift("MU")
+    finally:
+        _cache.clear()
+    assert d["offsets"] == [1, 7, 30, 60]
+    reported = [q for q in d["quarters"] if q["reported"]]
+    assert reported and any(q["drift"] for q in reported)
+    # Upcoming quarter has no drift.
+    upcoming = [q for q in d["quarters"] if q["upcoming"]]
+    assert upcoming and all(q["drift"] is None for q in upcoming)
+    assert set(d["summary"]) == {"d1", "d7", "d30", "d60"}
+
+
 # ---------- global news digest ----------
 def test_score_item_picks_relevant_categories():
     score, cats = news.score_item(
