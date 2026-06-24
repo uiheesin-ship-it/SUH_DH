@@ -156,6 +156,56 @@ def _load_guidance_entries(ticker: str) -> list[dict]:
     return data.get(ticker.upper(), []) if isinstance(data, dict) else []
 
 
+def _estimate_next_q(df) -> float | None:
+    """Pull the next-quarter (+1q) consensus 'avg' from a yfinance estimate frame."""
+    if df is None:
+        return None
+    try:
+        index = list(getattr(df, "index", []))
+        if "+1q" not in index:
+            return None
+        row = df.loc["+1q"]
+        val = row.get("avg") if hasattr(row, "get") else row["avg"]
+        return _num(val)
+    except Exception:
+        return None
+
+
+def forward_consensus(ticker: str) -> dict:
+    """Snapshot the current next-quarter consensus (revenue + EPS) for a ticker.
+
+    This is the automatable half of the guidance column: run it shortly *before*
+    an earnings date (e.g. from the daily build) to capture the point-in-time
+    consensus the company's guidance will be compared against. Uses yfinance
+    forward estimates; fields are None when the source has no data.
+    """
+    ticker = ticker.upper().strip()
+    if _demo():
+        return demo_data.demo_forward_consensus(ticker)
+    import yfinance as yf
+
+    tk = yf.Ticker(ticker)
+    out = {
+        "ticker": ticker,
+        "captured": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    }
+    for key, attrs in (
+        ("revenue_consensus", ("revenue_estimate", "get_revenue_estimate")),
+        ("eps_consensus", ("earnings_estimate", "get_earnings_estimate")),
+    ):
+        df = None
+        for attr in attrs:
+            try:
+                obj = getattr(tk, attr, None)
+                df = obj() if callable(obj) else obj
+            except Exception:
+                df = None
+            if df is not None:
+                break
+        out[key] = _estimate_next_q(df)
+    return out
+
+
 def _make_row(dt: datetime, estimate, reported, *, now: datetime) -> dict:
     est = _num(estimate)
     rep = _num(reported)

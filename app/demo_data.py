@@ -158,6 +158,17 @@ def demo_guidance(ticker: str) -> list[dict]:
     ]
 
 
+def demo_forward_consensus(ticker: str) -> dict:
+    """Sample next-quarter consensus snapshot (offline stand-in for yfinance)."""
+    now = datetime.now(timezone.utc)
+    table = {
+        "MU": {"revenue_consensus": 22.8, "eps_consensus": 2.83},
+        "NVDA": {"revenue_consensus": 57.0, "eps_consensus": 0.89},
+    }
+    vals = table.get(ticker.upper(), {"revenue_consensus": None, "eps_consensus": None})
+    return {"ticker": ticker.upper(), "captured": now.strftime("%Y-%m-%d"), **vals}
+
+
 def demo_news() -> dict:
     """Sample global-news digest (already in Korean) for offline/sandbox use.
 

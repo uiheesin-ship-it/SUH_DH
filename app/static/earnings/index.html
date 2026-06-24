@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>실적 발표 전후 주가 반응 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>📈 실적 발표 전후 주가 반응</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <input id="ticker-input" list="ticker-list" placeholder="티커 (예: MU)" autocomplete="off" />
+      <datalist id="ticker-list"></datalist>
+      <button id="load-btn">조회</button>
+      <span id="status" class="status"></span>
+    </div>
+  </header>
+
+  <main id="content">
+    <div class="loading">티커를 입력하고 <b>조회</b>를 누르세요.</div>
+  </main>
+
+  <footer class="footer">
+    실적 발표일을 기준으로 <b>직전1일(발표일 종가 변동)</b>·<b>D+1·D+7·D+30·D+60</b> 거래일 수익률과
+    분기별 평균/상승 횟수를 보여줍니다. <b>EPS</b> 칸은 실제 EPS가 컨센서스를 상회/하회/부합했는지,
+    <b>가이던스</b> 칸은 회사가 제시한 차분기 가이던스가 발표 당시 컨센서스를 상회/하회했는지(있는 경우)를 표시합니다.
+    가격·실적은 Yahoo Finance(무료), 가이던스 vs 컨센서스는 큐레이션(보도자료·뉴스) 자료입니다.
+    <b>D+N = 발표일 이후 N 거래일.</b>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

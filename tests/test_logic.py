@@ -108,6 +108,32 @@ def test_classify_guidance_bands():
     assert earnings.classify_guidance(8.8, 0) == (None, None)
 
 
+def test_forward_consensus_demo_shape():
+    os.environ["SUH_DH_DEMO"] = "1"
+    snap = earnings.forward_consensus("MU")
+    assert snap["ticker"] == "MU"
+    assert "revenue_consensus" in snap and "eps_consensus" in snap
+    assert snap["captured"]
+
+
+def test_estimate_next_q_reads_plus1q_avg():
+    class _Row(dict):
+        pass
+
+    class _DF:
+        index = ["0q", "+1q", "0y", "+1y"]
+
+        def __init__(self, avg):
+            self._avg = avg
+
+        @property
+        def loc(self):
+            return {"+1q": {"avg": self._avg}}
+
+    assert earnings._estimate_next_q(_DF(8.5)) == 8.5
+    assert earnings._estimate_next_q(None) is None
+
+
 def test_guidance_merges_onto_matching_quarter():
     os.environ["SUH_DH_DEMO"] = "1"
     from app import cache as _cache
