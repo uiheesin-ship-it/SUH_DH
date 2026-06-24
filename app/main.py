@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, charts, news, screener
+from . import __version__, charts, earnings, news, screener
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -55,6 +55,18 @@ def chart(ticker: str, range: str = "max"):
         return JSONResponse(
             status_code=502,
             content={"error": f"Failed to fetch chart for {ticker}.", "detail": str(e)},
+        )
+
+
+@app.get("/api/earnings/{ticker}")
+def earnings_history(ticker: str):
+    """Recent earnings dates + EPS consensus beat/miss/inline tags."""
+    try:
+        return earnings.get_earnings(ticker)
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"Failed to fetch earnings for {ticker}.", "detail": str(e)},
         )
 
 

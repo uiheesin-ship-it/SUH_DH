@@ -9,7 +9,7 @@ blocked by a network egress allowlist. The shape matches what
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Raw rows mimic the normalized output of the Finviz "New High" screener.
 DEMO_ROWS = [
@@ -94,6 +94,37 @@ def demo_reason(ticker: str) -> dict:
             for i, (title, title_ko, pub) in enumerate(items)
         ],
     }
+
+
+def demo_earnings(ticker: str) -> list[dict]:
+    """Sample earnings history (date + EPS consensus vs actual) for offline use.
+
+    Shape matches one entry of ``earnings.get_earnings()["quarters"]``. The MU
+    rows echo the attached post-earnings drift example; other tickers get a
+    couple of generic quarters so the UI always has something to render.
+    """
+    from .earnings import _make_row  # local import avoids a cycle at module load
+
+    now = datetime.now(timezone.utc)
+
+    # (days_ago, eps_estimate, reported_eps)  — negative days_ago = upcoming.
+    samples = {
+        # quarter, estimate, actual — loosely tracking Micron's recent beats.
+        "MU": [(-1, 2.83, None), (98, 1.91, 3.05), (189, 1.43, 1.79),
+               (280, 1.10, 1.18), (371, 0.95, 1.05), (462, 0.50, 0.62)],
+        "NVDA": [(28, 0.85, 0.89), (119, 0.75, 0.78), (210, 0.64, 0.68),
+                 (301, 0.59, 0.61)],
+    }
+    rows_spec = samples.get(
+        ticker,
+        [(35, 1.20, 1.25), (126, 1.10, 1.10), (217, 1.05, 0.99), (308, 0.95, 1.02)],
+    )
+    rows = []
+    for days_ago, est, rep in rows_spec:
+        dt = now - timedelta(days=days_ago)
+        rows.append(_make_row(dt, est, rep, now=now))
+    rows.sort(key=lambda r: r["datetime"], reverse=True)
+    return rows
 
 
 def demo_news() -> dict:

@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.indicators import attach_moving_averages, moving_average
 from app.screener import _normalize_change, group_by_sector
-from app import demo_data, news, telegram
+from app import demo_data, earnings, news, telegram
 
 
 def test_moving_average_padding_and_value():
@@ -55,6 +55,42 @@ def test_demo_chart_has_consistent_lengths():
     for k in ("open", "high", "low", "close", "volume"):
         assert len(d[k]) == n
     assert n > 100
+
+
+# ---------- earnings: consensus beat/miss ----------
+def test_surprise_pct_basic_and_undefined():
+    assert earnings.surprise_pct(2.0, 2.2) == 10.0     # 10% beat
+    assert earnings.surprise_pct(2.0, 1.8) == -10.0    # 10% miss
+    assert earnings.surprise_pct(None, 2.0) is None    # no consensus
+    assert earnings.surprise_pct(2.0, None) is None    # not reported
+    assert earnings.surprise_pct(0.0, 2.0) is None     # undefined (est == 0)
+    assert earnings.surprise_pct(float("nan"), 2.0) is None  # NaN guarded
+
+
+def test_classify_beat_miss_inline_unknown():
+    assert earnings.classify(2.0, 2.5) == "beat"
+    assert earnings.classify(2.0, 1.5) == "miss"
+    assert earnings.classify(2.0, 2.005) == "inline"   # within the band
+    assert earnings.classify(2.0, None) == "unknown"   # not reported yet
+    assert earnings.classify(None, 2.0) == "unknown"   # reported, no consensus
+
+
+def test_demo_earnings_shape_and_tags():
+    rows = demo_data.demo_earnings("MU")
+    assert rows  # MU has sample quarters
+    # Newest first.
+    assert [r["datetime"] for r in rows] == sorted(
+        (r["datetime"] for r in rows), reverse=True
+    )
+    for r in rows:
+        assert r["result"] in {"beat", "miss", "inline", "unknown"}
+        assert r["result_ko"] == earnings.RESULT_LABELS_KO[r["result"]]
+        # An upcoming (not-yet-reported) quarter has no actual EPS.
+        if r["upcoming"]:
+            assert r["reported_eps"] is None and r["result"] == "unknown"
+        # A reported beat must actually have reported EPS above estimate.
+        if r["reported"] and r["result"] == "beat":
+            assert r["reported_eps"] > r["eps_estimate"]
 
 
 # ---------- global news digest ----------
