@@ -86,6 +86,7 @@ app/
   main.py        FastAPI 앱 + JSON API (/api/highs, /api/reason/{t}, /api/chart/{t}, /api/news)
   screener.py    Finviz "New High" 스크리닝 → 섹터/소섹터 그룹, 시총 정렬
   charts.py      Yahoo 과거 시세(차트) + 뉴스/실적(상승 이유)
+  earnings.py    분기별 실적일 + EPS 컨센서스 판정 + 가이던스 vs 컨센 + 발표 전후 주가 드리프트
   news.py        주요 외신 RSS 수집 → AI/데이터센터 뉴스 선별/중복제거 → 한국어 요약
   telegram.py    텔레그램 메시지 포맷 + 전송 + 전송이력 상태(표준 라이브러리만)
   indicators.py  이동평균(MA5/20/50/120) 계산
@@ -97,6 +98,11 @@ app/
     hub.css
     highs/       52주 신고가 프로그램(HTML/CSS/JS, 차트는 Plotly)
     news/        AI 투자 뉴스 프로그램(HTML/CSS/JS)
+    earnings/    실적 발표 전후 주가 반응 프로그램(HTML/CSS/JS)
+tools/
+  guidance.py            가이던스 vs 컨센서스 큐레이션 도우미(add/consensus)
+data/
+  guidance.json          가이던스 vs 컨센서스 큐레이션 데이터(스키마 내장)
 ```
 
 ### 화면 구조 (허브 + 프로그램)
@@ -131,6 +137,30 @@ app/
 - 동작 파라미터는 환경변수로 조정: `SUH_DH_NEWS_MAX`(기본 18), `SUH_DH_NEWS_MAX_AGE`
   (시간, 기본 36), `SUH_DH_NEWS_MIN_SCORE`(기본 2), `SUH_DH_NEWS_FREE_BONUS`(기본 1),
   `SUH_DH_NEWS_TTL`(초, 기본 1800).
+
+### 실적 발표 전후 주가 반응 프로그램
+
+`/earnings/` — 티커를 입력하면 **실적 발표일 기준 주가 반응**을 표로 보여줍니다.
+
+- **주가 반응(자동)**: 발표일 종가 대비 **직전1일·D+1·D+7·D+30·D+60 거래일 수익률**을
+  무료 일별 종가(Yahoo)로 계산하고, 하단에 **D+N 평균 + 상승 횟수**를 집계합니다.
+  상승은 빨강, 하락은 파랑으로 진하기까지 입혀 한눈에 보입니다(이미지의 히트맵과 동일).
+- **EPS vs 컨센(자동)**: 실제 EPS가 컨센서스를 **상회/하회/부합**했는지 — yfinance의
+  추정치·실제치로 서프라이즈 %를 계산해 배지로 표시.
+- **가이던스 vs 컨센(큐레이션)**: 회사가 발표 때 제시한 **차분기 가이던스**가 그 시점
+  컨센서스를 상회했는지(대폭상회~대폭하회 7단계). 이 두 숫자는 무료 가격/실적 API에
+  없어, `data/guidance.json` 큐레이션 레이어에서 출처 링크와 함께 채웁니다.
+
+> **`tools/guidance.py`** — 가이던스 큐레이션 도우미(네트워크가 열린 로컬/Actions에서 실행).
+> - `add` : 보도자료·실적 기사에서 확인한 숫자를 기록(가이던스·컨센·출처) → 상회/하회 등급 자동 계산 후 `data/guidance.json`에 저장.
+> - `consensus` : 차분기 컨센서스(매출·EPS)를 yfinance forward 추정치로 **스냅샷**(발표 직전에 돌리면 발표 당시 컨센서스를 자동 포착). `--apply`로 기존 항목에 기록.
+> ```bash
+> python3 tools/guidance.py add MU --report-date 2025-12-17 --period "FY26 Q2" \
+>     --metric revenue --guidance 8.8 --consensus 8.5 --source https://investors.micron.com/...
+> python3 tools/guidance.py consensus MU --apply 2025-12-17 --metric revenue
+> ```
+> 정적 사이트에서는 `data/guidance.json`에 있는 티커와 기본 워치리스트
+> (`SUH_DH_DRIFT_TICKERS`, 기본 `MU`)만 미리 빌드되며, 로컬 실행 시에는 아무 티커나 조회됩니다.
 
 ### 텔레그램 채널로 자동 전송
 
@@ -181,6 +211,8 @@ API 예시:
 |---|---|
 | `GET /api/highs` | 섹터→소섹터로 그룹된 신고가 종목(시총순) |
 | `GET /api/reason/{ticker}` | 최신 뉴스 + 최근 실적발표 여부 |
+| `GET /api/earnings/{ticker}` | 분기별 실적 발표일 + EPS 컨센서스 상회/하회/부합 판정 + (있으면) 차분기 가이던스 vs 당시 컨센서스 |
+| `GET /api/drift/{ticker}` | 위 실적 표 + 발표일 기준 직전1일·D+1·D+7·D+30·D+60 주가 수익률 + 분기 평균/상승횟수 |
 | `GET /api/chart/{ticker}?range=max\|6mo` | OHLCV + 거래량 + MA5/20/50/120 |
 | `GET /api/news` | 선별된 AI 투자 뉴스 10~20건(한국어 요약 + 원문 링크) |
 

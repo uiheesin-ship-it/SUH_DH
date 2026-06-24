@@ -1,0 +1,61 @@
+{
+  "_schema": {
+    "description": "Curated next-quarter guidance vs point-in-time consensus, keyed by ticker. The free Yahoo API does not carry these two numbers, so they are filled by hand (method B: read from the earnings-day press release / news) with source links. app/earnings.py reads this file, grades each entry (대폭상회/상회/소폭상회/부합/소폭하회/하회/대폭하회), and attaches it to the matching report-date row of /api/earnings/{ticker} and /api/drift/{ticker}.",
+    "entry_fields": {
+      "report_date": "YYYY-MM-DD — the earnings date at which the guidance was given (must equal the quarter's date in the drift table so it merges).",
+      "guided_period": "Human label for the quarter being guided, e.g. 'FY26 Q3'.",
+      "metric": "revenue | eps | gross_margin — which figure this entry compares.",
+      "unit": "Display unit, e.g. 'B_USD' (billions), 'USD' (per-share EPS), 'pct'.",
+      "guidance_mid": "Company guidance midpoint (number). Required for grading.",
+      "guidance_low": "Optional low end of the guided range.",
+      "guidance_high": "Optional high end of the guided range.",
+      "consensus": "Analyst consensus for the same metric/quarter AS OF the report date. Required for grading.",
+      "note": "Optional free-text context (Korean ok).",
+      "sources": "List of source URLs the numbers came from."
+    }
+  },
+  "MU": [
+    {
+      "report_date": "2025-09-23", "guided_period": "FY26 Q1", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 12.5, "guidance_low": 12.2, "guidance_high": 12.8,
+      "consensus": 11.94,
+      "note": "FY25 Q4 발표 때 제시한 FY26 1분기 매출 가이던스(약 $12.5B, GM>50%)가 컨센서스 상회. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000024/a2025q4ex991-pressrelease.htm"]
+    },
+    {
+      "report_date": "2025-06-25", "guided_period": "FY25 Q4", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 10.7, "guidance_low": 10.4, "guidance_high": 11.0,
+      "consensus": 10.0,
+      "note": "FY25 Q3 발표 시점의 4분기 매출 가이던스 $10.7B(중간값)로 컨센 상회. 이후 8월에 $11.2B로 상향 업데이트됨. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000019/a2025q3ex991-pressrelease.htm"]
+    },
+    {
+      "report_date": "2025-03-20", "guided_period": "FY25 Q3", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 8.8, "guidance_low": 8.6, "guidance_high": 9.0,
+      "consensus": 8.5,
+      "note": "FY25 Q2 발표 때 제시한 3분기 매출 가이던스 $8.8B로 컨센 소폭 상회(매크로 우려에 주가 반응은 약함). 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000006/a2025q2ex991-pressrelease.htm"]
+    },
+    {
+      "report_date": "2024-12-18", "guided_period": "FY25 Q2", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 7.9, "guidance_low": 7.7, "guidance_high": 8.1,
+      "consensus": 8.98,
+      "note": "FY25 Q1 발표 때 제시한 2분기 매출 가이던스 $7.90B±$0.2B로 컨센서스(~$9.0B) 크게 하회 → 주가 급락. 가이던스는 SEC 8-K 보도자료 확정값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000046/a2025q1ex991-pressrelease.htm"]
+    },
+    {
+      "report_date": "2024-09-25", "guided_period": "FY25 Q1", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 8.7, "guidance_low": 8.5, "guidance_high": 8.9,
+      "consensus": 8.32,
+      "note": "FY24 Q4 발표 때 제시한 1분기 매출 가이던스 $8.7B로 컨센 상회. 실제 1분기 매출은 $8.71B로 가이던스 부합. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000023/a2024q4ex991-pressrelease.htm"]
+    },
+    {
+      "report_date": "2024-06-26", "guided_period": "FY24 Q4", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 7.6, "guidance_low": 7.4, "guidance_high": 7.8,
+      "consensus": 7.6,
+      "note": "FY24 Q3 발표 때 제시한 4분기 매출 가이던스 ~$7.6B로 컨센과 대체로 부합(상향 폭이 기대에 못 미쳐 주가 하락). 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000004/a2024q2ex991-pressrelease.htm"]
+    }
+  ]
+}

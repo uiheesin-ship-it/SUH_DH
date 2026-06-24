@@ -9,7 +9,7 @@ blocked by a network egress allowlist. The shape matches what
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Raw rows mimic the normalized output of the Finviz "New High" screener.
 DEMO_ROWS = [
@@ -94,6 +94,79 @@ def demo_reason(ticker: str) -> dict:
             for i, (title, title_ko, pub) in enumerate(items)
         ],
     }
+
+
+def demo_earnings(ticker: str) -> list[dict]:
+    """Sample earnings history (date + EPS consensus vs actual) for offline use.
+
+    Shape matches one entry of ``earnings.get_earnings()["quarters"]``. The MU
+    rows echo the attached post-earnings drift example; other tickers get a
+    couple of generic quarters so the UI always has something to render.
+    """
+    from .earnings import _make_row  # local import avoids a cycle at module load
+
+    now = datetime.now(timezone.utc)
+
+    # (days_ago, eps_estimate, reported_eps)  — negative days_ago = upcoming.
+    samples = {
+        # quarter, estimate, actual — loosely tracking Micron's recent beats.
+        "MU": [(-1, 2.83, None), (98, 1.91, 3.05), (189, 1.43, 1.79),
+               (280, 1.10, 1.18), (371, 0.95, 1.05), (462, 0.50, 0.62)],
+        "NVDA": [(28, 0.85, 0.89), (119, 0.75, 0.78), (210, 0.64, 0.68),
+                 (301, 0.59, 0.61)],
+    }
+    rows_spec = samples.get(
+        ticker,
+        [(35, 1.20, 1.25), (126, 1.10, 1.10), (217, 1.05, 0.99), (308, 0.95, 1.02)],
+    )
+    rows = []
+    for days_ago, est, rep in rows_spec:
+        dt = now - timedelta(days=days_ago)
+        rows.append(_make_row(dt, est, rep, now=now))
+    rows.sort(key=lambda r: r["datetime"], reverse=True)
+    return rows
+
+
+def demo_guidance(ticker: str) -> list[dict]:
+    """Sample next-quarter guidance vs point-in-time consensus annotations.
+
+    Shape matches one entry of ``data/guidance.json``. Dates are computed the
+    same way as ``demo_earnings`` so the guidance lands on the matching report
+    row. Numbers are illustrative (echoing the attached Micron mock), not real.
+    """
+    if ticker.upper() != "MU":
+        return []
+    now = datetime.now(timezone.utc)
+
+    def d(days_ago: int) -> str:
+        return (now - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+
+    return [
+        {
+            "report_date": d(98), "guided_period": "FY26 Q3", "metric": "revenue",
+            "unit": "B_USD", "guidance_mid": 33.5, "guidance_low": 32.75,
+            "guidance_high": 34.25, "consensus": 22.8,
+            "note": "AI HBM 수요로 차분기 가이던스가 컨센서스를 대폭 상회(데모).",
+            "sources": ["https://investors.micron.com/ (보도자료)"],
+        },
+        {
+            "report_date": d(189), "guided_period": "FY26 Q2", "metric": "revenue",
+            "unit": "B_USD", "guidance_mid": 18.7, "consensus": 13.7,
+            "note": "차분기 매출 가이던스 컨센서스 대비 +36%(데모).",
+            "sources": ["https://investors.micron.com/ (보도자료)"],
+        },
+    ]
+
+
+def demo_forward_consensus(ticker: str) -> dict:
+    """Sample next-quarter consensus snapshot (offline stand-in for yfinance)."""
+    now = datetime.now(timezone.utc)
+    table = {
+        "MU": {"revenue_consensus": 22.8, "eps_consensus": 2.83},
+        "NVDA": {"revenue_consensus": 57.0, "eps_consensus": 0.89},
+    }
+    vals = table.get(ticker.upper(), {"revenue_consensus": None, "eps_consensus": None})
+    return {"ticker": ticker.upper(), "captured": now.strftime("%Y-%m-%d"), **vals}
 
 
 def demo_news() -> dict:

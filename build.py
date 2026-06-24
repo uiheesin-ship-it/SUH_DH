@@ -21,7 +21,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app import charts, news, screener
+from app import charts, earnings, news, screener
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site"
@@ -55,7 +55,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news"):
+    for program in ("highs", "news", "earnings"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Global news digest (independent of the 52-week-high fetch; never let a
@@ -76,6 +76,33 @@ def main() -> None:
             {"built": built, "count": 0, "items": [], "demo": False,
              "error": "news digest unavailable", "detail": str(e)},
         )
+
+    # Post-earnings drift for the curated watchlist (tickers present in
+    # data/guidance.json). Independent of the highs fetch — a failure here must
+    # not abort the rest of the build.
+    print("Building post-earnings drift for guidance tickers ...")
+    try:
+        gpath = ROOT / "data" / "guidance.json"
+        gdata = json.loads(gpath.read_text(encoding="utf-8")) if gpath.exists() else {}
+        guided = [t for t in gdata if not t.startswith("_")] if isinstance(gdata, dict) else []
+        # Curated guidance tickers + a default watchlist so the published site
+        # always has at least one example (override with SUH_DH_DRIFT_TICKERS).
+        watchlist = [t.strip().upper() for t in
+                     os.environ.get("SUH_DH_DRIFT_TICKERS", "MU").split(",") if t.strip()]
+        tickers = list(dict.fromkeys(guided + watchlist))  # de-dupe, keep order
+        built_tickers = []
+        for t in tickers:
+            try:
+                write_json(SITE / "data" / "drift" / f"{t}.json", earnings.get_drift(t))
+                built_tickers.append(t)
+            except Exception as e:
+                print(f"  drift {t} failed: {e}")
+            time.sleep(0.3)  # be gentle with Yahoo
+        write_json(SITE / "data" / "drift" / "_index.json", {"tickers": built_tickers})
+        print(f"  {len(built_tickers)} drift tables built.")
+    except Exception as e:
+        print(f"  drift build failed: {e}")
+        write_json(SITE / "data" / "drift" / "_index.json", {"tickers": []})
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()
