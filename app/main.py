@@ -94,6 +94,12 @@ def earnings_drift(ticker: str):
         )
 
 
+@app.get("/api/guidance/tickers")
+def registered_guidance_tickers():
+    """Tickers that have curated guidance-vs-consensus data (for the side panel)."""
+    return {"tickers": earnings.guidance_tickers()}
+
+
 @app.get("/api/news")
 def global_news():
     """Curated global financial-news digest (10~20 items, Korean summaries)."""

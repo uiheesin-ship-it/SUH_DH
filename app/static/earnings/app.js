@@ -169,6 +169,7 @@ async function loadDrift(ticker) {
     $("#status").textContent = `${esc(ticker)} · 실적 ${reported}건`
       + (STATIC && BUILT ? ` · 갱신 ${new Date(BUILT).toLocaleDateString("ko-KR")}` : "");
     if (location.hash.slice(1) !== ticker) location.hash = ticker;
+    renderRegistered(ticker);  // highlight in the side panel if registered
   } catch (e) {
     renderError("데이터를 불러오지 못했습니다", e.message);
   }
@@ -188,14 +189,48 @@ async function loadIndex() {
   } catch (_) { /* index is optional */ }
 }
 
+// ---------- registered (guidance) tickers side panel ----------
+let REGISTERED = [];
+
+function renderRegistered(active) {
+  const ul = $("#registered-list");
+  if (!ul) return;
+  if (!REGISTERED.length) {
+    ul.innerHTML = `<li class="reg-empty">아직 등록된 종목이 없어요.</li>`;
+    return;
+  }
+  const a = (active || "").toUpperCase();
+  ul.innerHTML = REGISTERED.map((t) =>
+    `<li><button type="button" class="reg-item${t === a ? " active" : ""}" data-t="${esc(t)}">${esc(t)}</button></li>`
+  ).join("");
+}
+
+async function loadRegistered() {
+  try {
+    const url = STATIC ? "../data/guidance_tickers.json" : "/api/guidance/tickers";
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      REGISTERED = data.tickers || [];
+    }
+  } catch (_) { /* panel is optional */ }
+  renderRegistered(location.hash.slice(1));
+}
+
 // ---------- events ----------
 $("#load-btn").addEventListener("click", () => loadDrift($("#ticker-input").value));
 $("#ticker-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") loadDrift($("#ticker-input").value);
 });
+$("#registered-list").addEventListener("click", (e) => {
+  const btn = e.target.closest(".reg-item");
+  if (!btn) return;
+  $("#ticker-input").value = btn.dataset.t;
+  loadDrift(btn.dataset.t);
+});
 
 (async function init() {
-  await loadIndex();
+  await Promise.all([loadIndex(), loadRegistered()]);
   const initial = location.hash.slice(1) || $("#ticker-input").value || (STATIC ? "" : "MU");
   if (initial) {
     $("#ticker-input").value = initial;

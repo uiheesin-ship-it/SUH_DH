@@ -21,9 +21,16 @@
     </div>
   </header>
 
-  <main id="content">
-    <div class="loading">티커를 입력하고 <b>조회</b>를 누르세요.</div>
-  </main>
+  <div class="layout">
+    <main id="content">
+      <div class="loading">티커를 입력하고 <b>조회</b>를 누르세요.</div>
+    </main>
+    <aside class="side-panel" id="registered-panel">
+      <h2>가이던스 등록 종목</h2>
+      <p class="reg-hint">가이던스 vs 컨센서스가 입력된 종목입니다. 클릭하면 조회돼요.</p>
+      <ul id="registered-list" class="reg-list"><li class="reg-empty">불러오는 중…</li></ul>
+    </aside>
+  </div>
 
   <footer class="footer">
     실적 발표일을 기준으로 <b>직전1일(발표일 종가 변동)</b>·<b>D+1·D+7·D+30·D+60</b> 거래일 수익률과
