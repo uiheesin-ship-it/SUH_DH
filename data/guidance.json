@@ -16,6 +16,20 @@
   },
   "MU": [
     {
+      "report_date": "2026-03-18", "guided_period": "FY26 Q3", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 33.5, "guidance_low": 32.75, "guidance_high": 34.25,
+      "consensus": 22.8,
+      "note": "FY26 Q2 발표 때 제시한 3분기 매출 가이던스 사상 최대 $33.5B(GM~81%, EPS~$19.15)로 컨센서스(~$22.8B) 대폭 상회. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312526000004/a2026q2ex991-pressrelease.htm"]
+    },
+    {
+      "report_date": "2025-12-17", "guided_period": "FY26 Q2", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 18.7, "guidance_low": 18.3, "guidance_high": 19.1,
+      "consensus": 13.7,
+      "note": "FY26 Q1 발표 때 제시한 2분기 매출 가이던스 $18.7B±$0.4B(GM~68%, EPS~$8.42)로 컨센서스(~$13.7B) 대폭 상회. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000044/a2026q1ex991-pressrelease.htm"]
+    },
+    {
       "report_date": "2025-09-23", "guided_period": "FY26 Q1", "metric": "revenue",
       "unit": "B_USD", "guidance_mid": 12.5, "guidance_low": 12.2, "guidance_high": 12.8,
       "consensus": 11.94,
@@ -59,6 +73,24 @@
     }
   ],
   "NVDA": [
+    {
+      "report_date": "2026-02-25", "guided_period": "FY27 Q1", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 78.0, "consensus": 75.0,
+      "note": "FY26 Q4 발표 때 제시한 차분기(FY27 Q1) 매출 가이던스 ~$78B로 컨센 상회. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581026000019/q4fy26pr.htm"]
+    },
+    {
+      "report_date": "2025-11-19", "guided_period": "FY26 Q4", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 65.0, "consensus": 61.7,
+      "note": "FY26 Q3 발표 때 제시한 4분기 매출 가이던스 ~$65B±2%로 컨센 상회(실제 Q4는 $68.1B). 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2026"]
+    },
+    {
+      "report_date": "2025-08-27", "guided_period": "FY26 Q3", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 54.0, "consensus": 53.1,
+      "note": "FY26 Q2 발표 때 제시한 3분기 매출 가이던스 $54.0B±2%로 컨센 소폭 상회(실제 Q3는 $57.0B). 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-second-quarter-fiscal-2026"]
+    },
     {
       "report_date": "2025-05-28", "guided_period": "FY26 Q2", "metric": "revenue",
       "unit": "B_USD", "guidance_mid": 45.0, "consensus": 45.9,

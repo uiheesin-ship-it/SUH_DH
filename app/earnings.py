@@ -34,6 +34,11 @@ from . import cache, charts, demo_data
 
 EARNINGS_TTL = float(os.environ.get("SUH_DH_EARNINGS_TTL", "1800"))
 
+# Show only the most recent N reported quarters (plus any upcoming preview),
+# and average the D+N drift over the most recent M of them.
+MAX_QUARTERS = int(os.environ.get("SUH_DH_MAX_QUARTERS", "8"))
+SUMMARY_WINDOW = int(os.environ.get("SUH_DH_SUMMARY_WINDOW", "6"))
+
 # A report within this band of the consensus counts as "in line" rather than a
 # beat/miss — a tiny rounding-level surprise is not a real surprise.
 INLINE_BAND_PCT = float(os.environ.get("SUH_DH_EARNINGS_INLINE_BAND", "0.5"))
@@ -272,6 +277,11 @@ def get_earnings(ticker: str, limit: int = 12) -> dict:
         else:
             rows = _fetch_live(ticker, limit)
             guidance = _index_guidance(_load_guidance_entries(ticker))
+        # Keep any upcoming (preview) quarter plus the most recent MAX_QUARTERS
+        # reported ones — rows are already newest-first.
+        upcoming_rows = [r for r in rows if r["upcoming"]]
+        past_rows = [r for r in rows if not r["upcoming"]]
+        rows = upcoming_rows + past_rows[:MAX_QUARTERS]
         for r in rows:
             # Guidance is announced at a report, for the *next* quarter, so it
             # hangs off the report-date row (matching the table layout).
@@ -367,11 +377,15 @@ def get_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
                 else None
             )
             quarters.append({**q, "drift": drift})
+        # Average the drift over only the most recent SUMMARY_WINDOW quarters
+        # that have price data (quarters are newest-first).
+        recent_drifts = [q["drift"] for q in quarters if q["drift"]][:SUMMARY_WINDOW]
         return {
             "ticker": ticker,
             "offsets": list(offsets),
+            "summary_window": len(recent_drifts),
             "quarters": quarters,
-            "summary": _drift_summary([q["drift"] for q in quarters if q["drift"]], offsets),
+            "summary": _drift_summary(recent_drifts, offsets),
         }
 
     return cache.get_or_set(f"drift:{ticker}", EARNINGS_TTL, producer)

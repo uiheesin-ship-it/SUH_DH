@@ -91,7 +91,8 @@ table.drift td.guide { text-align: left; max-width: 320px; white-space: normal; 
 .legend .spacer { flex: 1; }
 
 /* summary cards */
-.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 10px; }
+.sum-caption { color: var(--muted); font-size: 12px; margin: 14px 2px 6px; }
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 0; }
 .sum-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
 .sum-label { color: var(--muted); font-size: 13px; }
 .sum-val { font-size: 26px; font-weight: 800; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }

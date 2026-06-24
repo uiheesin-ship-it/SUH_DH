@@ -8,6 +8,10 @@ const $ = (sel) => document.querySelector(sel);
 //                   limited to the tickers listed in ../data/drift/_index.json
 const STATIC = !!window.SUH_DH_STATIC;
 const BUILT = window.SUH_DH_BUILT || null;
+// Optional always-on backend (e.g. a hosted FastAPI or your ngrok URL). When
+// set, the static site falls back to it for tickers that weren't pre-built,
+// so any ticker works. Configure via config.js (window.SUH_DH_API_BASE).
+const API_BASE = (window.SUH_DH_API_BASE || "").replace(/\/$/, "");
 
 const OFFSETS = [1, 7, 30, 60];
 
@@ -120,6 +124,7 @@ function render(data) {
       <span class="spacer"></span>
       <span class="muted">D+N = 발표일 이후 N 거래일</span>
     </div>
+    <div class="sum-caption">최근 ${data.summary_window ?? "–"}개 분기 평균</div>
     <div class="summary">${summaryCards(data.summary || {})}</div>`;
 }
 
@@ -136,11 +141,18 @@ async function loadDrift(ticker) {
   $("#content").innerHTML = `<div class="loading">${esc(ticker)} 실적·주가 데이터를 불러오는 중…</div>`;
   try {
     const url = STATIC ? `../data/drift/${ticker}.json` : `/api/drift/${ticker}`;
-    const res = await fetch(url, { cache: "no-store" });
+    let res = await fetch(url, { cache: "no-store" });
     if (!res.ok && STATIC) {
-      renderError(`${ticker}는 미리 만들어진 목록에 없습니다.`,
-        "정적 사이트에서는 큐레이션된 티커만 조회됩니다. 로컬 실행 시 아무 티커나 조회할 수 있어요.");
-      return;
+      // Not pre-built. If a backend is configured, fetch the ticker live there;
+      // otherwise explain the static-site limitation.
+      if (API_BASE) {
+        $("#content").innerHTML = `<div class="loading">${esc(ticker)} 라이브 조회 중 (백엔드)…</div>`;
+        res = await fetch(`${API_BASE}/api/drift/${ticker}`, { cache: "no-store" });
+      } else {
+        renderError(`${ticker}는 미리 만들어진 목록에 없습니다.`,
+          "정적 사이트에선 큐레이션된 티커만 조회됩니다. 백엔드(SUH_DH_API_BASE)를 연결하면 아무 티커나 라이브로 조회할 수 있어요. (또는 로컬 ./run.sh 실행)");
+        return;
+      }
     }
     const data = await res.json();
     if (!res.ok || data.error) {

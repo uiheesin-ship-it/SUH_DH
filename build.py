@@ -58,6 +58,14 @@ def main() -> None:
     for program in ("highs", "news", "earnings"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
+    # Optional: point the static earnings page at an always-on backend so it can
+    # fetch *any* ticker (not just the pre-built ones). Set SUH_DH_API_BASE to a
+    # hosted FastAPI URL (or your ngrok URL) at build time.
+    api_base = os.environ.get("SUH_DH_API_BASE", "").strip()
+    if api_base:
+        with (SITE / "earnings" / "config.js").open("a", encoding="utf-8") as f:
+            f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
+
     # Global news digest (independent of the 52-week-high fetch; never let a
     # news failure abort the highs build or vice versa).
     print("Building global news digest ...")
