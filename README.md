@@ -66,6 +66,12 @@ ngrok http 8000 --url=https://japan.ngrok-free.app
 #   (구버전 ngrok이면) ngrok http --domain=japan.ngrok-free.app 8000
 ```
 
+위 두 단계를 **한 번에** 하려면:
+
+```bash
+./run_ngrok.sh                 # 앱 실행 + 터널을 한 명령으로 (도메인은 SUH_DH_NGROK_DOMAIN 로 변경)
+```
+
 이제 <https://japan.ngrok-free.app/> 로 들어가면 **대시보드 허브**가 뜨고, 카드에서
 **📈 실적 발표 전후 주가 반응**(`/earnings/`)을 눌러 들어가면 됩니다. 이 모드는 로컬
 FastAPI(`/api/*`)에 붙는 라이브라서 **아무 티커나** 조회됩니다. ngrok 무료 플랜은 접속 시
