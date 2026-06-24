@@ -89,7 +89,10 @@ def main() -> None:
         # published site ships with several ready tickers (override with
         # SUH_DH_DRIFT_TICKERS). Drift + EPS-consensus are automatic per ticker;
         # the guidance column fills in only where data/guidance.json has entries.
-        default_watch = "MU,NVDA,AAPL,MSFT,GOOGL,AMZN,META,AVGO,TSLA"
+        default_watch = (
+            "MU,NVDA,AAPL,MSFT,GOOGL,GOOG,AMZN,META,AVGO,TSLA,AMD,TSM,ORCL,"
+            "NFLX,CRM,QCOM,ASML,ARM,PLTR,SMCI,MRVL,ANET,INTC,ADBE"
+        )
         watchlist = [t.strip().upper() for t in
                      os.environ.get("SUH_DH_DRIFT_TICKERS", default_watch).split(",") if t.strip()]
         tickers = list(dict.fromkeys(guided + watchlist))  # de-dupe, keep order
