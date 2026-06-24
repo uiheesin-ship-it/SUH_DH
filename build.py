@@ -85,10 +85,13 @@ def main() -> None:
         gpath = ROOT / "data" / "guidance.json"
         gdata = json.loads(gpath.read_text(encoding="utf-8")) if gpath.exists() else {}
         guided = [t for t in gdata if not t.startswith("_")] if isinstance(gdata, dict) else []
-        # Curated guidance tickers + a default watchlist so the published site
-        # always has at least one example (override with SUH_DH_DRIFT_TICKERS).
+        # Curated guidance tickers + a default big-tech watchlist so the
+        # published site ships with several ready tickers (override with
+        # SUH_DH_DRIFT_TICKERS). Drift + EPS-consensus are automatic per ticker;
+        # the guidance column fills in only where data/guidance.json has entries.
+        default_watch = "MU,NVDA,AAPL,MSFT,GOOGL,AMZN,META,AVGO,TSLA"
         watchlist = [t.strip().upper() for t in
-                     os.environ.get("SUH_DH_DRIFT_TICKERS", "MU").split(",") if t.strip()]
+                     os.environ.get("SUH_DH_DRIFT_TICKERS", default_watch).split(",") if t.strip()]
         tickers = list(dict.fromkeys(guided + watchlist))  # de-dupe, keep order
         built_tickers = []
         for t in tickers:

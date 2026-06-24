@@ -57,5 +57,31 @@
       "note": "FY24 Q3 발표 때 제시한 4분기 매출 가이던스 ~$7.6B로 컨센과 대체로 부합(상향 폭이 기대에 못 미쳐 주가 하락). 컨센서스는 당시 보도 기준 근사값.",
       "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000004/a2024q2ex991-pressrelease.htm"]
     }
+  ],
+  "NVDA": [
+    {
+      "report_date": "2025-05-28", "guided_period": "FY26 Q2", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 45.0, "consensus": 45.9,
+      "note": "FY26 Q1 발표 때 제시한 2분기 매출 가이던스 $45.0B±2%로 컨센(~$45.9B) 소폭 하회 — H20 대중국 수출규제 영향 반영. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581025000115/q1fy26pr.htm"]
+    },
+    {
+      "report_date": "2025-02-26", "guided_period": "FY26 Q1", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 43.0, "consensus": 41.78,
+      "note": "FY25 Q4 발표 때 제시한 1분기 매출 가이던스 $43.0B±2%로 컨센(LSEG ~$41.78B) 상회.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581025000021/q4fy25pr.htm"]
+    },
+    {
+      "report_date": "2024-11-20", "guided_period": "FY25 Q4", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 37.5, "consensus": 37.1,
+      "note": "FY25 Q3 발표 때 제시한 4분기 매출 가이던스 ~$37.5B±2%로 컨센 소폭 상회. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581024000315/q3fy25pr.htm"]
+    },
+    {
+      "report_date": "2024-08-28", "guided_period": "FY25 Q3", "metric": "revenue",
+      "unit": "B_USD", "guidance_mid": 32.5, "consensus": 32.94,
+      "note": "FY25 Q2 발표 때 제시한 3분기 매출 가이던스 ~$32.5B로 컨센(~$32.94B) 소폭 하회 — 높아진 기대치에 주가 단기 조정. 컨센서스는 당시 보도 기준 근사값.",
+      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581024000262/q2fy25pr.htm"]
+    }
   ]
 }

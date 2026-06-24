@@ -53,6 +53,25 @@ pip install -r requirements.txt
 - ⚠️ 무료 데이터(Yahoo/Finviz)는 실시간 대비 **약 15분 지연**될 수 있습니다.
   진짜 틱 단위 실시간이 필요하면 유료 API(Polygon, IEX 등) 연동이 필요합니다.
 
+## ngrok로 외부에서 보기 (내 도메인)
+
+PC에서 라이브로 띄운 대시보드를 **내 ngrok 주소로 외부(폰 등)에서** 보고 싶을 때:
+
+```bash
+# 1) 대시보드 실행 (로컬)
+./run.sh                       # http://127.0.0.1:8000
+
+# 2) 다른 터미널에서 ngrok 터널 (예약 도메인 사용)
+ngrok http 8000 --url=https://japan.ngrok-free.app
+#   (구버전 ngrok이면) ngrok http --domain=japan.ngrok-free.app 8000
+```
+
+이제 <https://japan.ngrok-free.app/> 로 들어가면 **대시보드 허브**가 뜨고, 카드에서
+**📈 실적 발표 전후 주가 반응**(`/earnings/`)을 눌러 들어가면 됩니다. 이 모드는 로컬
+FastAPI(`/api/*`)에 붙는 라이브라서 **아무 티커나** 조회됩니다. ngrok 무료 플랜은 접속 시
+경고 페이지가 한 번 뜰 수 있고, 터널을 켜 둔 동안에만 접속됩니다(끄면 GitHub Pages 정적
+사이트를 쓰세요).
+
 ## 매일 자동 갱신 웹사이트 (GitHub Pages)
 
 PC를 켜지 않아도 **고정 주소에 접속하면 매일 최신 데이터가 떠 있는** 방식입니다.
