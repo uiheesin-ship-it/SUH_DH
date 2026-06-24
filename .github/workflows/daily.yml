@@ -42,18 +42,24 @@ jobs:
       - name: Build static site
         run: python build.py
       - name: Commit news.json for the Telegram job
+        # This commit is only for the Telegram mirror — never let a race on this
+        # branch (the Telegram job pushes here too) block the Pages deploy.
+        continue-on-error: true
         run: |
           if [ -n "$(git status --porcelain data/news.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add data/news.json
             git commit -m "chore: update dashboard news.json"
-            # Telegram commits sent-state on its own cadence; rebase if the
-            # branch moved under us, then push.
-            git push origin HEAD:claude/funny-carson-ent3s7 || {
-              git pull --rebase origin claude/funny-carson-ent3s7
-              git push origin HEAD:claude/funny-carson-ent3s7
-            }
+            # The Telegram job commits to this same branch on its own cadence.
+            # Retry, auto-resolving news.json in favor of this fresh build.
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              echo "push rejected; rebasing (attempt $i) ..."
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
           else
             echo "news.json unchanged."
           fi
