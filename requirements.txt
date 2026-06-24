@@ -1,6 +1,7 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
-yfinance>=0.2.40
+yfinance>=0.2.54
+curl_cffi>=0.7
 finvizfinance>=0.14
 pandas>=2.0
 deep-translator>=1.11
