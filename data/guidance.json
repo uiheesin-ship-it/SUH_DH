@@ -16,104 +16,701 @@
   },
   "MU": [
     {
-      "report_date": "2026-03-18", "guided_period": "FY26 Q3", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 33.5, "guidance_low": 32.75, "guidance_high": 34.25,
+      "report_date": "2026-03-18",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 33.5,
+      "guidance_low": 32.75,
+      "guidance_high": 34.25,
       "consensus": 22.8,
       "note": "FY26 Q2 발표 때 제시한 3분기 매출 가이던스 사상 최대 $33.5B(GM~81%, EPS~$19.15)로 컨센서스(~$22.8B) 대폭 상회. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312526000004/a2026q2ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312526000004/a2026q2ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2025-12-17", "guided_period": "FY26 Q2", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 18.7, "guidance_low": 18.3, "guidance_high": 19.1,
+      "report_date": "2025-12-17",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 18.7,
+      "guidance_low": 18.3,
+      "guidance_high": 19.1,
       "consensus": 13.7,
       "note": "FY26 Q1 발표 때 제시한 2분기 매출 가이던스 $18.7B±$0.4B(GM~68%, EPS~$8.42)로 컨센서스(~$13.7B) 대폭 상회. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000044/a2026q1ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000044/a2026q1ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2025-09-23", "guided_period": "FY26 Q1", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 12.5, "guidance_low": 12.2, "guidance_high": 12.8,
+      "report_date": "2025-09-23",
+      "guided_period": "FY26 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 12.5,
+      "guidance_low": 12.2,
+      "guidance_high": 12.8,
       "consensus": 11.94,
       "note": "FY25 Q4 발표 때 제시한 FY26 1분기 매출 가이던스(약 $12.5B, GM>50%)가 컨센서스 상회. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000024/a2025q4ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000024/a2025q4ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2025-06-25", "guided_period": "FY25 Q4", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 10.7, "guidance_low": 10.4, "guidance_high": 11.0,
+      "report_date": "2025-06-25",
+      "guided_period": "FY25 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 10.7,
+      "guidance_low": 10.4,
+      "guidance_high": 11.0,
       "consensus": 10.0,
       "note": "FY25 Q3 발표 시점의 4분기 매출 가이던스 $10.7B(중간값)로 컨센 상회. 이후 8월에 $11.2B로 상향 업데이트됨. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000019/a2025q3ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000019/a2025q3ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2025-03-20", "guided_period": "FY25 Q3", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 8.8, "guidance_low": 8.6, "guidance_high": 9.0,
+      "report_date": "2025-03-20",
+      "guided_period": "FY25 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 8.8,
+      "guidance_low": 8.6,
+      "guidance_high": 9.0,
       "consensus": 8.5,
       "note": "FY25 Q2 발표 때 제시한 3분기 매출 가이던스 $8.8B로 컨센 소폭 상회(매크로 우려에 주가 반응은 약함). 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000006/a2025q2ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312525000006/a2025q2ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2024-12-18", "guided_period": "FY25 Q2", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 7.9, "guidance_low": 7.7, "guidance_high": 8.1,
+      "report_date": "2024-12-18",
+      "guided_period": "FY25 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 7.9,
+      "guidance_low": 7.7,
+      "guidance_high": 8.1,
       "consensus": 8.98,
       "note": "FY25 Q1 발표 때 제시한 2분기 매출 가이던스 $7.90B±$0.2B로 컨센서스(~$9.0B) 크게 하회 → 주가 급락. 가이던스는 SEC 8-K 보도자료 확정값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000046/a2025q1ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000046/a2025q1ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2024-09-25", "guided_period": "FY25 Q1", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 8.7, "guidance_low": 8.5, "guidance_high": 8.9,
+      "report_date": "2024-09-25",
+      "guided_period": "FY25 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 8.7,
+      "guidance_low": 8.5,
+      "guidance_high": 8.9,
       "consensus": 8.32,
       "note": "FY24 Q4 발표 때 제시한 1분기 매출 가이던스 $8.7B로 컨센 상회. 실제 1분기 매출은 $8.71B로 가이던스 부합. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000023/a2024q4ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000023/a2024q4ex991-pressrelease.htm"
+      ]
     },
     {
-      "report_date": "2024-06-26", "guided_period": "FY24 Q4", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 7.6, "guidance_low": 7.4, "guidance_high": 7.8,
+      "report_date": "2024-06-26",
+      "guided_period": "FY24 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 7.6,
+      "guidance_low": 7.4,
+      "guidance_high": 7.8,
       "consensus": 7.6,
       "note": "FY24 Q3 발표 때 제시한 4분기 매출 가이던스 ~$7.6B로 컨센과 대체로 부합(상향 폭이 기대에 못 미쳐 주가 하락). 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000004/a2024q2ex991-pressrelease.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000723125/000072312524000004/a2024q2ex991-pressrelease.htm"
+      ]
     }
   ],
   "NVDA": [
     {
-      "report_date": "2026-02-25", "guided_period": "FY27 Q1", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 78.0, "consensus": 75.0,
+      "report_date": "2026-02-25",
+      "guided_period": "FY27 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 78.0,
+      "consensus": 75.0,
       "note": "FY26 Q4 발표 때 제시한 차분기(FY27 Q1) 매출 가이던스 ~$78B로 컨센 상회. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581026000019/q4fy26pr.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001045810/000104581026000019/q4fy26pr.htm"
+      ]
     },
     {
-      "report_date": "2025-11-19", "guided_period": "FY26 Q4", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 65.0, "consensus": 61.7,
+      "report_date": "2025-11-19",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 65.0,
+      "consensus": 61.7,
       "note": "FY26 Q3 발표 때 제시한 4분기 매출 가이던스 ~$65B±2%로 컨센 상회(실제 Q4는 $68.1B). 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2026"]
+      "sources": [
+        "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2026"
+      ]
     },
     {
-      "report_date": "2025-08-27", "guided_period": "FY26 Q3", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 54.0, "consensus": 53.1,
+      "report_date": "2025-08-27",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 54.0,
+      "consensus": 53.1,
       "note": "FY26 Q2 발표 때 제시한 3분기 매출 가이던스 $54.0B±2%로 컨센 소폭 상회(실제 Q3는 $57.0B). 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-second-quarter-fiscal-2026"]
+      "sources": [
+        "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-second-quarter-fiscal-2026"
+      ]
     },
     {
-      "report_date": "2025-05-28", "guided_period": "FY26 Q2", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 45.0, "consensus": 45.9,
+      "report_date": "2025-05-28",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 45.0,
+      "consensus": 45.9,
       "note": "FY26 Q1 발표 때 제시한 2분기 매출 가이던스 $45.0B±2%로 컨센(~$45.9B) 소폭 하회 — H20 대중국 수출규제 영향 반영. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581025000115/q1fy26pr.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001045810/000104581025000115/q1fy26pr.htm"
+      ]
     },
     {
-      "report_date": "2025-02-26", "guided_period": "FY26 Q1", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 43.0, "consensus": 41.78,
+      "report_date": "2025-02-26",
+      "guided_period": "FY26 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 43.0,
+      "consensus": 41.78,
       "note": "FY25 Q4 발표 때 제시한 1분기 매출 가이던스 $43.0B±2%로 컨센(LSEG ~$41.78B) 상회.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581025000021/q4fy25pr.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001045810/000104581025000021/q4fy25pr.htm"
+      ]
     },
     {
-      "report_date": "2024-11-20", "guided_period": "FY25 Q4", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 37.5, "consensus": 37.1,
+      "report_date": "2024-11-20",
+      "guided_period": "FY25 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 37.5,
+      "consensus": 37.1,
       "note": "FY25 Q3 발표 때 제시한 4분기 매출 가이던스 ~$37.5B±2%로 컨센 소폭 상회. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581024000315/q3fy25pr.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001045810/000104581024000315/q3fy25pr.htm"
+      ]
     },
     {
-      "report_date": "2024-08-28", "guided_period": "FY25 Q3", "metric": "revenue",
-      "unit": "B_USD", "guidance_mid": 32.5, "consensus": 32.94,
+      "report_date": "2024-08-28",
+      "guided_period": "FY25 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 32.5,
+      "consensus": 32.94,
       "note": "FY25 Q2 발표 때 제시한 3분기 매출 가이던스 ~$32.5B로 컨센(~$32.94B) 소폭 하회 — 높아진 기대치에 주가 단기 조정. 컨센서스는 당시 보도 기준 근사값.",
-      "sources": ["https://www.sec.gov/Archives/edgar/data/0001045810/000104581024000262/q2fy25pr.htm"]
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001045810/000104581024000262/q2fy25pr.htm"
+      ]
+    }
+  ],
+  "META": [
+    {
+      "ticker": "META",
+      "report_date": "2026-04-29",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 59.5,
+      "guidance_low": 58.0,
+      "guidance_high": 61.0,
+      "consensus": 59.6,
+      "note": "Q1 2026 발표(4/29). Q2 가이던스 $58-61B vs 컨센 ~$59.6B.",
+      "sources": [
+        "https://www.cnbc.com/2026/01/28/meta-q4-earnings-report-2025.html"
+      ]
+    },
+    {
+      "ticker": "META",
+      "report_date": "2026-01-28",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 55.0,
+      "guidance_low": 53.5,
+      "guidance_high": 56.5,
+      "consensus": 51.27,
+      "note": "Q4 2025 발표(1/28). Q1 가이던스 $53.5-56.5B vs 컨센 ~$51.27B 상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/01/28/meta-q4-earnings-report-2025.html"
+      ]
+    }
+  ],
+  "AMZN": [
+    {
+      "ticker": "AMZN",
+      "report_date": "2026-04-29",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 196.5,
+      "guidance_low": 194.0,
+      "guidance_high": 199.0,
+      "consensus": 188.9,
+      "note": "Q1 2026 발표(4/29). Q2 순매출 가이던스 $194-199B vs LSEG 컨센 $188.9B 상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/04/29/amazon-amzn-q1-earnings-report-2026.html"
+      ]
+    }
+  ],
+  "TSM": [
+    {
+      "ticker": "TSM",
+      "report_date": "2026-04-16",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 39.6,
+      "guidance_low": 39.0,
+      "guidance_high": 40.2,
+      "consensus": 38.4,
+      "note": "Q1 2026 발표(4/16). Q2 USD 매출 가이던스 $39.0-40.2B vs 컨센 ~$38.4B.",
+      "sources": [
+        "https://investor.tsmc.com/english/quarterly-results/2026/q1"
+      ]
+    }
+  ],
+  "AVGO": [
+    {
+      "ticker": "AVGO",
+      "report_date": "2026-06-03",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 29.4,
+      "consensus": 28.53,
+      "note": "Q2 FY26 발표(6/3). Q3 가이던스 ~$29.4B(단일치) vs 컨센 ~$28.5B.",
+      "sources": [
+        "https://www.cnbc.com/2026/06/03/broadcom-avgo-earnings-report-q2-2026.html"
+      ]
+    },
+    {
+      "ticker": "AVGO",
+      "report_date": "2026-03-04",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 22.0,
+      "consensus": 21.8,
+      "note": "Q1 FY26 발표(3/4). Q2 가이던스 ~$22.0B(단일치) vs 컨센 ~$21.8B(근사).",
+      "sources": [
+        "https://investors.broadcom.com/news-releases"
+      ]
+    }
+  ],
+  "AMD": [
+    {
+      "ticker": "AMD",
+      "report_date": "2026-05-05",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 11.2,
+      "guidance_low": 10.9,
+      "guidance_high": 11.5,
+      "consensus": 10.5,
+      "note": "Q1 FY26 발표. Q2 가이던스 ~$11.2B±0.3B vs 컨센 ~$10.5B 상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/02/03/amd-earnings-report-q4-2025.html"
+      ]
+    },
+    {
+      "ticker": "AMD",
+      "report_date": "2026-02-03",
+      "guided_period": "FY26 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 9.8,
+      "guidance_low": 9.5,
+      "guidance_high": 10.1,
+      "consensus": 9.38,
+      "note": "Q4 FY25 발표. Q1 가이던스 ~$9.8B±0.3B vs 컨센 ~$9.38B.",
+      "sources": [
+        "https://www.cnbc.com/2026/02/03/amd-earnings-report-q4-2025.html"
+      ]
+    }
+  ],
+  "QCOM": [
+    {
+      "ticker": "QCOM",
+      "report_date": "2026-04-29",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 9.6,
+      "guidance_low": 9.2,
+      "guidance_high": 10.0,
+      "consensus": 10.2,
+      "note": "Q2 FY26 발표. Q3 가이던스 $9.2-10.0B vs 컨센 ~$10.2B 하회(메모리 제약).",
+      "sources": [
+        "https://s204.q4cdn.com/645488518/files/doc_financials/2026/q2/FY2026-2nd-Quarter-Earnings-Release.pdf"
+      ]
+    },
+    {
+      "ticker": "QCOM",
+      "report_date": "2026-02-04",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 10.6,
+      "guidance_low": 10.2,
+      "guidance_high": 11.0,
+      "consensus": 11.02,
+      "note": "Q1 FY26 발표. Q2 가이던스 $10.2-11.0B vs 컨센 ~$11.0B 하회.",
+      "sources": [
+        "https://www.cnbc.com/2026/02/04/qualcomm-qcom-q1-2026-earnings.html"
+      ]
+    }
+  ],
+  "INTC": [
+    {
+      "ticker": "INTC",
+      "report_date": "2026-04-23",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 14.3,
+      "guidance_low": 13.8,
+      "guidance_high": 14.8,
+      "consensus": 13.07,
+      "note": "Q1 2026 발표. Q2 가이던스 중간값 $14.3B vs 컨센 ~$13.07B 상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/04/23/intel-intc-q1-2026-earnings-report.html"
+      ]
+    },
+    {
+      "ticker": "INTC",
+      "report_date": "2026-01-22",
+      "guided_period": "FY26 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 12.2,
+      "guidance_low": 11.7,
+      "guidance_high": 12.7,
+      "consensus": 12.55,
+      "note": "Q4 2025 발표. Q1 가이던스 중간값 $12.2B vs 컨센 ~$12.55B 하회.",
+      "sources": [
+        "https://www.cnbc.com/2026/01/22/intel-intc-earnings-report-q4-2025-.html"
+      ]
+    }
+  ],
+  "MRVL": [
+    {
+      "ticker": "MRVL",
+      "report_date": "2026-05-27",
+      "guided_period": "FY27 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 2.7,
+      "guidance_low": 2.565,
+      "guidance_high": 2.835,
+      "consensus": 2.635,
+      "note": "Q1 FY27 발표. Q2 가이던스 $2.70B±5% vs 컨센 ~$2.635B(근사).",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001835632/000183563226000014/q127_8kx522026ex-991.htm"
+      ]
+    }
+  ],
+  "ARM": [
+    {
+      "ticker": "ARM",
+      "report_date": "2026-05-06",
+      "guided_period": "FY27 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.26,
+      "guidance_low": 1.21,
+      "guidance_high": 1.31,
+      "consensus": 1.25,
+      "note": "Q4 FY26 발표. Q1 가이던스 $1.26B±0.05B vs 컨센 ~$1.25B.",
+      "sources": [
+        "https://newsroom.arm.com/news/arm-holdings-plc-reports-results-for-the-fourth-quarter-and-fiscal-year-ended-2026"
+      ]
+    },
+    {
+      "ticker": "ARM",
+      "report_date": "2026-02-04",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.47,
+      "guidance_low": 1.42,
+      "guidance_high": 1.52,
+      "consensus": 1.44,
+      "note": "Q3 FY26 발표. Q4 가이던스 $1.47B±0.05B vs 컨센 ~$1.44B.",
+      "sources": [
+        "https://newsroom.arm.com/news/arm-q3-fye26-results"
+      ]
+    }
+  ],
+  "ASML": [
+    {
+      "ticker": "ASML",
+      "report_date": "2026-04-15",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 9.83,
+      "guidance_low": 9.49,
+      "guidance_high": 10.17,
+      "consensus": 10.22,
+      "note": "Q1'26 발표. Q2 매출 가이던스 €8.4-9.0B(USD 환산 ~$9.5-10.2B) vs 컨센 ~€9.04B 하회. ※EUR→USD 환산 근사.",
+      "sources": [
+        "https://www.asml.com/en/news/press-releases/2026/q1-2026-financial-results"
+      ]
+    }
+  ],
+  "AMAT": [
+    {
+      "ticker": "AMAT",
+      "report_date": "2026-05-14",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 8.95,
+      "guidance_low": 8.45,
+      "guidance_high": 9.45,
+      "consensus": 8.15,
+      "note": "Q2 FY26 발표. Q3(7월분기) 가이던스 $8.95B±0.5B vs 컨센 ~$8.15B 상회.",
+      "sources": [
+        "https://ir.appliedmaterials.com/news-releases/news-release-details/applied-materials-announces-second-quarter-2026-results"
+      ]
+    },
+    {
+      "ticker": "AMAT",
+      "report_date": "2026-02-12",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 7.65,
+      "guidance_low": 7.15,
+      "guidance_high": 8.15,
+      "consensus": 7.65,
+      "note": "Q1 FY26 발표. Q2 가이던스 $7.65B±0.5B vs 컨센 ~$7.65B 부합.",
+      "sources": [
+        "https://ir.appliedmaterials.com/news-releases/news-release-details/applied-materials-announces-first-quarter-2026-results"
+      ]
+    }
+  ],
+  "LRCX": [
+    {
+      "ticker": "LRCX",
+      "report_date": "2026-04-22",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 6.6,
+      "guidance_low": 6.2,
+      "guidance_high": 7.0,
+      "consensus": 6.2,
+      "note": "Q3 FY26 발표. 6월분기 가이던스 $6.60B±0.4B vs 컨센 ~$6.2B 상회.",
+      "sources": [
+        "https://www.fool.com/earnings/call-transcripts/2026/04/22/lam-research-lrcx-q3-2026-earnings-transcript/"
+      ]
+    }
+  ],
+  "KLAC": [
+    {
+      "ticker": "KLAC",
+      "report_date": "2026-04-29",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 3.575,
+      "guidance_low": 3.375,
+      "guidance_high": 3.775,
+      "consensus": 3.4,
+      "note": "Q3 FY26 발표. 6월분기 가이던스 $3.575B±0.2B vs 컨센 ~$3.4B(근사).",
+      "sources": [
+        "https://www.prnewswire.com/news-releases/kla-corporation-reports-fiscal-2026-third-quarter-results-302757602.html"
+      ]
+    }
+  ],
+  "TER": [
+    {
+      "ticker": "TER",
+      "report_date": "2026-04-28",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.2,
+      "guidance_low": 1.15,
+      "guidance_high": 1.25,
+      "consensus": 1.2,
+      "note": "Q1 2026 발표. Q2 가이던스 $1.15-1.25B vs 컨센 ~$1.2B 부합.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000097210/000119312526188706/ter-ex99_1.htm"
+      ]
+    },
+    {
+      "ticker": "TER",
+      "report_date": "2026-02-02",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.2,
+      "guidance_low": 1.15,
+      "guidance_high": 1.25,
+      "consensus": 0.934,
+      "note": "Q4 2025 발표. Q1 가이던스 $1.15-1.25B vs 컨센 ~$0.93B 대폭 상회(AI 수요).",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000097210/000119312526034348/ter-ex99_1.htm"
+      ]
+    }
+  ],
+  "WDC": [
+    {
+      "ticker": "WDC",
+      "report_date": "2026-04-30",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 3.65,
+      "guidance_low": 3.55,
+      "guidance_high": 3.75,
+      "consensus": 3.7,
+      "note": "Q3 FY26 발표. Q4 가이던스 $3.65B±0.1B vs 컨센 ~$3.7B(매출 약보합, EPS/마진은 상회).",
+      "sources": [
+        "https://www.westerndigital.com/company/newsroom/press-releases/2026/2026-04-30-wd-reports-fiscal-third-quarter-2026-financial-results"
+      ]
+    },
+    {
+      "ticker": "WDC",
+      "report_date": "2026-01-29",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 3.2,
+      "guidance_low": 3.1,
+      "guidance_high": 3.3,
+      "consensus": 3.23,
+      "note": "Q2 FY26 발표. Q3 가이던스 $3.2B±0.1B vs 컨센 ~$3.23B.",
+      "sources": [
+        "https://www.westerndigital.com/company/newsroom/press-releases/2026/2026-01-29-western-digital-reports-fiscal-second-quarter-2026-financial-results"
+      ]
+    }
+  ],
+  "STX": [
+    {
+      "ticker": "STX",
+      "report_date": "2026-04-28",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 3.45,
+      "guidance_low": 3.35,
+      "guidance_high": 3.55,
+      "consensus": 3.16,
+      "note": "Q3 FY26 발표. 6월분기 가이던스 $3.45B±0.1B vs 컨센 ~$3.16B 상회.",
+      "sources": [
+        "https://www.businesswire.com/news/home/20260428855920/en/Seagate-Technology-Reports-Fiscal-Third-Quarter-2026-Financial-Results"
+      ]
+    },
+    {
+      "ticker": "STX",
+      "report_date": "2026-01-27",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 2.9,
+      "guidance_low": 2.8,
+      "guidance_high": 3.0,
+      "consensus": 2.96,
+      "note": "Q2 FY26 발표. 3월분기 가이던스 $2.9B±0.1B vs 컨센 ~$2.96B.",
+      "sources": [
+        "https://www.businesswire.com/news/home/20260127711045/en/Seagate-Technology-Reports-Fiscal-Second-Quarter-2026-Financial-Results"
+      ]
+    }
+  ],
+  "SNDK": [
+    {
+      "ticker": "SNDK",
+      "report_date": "2026-04-30",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 8.0,
+      "guidance_low": 7.75,
+      "guidance_high": 8.25,
+      "consensus": 6.49,
+      "note": "Q3 FY26 발표. Q4 가이던스 $7.75-8.25B vs 컨센 ~$6.49B 대폭 상회(AI NAND 가격 급등).",
+      "sources": [
+        "https://www.sandisk.com/company/newsroom/press-releases/2026/2026-04-30-sandisk-reports-fiscal-third-quarter-2026-financial-results"
+      ]
+    }
+  ],
+  "FORM": [
+    {
+      "ticker": "FORM",
+      "report_date": "2026-04-29",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.24,
+      "guidance_low": 0.235,
+      "guidance_high": 0.245,
+      "consensus": 0.2277,
+      "note": "Q1 2026 발표. Q2 가이던스 $240M±5M vs 컨센 ~$228M 상회.",
+      "sources": [
+        "https://www.marketbeat.com/instant-alerts/formfactor-nasdaqform-updates-q2-2026-earnings-guidance-2026-04-29/"
+      ]
+    },
+    {
+      "ticker": "FORM",
+      "report_date": "2026-02-04",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.225,
+      "guidance_low": 0.22,
+      "guidance_high": 0.23,
+      "consensus": 0.2039,
+      "note": "Q4 2025 발표. Q1 가이던스 $225M±5M vs 컨센 ~$204M 상회.",
+      "sources": [
+        "https://www.fool.com/earnings/call-transcripts/2026/02/04/formfactor-form-q4-2025-earnings-call-transcript/"
+      ]
+    }
+  ],
+  "TTMI": [
+    {
+      "ticker": "TTMI",
+      "report_date": "2026-04-29",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.95,
+      "guidance_low": 0.93,
+      "guidance_high": 0.97,
+      "consensus": 0.823,
+      "note": "Q1 2026 발표. Q2 가이던스 $930-970M vs 컨센 ~$823M 대폭 상회.",
+      "sources": [
+        "https://www.marketscreener.com/news/ttmi-ttm-technologies-inc-expects-q2-revenue-range-930-0m-970-0m-ce7f58dadf8cf223"
+      ]
+    },
+    {
+      "ticker": "TTMI",
+      "report_date": "2026-02-04",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.79,
+      "guidance_low": 0.77,
+      "guidance_high": 0.81,
+      "consensus": 0.787,
+      "note": "Q4 2025 발표. Q1 가이던스 $770-810M vs 컨센 ~$787M 부합.",
+      "sources": [
+        "https://investors.ttm.com/news-events/press-releases/detail/400/ttm-technologies-inc-reports-fourth-quarter-fiscal-year"
+      ]
     }
   ]
 }
