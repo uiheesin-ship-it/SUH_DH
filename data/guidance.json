@@ -1432,5 +1432,246 @@
         "https://news.abbvie.com/2026-02-04-AbbVie-Reports-Full-Year-and-Fourth-Quarter-2025-Financial-Results"
       ]
     }
+  ],
+  "PLTR": [
+    {
+      "ticker": "PLTR",
+      "report_date": "2026-05-04",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.799,
+      "guidance_low": 1.797,
+      "guidance_high": 1.801,
+      "consensus": 1.68,
+      "note": "Q1 2026 발표. Q2 총매출 가이던스 ~$1.8B vs 컨센 ~$1.68B(LSEG) 상회. FY26 +71% 상향.",
+      "sources": [
+        "https://www.cnbc.com/2026/05/04/palantir-pltr-q1-earnings-report-2026.html"
+      ]
+    },
+    {
+      "ticker": "PLTR",
+      "report_date": "2026-02-02",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.534,
+      "guidance_low": 1.532,
+      "guidance_high": 1.536,
+      "consensus": 1.32,
+      "note": "Q4 2025 발표. Q1 총매출 가이던스 ~$1.53B vs 컨센 ~$1.32B(FactSet) 대폭 상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/02/02/palantir-pltr-q4-2025-earnings.html"
+      ]
+    }
+  ],
+  "NET": [
+    {
+      "ticker": "NET",
+      "report_date": "2026-05-07",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.6645,
+      "guidance_low": 0.664,
+      "guidance_high": 0.665,
+      "consensus": 0.672,
+      "note": "Q1 2026 발표. Q2 가이던스 ~$664M vs 컨센 ~$672M 소폭 하회(약 20% 감원 발표).",
+      "sources": [
+        "https://www.cnbc.com/2026/05/07/cloudflare-net-q1-2026-stock-earnings-layoffs.html"
+      ]
+    },
+    {
+      "ticker": "NET",
+      "report_date": "2026-02-10",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.6205,
+      "guidance_low": 0.62,
+      "guidance_high": 0.621,
+      "consensus": 0.622,
+      "note": "Q4 2025 발표. Q1 가이던스 ~$620M vs 컨센 ~$622M 부합.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001477333/000147733326000008/q425exhibit991.htm"
+      ]
+    }
+  ],
+  "NOW": [
+    {
+      "ticker": "NOW",
+      "report_date": "2026-01-28",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 3.6525,
+      "guidance_low": 3.65,
+      "guidance_high": 3.655,
+      "consensus": 3.6,
+      "note": "Q4 2025 발표. Q1 구독매출 가이던스 ~$3.65B vs 컨센 ~$3.6B 소폭 상회.",
+      "sources": [
+        "https://www.fool.com/earnings/call-transcripts/2026/01/28/servicenow-now-q4-2025-earnings-call-transcript/"
+      ]
+    }
+  ],
+  "TEAM": [
+    {
+      "ticker": "TEAM",
+      "report_date": "2026-04-30",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.657,
+      "guidance_low": 1.653,
+      "guidance_high": 1.661,
+      "consensus": 1.659,
+      "note": "Q3 FY26 발표(Atlassian 6월 결산). Q4 총매출 가이던스 ~$1.657B vs 컨센 ~$1.659B 부합.",
+      "sources": [
+        "https://www.businesswire.com/news/home/20260430534706/en/Atlassian-Announces-Third-Quarter-Fiscal-Year-2026-Results"
+      ]
+    },
+    {
+      "ticker": "TEAM",
+      "report_date": "2026-02-05",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.693,
+      "guidance_low": 1.689,
+      "guidance_high": 1.697,
+      "consensus": 1.697,
+      "note": "Q2 FY26 발표. Q3 총매출 가이던스 ~$1.693B vs 컨센 ~$1.697B 부합.",
+      "sources": [
+        "https://s206.q4cdn.com/270053503/files/doc_financials/2026/q2/TEAM-Q2-2026-Earnings-Release.pdf"
+      ]
+    }
+  ],
+  "CRWD": [
+    {
+      "ticker": "CRWD",
+      "report_date": "2026-06-03",
+      "guided_period": "FY27 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.439,
+      "guidance_low": 1.436,
+      "guidance_high": 1.442,
+      "consensus": 1.43,
+      "note": "Q1 FY27 발표. Q2 총매출 가이던스 $1.436-1.442B vs 컨센 ~$1.43B 부합(높은 기대에 주가 -10%).",
+      "sources": [
+        "https://www.cnbc.com/2026/06/03/crowdstrike-crwd-q1-2027-earnings.html"
+      ]
+    },
+    {
+      "ticker": "CRWD",
+      "report_date": "2026-03-03",
+      "guided_period": "FY27 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.362,
+      "guidance_low": 1.36,
+      "guidance_high": 1.364,
+      "consensus": 1.36,
+      "note": "Q4 FY26 발표. Q1 총매출 가이던스 $1.360-1.364B vs 컨센 ~$1.36B 부합.",
+      "sources": [
+        "https://www.nasdaq.com/press-release/crowdstrike-reports-fourth-quarter-and-fiscal-year-2026-financial-results-2026-03-03"
+      ]
+    }
+  ],
+  "TWLO": [
+    {
+      "ticker": "TWLO",
+      "report_date": "2026-04-30",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.425,
+      "guidance_low": 1.42,
+      "guidance_high": 1.43,
+      "consensus": 1.39,
+      "note": "Q1 2026 발표. Q2 총매출 가이던스 $1.42-1.43B vs 컨센 ~$1.39B 상회.",
+      "sources": [
+        "https://www.marketbeat.com/instant-alerts/twilio-nysetwlo-releases-q2-2026-earnings-guidance-2026-04-30/"
+      ]
+    },
+    {
+      "ticker": "TWLO",
+      "report_date": "2026-02-12",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.34,
+      "guidance_low": 1.335,
+      "guidance_high": 1.345,
+      "consensus": 1.29,
+      "note": "Q4 2025 발표. Q1 총매출 가이던스 $1.335-1.345B vs 컨센 ~$1.29B 상회.",
+      "sources": [
+        "https://www.themarketsdaily.com/2026/02/13/twilio-nysetwlo-releases-q1-2026-earnings-guidance.html"
+      ]
+    }
+  ],
+  "RDDT": [
+    {
+      "ticker": "RDDT",
+      "report_date": "2026-04-30",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.72,
+      "guidance_low": 0.715,
+      "guidance_high": 0.725,
+      "consensus": 0.714,
+      "note": "Q1 2026 발표. Q2 가이던스 $715-725M vs 컨센 ~$714M 부합~소폭상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/04/30/reddit-rddt-q1-2026-earnings-report.html"
+      ]
+    },
+    {
+      "ticker": "RDDT",
+      "report_date": "2026-02-05",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.6,
+      "guidance_low": 0.595,
+      "guidance_high": 0.605,
+      "consensus": 0.577,
+      "note": "Q4 2025 발표. Q1 가이던스 $595-605M vs 컨센 ~$577M 상회.",
+      "sources": [
+        "https://www.fool.com/earnings/call-transcripts/2026/02/05/reddit-rddt-q4-2025-earnings-call-transcript/"
+      ]
+    }
+  ],
+  "APP": [
+    {
+      "ticker": "APP",
+      "report_date": "2026-05-06",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.93,
+      "guidance_low": 1.915,
+      "guidance_high": 1.945,
+      "consensus": 1.89,
+      "note": "Q1 2026 발표. Q2 총매출 가이던스 $1.915-1.945B vs 컨센 ~$1.89B 소폭 상회.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001751008/000175100826000042/exhibit991-1q26earningspre.htm"
+      ]
+    },
+    {
+      "ticker": "APP",
+      "report_date": "2026-02-11",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 1.76,
+      "guidance_low": 1.745,
+      "guidance_high": 1.775,
+      "consensus": 1.71,
+      "note": "Q4 2025 발표. Q1 총매출 가이던스 $1.745-1.775B vs 컨센 ~$1.71B(역산) 소폭 상회.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001751008/000175100826000005/exhibit991-4q25earningspre.htm"
+      ]
+    }
   ]
 }
