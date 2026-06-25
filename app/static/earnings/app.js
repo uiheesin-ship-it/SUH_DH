@@ -222,11 +222,20 @@ $("#load-btn").addEventListener("click", () => loadDrift($("#ticker-input").valu
 $("#ticker-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") loadDrift($("#ticker-input").value);
 });
+function setPanel(open) {
+  const p = $("#registered-panel");
+  p.classList.toggle("open", open);
+  p.setAttribute("aria-hidden", open ? "false" : "true");
+}
+$("#reg-toggle").addEventListener("click", () =>
+  setPanel(!$("#registered-panel").classList.contains("open")));
+$("#reg-close").addEventListener("click", () => setPanel(false));
 $("#registered-list").addEventListener("click", (e) => {
   const btn = e.target.closest(".reg-item");
   if (!btn) return;
   $("#ticker-input").value = btn.dataset.t;
   loadDrift(btn.dataset.t);
+  setPanel(false);  // tuck the drawer away after selecting
 });
 
 (async function init() {
