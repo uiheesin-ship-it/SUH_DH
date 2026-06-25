@@ -13,10 +13,11 @@ on:
     branches: ["claude/funny-carson-ent3s7"]
     paths-ignore:
       - "README.md"
-      # The Telegram job commits sent-state every 30 min; don't rebuild the site for that.
+      # The Telegram job commits sent-state every 30 min; don't rebuild for that.
       - "state/**"
-      # This workflow commits the digest here; don't let that re-trigger itself.
-      - "data/**"
+      # This workflow commits the news digest here; ignore only that file so it
+      # doesn't re-trigger itself — but DO rebuild for data/guidance.json edits.
+      - "data/news.json"
 
 permissions:
   # Write access so the build can commit data/news.json for the Telegram job.
