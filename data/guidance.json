@@ -1197,5 +1197,208 @@
         "https://www.globenewswire.com/news-release/2026/02/09/3234915/0/en/onsemi-Reports-Fourth-Quarter-and-Full-Year-2025-Results.html"
       ]
     }
+  ],
+  "JBL": [
+    {
+      "ticker": "JBL",
+      "report_date": "2026-06-17",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 9.6,
+      "guidance_low": 9.2,
+      "guidance_high": 10.0,
+      "consensus": 9.0,
+      "note": "Q3 FY26 발표. Q4 가이던스 $9.2-10.0B vs 컨센 ~$9.0B 상회(AI 인프라 수요).",
+      "sources": [
+        "https://investors.jabil.com/news/news-details/2026/Jabil-Posts-Third-Quarter-Results/default.aspx"
+      ]
+    },
+    {
+      "ticker": "JBL",
+      "report_date": "2026-03-18",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 8.5,
+      "guidance_low": 8.1,
+      "guidance_high": 8.9,
+      "consensus": 8.0,
+      "note": "Q2 FY26 발표. Q3 가이던스 $8.1-8.9B vs 컨센 ~$8.0B(근사).",
+      "sources": [
+        "https://investors.jabil.com/news/news-details/2026/Jabil-Posts-Second-Quarter-Results/default.aspx"
+      ]
+    }
+  ],
+  "DELL": [
+    {
+      "ticker": "DELL",
+      "report_date": "2026-05-28",
+      "guided_period": "FY27 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 44.5,
+      "guidance_low": 44.0,
+      "guidance_high": 45.0,
+      "consensus": 35.1,
+      "note": "Q1 FY27 발표. Q2 가이던스 $44-45B(+~50% YoY)로 컨센 ~$35.1B 대폭 상회(AI 서버). 컨센 단일소스 근사.",
+      "sources": [
+        "https://www.cnbc.com/2026/05/28/dell-q1-earnings-report-2027.html"
+      ]
+    },
+    {
+      "ticker": "DELL",
+      "report_date": "2026-02-26",
+      "guided_period": "FY27 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 35.2,
+      "guidance_low": 34.7,
+      "guidance_high": 35.7,
+      "consensus": 35.46,
+      "note": "Q4 FY26 발표. Q1 가이던스 $34.7-35.7B vs 컨센 ~$35.46B(Zacks) 부합.",
+      "sources": [
+        "https://www.dell.com/en-us/dt/corporate/newsroom/announcements/detailpage.press-releases~usa~2026~2~dell-technologies-delivers-fourth-quarter-and-full-year-fiscal-2026-results.htm"
+      ]
+    }
+  ],
+  "HPE": [
+    {
+      "ticker": "HPE",
+      "report_date": "2026-06-01",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 11.8,
+      "guidance_low": 11.5,
+      "guidance_high": 12.1,
+      "consensus": 10.8,
+      "note": "Q2 FY26 발표. Q3 가이던스 $11.5-12.1B vs 컨센 ~$10.8B 상회(Juniper 합병 반영).",
+      "sources": [
+        "https://www.hpe.com/us/en/newsroom/press-release/2026/06/hpe-reports-fiscal-2026-second-quarter-results.html"
+      ]
+    },
+    {
+      "ticker": "HPE",
+      "report_date": "2026-03-09",
+      "guided_period": "FY26 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 9.8,
+      "guidance_low": 9.6,
+      "guidance_high": 10.0,
+      "consensus": 9.82,
+      "note": "Q1 FY26 발표. Q2 가이던스 $9.6-10.0B vs 컨센 ~$9.82B 부합.",
+      "sources": [
+        "https://www.hpe.com/us/en/newsroom/press-release/2026/03/hpe-reports-fiscal-2026-first-quarter-results.html"
+      ]
+    }
+  ],
+  "ANET": [
+    {
+      "ticker": "ANET",
+      "report_date": "2026-05-05",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 2.8,
+      "consensus": 2.78,
+      "note": "Q1 2026 발표. Q2 매출 가이던스 ~$2.8B(단일치) vs 컨센 ~$2.78B 부합.",
+      "sources": [
+        "https://www.arista.com/en/company/news/press-release/24017-pr-20260505"
+      ]
+    },
+    {
+      "ticker": "ANET",
+      "report_date": "2026-02-12",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 2.6,
+      "consensus": 2.45,
+      "note": "Q4 2025 발표. Q1 매출 가이던스 ~$2.6B(단일치) vs 컨센 ~$2.45B 상회.",
+      "sources": [
+        "https://www.arista.com/en/company/news/press-release/23416-pr-20260212"
+      ]
+    }
+  ],
+  "SMCI": [
+    {
+      "ticker": "SMCI",
+      "report_date": "2026-05-05",
+      "guided_period": "FY26 Q4",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 11.75,
+      "guidance_low": 11.0,
+      "guidance_high": 12.5,
+      "consensus": 11.16,
+      "note": "Q3 FY26 발표. Q4 가이던스 $11.0-12.5B vs 컨센 ~$11.16B 상회.",
+      "sources": [
+        "https://www.cnbc.com/2026/05/05/super-micro-smci-q3-earnings-report-2026.html"
+      ]
+    },
+    {
+      "ticker": "SMCI",
+      "report_date": "2026-02-03",
+      "guided_period": "FY26 Q3",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 12.3,
+      "consensus": 12.33,
+      "note": "Q2 FY26 발표. Q3 가이던스 '최소 $12.3B'(하한 단일치) vs 컨센 ~$12.33B 부합.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001375365/000137536526000006/exhibit991_20251231.htm"
+      ]
+    }
+  ],
+  "VRT": [
+    {
+      "ticker": "VRT",
+      "report_date": "2026-02-11",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 2.6,
+      "guidance_low": 2.5,
+      "guidance_high": 2.7,
+      "consensus": 2.64,
+      "note": "Q4 2025 발표. Q1 net sales 가이던스 $2.5-2.7B vs 컨센 ~$2.64B 소폭 하회.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001674101/000167410126000006/exhibit991vrt02112026.htm"
+      ]
+    }
+  ],
+  "CLS": [
+    {
+      "ticker": "CLS",
+      "report_date": "2026-04-27",
+      "guided_period": "2026 Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 4.3,
+      "guidance_low": 4.15,
+      "guidance_high": 4.45,
+      "consensus": 4.1,
+      "note": "Q1 2026 발표. Q2 가이던스 $4.15-4.45B vs 컨센 ~$4.1B 상회.",
+      "sources": [
+        "https://www.globenewswire.com/news-release/2026/04/27/3282031/0/en/celestica-announces-first-quarter-2026-financial-results.html"
+      ]
+    },
+    {
+      "ticker": "CLS",
+      "report_date": "2026-01-28",
+      "guided_period": "2026 Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 4.0,
+      "guidance_low": 3.85,
+      "guidance_high": 4.15,
+      "consensus": 3.6,
+      "note": "Q4 2025 발표. Q1 가이던스 $3.85-4.15B vs 컨센 ~$3.6B 상회.",
+      "sources": [
+        "https://corporate.celestica.com/news-releases/news-release-details/celestica-announces-fourth-quarter-and-fy-2025-financial-results"
+      ]
+    }
   ]
 }
