@@ -1400,5 +1400,37 @@
         "https://corporate.celestica.com/news-releases/news-release-details/celestica-announces-fourth-quarter-and-fy-2025-financial-results"
       ]
     }
+  ],
+  "ABBV": [
+    {
+      "ticker": "ABBV",
+      "report_date": "2026-04-29",
+      "guided_period": "2026 Q2",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 3.76,
+      "guidance_low": 3.74,
+      "guidance_high": 3.78,
+      "consensus": 3.75,
+      "note": "Q1 2026 발표. 차분기 조정 EPS 가이던스 $3.74-3.78 vs 컨센 ~$3.75 부합(근사). ※매출 아닌 EPS 기준.",
+      "sources": [
+        "https://news.abbvie.com/2026-04-29-AbbVie-Reports-First-Quarter-2026-Financial-Results"
+      ]
+    },
+    {
+      "ticker": "ABBV",
+      "report_date": "2026-02-04",
+      "guided_period": "2026 Q1",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 2.99,
+      "guidance_low": 2.97,
+      "guidance_high": 3.01,
+      "consensus": 2.69,
+      "note": "Q4 2025 발표. 차분기 조정 EPS 가이던스 $2.97-3.01 vs 컨센 ~$2.69(Zacks) 상회. ※매출 아닌 EPS 기준.",
+      "sources": [
+        "https://news.abbvie.com/2026-02-04-AbbVie-Reports-Full-Year-and-Fourth-Quarter-2025-Financial-Results"
+      ]
+    }
   ]
 }
