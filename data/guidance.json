@@ -1673,5 +1673,101 @@
         "https://www.sec.gov/Archives/edgar/data/0001751008/000175100826000005/exhibit991-4q25earningspre.htm"
       ]
     }
+  ],
+  "WMT": [
+    {
+      "ticker": "WMT",
+      "report_date": "2026-05-21",
+      "guided_period": "FY27 Q2",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 0.73,
+      "guidance_low": 0.72,
+      "guidance_high": 0.74,
+      "consensus": 0.75,
+      "note": "Q1 FY27 발표. 차분기 조정 EPS 가이던스 $0.72-0.74 vs 컨센 ~$0.75 소폭 하회. ※EPS 기준.",
+      "sources": [
+        "https://corporate.walmart.com/news/2026/05/21/walmart-releases-q1-fy27-earnings"
+      ]
+    },
+    {
+      "ticker": "WMT",
+      "report_date": "2026-02-19",
+      "guided_period": "FY27 Q1",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 0.64,
+      "guidance_low": 0.63,
+      "guidance_high": 0.65,
+      "consensus": 0.67,
+      "note": "Q4 FY26 발표. 차분기 조정 EPS 가이던스 $0.63-0.65 vs 컨센 ~$0.67(근사) 하회. ※EPS 기준.",
+      "sources": [
+        "https://corporate.walmart.com/news/2026/02/19/walmart-releases-q4-fy26-earnings"
+      ]
+    }
+  ],
+  "PM": [
+    {
+      "ticker": "PM",
+      "report_date": "2026-04-22",
+      "guided_period": "2026 Q2",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 2.045,
+      "guidance_low": 2.02,
+      "guidance_high": 2.07,
+      "consensus": 2.12,
+      "note": "Q1 2026 발표. 차분기 조정 EPS 가이던스 $2.02-2.07 vs 컨센 ~$2.12 하회. ※EPS 기준.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001413329/000162828026026385/earningsreleasepm-ex991xq1.htm"
+      ]
+    },
+    {
+      "ticker": "PM",
+      "report_date": "2026-02-06",
+      "guided_period": "2026 Q1",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 1.825,
+      "guidance_low": 1.8,
+      "guidance_high": 1.85,
+      "consensus": 1.82,
+      "note": "Q4 2025 발표. 차분기 조정 EPS 가이던스 $1.80-1.85 vs 컨센 ~$1.82(Zacks) 부합. ※EPS 기준.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001413329/000162828026005932/earningsreleasepm-ex991xq4.htm"
+      ]
+    }
+  ],
+  "DAL": [
+    {
+      "ticker": "DAL",
+      "report_date": "2026-04-08",
+      "guided_period": "2026 Q2",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 1.25,
+      "guidance_low": 1.0,
+      "guidance_high": 1.5,
+      "consensus": 1.41,
+      "note": "1분기 발표. 차분기(6월분기) 조정 EPS 가이던스 $1.00-1.50 vs 컨센 ~$1.41 하회. ※EPS 기준.",
+      "sources": [
+        "https://ir.delta.com/news/news-details/2026/Delta-Air-Lines-Announces-March-Quarter-2026-Financial-Results/default.aspx"
+      ]
+    },
+    {
+      "ticker": "DAL",
+      "report_date": "2026-01-13",
+      "guided_period": "2026 Q1",
+      "metric": "eps",
+      "unit": "USD",
+      "guidance_mid": 0.7,
+      "guidance_low": 0.5,
+      "guidance_high": 0.9,
+      "consensus": 0.72,
+      "note": "Q4 2025 발표. 차분기(3월분기) 조정 EPS 가이던스 $0.50-0.90 vs 컨센 ~$0.72 소폭 하회. ※EPS 기준.",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0000027904/000168316825000182/delta_ex9901.htm"
+      ]
+    }
   ]
 }
