@@ -28,14 +28,30 @@ def _demo() -> bool:
 # --------------------------------------------------------------------------- #
 # Charts
 # --------------------------------------------------------------------------- #
-def _fetch_chart_live(ticker: str, rng: str) -> dict:
+def _empty_chart(ticker: str, rng: str) -> dict:
+    return {"ticker": ticker, "range": rng, "dates": [], "open": [], "high": [],
+            "low": [], "close": [], "volume": []}
+
+
+def _fetch_chart_yahoo(ticker: str, rng: str) -> dict:
+    import time as _time
+
     import yfinance as yf
 
     period = "max" if rng == "max" else "6mo"
-    hist = yf.Ticker(ticker).history(period=period, auto_adjust=False)
+    # Yahoo intermittently throttles/blocks (esp. from cloud IPs). Retry a few
+    # times with a short backoff before giving up to the fallback source.
+    hist = None
+    for attempt in range(3):
+        try:
+            hist = yf.Ticker(ticker).history(period=period, auto_adjust=False)
+        except Exception:
+            hist = None
+        if hist is not None and not hist.empty:
+            break
+        _time.sleep(0.8 * (attempt + 1))
     if hist is None or hist.empty:
-        return {"ticker": ticker, "range": rng, "dates": [], "open": [], "high": [],
-                "low": [], "close": [], "volume": []}
+        return _empty_chart(ticker, rng)
     hist = hist.dropna(subset=["Close"])
     return {
         "ticker": ticker,
@@ -47,6 +63,59 @@ def _fetch_chart_live(ticker: str, rng: str) -> dict:
         "close": [round(float(x), 4) for x in hist["Close"]],
         "volume": [int(x) for x in hist["Volume"].fillna(0)],
     }
+
+
+def _fetch_chart_stooq(ticker: str, rng: str) -> dict:
+    """Key-free OHLCV fallback (Stooq) for when Yahoo blocks the cloud IP.
+
+    Stooq serves daily history as CSV with no API key and works from datacenter
+    IPs, so the page is never blank just because Yahoo throttled this server.
+    """
+    import csv
+    import io
+    import urllib.request
+
+    # Stooq uses lowercase symbols with a market suffix; dotted classes use '-'.
+    sym = ticker.lower().replace(".", "-")
+    url = f"https://stooq.com/q/d/l/?s={sym}.us&i=d"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            text = resp.read().decode("utf-8", "replace")
+    except Exception:
+        return _empty_chart(ticker, rng)
+
+    dates, o, h, l, c, v = [], [], [], [], [], []
+    for row in csv.DictReader(io.StringIO(text)):
+        try:
+            close = float(row["Close"])
+        except (KeyError, ValueError, TypeError):
+            continue  # header note / "N/D" rows
+        dates.append(row["Date"])
+        o.append(round(float(row.get("Open") or close), 4))
+        h.append(round(float(row.get("High") or close), 4))
+        l.append(round(float(row.get("Low") or close), 4))
+        c.append(round(close, 4))
+        try:
+            v.append(int(float(row.get("Volume") or 0)))
+        except (ValueError, TypeError):
+            v.append(0)
+    if not c:
+        return _empty_chart(ticker, rng)
+    # Stooq returns the full daily history ascending; trim for the short range.
+    if rng != "max" and len(dates) > 130:
+        dates, o, h, l, c, v = (x[-130:] for x in (dates, o, h, l, c, v))
+    return {"ticker": ticker, "range": rng, "dates": dates,
+            "open": o, "high": h, "low": l, "close": c, "volume": v}
+
+
+def _fetch_chart_live(ticker: str, rng: str) -> dict:
+    data = _fetch_chart_yahoo(ticker, rng)
+    if data["close"]:
+        return data
+    # Yahoo returned nothing (likely a transient cloud-IP block) — fall back to a
+    # key-free source so the chart/drift table is never blank.
+    return _fetch_chart_stooq(ticker, rng)
 
 
 def get_chart(ticker: str, rng: str = "max") -> dict:
