@@ -242,6 +242,67 @@ def _make_row(dt: datetime, estimate, reported, *, now: datetime) -> dict:
     }
 
 
+def _money(x) -> float | None:
+    """Parse a NASDAQ money string like ``$1.21`` / ``($0.05)`` to float."""
+    if x is None:
+        return None
+    s = str(x).strip().replace("$", "").replace(",", "")
+    if s in ("", "N/A", "--"):
+        return None
+    neg = s.startswith("(") and s.endswith(")")
+    s = s.strip("()")
+    try:
+        f = float(s)
+    except ValueError:
+        return None
+    return -f if neg else f
+
+
+def _fetch_nasdaq(ticker: str, *, now: datetime) -> list[dict]:
+    """Key-free earnings-surprise fallback (NASDAQ) for when Yahoo blocks us.
+
+    Returns reported quarters (date + consensus + actual EPS) in the same shape
+    as ``_fetch_live`` so the page renders even when yfinance comes back empty.
+    """
+    import json as _json
+    import urllib.request
+
+    url = f"https://api.nasdaq.com/api/company/{ticker}/earnings-surprise"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "application/json",
+    }
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            payload = _json.loads(resp.read().decode("utf-8", "replace"))
+    except Exception:
+        return []
+
+    rows_raw = (((payload or {}).get("data") or {})
+                .get("earningsSurpriseTable") or {}).get("rows") or []
+    rows: list[dict] = []
+    for r in rows_raw:
+        raw_date = r.get("dateReported") or r.get("date")
+        if not raw_date:
+            continue
+        dt = None
+        for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%y"):
+            try:
+                dt = datetime.strptime(str(raw_date).strip(), fmt)
+                break
+            except ValueError:
+                continue
+        if dt is None:
+            continue
+        dt = dt.replace(tzinfo=timezone.utc)
+        est = _money(r.get("consensusForecast") or r.get("consensusEPSForecast"))
+        rep = _money(r.get("eps") or r.get("reportedEPS"))
+        rows.append(_make_row(dt, est, rep, now=now))
+    rows.sort(key=lambda r: r["datetime"], reverse=True)
+    return rows
+
+
 def _fetch_live(ticker: str, limit: int) -> list[dict]:
     import time as _time
 
@@ -260,7 +321,9 @@ def _fetch_live(ticker: str, limit: int) -> list[dict]:
             break
         _time.sleep(0.8 * (attempt + 1))
     if df is None or df.empty:
-        return []
+        # Yahoo blocked/empty — fall back to a key-free source so the table is
+        # never blank just because this server's IP got throttled.
+        return _fetch_nasdaq(ticker, now=datetime.now(timezone.utc))
 
     cols = {c.lower(): c for c in df.columns}
     est_col = cols.get("eps estimate")

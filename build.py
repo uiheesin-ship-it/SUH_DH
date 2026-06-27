@@ -101,10 +101,18 @@ def main() -> None:
         # published site ships with several ready tickers (override with
         # SUH_DH_DRIFT_TICKERS). Drift + EPS-consensus are automatic per ticker;
         # the guidance column fills in only where data/guidance.json has entries.
+        # The full curated watchlist (semiconductors, big tech, optical, AI,
+        # health, software, finance/consumer, defense, power, space). Pre-built
+        # here so the published site ships these ready-to-load; the Stooq/NASDAQ
+        # fallbacks in app/charts.py + app/earnings.py cover any other ticker.
         default_watch = (
             "MU,NVDA,AAPL,MSFT,GOOGL,GOOG,AMZN,META,AVGO,TSLA,AMD,TSM,ORCL,"
-            "NFLX,CRM,QCOM,ASML,ARM,PLTR,SMCI,MRVL,ANET,INTC,ADBE,"
-            "COIN,UBER,SHOP,PYPL,DIS,ABNB,PANW,NOW"
+            "NFLX,CRM,QCOM,ASML,ARM,PLTR,SMCI,MRVL,ANET,INTC,ADBE,COIN,UBER,"
+            "SHOP,PYPL,DIS,ABNB,PANW,NOW,SNDK,WDC,STX,AMAT,LRCX,KLAC,FORM,TER,"
+            "TTMI,LITE,COHR,CIEN,AAOI,SITM,RMBS,AXTI,TSEM,ADI,TXN,MPWR,ON,WULF,"
+            "NVTS,VICR,DELL,UMICY,ABBV,WMT,COST,ULTA,AAL,CRCL,SNOW,TEAM,CRWD,"
+            "TWLO,APP,RDDT,INOD,POWL,HUBB,TLN,CEG,BWXT,OKLO,FSLR,NXT,ENPH,SEDG,"
+            "ASTS,RKLB,LUNR,BKSY,DXYZ,ARBE,RR,SERV,RGTI,IONQ"
         )
         watchlist = [t.strip().upper() for t in
                      os.environ.get("SUH_DH_DRIFT_TICKERS", default_watch).split(",") if t.strip()]
