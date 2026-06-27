@@ -97,7 +97,8 @@ def earnings_drift(ticker: str):
 @app.get("/api/guidance/tickers")
 def registered_guidance_tickers():
     """Tickers that have curated guidance-vs-consensus data (for the side panel)."""
-    return {"tickers": earnings.guidance_tickers()}
+    return {"tickers": earnings.guidance_tickers(),
+            "groups": earnings.guidance_groups()}
 
 
 @app.get("/api/news")

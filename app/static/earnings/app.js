@@ -190,18 +190,23 @@ async function loadIndex() {
 }
 
 // ---------- registered (guidance) tickers side panel ----------
-let REGISTERED = [];
+// Grouped by the watchlist's sector order (sector names are intentionally not
+// shown — only the grouping/spacing conveys it).
+let REGISTERED_GROUPS = [];
 
 function renderRegistered(active) {
-  const ul = $("#registered-list");
-  if (!ul) return;
-  if (!REGISTERED.length) {
-    ul.innerHTML = `<li class="reg-empty">아직 등록된 종목이 없어요.</li>`;
+  const wrap = $("#registered-list");
+  if (!wrap) return;
+  const flat = REGISTERED_GROUPS.flat();
+  if (!flat.length) {
+    wrap.innerHTML = `<div class="reg-empty">아직 등록된 종목이 없어요.</div>`;
     return;
   }
   const a = (active || "").toUpperCase();
-  ul.innerHTML = REGISTERED.map((t) =>
-    `<li><button type="button" class="reg-item${t === a ? " active" : ""}" data-t="${esc(t)}">${esc(t)}</button></li>`
+  wrap.innerHTML = REGISTERED_GROUPS.map((group) =>
+    `<div class="reg-group">` + group.map((t) =>
+      `<button type="button" class="reg-item${t === a ? " active" : ""}" data-t="${esc(t)}">${esc(t)}</button>`
+    ).join("") + `</div>`
   ).join("");
 }
 
@@ -211,7 +216,9 @@ async function loadRegistered() {
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
-      REGISTERED = data.tickers || [];
+      REGISTERED_GROUPS = (data.groups && data.groups.length)
+        ? data.groups
+        : (data.tickers || []).map((t) => [t]);  // fallback: one ticker per group
     }
   } catch (_) { /* panel is optional */ }
   renderRegistered(location.hash.slice(1));
