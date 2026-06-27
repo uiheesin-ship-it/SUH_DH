@@ -1865,5 +1865,69 @@
         "https://mlq.ai/news/eaton-releases-record-q4-2025-earnings-with-strong-order-growth-and-2026-guidance/"
       ]
     }
+  ],
+  "RKLB": [
+    {
+      "report_date": "2026-05-07",
+      "guided_period": "Q2 2026",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.2325,
+      "guidance_low": 0.225,
+      "guidance_high": 0.24,
+      "consensus": 0.2075,
+      "note": "Q1 2026 실적($200.3M, 가이던스 상회) 발표 시 Q2 2026 매출 가이던스 $225-240M 제시. 컨센서스(LSEG) ~$207.5M 대비 약 12% 상회하여 주가 급등. 가이던스 중간값 $232.5M.",
+      "sources": [
+        "https://investors.rocketlabcorp.com/news-releases/news-release-details/rocket-lab-announces-first-quarter-2026-financial-results",
+        "https://sherwood.news/markets/rocket-lab-q1-earnings-sales-eps-results-report/"
+      ]
+    },
+    {
+      "report_date": "2026-02-26",
+      "guided_period": "Q1 2026",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.1925,
+      "guidance_low": 0.185,
+      "guidance_high": 0.2,
+      "consensus": 0.19,
+      "note": "Q4 2025 실적($180M, 연 매출 $602M) 발표 시 Q1 2026 매출 가이던스 $185-200M 제시(중간값 YoY +57%). Q1 2026 컨센서스 ~$190M. 실제 매출은 $200.3M로 상회.",
+      "sources": [
+        "https://investors.rocketlabcorp.com/news-releases/news-release-details/rocket-lab-announces-fourth-quarter-and-full-year-2025-financial",
+        "https://blockonomi.com/rocket-lab-rklb-q1-2026-earnings-preview-what-investors-need-to-know-today/"
+      ]
+    }
+  ],
+  "PL": [
+    {
+      "report_date": "2026-06-04",
+      "guided_period": "Q2 FY2027",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.1045,
+      "guidance_low": 0.102,
+      "guidance_high": 0.107,
+      "consensus": 0.1041,
+      "note": "Planet 회계연도는 1월 말 종료로 분기가 오프셋됨. Q1 FY2027(2026-04-30 종료) 실적을 6/4 발표하며 차기 분기 Q2 FY2027(2026-07-31 종료) 가이던스 $102M~$107M 제시. Q2 컨센서스 약 $104.1M. FY2027 연간 가이던스 $425M~$441M.",
+      "sources": [
+        "https://www.chartmill.com/news/PL/Chartmill-49456-Planet-Labs-NYSEPL-Revenue-Beat-Fails-to-Lift-Stock-as-Guidance-Disappoints",
+        "https://www.fool.com/earnings/call-transcripts/2026/06/05/planet-labs-pl-q1-2027-earnings-transcript/"
+      ]
+    },
+    {
+      "report_date": "2026-03-19",
+      "guided_period": "Q1 FY2027",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 0.089,
+      "guidance_low": 0.087,
+      "guidance_high": 0.091,
+      "consensus": 0.0846,
+      "note": "회계연도 1월 말 종료로 분기 오프셋. Q4 FY2026(2026-01-31 종료) 실적을 3/19 발표하며 차기 분기 Q1 FY2027(2026-04-30 종료) 가이던스 $87M~$91M 제시. Q1 컨센서스 약 $84.6M으로 가이던스가 컨센서스 상회. FY2027 연간 가이던스 $415M~$440M.",
+      "sources": [
+        "https://www.fool.com/earnings/call-transcripts/2026/03/19/planet-labs-pl-q4-2026-earnings-call-transcript/",
+        "https://www.investing.com/news/earnings/planet-labs-beats-q4-estimates-shares-jump-6-on-upbeat-guidance-93CH-4571707"
+      ]
+    }
   ]
 }
