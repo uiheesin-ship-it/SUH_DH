@@ -49,7 +49,7 @@ body {
 
 /* right-edge toggle handle */
 .reg-toggle {
-  position: fixed; right: 0; top: 96px; z-index: 6;
+  position: fixed; right: 0; top: 57px; z-index: 6;
   background: var(--panel-2); color: var(--text);
   border: 1px solid var(--border); border-right: none;
   border-radius: 8px 0 0 8px; padding: 8px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
