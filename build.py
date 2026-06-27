@@ -67,8 +67,10 @@ def main() -> None:
             f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
     # Tickers that have curated guidance data — for the earnings side panel.
+    # Grouped by the watchlist's sector order (names omitted in the UI).
     write_json(SITE / "data" / "guidance_tickers.json",
-               {"tickers": earnings.guidance_tickers()})
+               {"tickers": earnings.guidance_tickers(),
+                "groups": earnings.guidance_groups()})
 
     # Global news digest (independent of the 52-week-high fetch; never let a
     # news failure abort the highs build or vice versa).

@@ -164,6 +164,50 @@ def guidance_tickers() -> list[str]:
     return sorted(t for t in data if not t.startswith("_"))
 
 
+# The watchlist's sector order (names intentionally omitted in the UI). The
+# registered-tickers drawer groups by this so tickers from the same sector sit
+# together; only tickers that actually have guidance entries are shown.
+WATCHLIST_ORDER = [
+    ["GOOGL", "AAPL", "META", "MSFT", "AMZN", "TSLA"],                      # 빅테크
+    ["NVDA", "AVGO", "AMD", "INTC", "MRVL", "ARM", "QCOM", "MU", "SNDK",
+     "WDC", "STX", "ASML", "AMAT", "LRCX", "KLAC", "FORM", "TER", "TTMI",
+     "TSM"],                                                                # 반도체
+    ["ADI", "TXN", "MPWR", "ON", "NVTS", "VICR", "SITM", "RMBS", "AXTI",
+     "TSEM"],                                                              # 반도체(아날로그·특수)
+    ["LITE", "COHR", "CIEN", "AAOI", "GLW"],                               # 광통신
+    ["DELL", "SMCI", "ANET", "VRT", "CLS", "JBL", "HPE"],                  # AI 밸류체인
+    ["ABBV"],                                                              # 헬스케어
+    ["PLTR", "SNOW", "NET", "NOW", "TEAM", "CRWD", "TWLO", "APP", "RDDT",
+     "INOD"],                                                             # 소프트웨어
+    ["COIN", "WMT", "COST", "ULTA", "PM"],                                 # 금융·소비재
+    ["AAL", "DAL"],                                                        # 항공
+    ["POWL", "HUBB", "TLN", "CEG", "BWXT", "OKLO", "FSLR", "NXT", "ENPH",
+     "SEDG", "ETN"],                                                       # 전력
+    ["ASTS", "RKLB", "PL", "LUNR", "RGTI", "IONQ"],                        # 우주
+]
+
+
+def guidance_groups() -> list[list[str]]:
+    """Registered tickers grouped by the watchlist's sector order.
+
+    Each inner list is one sector (kept in watchlist order); sectors with no
+    registered ticker are dropped, and any registered ticker not in the order
+    is appended as a trailing group so nothing is lost.
+    """
+    have = set(guidance_tickers())
+    groups: list[list[str]] = []
+    placed: set[str] = set()
+    for sector in WATCHLIST_ORDER:
+        row = [t for t in sector if t in have]
+        if row:
+            groups.append(row)
+            placed.update(row)
+    leftover = [t for t in sorted(have) if t not in placed]
+    if leftover:
+        groups.append(leftover)
+    return groups
+
+
 def _load_guidance_entries(ticker: str) -> list[dict]:
     path = Path(GUIDANCE_FILE)
     if not path.exists():
