@@ -38,7 +38,7 @@ MAX_DATES = 10
 MATCH = "잠정"
 
 
-def _get(url: str, timeout: int = 60, retries: int = 4) -> bytes:
+def _get(url: str, timeout: int = 25, retries: int = 2) -> bytes:
     last = None
     for attempt in range(retries):
         try:
@@ -90,7 +90,7 @@ def _filing_dates(corp_code: str, bgn: str, end: str, pblntf_ty: str,
     ``match`` is a callable(report_nm) -> bool. Newest first.
     """
     dates: set[str] = set()
-    for page in range(1, 5):
+    for page in range(1, 3):
         url = (f"{BASE}/list.json?crtfc_key={KEY}&corp_code={corp_code}"
                f"&bgn_de={bgn}&end_de={end}&pblntf_ty={pblntf_ty}"
                f"&page_no={page}&page_count=100")
