@@ -28,7 +28,9 @@ from datetime import date, timedelta
 from pathlib import Path
 
 KEY = os.environ.get("DART_API_KEY", "").strip()
-KR_FILE = Path(__file__).resolve().parent.parent / "data" / "kr_earnings.json"
+DATA = Path(__file__).resolve().parent.parent / "data"
+KR_FILE = DATA / "kr_earnings.json"
+CORP_CACHE = DATA / "dart_corp.json"   # cached stock_code -> corp_code map
 BASE = "https://opendart.fss.or.kr/api"
 YEARS_BACK = 1150            # ~3 years, enough for ~8-10 quarters
 MAX_DATES = 10
@@ -50,8 +52,21 @@ def _get(url: str, timeout: int = 60, retries: int = 4) -> bytes:
 
 
 def load_corp_map() -> dict[str, str]:
-    """Map 6-digit stock code -> 8-digit DART corp_code (from corpCode.xml zip)."""
-    raw = _get(f"{BASE}/corpCode.xml?crtfc_key={KEY}")
+    """Map 6-digit stock code -> 8-digit DART corp_code.
+
+    corpCode.xml is a multi-MB zip served from a slow KR host that intermittently
+    times out from CI runners, so cache it in the repo (data/dart_corp.json) and
+    only download when the cache is missing.
+    """
+    if CORP_CACHE.exists():
+        try:
+            cached = json.loads(CORP_CACHE.read_text(encoding="utf-8"))
+            if cached:
+                print(f"corp map: {len(cached)} from cache")
+                return cached
+        except Exception:
+            pass
+    raw = _get(f"{BASE}/corpCode.xml?crtfc_key={KEY}", timeout=180, retries=6)
     zf = zipfile.ZipFile(io.BytesIO(raw))
     root = ET.fromstring(zf.read(zf.namelist()[0]))
     out: dict[str, str] = {}
@@ -60,6 +75,8 @@ def load_corp_map() -> dict[str, str]:
         cc = (el.findtext("corp_code") or "").strip()
         if len(sc) == 6 and sc.isdigit() and cc:
             out[sc] = cc
+    CORP_CACHE.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    print(f"corp map: {len(out)} downloaded and cached")
     return out
 
 
