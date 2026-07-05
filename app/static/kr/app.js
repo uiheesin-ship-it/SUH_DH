@@ -9,7 +9,8 @@ const STATIC = !!window.SUH_DH_STATIC;
 const BUILT = window.SUH_DH_BUILT || null;
 const API_BASE = (window.SUH_DH_API_BASE || "").replace(/\/$/, "");
 
-const OFFSETS = [1, 7, 30, 60];
+const OFFSETS = [1, 3, 7, 15, 30, 60];        // post-earnings D+N
+const PRE_OFFSETS = [15, 7, 3];               // pre-earnings run-up (D-15 → D-1)
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -38,16 +39,20 @@ function heatStyle(v) {
 
 function row(q) {
   const d = q.drift;
-  const prev = d ? d.prev1_pct : null;
-  const pre7 = d && d.pre_returns ? d.pre_returns["d-7"] : null;
+  const prev = d ? d.prev1_pct : null;         // 실적 발표 당일 (D-1 → D0)
+  const prevday = d ? d.prevday_pct : null;    // 발표 전일 (D-2 → D-1)
+  const pre = (n) => (d && d.pre_returns ? d.pre_returns["d-" + n] : null);
   const r = (n) => (d && d.returns ? d.returns["d" + n] : null);
+  const preCells = PRE_OFFSETS.map((n) =>
+    `<td class="num" style="${heatStyle(pre(n))}">${fmtPct(pre(n))}</td>`).join("");
   const cells = OFFSETS.map((n) =>
     `<td class="num" style="${heatStyle(r(n))}">${fmtPct(r(n))}</td>`).join("");
   return `<tr>
     <td class="date">${esc(q.date)}${q.upcoming ? ' <span class="pending">예정</span>' : ""}</td>
     <td class="num">${d ? fmtWon(d.d_minus1_close) : "–"}</td>
     <td class="num strong">${d ? fmtWon(d.d0_close) : (q.upcoming ? "발표 전" : "–")}</td>
-    <td class="num" style="${heatStyle(pre7)}">${fmtPct(pre7)}</td>
+    ${preCells}
+    <td class="num" style="${heatStyle(prevday)}">${fmtPct(prevday)}</td>
     <td class="num" style="${heatStyle(prev)}">${fmtPct(prev)}</td>
     ${cells}
   </tr>`;
@@ -75,8 +80,9 @@ function render(data) {
     <div class="table-wrap">
       <table class="drift">
         <thead><tr>
-          <th>실적발표일</th><th>D-1 종가</th><th>발표일 종가</th><th>D-7</th><th>직전1일</th>
-          <th>D+1</th><th>D+7</th><th>D+30</th><th>D+60</th>
+          <th>실적발표일</th><th>D-1 종가</th><th>발표일 종가</th>
+          <th>D-15</th><th>D-7</th><th>D-3</th><th>발표 전일</th><th>실적 발표 당일</th>
+          <th>D+1</th><th>D+3</th><th>D+7</th><th>D+15</th><th>D+30</th><th>D+60</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -88,7 +94,7 @@ function render(data) {
       <span class="swatch s-3"></span><span class="swatch s-2"></span><span class="swatch s-1"></span>
       <span class="lg-down">하락</span>
       <span class="spacer"></span>
-      <span class="muted">D-7 = 발표 7거래일 전 → 직전일(D-1) 변동(발표 반응 제외) · D+N = 발표일 이후 N 거래일</span>
+      <span class="muted">D-N = 발표 N거래일 전 → 직전일(D-1) 변동 · 발표 전일 = 발표 전날 하루 등락 · 실적 발표 당일 = D-1→발표일 종가 변동 · D+N = 발표일 이후 N 거래일</span>
     </div>
     <div class="sum-caption">최근 ${data.summary_window ?? "–"}개 분기 평균</div>
     <div class="summary">${summaryCards(data.summary || {})}</div>`;

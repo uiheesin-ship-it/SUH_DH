@@ -17,13 +17,17 @@ from pathlib import Path
 
 from . import cache, charts, earnings
 from .earnings import (
-    DRIFT_OFFSETS,
     EARNINGS_TTL,
     MAX_QUARTERS,
     SUMMARY_WINDOW,
     _drift_summary,
     drift_returns,
 )
+
+# Korea-only offsets (the US page keeps earnings.DRIFT_OFFSETS/PRE_OFFSETS).
+# Post-earnings trading-day returns and pre-earnings run-up windows.
+KR_DRIFT_OFFSETS = (1, 3, 7, 15, 30, 60)
+KR_PRE_OFFSETS = (3, 7, 15)
 
 # Curated Korean earnings dates. Override with SUH_DH_KR_FILE; a missing/invalid
 # file simply yields no Korean tickers.
@@ -73,7 +77,7 @@ def kr_groups() -> list[dict]:
     return [{"sector": s, "items": buckets[s]} for s in order]
 
 
-def get_kr_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
+def get_kr_drift(ticker: str, offsets=KR_DRIFT_OFFSETS, pre_offsets=KR_PRE_OFFSETS) -> dict:
     """Post-earnings price drift for one Korean ticker (curated dates)."""
     ticker = ticker.upper().strip()
 
@@ -101,7 +105,7 @@ def get_kr_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
         quarters = []
         for rd in raw_dates:
             reported = rd <= today
-            drift = drift_returns(pdates, closes, rd, offsets) if reported else None
+            drift = drift_returns(pdates, closes, rd, offsets, pre_offsets) if reported else None
             quarters.append(
                 {"date": rd, "reported": reported, "upcoming": not reported, "drift": drift}
             )
@@ -118,6 +122,7 @@ def get_kr_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
             "currency": "KRW",
             "date_source": source,  # "curated" or "yahoo" (auto)
             "offsets": list(offsets),
+            "pre_offsets": list(pre_offsets),
             "summary_window": len(recent_drifts),
             "quarters": quarters,
             "summary": _drift_summary(recent_drifts, offsets),
