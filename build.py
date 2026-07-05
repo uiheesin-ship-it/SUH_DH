@@ -21,7 +21,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app import charts, earnings, news, screener
+from app import charts, earnings, kr, news, screener
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site"
