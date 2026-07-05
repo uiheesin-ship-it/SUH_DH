@@ -67,7 +67,11 @@ function summaryCards(summary) {
 
 function render(data) {
   const rows = (data.quarters || []).map(row).join("");
+  const auto = data.date_source === "yahoo"
+    ? `<div class="src-note">ⓘ 등록되지 않은 종목이라 실적발표일을 Yahoo에서 자동 추정했습니다. 정확도가 낮을 수 있어요.</div>`
+    : "";
   $("#content").innerHTML = `
+    ${auto}
     <div class="table-wrap">
       <table class="drift">
         <thead><tr>
@@ -121,6 +125,11 @@ async function loadDrift(ticker) {
     }
     const name = data.name && data.name !== ticker ? `${data.name} (${ticker})` : ticker;
     document.title = `${name} 실적 전후 주가 · SUH_DH`;
+    if (!(data.quarters || []).some((q) => q.drift)) {
+      renderError(`${esc(name)}의 실적발표일을 찾지 못했습니다.`,
+        "등록된 종목이 아니고 Yahoo에도 실적일 데이터가 없어요. 원하시면 이 종목을 큐레이션 목록에 등록해 드릴게요.");
+      return;
+    }
     render(data);
     const reported = (data.quarters || []).filter((q) => q.reported).length;
     $("#status").textContent = `${esc(name)} · 분기 ${reported}건`
