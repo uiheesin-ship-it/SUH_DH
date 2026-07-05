@@ -141,6 +141,7 @@ def get_kr_drift(ticker: str, offsets=KR_DRIFT_OFFSETS, pre_offsets=KR_PRE_OFFSE
             "sector": meta.get("sector"),
             "currency": "KRW",
             "date_source": source,  # "curated" or "yahoo" (auto)
+            "date_basis": meta.get("date_basis"),  # "잠정실적" or "분기보고서"
             "offsets": list(offsets),
             "pre_offsets": list(pre_offsets),
             "summary_window": len(recent_drifts),

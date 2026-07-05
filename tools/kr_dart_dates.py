@@ -56,12 +56,19 @@ def load_corp_map() -> dict[str, str]:
     return out
 
 
-def preliminary_dates(corp_code: str, bgn: str, end: str) -> list[str]:
-    """Receipt dates (YYYY-MM-DD) of a company's 잠정실적 filings, newest first."""
+PERIODIC = ("분기보고서", "반기보고서", "사업보고서")
+
+
+def _filing_dates(corp_code: str, bgn: str, end: str, pblntf_ty: str,
+                  match) -> list[str]:
+    """Receipt dates (YYYY-MM-DD) of filings whose report_nm satisfies ``match``.
+
+    ``match`` is a callable(report_nm) -> bool. Newest first.
+    """
     dates: set[str] = set()
     for page in range(1, 5):
         url = (f"{BASE}/list.json?crtfc_key={KEY}&corp_code={corp_code}"
-               f"&bgn_de={bgn}&end_de={end}&pblntf_ty=I"
+               f"&bgn_de={bgn}&end_de={end}&pblntf_ty={pblntf_ty}"
                f"&page_no={page}&page_count=100")
         try:
             js = json.loads(_get(url))
@@ -74,7 +81,7 @@ def preliminary_dates(corp_code: str, bgn: str, end: str) -> list[str]:
             print(f"    DART status {status}: {js.get('message')}")
             break
         for it in js.get("list", []):
-            if MATCH in (it.get("report_nm") or ""):
+            if match(it.get("report_nm") or ""):
                 rd = (it.get("rcept_dt") or "").strip()
                 if len(rd) == 8 and rd.isdigit():
                     dates.add(f"{rd[:4]}-{rd[4:6]}-{rd[6:]}")
@@ -82,6 +89,21 @@ def preliminary_dates(corp_code: str, bgn: str, end: str) -> list[str]:
             break
         time.sleep(0.1)
     return sorted(dates, reverse=True)[:MAX_DATES]
+
+
+def preliminary_dates(corp_code: str, bgn: str, end: str) -> list[str]:
+    """Dates of a company's 영업(잠정)실적 (공정공시) filings, newest first."""
+    return _filing_dates(corp_code, bgn, end, "I", lambda nm: MATCH in nm)
+
+
+def periodic_dates(corp_code: str, bgn: str, end: str) -> list[str]:
+    """Fallback: 분기/반기/사업보고서 (정기공시) receipt dates, newest first.
+
+    For companies that don't file a preliminary-earnings disclosure, the
+    quarterly-report filing date is the closest available 'results are out' date.
+    """
+    return _filing_dates(corp_code, bgn, end, "A",
+                         lambda nm: any(k in nm for k in PERIODIC))
 
 
 def main() -> None:
@@ -94,7 +116,7 @@ def main() -> None:
 
     end = date.today().strftime("%Y%m%d")
     bgn = (date.today() - timedelta(days=YEARS_BACK)).strftime("%Y%m%d")
-    updated = missing = 0
+    prelim = periodic = missing = 0
     for i, t in enumerate(tickers, 1):
         code = t.split(".")[0]
         cc = corp.get(code)
@@ -103,19 +125,28 @@ def main() -> None:
             continue
         try:
             ds = preliminary_dates(cc, bgn, end)
+            basis = "잠정실적"
+            if not ds:                       # no preliminary filing → periodic report
+                ds = periodic_dates(cc, bgn, end)
+                basis = "분기보고서"
         except Exception as e:
             print(f"  {t} failed: {e}")
             ds = []
         if ds:
             data[t]["dates"] = ds
-            updated += 1
+            data[t]["date_basis"] = basis
+            if basis == "잠정실적":
+                prelim += 1
+            else:
+                periodic += 1
         if i % 25 == 0:
             print(f"  ... {i}/{len(tickers)} processed")
         time.sleep(0.08)
 
     KR_FILE.write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"done: {updated} tickers got DART dates, {missing} had no corp_code.")
+    print(f"done: {prelim} 잠정실적 + {periodic} 분기보고서 dated, "
+          f"{missing} had no corp_code.")
 
 
 if __name__ == "__main__":
