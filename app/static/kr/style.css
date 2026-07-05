@@ -40,7 +40,7 @@ body {
 #load-btn:hover { border-color: var(--accent); }
 
 .hidden { display: none !important; }
-#content { max-width: 1100px; margin: 0 auto; padding: 18px 20px 48px; }
+#content { max-width: 1240px; margin: 0 auto; padding: 18px 16px 48px; }
 .loading, .error { color: var(--muted); padding: 40px 8px; text-align: center; }
 .error { color: #fca5a5; }
 
@@ -82,18 +82,22 @@ body {
 
 /* table */
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
-table.drift { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 1080px; }
+/* 14 compact columns so the whole table fits without horizontal scrolling;
+   rows are tall for readability. */
+table.drift { border-collapse: collapse; width: 100%; font-size: 12px; table-layout: fixed; }
 table.drift th, table.drift td {
-  padding: 9px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap;
+  padding: 13px 3px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap;
 }
 table.drift thead th {
   position: sticky; top: 0; background: var(--panel-2); color: var(--muted);
-  font-weight: 600; font-size: 12px; z-index: 1;
+  font-weight: 600; font-size: 11px; z-index: 1;
 }
+/* first column (date) gets a bit more room; the rest share equally */
+table.drift th:first-child, table.drift td:first-child { width: 82px; }
 table.drift tbody tr:hover td { background: rgba(56, 189, 248, .06); }
 table.drift td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
-table.drift td.num.strong { font-size: 14px; }
-table.drift td.date { color: var(--text); font-weight: 600; }
+table.drift td.num.strong { font-size: 13px; }
+table.drift td.date { color: var(--text); font-weight: 600; white-space: normal; }
 .pending { font-size: 10px; color: #ddd6fe; background: #3b2a5a; border-radius: 999px; padding: 1px 6px; }
 .src-note { margin: 0 2px 12px; padding: 8px 12px; font-size: 12px; color: #fcd34d;
   background: rgba(120, 82, 18, .25); border: 1px solid #78521280; border-radius: 8px; }

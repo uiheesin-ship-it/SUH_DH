@@ -80,8 +80,8 @@ function render(data) {
     <div class="table-wrap">
       <table class="drift">
         <thead><tr>
-          <th>실적발표일</th><th>D-1 종가</th><th>발표일 종가</th>
-          <th>D-15</th><th>D-7</th><th>D-3</th><th>발표 전일</th><th>실적 발표 당일</th>
+          <th>발표일</th><th>D-1종가</th><th>발표종가</th>
+          <th>D-15</th><th>D-7</th><th>D-3</th><th>발표전일</th><th>당일등락</th>
           <th>D+1</th><th>D+3</th><th>D+7</th><th>D+15</th><th>D+30</th><th>D+60</th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -94,7 +94,7 @@ function render(data) {
       <span class="swatch s-3"></span><span class="swatch s-2"></span><span class="swatch s-1"></span>
       <span class="lg-down">하락</span>
       <span class="spacer"></span>
-      <span class="muted">D-N = 발표 N거래일 전 → 직전일(D-1) 변동 · 발표 전일 = 발표 전날 하루 등락 · 실적 발표 당일 = D-1→발표일 종가 변동 · D+N = 발표일 이후 N 거래일</span>
+      <span class="muted">D-N = 발표 N거래일 전 → 직전일(D-1) 변동 · 발표전일 = 발표 전날 하루 등락 · 당일등락 = D-1→발표일 종가 변동 · D+N = 발표일 이후 N 거래일</span>
     </div>
     <div class="sum-caption">최근 ${data.summary_window ?? "–"}개 분기 평균</div>
     <div class="summary">${summaryCards(data.summary || {})}</div>`;
