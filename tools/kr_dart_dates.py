@@ -36,10 +36,17 @@ MAX_DATES = 10
 MATCH = "잠정"
 
 
-def _get(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "suh-dh/1.0"})
-    with urllib.request.urlopen(req, timeout=40) as resp:
-        return resp.read()
+def _get(url: str, timeout: int = 60, retries: int = 4) -> bytes:
+    last = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "suh-dh/1.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read()
+        except Exception as e:      # transient timeout / connection reset
+            last = e
+            time.sleep(2 * (attempt + 1))
+    raise last
 
 
 def load_corp_map() -> dict[str, str]:
