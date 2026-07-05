@@ -56,6 +56,20 @@ def kr_tickers() -> list[str]:
     return sorted(t for t in _load() if not t.startswith("_"))
 
 
+def kr_prebuild_tickers() -> list[str]:
+    """Tickers to pre-build as static JSON: those with curated earnings dates.
+
+    The wider registered universe (entries without dates, e.g. the KOSPI 200)
+    is served live via the backend, which auto-fetches dates from Yahoo — so we
+    don't fetch hundreds of tickers on every build.
+    """
+    data = _load()
+    return sorted(
+        t for t, m in data.items()
+        if not t.startswith("_") and isinstance(m, dict) and m.get("dates")
+    )
+
+
 def kr_groups() -> list[dict]:
     """Registered Korean tickers grouped by sector, in file (curation) order.
 

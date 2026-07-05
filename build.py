@@ -76,9 +76,11 @@ def main() -> None:
     # Curated Korean tickers (grouped by sector) + their post-earnings drift.
     write_json(SITE / "data" / "kr_tickers.json",
                {"tickers": kr.kr_tickers(), "groups": kr.kr_groups()})
+    # Pre-build only the curated-date tickers; the wider registered universe
+    # (KOSPI 200 etc.) loads live via the backend (auto-fetches dates from Yahoo).
     print("Building Korean post-earnings drift ...")
     kr_built = []
-    for t in kr.kr_tickers():
+    for t in kr.kr_prebuild_tickers():
         try:
             write_json(SITE / "data" / "kr" / f"{t}.json", kr.get_kr_drift(t))
             kr_built.append(t)
@@ -86,7 +88,7 @@ def main() -> None:
             print(f"  kr drift {t} failed: {e}")
         time.sleep(0.3)  # be gentle with Yahoo
     write_json(SITE / "data" / "kr" / "_index.json", {"tickers": kr_built})
-    print(f"  {len(kr_built)} Korean drift tables built.")
+    print(f"  {len(kr_built)} Korean drift tables built (of {len(kr.kr_tickers())} registered).")
 
     # Global news digest (independent of the 52-week-high fetch; never let a
     # news failure abort the highs build or vice versa).
