@@ -5,7 +5,12 @@ name: Refresh KR earnings dates (DART)
 # normal Build & deploy workflow). Run manually from the Actions tab; needs the
 # repo secret DART_API_KEY (free key from https://opendart.fss.or.kr).
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      dart_key:
+        description: "OpenDART API key (leave blank to use the DART_API_KEY secret)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -22,7 +27,7 @@ jobs:
           python-version: "3.11"
       - name: Fetch KR earnings dates from DART
         env:
-          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
         run: python tools/kr_dart_dates.py
       - name: Commit updated dates
         run: |
