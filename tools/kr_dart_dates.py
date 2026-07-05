@@ -34,8 +34,30 @@ CORP_CACHE = DATA / "dart_corp.json"   # cached stock_code -> corp_code map
 BASE = "https://opendart.fss.or.kr/api"
 YEARS_BACK = 1150            # ~3 years, enough for ~8-10 quarters
 MAX_DATES = 10
+RAW_LIMIT = 20               # fetch extra before quarter-dedup
+DEDUP_DAYS = 40              # collapse same-quarter filings (flash + confirmed)
 # A preliminary-earnings filing's report name contains 잠정 (영업(잠정)실적…).
 MATCH = "잠정"
+
+
+def _dedup_quarters(dates: list[str]) -> list[str]:
+    """Collapse multiple filings for the same quarter to one date.
+
+    Some firms (e.g. 삼성전자) file a flash 잠정 then a confirmed one ~3 weeks
+    later; keep the earlier (market-reaction) date of each cluster so each
+    quarter is a single row. ``dates`` is newest-first; returns newest-first.
+    """
+    from datetime import date as _date
+    asc = sorted(set(dates))
+    kept: list[str] = []
+    last = None
+    for d in asc:
+        y, m, dd = (int(x) for x in d.split("-"))
+        cur = _date(y, m, dd)
+        if last is None or (cur - last).days > DEDUP_DAYS:
+            kept.append(d)
+            last = cur
+    return sorted(kept, reverse=True)[:MAX_DATES]
 
 
 def _get(url: str, timeout: int = 25, retries: int = 2) -> bytes:
@@ -112,7 +134,7 @@ def _filing_dates(corp_code: str, bgn: str, end: str, pblntf_ty: str,
         if js.get("page_no", 1) >= js.get("total_page", 1):
             break
         time.sleep(0.1)
-    return sorted(dates, reverse=True)[:MAX_DATES]
+    return sorted(dates, reverse=True)[:RAW_LIMIT]
 
 
 def preliminary_dates(corp_code: str, bgn: str, end: str) -> list[str]:
@@ -157,7 +179,7 @@ def main() -> None:
             print(f"  {t} failed: {e}")
             ds = []
         if ds:
-            data[t]["dates"] = ds
+            data[t]["dates"] = _dedup_quarters(ds)
             data[t]["date_basis"] = basis
             if basis == "잠정실적":
                 prelim += 1
