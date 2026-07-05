@@ -74,6 +74,8 @@ function render(data) {
   const rows = (data.quarters || []).map(row).join("");
   const auto = data.date_source === "yahoo"
     ? `<div class="src-note">ⓘ 등록되지 않은 종목이라 실적발표일을 Yahoo에서 자동 추정했습니다. 정확도가 낮을 수 있어요.</div>`
+    : data.date_basis === "분기보고서"
+    ? `<div class="src-note">ⓘ 이 종목은 잠정실적 공시가 없어 <b>분기·반기·사업보고서 접수일</b>(DART)을 발표일로 사용합니다. 시장 반응일이 아니라 규제 제출일이라 D+N 해석에 유의하세요.</div>`
     : "";
   $("#content").innerHTML = `
     ${auto}
