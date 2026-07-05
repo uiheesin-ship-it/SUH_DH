@@ -55,22 +55,38 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings"):
+    for program in ("highs", "news", "earnings", "kr"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
-    # Optional: point the static earnings page at an always-on backend so it can
-    # fetch *any* ticker (not just the pre-built ones). Set SUH_DH_API_BASE to a
-    # hosted FastAPI URL (or your ngrok URL) at build time.
+    # Optional: point the static earnings/kr pages at an always-on backend so
+    # they can fetch *any* ticker (not just the pre-built ones). Set
+    # SUH_DH_API_BASE to a hosted FastAPI URL (or your ngrok URL) at build time.
     api_base = os.environ.get("SUH_DH_API_BASE", "").strip()
     if api_base:
-        with (SITE / "earnings" / "config.js").open("a", encoding="utf-8") as f:
-            f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
+        for program in ("earnings", "kr"):
+            with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
+                f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
     # Tickers that have curated guidance data — for the earnings side panel.
     # Grouped by the watchlist's sector order (names omitted in the UI).
     write_json(SITE / "data" / "guidance_tickers.json",
                {"tickers": earnings.guidance_tickers(),
                 "groups": earnings.guidance_groups()})
+
+    # Curated Korean tickers (grouped by sector) + their post-earnings drift.
+    write_json(SITE / "data" / "kr_tickers.json",
+               {"tickers": kr.kr_tickers(), "groups": kr.kr_groups()})
+    print("Building Korean post-earnings drift ...")
+    kr_built = []
+    for t in kr.kr_tickers():
+        try:
+            write_json(SITE / "data" / "kr" / f"{t}.json", kr.get_kr_drift(t))
+            kr_built.append(t)
+        except Exception as e:
+            print(f"  kr drift {t} failed: {e}")
+        time.sleep(0.3)  # be gentle with Yahoo
+    write_json(SITE / "data" / "kr" / "_index.json", {"tickers": kr_built})
+    print(f"  {len(kr_built)} Korean drift tables built.")
 
     # Global news digest (independent of the 52-week-high fetch; never let a
     # news failure abort the highs build or vice versa).

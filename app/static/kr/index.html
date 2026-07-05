@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>한국 실적 전후 주가 상승률 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🇰🇷 한국 실적 전후 주가 상승률</h1>
+    </div>
+    <div class="controls">
+      <input id="ticker-input" list="ticker-list" placeholder="종목코드 (예: 005930.KS)" autocomplete="off" />
+      <datalist id="ticker-list"></datalist>
+      <button id="load-btn">조회</button>
+      <span id="status" class="status"></span>
+    </div>
+  </header>
+
+  <main id="content">
+    <div class="loading">종목을 선택하거나 코드를 입력하고 <b>조회</b>를 누르세요.</div>
+  </main>
+
+  <button id="reg-toggle" class="reg-toggle" title="등록 종목">📋 종목</button>
+  <aside class="side-panel" id="registered-panel" aria-hidden="true">
+    <div class="reg-head">
+      <h2>등록 종목</h2>
+      <button id="reg-close" class="reg-close" title="닫기">✕</button>
+    </div>
+    <p class="reg-hint">실적발표일이 등록된 국내 종목입니다. 클릭하면 조회돼요.</p>
+    <div id="registered-list" class="reg-list"><div class="reg-empty">불러오는 중…</div></div>
+  </aside>
+
+  <footer class="footer">
+    국내 종목의 <b>실적 발표일</b>을 기준으로 <b>D-7</b>(발표 7거래일 전→직전일 상승률)·<b>직전1일</b>(발표일 종가 변동)·
+    <b>D+1·D+7·D+30·D+60</b> 거래일 상승률과 분기별 평균을 보여줍니다. 컨센서스·EPS는 다루지 않고 <b>주가 반응만</b> 봅니다.
+    가격은 Yahoo Finance(무료), 실적 발표일은 큐레이션(잠정실적 공시·IR) 자료입니다. <b>D+N = 발표일 이후 N 거래일.</b>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

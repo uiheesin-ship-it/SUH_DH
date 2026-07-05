@@ -1,0 +1,31 @@
+{
+  "_schema": "Curated Korean earnings-announcement dates for the post-earnings drift page. Keyed by Yahoo ticker (code.KS / code.KQ). Each entry: {name, sector, dates:[YYYY-MM-DD ... newest first]}. Dates are the market-moving 잠정실적/실적발표일 (price-reaction anchor). Prices/returns come from Yahoo; this file only supplies the dates.",
+  "105560.KS": {
+    "name": "KB금융",
+    "sector": "금융",
+    "dates": [
+      "2026-04-23",
+      "2026-02-05",
+      "2025-10-30",
+      "2025-07-24",
+      "2025-04-24",
+      "2025-02-05",
+      "2024-10-24",
+      "2024-07-23"
+    ]
+  },
+  "055550.KS": {
+    "name": "신한지주",
+    "sector": "금융",
+    "dates": [
+      "2026-04-23",
+      "2026-02-05",
+      "2025-10-28",
+      "2025-07-25",
+      "2025-04-25",
+      "2025-02-06",
+      "2024-10-25",
+      "2024-07-26"
+    ]
+  }
+}

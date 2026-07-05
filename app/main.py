@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, charts, earnings, news, screener
+from . import __version__, charts, earnings, kr, news, screener
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -99,6 +99,24 @@ def registered_guidance_tickers():
     """Tickers that have curated guidance-vs-consensus data (for the side panel)."""
     return {"tickers": earnings.guidance_tickers(),
             "groups": earnings.guidance_groups()}
+
+
+@app.get("/api/kr/drift/{ticker}")
+def kr_drift(ticker: str):
+    """Korean post-earnings price drift (상승률 only; curated earnings dates)."""
+    try:
+        return kr.get_kr_drift(ticker)
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"Failed to compute KR drift for {ticker}.", "detail": str(e)},
+        )
+
+
+@app.get("/api/kr/tickers")
+def kr_registered_tickers():
+    """Curated Korean tickers grouped by sector (for the picker)."""
+    return {"tickers": kr.kr_tickers(), "groups": kr.kr_groups()}
 
 
 @app.get("/api/news")
