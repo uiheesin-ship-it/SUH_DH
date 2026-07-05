@@ -56,17 +56,23 @@ def kr_tickers() -> list[str]:
     return sorted(t for t in _load() if not t.startswith("_"))
 
 
-def kr_prebuild_tickers() -> list[str]:
-    """Tickers to pre-build as static JSON: those with curated earnings dates.
+# A small set of flagship tickers pre-built as static JSON for instant load.
+# The wider registered universe (KOSPI 200 etc.) is served live via the backend
+# even when it has dates, so a build never fetches hundreds of Korean tickers.
+KR_FEATURED = {
+    "005930.KS", "000660.KS", "042700.KS", "006400.KS", "373220.KS",
+    "003670.KS", "207940.KS", "068270.KS", "005380.KS", "000270.KS",
+    "012330.KS", "035420.KS", "035720.KS", "105560.KS", "055550.KS",
+    "051910.KS", "005490.KS", "196170.KQ", "247540.KQ",
+}
 
-    The wider registered universe (entries without dates, e.g. the KOSPI 200)
-    is served live via the backend, which auto-fetches dates from Yahoo — so we
-    don't fetch hundreds of tickers on every build.
-    """
+
+def kr_prebuild_tickers() -> list[str]:
+    """Flagship tickers to pre-build as static JSON (must have curated dates)."""
     data = _load()
     return sorted(
-        t for t, m in data.items()
-        if not t.startswith("_") and isinstance(m, dict) and m.get("dates")
+        t for t in KR_FEATURED
+        if isinstance(data.get(t), dict) and data[t].get("dates")
     )
 
 

@@ -1,0 +1,42 @@
+name: Refresh KR earnings dates (DART)
+
+# Pulls each registered Korean ticker's 영업(잠정)실적 disclosure dates from
+# OpenDART and commits them into data/kr_earnings.json (which then triggers the
+# normal Build & deploy workflow). Run manually from the Actions tab; needs the
+# repo secret DART_API_KEY (free key from https://opendart.fss.or.kr).
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fetch KR earnings dates from DART
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python tools/kr_dart_dates.py
+      - name: Commit updated dates
+        run: |
+          if [ -n "$(git status --porcelain data/kr_earnings.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/kr_earnings.json
+            git commit -m "data(kr): refresh earnings dates from DART"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No date changes."
+          fi
