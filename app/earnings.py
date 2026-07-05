@@ -477,7 +477,10 @@ def drift_returns(
         "d0_date": dates[idx],
         "d_minus1_close": dm1,
         "d0_close": d0,
-        "prev1_pct": _pct(dm1, d0),  # the report-day move itself
+        "prev1_pct": _pct(dm1, d0),  # the report-day move itself (D-1 → D0)
+        # The day-before-report single-day move (D-2 → D-1), i.e. how the stock
+        # traded the session *before* the announcement.
+        "prevday_pct": _pct(closes[idx - 2], closes[idx - 1]) if idx >= 2 else None,
         "pre_returns": {},
         "returns": {},
     }

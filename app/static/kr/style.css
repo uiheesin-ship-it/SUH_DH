@@ -82,7 +82,7 @@ body {
 
 /* table */
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
-table.drift { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 720px; }
+table.drift { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 1080px; }
 table.drift th, table.drift td {
   padding: 9px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap;
 }
@@ -111,7 +111,7 @@ table.drift td.date { color: var(--text); font-weight: 600; }
 
 /* summary cards */
 .sum-caption { color: var(--muted); font-size: 12px; margin: 14px 2px 6px; }
-.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 0; }
+.summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 0; }
 .sum-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
 .sum-label { color: var(--muted); font-size: 13px; }
 .sum-val { font-size: 26px; font-weight: 800; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
@@ -123,6 +123,9 @@ table.drift td.date { color: var(--text); font-weight: 600; }
   color: var(--muted); font-size: 12px; line-height: 1.7;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
+  .summary { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 520px) {
   .summary { grid-template-columns: repeat(2, 1fr); }
 }
