@@ -95,6 +95,8 @@ table.drift td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
 table.drift td.num.strong { font-size: 14px; }
 table.drift td.date { color: var(--text); font-weight: 600; }
 .pending { font-size: 10px; color: #ddd6fe; background: #3b2a5a; border-radius: 999px; padding: 1px 6px; }
+.src-note { margin: 0 2px 12px; padding: 8px 12px; font-size: 12px; color: #fcd34d;
+  background: rgba(120, 82, 18, .25); border: 1px solid #78521280; border-radius: 8px; }
 .muted { color: var(--muted); }
 
 /* legend */

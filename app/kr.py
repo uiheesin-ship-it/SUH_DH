@@ -15,7 +15,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import cache, charts
+from . import cache, charts, earnings
 from .earnings import (
     DRIFT_OFFSETS,
     EARNINGS_TTL,
@@ -80,6 +80,17 @@ def get_kr_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
     def producer():
         meta = kr_meta(ticker)
         raw_dates = [d for d in (meta.get("dates") or []) if d]
+        source = "curated"
+        if not raw_dates:
+            # Not curated — fall back to whatever earnings *dates* Yahoo has for
+            # this ticker (we only need the anchor date here, not EPS/consensus).
+            # Lets the page work for any Korean ticker Yahoo covers.
+            try:
+                rows = earnings._fetch_live(ticker, 16)
+            except Exception:
+                rows = []
+            raw_dates = [r["date"] for r in rows if r.get("date")]
+            source = "yahoo"
         # Newest first, most recent MAX_QUARTERS.
         raw_dates = sorted(set(raw_dates), reverse=True)
         chart = charts.get_chart(ticker, "max")
@@ -105,6 +116,7 @@ def get_kr_drift(ticker: str, offsets=DRIFT_OFFSETS) -> dict:
             "name": meta.get("name", ticker),
             "sector": meta.get("sector"),
             "currency": "KRW",
+            "date_source": source,  # "curated" or "yahoo" (auto)
             "offsets": list(offsets),
             "summary_window": len(recent_drifts),
             "quarters": quarters,
