@@ -8,6 +8,12 @@ on:
     # Telegram channel that mirrors it — stays reasonably fresh.
     # 00:30 / 06:30 / 12:30 / 18:30 UTC.
     - cron: "30 */6 * * *"
+    # Extra hourly refreshes through the US trading session so the 52-week-high
+    # list is fresh while the market is actually moving (that's the only time it
+    # changes). 13:00–22:00 UTC Mon–Fri ≈ 22:00 KST → 07:00 KST, covering the
+    # session open→close+settle in both EST and EDT. No daytime-KST runs — the
+    # US market is closed then, so nothing would change anyway.
+    - cron: "0 13-22 * * 1-5"
   workflow_dispatch: {}
   push:
     branches: ["claude/funny-carson-ent3s7"]
