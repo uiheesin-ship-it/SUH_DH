@@ -7,6 +7,9 @@ const $ = (sel) => document.querySelector(sel);
 //   STATIC=true  -> pre-built daily JSON in ../data/base.json + ../data/chart/*
 const STATIC = !!window.SUH_DH_STATIC;
 const BUILT = window.SUH_DH_BUILT || null;
+// Optional hosted backend — used only as a chart fallback for setups whose
+// chart wasn't pre-built (fast, scan-skipped builds don't pre-build them).
+const API_BASE = (window.SUH_DH_API_BASE || "").replace(/\/+$/, "");
 
 let STOCKS = [];
 let META = {};
@@ -270,8 +273,14 @@ function sma(arr, n) {
 async function fetchChart(ticker) {
   if (STATIC) {
     const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
-    if (!res.ok) throw new Error("저장된 차트가 없습니다");
-    return res.json();
+    if (res.ok) return res.json();
+    // Not pre-built — fall back to the hosted backend if one is configured.
+    if (API_BASE) {
+      const r = await fetch(`${API_BASE}/api/chart/${encodeURIComponent(ticker)}?range=max`);
+      const d = await r.json();
+      if (r.ok && !d.error) return d;
+    }
+    throw new Error("저장된 차트가 없습니다");
   }
   const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=max`);
   const d = await res.json();

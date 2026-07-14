@@ -24,6 +24,9 @@ on:
       # This workflow commits the news digest here; ignore only that file so it
       # doesn't re-trigger itself — but DO rebuild for data/guidance.json edits.
       - "data/news.json"
+      # Ditto the persisted base-screener snapshot (committed on scheduled scans);
+      # reused as-is on push builds, so a change to it must not loop the build.
+      - "data/base.json"
 
 permissions:
   # Write access so the build can commit data/news.json for the Telegram job.
@@ -53,17 +56,19 @@ jobs:
           # Render service) so the static earnings page can query any ticker.
           SUH_DH_API_BASE: ${{ vars.SUH_DH_API_BASE }}
       - name: Commit news.json for the Telegram job
-        # This commit is only for the Telegram mirror — never let a race on this
-        # branch (the Telegram job pushes here too) block the Pages deploy.
+        # This commit mirrors the news digest (for Telegram) and persists the
+        # base-screener snapshot (so push builds can skip the heavy rescan).
+        # Never let a race on this branch (the Telegram job pushes here too)
+        # block the Pages deploy.
         continue-on-error: true
         run: |
-          if [ -n "$(git status --porcelain data/news.json)" ]; then
+          if [ -n "$(git status --porcelain data/news.json data/base.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/news.json
-            git commit -m "chore: update dashboard news.json"
+            git add data/news.json data/base.json
+            git commit -m "chore: update dashboard data (news, base screen)"
             # The Telegram job commits to this same branch on its own cadence.
-            # Retry, auto-resolving news.json in favor of this fresh build.
+            # Retry, auto-resolving in favor of this fresh build.
             for i in 1 2 3 4 5; do
               git push origin HEAD:claude/funny-carson-ent3s7 && break
               echo "push rejected; rebasing (attempt $i) ..."

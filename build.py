@@ -63,9 +63,9 @@ def main() -> None:
     # SUH_DH_API_BASE to a hosted FastAPI URL (or your ngrok URL) at build time.
     api_base = os.environ.get("SUH_DH_API_BASE", "").strip()
     if api_base:
-        # highs: lets the refresh button pull real-time new highs live (the daily
-        # snapshot only updates when this build runs). earnings/kr: any-ticker.
-        for program in ("earnings", "kr", "highs"):
+        # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
+        # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
+        for program in ("earnings", "kr", "highs", "base"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -153,33 +153,51 @@ def main() -> None:
         print(f"  drift build failed: {e}")
         write_json(SITE / "data" / "drift" / "_index.json", {"tickers": []})
 
-    # Base screener: score the healthy-base watchlist and pre-build its charts.
-    # Heavy (fetches OHLCV per candidate); gated by SUH_DH_BASE_LIMIT and never
-    # allowed to abort the rest of the build.
-    print("Building base screener ...")
-    try:
-        from app import base as base_screener
+    # Base screener. The scan is HEAVY (2y OHLCV for the whole candidate
+    # universe) and Yahoo throttling makes its runtime unpredictable, so we only
+    # run it on scheduled/manual builds (or the very first time). Ordinary code
+    # pushes reuse the committed data/base.json so they deploy in a couple of
+    # minutes instead of waiting 10-15 min for a rescan. Force with
+    # SUH_DH_FORCE_BASE=1.
+    repo_base = ROOT / "data" / "base.json"
+    event = os.environ.get("GITHUB_EVENT_NAME", "")
+    scan_base = (
+        os.environ.get("SUH_DH_FORCE_BASE", "") == "1"
+        or event in ("schedule", "workflow_dispatch")
+        or not repo_base.exists()
+    )
+    if scan_base:
+        print("Building base screener (full scan) ...")
+        try:
+            from app import base as base_screener
 
-        payload = base_screener.run_scan(progress=True)
-        write_json(SITE / "data" / "base.json", payload)
-        chart_limit = int(os.environ.get("SUH_DH_BASE_CHART_LIMIT", "60"))
-        for s in payload.get("stocks", [])[:chart_limit]:
-            t = s["ticker"]
-            cp = SITE / "data" / "chart" / f"{t}.json"
-            if cp.exists():
-                continue
-            try:
-                write_json(cp, charts.get_chart(t, "max"))
-            except Exception as e:
-                print(f"  base chart {t} failed: {e}")
-            time.sleep(0.3)
-        print(f"  base screen: {payload.get('count')} setups "
-              f"(universe {payload.get('universe_size')}).")
-    except Exception as e:
-        print(f"  base screen failed: {e}")
-        write_json(SITE / "data" / "base.json",
-                   {"built": built, "count": 0, "universe_size": 0, "stocks": [],
-                    "demo": False, "error": "base screen unavailable", "detail": str(e)})
+            payload = base_screener.run_scan(progress=True)
+            write_json(SITE / "data" / "base.json", payload)
+            write_json(repo_base, payload)  # persist so push builds can reuse it
+            chart_limit = int(os.environ.get("SUH_DH_BASE_CHART_LIMIT", "60"))
+            for s in payload.get("stocks", [])[:chart_limit]:
+                t = s["ticker"]
+                cp = SITE / "data" / "chart" / f"{t}.json"
+                if cp.exists():
+                    continue
+                try:
+                    write_json(cp, charts.get_chart(t, "max"))
+                except Exception as e:
+                    print(f"  base chart {t} failed: {e}")
+                time.sleep(0.3)
+            print(f"  base screen: {payload.get('count')} setups "
+                  f"(universe {payload.get('universe_size')}).")
+        except Exception as e:
+            print(f"  base screen failed: {e}")
+            if repo_base.exists():
+                shutil.copyfile(repo_base, SITE / "data" / "base.json")
+            else:
+                write_json(SITE / "data" / "base.json",
+                           {"built": built, "count": 0, "universe_size": 0, "stocks": [],
+                            "demo": False, "error": "base screen unavailable", "detail": str(e)})
+    elif repo_base.exists():
+        print("Reusing committed data/base.json (skipping base scan on push) ...")
+        shutil.copyfile(repo_base, SITE / "data" / "base.json")
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()
