@@ -233,7 +233,7 @@ function detailPanel(s) {
         ${row("Pivot", `${fmtPrice(p.pivot_price)} · ${esc(p.pivot_status || "-")}`)}
         ${row("피봇거리", p.distance_to_pivot == null ? "-" : (p.distance_to_pivot * 100).toFixed(1) + "%")}
         ${row("Higher low", yesno(b.higher_low))}
-        ${row("50일선 위치", `${yesno(s.sma50_position_pass)} (${s.distance_to_sma50 == null ? "-" : (s.distance_to_sma50 * 100).toFixed(1) + "%")})`)}
+        ${row("50일선 위치", `${yesno(s.sma50_position_pass)} (${s.distance_to_sma50 == null ? "-" : (s.distance_to_sma50 * 100).toFixed(1) + "%"})`)}
       </div>
       <div class="d-card"><h4>변동성 / VCP</h4>
         ${row("ATR 축소비", fmtNum(vol.atr_contraction_ratio))}
