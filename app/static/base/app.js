@@ -1,0 +1,502 @@
+"use strict";
+
+const $ = (sel) => document.querySelector(sel);
+
+// Two run modes (see config.js):
+//   STATIC=false -> live FastAPI backend (/api/base, /api/chart)
+//   STATIC=true  -> pre-built daily JSON in ../data/base.json + ../data/chart/*
+const STATIC = !!window.SUH_DH_STATIC;
+const BUILT = window.SUH_DH_BUILT || null;
+
+let STOCKS = [];
+let META = {};
+let sortKey = "total_score";
+let sortDir = -1;         // -1 desc, 1 asc
+let currentTicker = null;
+let currentRec = null;
+let chartData = null;
+let suppressRelayout = false;
+
+// ---------- formatting ----------
+function fmtCap(v) {
+  if (v == null) return "-";
+  if (v >= 1e12) return (v / 1e12).toFixed(2) + "T";
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + "B";
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + "M";
+  return (+v).toLocaleString();
+}
+function fmtPrice(v) { return v == null ? "-" : "$" + (+v).toFixed(2); }
+function fmtPct(v, d = 1) { return v == null ? "-" : (v * 100).toFixed(d) + "%"; }
+function fmtNum(v, d = 2) { return v == null ? "-" : (+v).toFixed(d); }
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ---------- load ----------
+async function load() {
+  $("#status").textContent = "불러오는 중…";
+  try {
+    const url = STATIC ? "../data/base.json" : "/api/base";
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);
+      return;
+    }
+    STOCKS = data.stocks || [];
+    META = data;
+    $("#demo-badge").classList.toggle("hidden", !data.demo);
+    populateSectors();
+    render();
+    const when = STATIC ? (BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근")
+                        : new Date().toLocaleTimeString("ko-KR");
+    $("#status").textContent =
+      `${data.count}개 종목 (유니버스 ${data.universe_size}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
+  } catch (e) {
+    renderError("데이터를 불러오지 못했습니다", e.message);
+  }
+}
+
+function renderError(msg, detail) {
+  $("#content").innerHTML =
+    `<div class="error"><b>${esc(msg)}</b>${detail ? "<br><small>" + esc(detail) + "</small>" : ""}</div>`;
+  $("#status").textContent = "오류";
+}
+
+function populateSectors() {
+  const secs = [...new Set(STOCKS.map((s) => s.sector).filter(Boolean))].sort();
+  const sel = $("#f-sector");
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">전체</option>` +
+    secs.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  sel.value = cur;
+}
+
+// ---------- filtering + sorting ----------
+function filtered() {
+  const minScore = +$("#f-score").value;
+  const grade = $("#f-grade").value;
+  const pivot = $("#f-pivot").value;
+  const alert = $("#f-alert").value;
+  const sector = $("#f-sector").value;
+  const q = $("#f-search").value.trim().toUpperCase();
+
+  let rows = STOCKS.filter((s) => {
+    if ((s.total_score ?? 0) < minScore) return false;
+    if (grade && s.setup_grade !== grade) return false;
+    if (pivot && (s.pivot?.pivot_status) !== pivot) return false;
+    if (alert && s.alert_type !== alert) return false;
+    if (sector && s.sector !== sector) return false;
+    if (q && !(String(s.ticker).toUpperCase().includes(q) ||
+              String(s.company_name || "").toUpperCase().includes(q))) return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    let va = sortVal(a, sortKey), vb = sortVal(b, sortKey);
+    if (va == null) va = -Infinity;
+    if (vb == null) vb = -Infinity;
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return 1 * sortDir;
+    return 0;
+  });
+  return rows;
+}
+
+function sortVal(s, key) {
+  switch (key) {
+    case "distance_to_pivot": {
+      const d = s.pivot?.distance_to_pivot;
+      return d == null ? null : Math.abs(d);
+    }
+    case "base_depth": return s.base?.base_depth;
+    case "pivot_status": return s.pivot?.pivot_status;
+    default: return s[key];
+  }
+}
+
+// ---------- render table ----------
+const GRADE_CLS = { Prime: "g-prime", High: "g-high", Watch: "g-watch", Low: "g-low" };
+const ALERT_CLS = { ready: "a-ready", breakout: "a-breakout", extended: "a-extended", none: "" };
+const PIVOT_CLS = { ready: "p-ready", broken_out: "p-broken", watch: "p-watch",
+                    early: "p-early", extended: "p-extended" };
+
+const COLS = [
+  ["ticker", "티커", false],
+  ["total_score", "점수", true],
+  ["setup_grade", "등급", false],
+  ["alert_type", "알림", false],
+  ["current_price", "가격", true],
+  ["market_cap", "시총", true],
+  ["rs_percentile", "RS%", true],
+  ["distance_to_pivot", "pivot거리", true],
+  ["pivot_status", "pivot", false],
+  ["base_depth", "베이스", true],
+  ["sector_etf", "섹터ETF", false],
+  ["notes", "메모", false],
+];
+
+function render() {
+  const rows = filtered();
+  $("#count-badge").textContent = `${rows.length}종목`;
+  if (!rows.length) {
+    $("#content").innerHTML = `<div class="loading">조건에 맞는 종목이 없습니다. 필터를 완화해 보세요.</div>`;
+    return;
+  }
+  const head = COLS.map(([k, label, num]) => {
+    const arrow = sortKey === k ? (sortDir === -1 ? " ▾" : " ▴") : "";
+    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}</th>`;
+  }).join("");
+
+  const body = rows.map((s) => {
+    const g = GRADE_CLS[s.setup_grade] || "";
+    const a = ALERT_CLS[s.alert_type] || "";
+    const p = PIVOT_CLS[s.pivot?.pivot_status] || "";
+    const dist = s.pivot?.distance_to_pivot;
+    return `<tr data-ticker="${esc(s.ticker)}">
+      <td class="tk">
+        <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
+        <div class="company">${esc(s.company_name || "")}</div>
+      </td>
+      <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
+      <td><span class="badge ${g}">${esc(s.setup_grade || "-")}</span></td>
+      <td>${s.alert_type && s.alert_type !== "none"
+            ? `<span class="badge ${a}">${esc(s.alert_type)}</span>` : "-"}</td>
+      <td class="num">${fmtPrice(s.current_price)}</td>
+      <td class="num">${fmtCap(s.market_cap)}</td>
+      <td class="num">${fmtNum(s.rs_percentile, 0)}</td>
+      <td class="num">${dist == null ? "-" : (dist * 100).toFixed(1) + "%"}</td>
+      <td><span class="badge ${p}">${esc(s.pivot?.pivot_status || "-")}</span></td>
+      <td class="num">${s.base?.base_depth == null ? "-"
+            : (s.base.base_depth * 100).toFixed(0) + "% / " + (s.base.base_length_days ?? "-") + "d"}</td>
+      <td class="etf">${esc(s.sector_etf || "-")}</td>
+      <td class="notes">${esc(s.notes || "")}</td>
+    </tr>`;
+  }).join("");
+
+  $("#content").innerHTML = `<table class="screen">
+    <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+
+  document.querySelectorAll("th.sortable").forEach((th) =>
+    th.addEventListener("click", () => {
+      const k = th.dataset.key;
+      if (sortKey === k) sortDir *= -1;
+      else { sortKey = k; sortDir = (k === "ticker" || k === "sector_etf") ? 1 : -1; }
+      render();
+    }));
+  if (currentTicker) {
+    document.querySelectorAll(`tr[data-ticker="${CSS.escape(currentTicker)}"]`)
+      .forEach((r) => r.classList.add("active"));
+  }
+}
+
+// ---------- score / detail panels ----------
+function scorePanel(s) {
+  const parts = [
+    ["Trend", s.trend_score, 25], ["RS", s.rs_score, 20], ["Base", s.base_score, 25],
+    ["VCP", s.vcp_score, 15], ["Vol", s.volume_score, 10], ["Sector", s.sector_score, 5],
+  ];
+  const bars = parts.map(([name, val, max]) => {
+    const pct = max ? Math.max(0, Math.min(100, (val / max) * 100)) : 0;
+    return `<div class="sbar">
+      <span class="sbar-name">${name}</span>
+      <span class="sbar-track"><span class="sbar-fill" style="width:${pct}%"></span></span>
+      <span class="sbar-val">${fmtNum(val, 0)}/${max}</span>
+    </div>`;
+  }).join("");
+  return `<div class="score-total">종합 <b>${fmtNum(s.total_score, 0)}</b>
+      <span class="badge ${GRADE_CLS[s.setup_grade] || ""}">${esc(s.setup_grade)}</span>
+      ${s.alert_type && s.alert_type !== "none"
+        ? `<span class="badge ${ALERT_CLS[s.alert_type]}">${esc(s.alert_type)}</span>` : ""}
+    </div>${bars}`;
+}
+
+function detailPanel(s) {
+  const b = s.base || {}, p = s.pivot || {}, v = s.vcp || {}, vol = s.volatility || {}, vd = s.volume || {};
+  const yesno = (x) => x === true ? "✓" : x === false ? "✗" : "—";
+  const row = (k, val) => `<div class="d-row"><span>${k}</span><span>${val}</span></div>`;
+  return `
+    <div class="d-grid">
+      <div class="d-card"><h4>추세 (Minervini)</h4>
+        ${row("Trend Template", `${yesno(s.trend_template_pass)} (${s.trend?.pass_count ?? "-"}/${s.trend?.total ?? 10})`)}
+        ${row("RS 백분위", fmtNum(s.rs_percentile, 0))}
+        ${row("RS vs SPY 3M", fmtPct(s.rs_vs_spy_3m))}
+        ${row("RS vs QQQ 3M", fmtPct(s.rs_vs_qqq_3m))}
+        ${row("RS라인 SPY 신고가", yesno(s.rs_line_spy_near_high))}
+        ${row("직전 상승추세", `${fmtPct(s.prior_uptrend_return)} ${yesno(s.prior_uptrend_pass)}`)}
+      </div>
+      <div class="d-card"><h4>베이스 / 피봇</h4>
+        ${row("구간", `${esc(b.base_start_date || "-")} ~ ${esc(b.base_end_date || "-")}`)}
+        ${row("길이/깊이", `${b.base_length_days ?? "-"}d / ${fmtPct(b.base_depth)} (${esc(b.base_depth_grade || "-")})`)}
+        ${row("High/Low", `${fmtPrice(b.base_high)} / ${fmtPrice(b.base_low)}`)}
+        ${row("Pivot", `${fmtPrice(p.pivot_price)} · ${esc(p.pivot_status || "-")}`)}
+        ${row("피봇거리", p.distance_to_pivot == null ? "-" : (p.distance_to_pivot * 100).toFixed(1) + "%")}
+        ${row("Higher low", yesno(b.higher_low))}
+        ${row("50일선 위치", `${yesno(s.sma50_position_pass)} (${s.distance_to_sma50 == null ? "-" : (s.distance_to_sma50 * 100).toFixed(1) + "%")})`)}
+      </div>
+      <div class="d-card"><h4>변동성 / VCP</h4>
+        ${row("ATR 축소비", fmtNum(vol.atr_contraction_ratio))}
+        ${row("Range 축소비", fmtNum(vol.range_contraction_ratio))}
+        ${row("최근 압축", yesno(vol.recent_atr_compression_pass))}
+        ${row("변동성 등급", esc(vol.volatility_contraction_grade || "-"))}
+        ${row("VCP 3단(R1/R2/R3)", `${fmtPct(v.vcp_range_1,0)} / ${fmtPct(v.vcp_range_2,0)} / ${fmtPct(v.vcp_range_3,0)}`)}
+        ${row("VCP 통과/점수", `${yesno(v.vcp_pattern_pass)} · ${fmtNum(v.vcp_score)}`)}
+      </div>
+      <div class="d-card"><h4>거래량 / 섹터</h4>
+        ${row("Dry-up (10/50)", `${fmtNum(vd.volume_dry_up_ratio)} ${yesno(vd.volume_dry_up_pass)}`)}
+        ${row("베이스 후반 감소", yesno(vd.base_volume_fade_pass))}
+        ${row("대량 하락일(20d)", vd.high_volume_down_days_20d ?? "-")}
+        ${row("A/D 점수", fmtNum(vd.accumulation_distribution_score))}
+        ${row("섹터 ETF", esc(s.sector_etf || "-"))}
+        ${row("섹터 3M / 종목-섹터", `${fmtPct(s.sector_return_3m)} / ${fmtPct(s.sector_detail?.stock_vs_sector_3m)}`)}
+        ${row("섹터 점수", fmtNum(s.sector_action_score))}
+      </div>
+    </div>`;
+}
+
+// ---------- chart ----------
+function sma(arr, n) {
+  const out = new Array(arr.length).fill(null);
+  let run = 0;
+  for (let i = 0; i < arr.length; i++) {
+    run += arr[i];
+    if (i >= n) run -= arr[i - n];
+    if (i >= n - 1) out[i] = run / n;
+  }
+  return out;
+}
+
+async function fetchChart(ticker) {
+  if (STATIC) {
+    const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
+    if (!res.ok) throw new Error("저장된 차트가 없습니다");
+    return res.json();
+  }
+  const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=max`);
+  const d = await res.json();
+  if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
+  return d;
+}
+
+function openChart(ticker) {
+  currentTicker = ticker;
+  currentRec = STOCKS.find((s) => s.ticker === ticker) || {};
+  $("#chart-ticker").textContent = ticker;
+  $("#chart-company").textContent = currentRec.company_name || "";
+  $("#chart-external").href = `https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}`;
+  $("#score-panel").innerHTML = scorePanel(currentRec);
+  $("#detail-panel").innerHTML = detailPanel(currentRec);
+
+  $("#chart-pane").classList.remove("hidden");
+  $("#divider").classList.remove("hidden");
+  $("#list-pane").classList.add("chart-open");
+  document.querySelectorAll("tr.active").forEach((r) => r.classList.remove("active"));
+  document.querySelectorAll(`tr[data-ticker="${CSS.escape(ticker)}"]`).forEach((r) => r.classList.add("active"));
+  drawChart();
+}
+
+function closeChart() {
+  $("#chart-pane").classList.add("hidden");
+  $("#divider").classList.add("hidden");
+  $("#list-pane").classList.remove("chart-open");
+  document.querySelectorAll("tr.active").forEach((r) => r.classList.remove("active"));
+  Plotly.purge("chart-area");
+  chartData = null;
+}
+
+async function drawChart() {
+  const area = $("#chart-area");
+  area.innerHTML = `<div class="loading">차트 로딩 중…</div>`;
+  try {
+    const d = await fetchChart(currentTicker);
+    if (!d.dates || !d.dates.length) {
+      area.innerHTML = `<div class="error">차트 데이터가 없습니다. Yahoo 링크로 확인해 주세요.</div>`;
+      return;
+    }
+    chartData = d;
+    area.innerHTML = "";
+    plotChart(area, d);
+  } catch (e) {
+    area.innerHTML = `<div class="error">차트를 불러오지 못했습니다.<br><small>${esc(e.message)}</small></div>`;
+  }
+}
+
+function maTrace(x, y, name, color, dash) {
+  return { x, y, name, type: "scatter", mode: "lines",
+    line: { color, width: 1.3, dash: dash || "solid" }, connectgaps: false,
+    xaxis: "x", yaxis: "y" };
+}
+
+function overlayShapes(d, rec) {
+  const shapes = [];
+  const n = d.dates.length;
+  const idxOf = (date, fallback) => {
+    const i = d.dates.indexOf(date);
+    return i >= 0 ? i : fallback;
+  };
+  const b = rec.base || {}, p = rec.pivot || {};
+  // Base window shading.
+  if (b.base_length_days) {
+    let endI = idxOf(b.base_end_date, n - 1);
+    let startI = idxOf(b.base_start_date, Math.max(0, endI - (b.base_length_days - 1)));
+    shapes.push({ type: "rect", xref: "x", yref: "paper",
+      x0: startI - 0.5, x1: endI + 0.5, y0: 0, y1: 1,
+      fillcolor: "rgba(56,189,248,0.08)", line: { width: 0 }, layer: "below" });
+  }
+  const hline = (y, color, dash) => shapes.push({
+    type: "line", xref: "paper", yref: "y", x0: 0, x1: 1, y0: y, y1: y,
+    line: { color, width: 1, dash: dash || "dot" } });
+  if (b.base_high != null) hline(b.base_high, "rgba(148,163,184,.7)");
+  if (b.base_low != null) hline(b.base_low, "rgba(148,163,184,.5)");
+  if (p.pivot_price != null) hline(p.pivot_price, "#f59e0b", "dash");
+  return shapes;
+}
+
+function plotChart(area, d) {
+  const x = d.dates;
+  const candles = {
+    x, type: "candlestick", name: "가격",
+    open: d.open, high: d.high, low: d.low, close: d.close,
+    increasing: { line: { color: "#22c55e" } },
+    decreasing: { line: { color: "#ef4444" } },
+    xaxis: "x", yaxis: "y",
+  };
+  const volColors = d.close.map((c, i) =>
+    i > 0 && c < d.close[i - 1] ? "rgba(239,68,68,.5)" : "rgba(34,197,94,.5)");
+  const volume = { x, y: d.volume, type: "bar", name: "거래량",
+    marker: { color: volColors }, xaxis: "x", yaxis: "y2" };
+
+  const c = d.close;
+  const traces = [
+    volume, candles,
+    maTrace(x, sma(c, 50), "SMA50", "#a855f7"),
+    maTrace(x, sma(c, 150), "SMA150", "#38bdf8"),
+    maTrace(x, sma(c, 200), "SMA200", "#ef4444"),
+  ];
+  const layout = {
+    paper_bgcolor: "#1e293b", plot_bgcolor: "#1e293b",
+    font: { color: "#e2e8f0", size: 11 },
+    showlegend: false, margin: { l: 55, r: 18, t: 8, b: 28 },
+    dragmode: "pan",
+    shapes: overlayShapes(d, currentRec),
+    xaxis: { type: "category", gridcolor: "#334155", domain: [0, 1], anchor: "y",
+             nticks: 8, rangeslider: { visible: false } },
+    yaxis: { domain: [0.24, 1], gridcolor: "#334155", title: "가격", side: "right" },
+    yaxis2: { domain: [0, 0.18], gridcolor: "#334155", title: "거래량", side: "right" },
+  };
+  Plotly.newPlot("chart-area", traces, layout,
+    { responsive: true, scrollZoom: true, displaylogo: false,
+      modeBarButtonsToRemove: ["select2d", "lasso2d"] });
+  document.getElementById("chart-area").on("plotly_relayout", (ev) => rescaleY(ev));
+
+  const n = d.dates.length;
+  const win = Math.min(160, n);
+  const start = n - win;
+  suppressRelayout = true;
+  Plotly.relayout("chart-area", { "xaxis.range": [start - 0.5, n - 0.5] })
+    .then(() => { suppressRelayout = false; setYForWindow(start, n - 1); });
+}
+
+function setYForWindow(lo, hi) {
+  if (!chartData) return;
+  const n = chartData.dates.length;
+  lo = Math.max(0, lo); hi = Math.min(n - 1, hi);
+  if (hi <= lo) return;
+  let pmin = Infinity, pmax = -Infinity, vmax = 0;
+  for (let i = lo; i <= hi; i++) {
+    if (chartData.low[i] < pmin) pmin = chartData.low[i];
+    if (chartData.high[i] > pmax) pmax = chartData.high[i];
+    if (chartData.volume[i] > vmax) vmax = chartData.volume[i];
+  }
+  if (!isFinite(pmin) || !isFinite(pmax)) return;
+  const pad = (pmax - pmin) * 0.06 || 1;
+  suppressRelayout = true;
+  Plotly.relayout("chart-area", {
+    "yaxis.range": [pmin - pad, pmax + pad],
+    "yaxis2.range": [0, vmax * 1.15],
+  }).then(() => { suppressRelayout = false; });
+}
+
+function rescaleY(ev) {
+  if (suppressRelayout || !chartData) return;
+  const n = chartData.dates.length;
+  let lo, hi;
+  if (ev["xaxis.autorange"] || ev["autosize"]) { lo = 0; hi = n - 1; }
+  else if (ev["xaxis.range[0]"] !== undefined) {
+    lo = Math.floor(ev["xaxis.range[0]"]); hi = Math.ceil(ev["xaxis.range[1]"]);
+  } else if (Array.isArray(ev["xaxis.range"])) {
+    lo = Math.floor(ev["xaxis.range"][0]); hi = Math.ceil(ev["xaxis.range"][1]);
+  } else return;
+  setYForWindow(lo, hi);
+}
+
+// ---------- divider drag ----------
+(function setupDivider() {
+  const divider = $("#divider");
+  const pane = $("#chart-pane");
+  let dragging = false;
+  divider.addEventListener("mousedown", (e) => {
+    dragging = true; divider.classList.add("dragging");
+    document.body.style.userSelect = "none"; e.preventDefault();
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const w = Math.min(Math.max(window.innerWidth - e.clientX, 320), window.innerWidth - 200);
+    pane.style.width = w + "px";
+  });
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false; divider.classList.remove("dragging");
+    document.body.style.userSelect = "";
+    if (chartData) Plotly.Plots.resize("chart-area");
+  });
+})();
+
+// ---------- CSV export ----------
+function exportCsv() {
+  const rows = filtered();
+  const cols = ["ticker", "company_name", "sector", "industry", "sector_etf",
+    "current_price", "market_cap", "avg_dollar_volume_20d", "total_score", "setup_grade",
+    "trend_template_pass", "rs_percentile", "rs_vs_spy_3m", "rs_vs_qqq_3m",
+    "base_start_date", "base_length_days", "base_depth", "pivot_price", "distance_to_pivot",
+    "pivot_status", "atr_contraction_ratio", "volume_dry_up_ratio", "high_volume_down_days_20d",
+    "sector_action_score", "alert_type", "notes"];
+  const get = (s, k) => {
+    switch (k) {
+      case "base_start_date": return s.base?.base_start_date;
+      case "base_length_days": return s.base?.base_length_days;
+      case "base_depth": return s.base?.base_depth;
+      case "pivot_price": return s.pivot?.pivot_price;
+      case "distance_to_pivot": return s.pivot?.distance_to_pivot;
+      case "pivot_status": return s.pivot?.pivot_status;
+      case "atr_contraction_ratio": return s.volatility?.atr_contraction_ratio;
+      case "volume_dry_up_ratio": return s.volume?.volume_dry_up_ratio;
+      case "high_volume_down_days_20d": return s.volume?.high_volume_down_days_20d;
+      default: return s[k];
+    }
+  };
+  const q = (v) => v == null ? "" : `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [cols.join(",")].concat(
+    rows.map((s) => cols.map((k) => q(get(s, k))).join(","))).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `base_screen_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ---------- events ----------
+$("#refresh-btn").addEventListener("click", load);
+$("#csv-btn").addEventListener("click", exportCsv);
+$("#chart-close").addEventListener("click", closeChart);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
+window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
+["f-grade", "f-pivot", "f-alert", "f-sector"].forEach((id) =>
+  $("#" + id).addEventListener("change", render));
+$("#f-search").addEventListener("input", render);
+$("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });
+
+window.openChart = openChart;
+load();

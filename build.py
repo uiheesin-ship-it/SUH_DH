@@ -55,7 +55,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr"):
+    for program in ("highs", "news", "earnings", "kr", "base"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -150,6 +150,34 @@ def main() -> None:
     except Exception as e:
         print(f"  drift build failed: {e}")
         write_json(SITE / "data" / "drift" / "_index.json", {"tickers": []})
+
+    # Base screener: score the healthy-base watchlist and pre-build its charts.
+    # Heavy (fetches OHLCV per candidate); gated by SUH_DH_BASE_LIMIT and never
+    # allowed to abort the rest of the build.
+    print("Building base screener ...")
+    try:
+        from app import base as base_screener
+
+        payload = base_screener.run_scan(progress=True)
+        write_json(SITE / "data" / "base.json", payload)
+        chart_limit = int(os.environ.get("SUH_DH_BASE_CHART_LIMIT", "60"))
+        for s in payload.get("stocks", [])[:chart_limit]:
+            t = s["ticker"]
+            cp = SITE / "data" / "chart" / f"{t}.json"
+            if cp.exists():
+                continue
+            try:
+                write_json(cp, charts.get_chart(t, "max"))
+            except Exception as e:
+                print(f"  base chart {t} failed: {e}")
+            time.sleep(0.3)
+        print(f"  base screen: {payload.get('count')} setups "
+              f"(universe {payload.get('universe_size')}).")
+    except Exception as e:
+        print(f"  base screen failed: {e}")
+        write_json(SITE / "data" / "base.json",
+                   {"built": built, "count": 0, "universe_size": 0, "stocks": [],
+                    "demo": False, "error": "base screen unavailable", "detail": str(e)})
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()

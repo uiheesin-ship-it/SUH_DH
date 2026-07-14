@@ -153,6 +153,73 @@ data/
 - `/` — **대시보드 허브**. 프로그램들을 카드로 보여주고 눌러서 들어갑니다.
 - `/highs/` — 52주 신고가 프로그램.
 - `/news/` — AI 투자 뉴스 프로그램.
+- `/base/` — **베이스 스크리너** 프로그램 (아래 참고).
+
+### 베이스 스크리너 프로그램 (`/base/`)
+
+미국 상장 보통주 중 **"건전한 베이스(base)를 형성 중인 종목"** 을 Mark Minervini의
+Trend Template을 기본으로, 여기에 **베이스 / VCP / 변동성 축소 / 거래량 감소(dry-up) /
+RS 라인 신고가 / 섹터 ETF 강세** 를 정량화해 **100점 만점**으로 채점하고 watchlist로
+보여줍니다. 종목을 누르면 SMA50/150/200과 **베이스 구간·피봇 라인**을 오버레이한
+차트, 점수 분해, 상세 지표가 열립니다.
+
+- **1차 유니버스**: Finviz 스크리너로 시총·주가·거래량·ETF제외·(옵션)SMA200/50 위를
+  먼저 걸러 후보를 수백 개로 압축합니다(`app/base/universe.py`). 무료 데이터로 전체
+  미국주식을 매번 받는 건 비현실적이라, "미리 거른 뒤 정밀분석"하는 구조입니다.
+  후보 상한은 `config.yaml`의 `universe.max_candidates`(기본 300)로 조절합니다.
+- **정밀분석**: 후보별 2년치 조정 일봉(Yahoo→Stooq 폴백)으로 이동평균·수익률·52주
+  고저·ATR·베이스/VCP/거래량/피봇·RS 라인·섹터 액션을 계산합니다.
+- **RS 백분위**: "스캔한 유니버스 내" 상대 백분위입니다(문자 그대로 전 종목이 아님).
+  3/6/12개월 수익률을 `rs_composite` 가중치로 합성합니다.
+- **점수 배점**(기본): 추세 25 · RS 20 · 베이스 25 · VCP/변동성 15 · 거래량 10 · 섹터 5.
+  등급: **Prime ≥85 · High ≥75 · Watch ≥65 · Low <65**.
+- **알림**(`alert_type`): `ready`(피봇 근접+조건 충족) · `breakout`(피봇 돌파+대량거래) ·
+  `extended`(피봇/50일선 대비 과열) · `none`.
+- **필터/정렬/저장**: 상단에서 최소점수·등급·pivot·알림·섹터·검색으로 거르고, 헤더
+  클릭으로 정렬, **CSV ↓** 버튼으로 현재 결과를 내려받습니다.
+
+**설정 (`config.yaml`)** — 모든 임계값을 여기서 조정합니다. 파일이 없으면
+`app/base/config.py`의 기본값으로 동작하고, 일부만 적어도 그 값만 덮어씁니다.
+예: 베이스 최대 깊이(`base.max_depth`), RS 백분위 컷(`trend_template.min_rs_percentile`),
+거래량 dry-up 기준(`volume.dry_up_10d_vs_50d`), 점수 배점(`scoring.*`), 알림 기준(`alerts.*`).
+
+**섹터 매핑 (`data/sector_mapping.csv`)** — 선택 파일. `ticker,sector_etf` 형식으로 종목별
+세부 섹터 ETF(예: `NVDA,SMH`)를 지정하면 그 ETF 대비 상대강도로 섹터 점수를 매깁니다.
+없으면 Finviz 섹터 기준 기본 ETF(XLK·XLV 등)를 쓰고, 매핑이 없는 종목도 제외하지 않고
+섹터 점수를 중립(0.5)으로 둡니다.
+
+**실행**
+
+```bash
+# 라이브(백엔드가 스캔): 대시보드 실행 후 /base/ 로 접속
+python3 -m uvicorn app.main:app --port 8000     # → http://127.0.0.1:8000/base/
+# API 직접 호출
+curl http://127.0.0.1:8000/api/base
+
+# 네트워크 없이 UI/로직 미리보기(합성 데이터)
+SUH_DH_DEMO=1 python3 -m uvicorn app.main:app --port 8000
+```
+
+정적 사이트(GitHub Pages)에서는 `build.py`가 스캔 결과를 `data/base.json`으로 미리
+생성합니다. 스캔은 무겁기 때문에 후보 수를 `SUH_DH_BASE_LIMIT`(빌드 시), 차트 프리빌드
+수를 `SUH_DH_BASE_CHART_LIMIT`로 제한할 수 있고, 실패해도 나머지 빌드를 막지 않습니다.
+
+**주요 출력 컬럼**: `ticker, company_name, sector, sector_etf, current_price, market_cap,
+avg_dollar_volume_20d, total_score, setup_grade, trend_template_pass, rs_percentile,
+rs_vs_spy_3m, rs_vs_qqq_3m, base_start_date, base_length_days, base_depth, pivot_price,
+distance_to_pivot, pivot_status, atr_contraction_ratio, volume_dry_up_ratio,
+high_volume_down_days_20d, sector_action_score, alert_type, notes` + 세부 점수(`trend_score,
+rs_score, base_score, vcp_score, volume_score, sector_score`).
+
+**한계점 (반드시 유의)**
+
+- 가격/거래량 기반 스크리너는 **투자 추천이 아니며**, 정성적 차트 판독을 대체하지 않습니다.
+- 무료 데이터 소스(Yahoo/Stooq/Finviz)는 **지연·누락·오류**가 있을 수 있습니다.
+- 베이스/VCP 탐지는 **완벽한 차트 판독이 아니라 정량화된 근사치**입니다(구간 경계·피봇은
+  휴리스틱). 최종 매수/매도는 반드시 실제 차트와 실적 이벤트를 추가로 확인하세요.
+- RS 백분위는 **스캔한 유니버스 기준** 상대값이라, 유니버스 구성(Finviz 필터)에 따라 값이
+  달라집니다.
+- 펀더멘털(매출/EPS 성장 등)은 초기 버전에서 미반영입니다(구조상 추후 추가 가능).
 
 ### AI 투자 뉴스 프로그램
 

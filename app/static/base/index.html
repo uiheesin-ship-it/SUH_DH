@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>베이스 스크리너 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🧭 베이스 스크리너</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">불러오는 중…</span>
+      <button id="csv-btn" title="현재 필터 결과를 CSV로 저장">CSV ↓</button>
+      <button id="refresh-btn">새로고침</button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <label>최소점수
+      <input type="range" id="f-score" min="0" max="100" step="5" value="65" />
+      <span id="f-score-val">65</span>
+    </label>
+    <label>등급
+      <select id="f-grade">
+        <option value="">전체</option>
+        <option value="Prime">Prime (85+)</option>
+        <option value="High">High (75+)</option>
+        <option value="Watch">Watch (65+)</option>
+        <option value="Low">Low</option>
+      </select>
+    </label>
+    <label>Pivot
+      <select id="f-pivot">
+        <option value="">전체</option>
+        <option value="ready">ready</option>
+        <option value="watch">watch</option>
+        <option value="early">early</option>
+        <option value="broken_out">broken_out</option>
+        <option value="extended">extended</option>
+      </select>
+    </label>
+    <label>알림
+      <select id="f-alert">
+        <option value="">전체</option>
+        <option value="ready">ready</option>
+        <option value="breakout">breakout</option>
+        <option value="extended">extended</option>
+      </select>
+    </label>
+    <label>섹터
+      <select id="f-sector"><option value="">전체</option></select>
+    </label>
+    <label class="search">검색
+      <input type="text" id="f-search" placeholder="티커/종목명" />
+    </label>
+    <span id="count-badge" class="count-badge"></span>
+  </div>
+
+  <div id="split">
+    <div id="list-pane">
+      <main id="content">
+        <div class="loading">스캔 결과를 불러오는 중입니다…</div>
+      </main>
+      <footer class="footer">
+        1차: Finviz 유동성·추세 필터 · 정밀분석: Yahoo/Stooq 일봉(조정) · RS 백분위는 스캔 유니버스 내 상대값.
+        정량화된 근사치이며 투자 추천이 아닙니다.
+      </footer>
+    </div>
+
+    <div id="divider" class="hidden" title="좌우로 끌어 너비 조절"></div>
+
+    <aside id="chart-pane" class="hidden">
+      <div class="chart-head">
+        <div class="chart-title">
+          <span id="chart-ticker" class="chart-ticker"></span>
+          <span id="chart-company" class="chart-company"></span>
+        </div>
+        <div class="chart-actions">
+          <a id="chart-external" href="#" target="_blank" rel="noopener" class="ext-link">Yahoo ↗</a>
+          <button id="chart-close" class="close" title="닫기">✕</button>
+        </div>
+      </div>
+      <div id="score-panel" class="score-panel"></div>
+      <div id="chart-area" class="chart-area"></div>
+      <div class="legend">
+        <span class="lg ma50">SMA50</span>
+        <span class="lg ma150">SMA150</span>
+        <span class="lg ma200">SMA200</span>
+        <span class="lg pivot">Pivot</span>
+        <span class="lg base">Base H/L</span>
+        <span class="hint">· 드래그 이동 · 휠 확대/축소 · 더블클릭 전체기간</span>
+      </div>
+      <div id="detail-panel" class="detail-panel"></div>
+    </aside>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
