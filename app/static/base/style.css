@@ -122,6 +122,18 @@ td.etf { color: var(--accent); }
 .loading, .error { padding: 24px; text-align: center; color: var(--muted); }
 .error { color: #fca5a5; }
 
+/* hover tooltips for indicator labels */
+.term { border-bottom: 1px dotted var(--muted); cursor: help; }
+.term:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.tip {
+  position: fixed; z-index: 1000; max-width: 300px; pointer-events: none;
+  background: #0b1120; color: var(--text);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 8px 11px; font-size: 12px; line-height: 1.55;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .55);
+}
+.tip.hidden { display: none; }
+
 @media (max-width: 720px) {
   #chart-pane { position: fixed; inset: 0; width: 100% !important; max-width: 100%; z-index: 50; }
   .d-grid { grid-template-columns: 1fr; }

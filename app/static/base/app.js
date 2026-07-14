@@ -194,6 +194,55 @@ function render() {
   }
 }
 
+// ---------- indicator glossary (hover tooltips) ----------
+const GLOSSARY = {
+  // score bars
+  "Trend": "Minervini 추세 템플릿 충족도 (25점 만점).",
+  "RS": "상대강도 — RS 백분위 + RS라인 신고가 + 시장 대비 초과수익 (20점).",
+  "Base": "베이스 품질 — 길이·깊이·피봇 근접·50일선 근처·저점 절상 (25점).",
+  "VCP": "변동성 수축 — ATR/변동폭 축소 + VCP 3단 구조 (15점).",
+  "Vol": "거래량 — dry-up(거래량 마름) + 하락일 거래량 + 대량 하락일 적음 (10점).",
+  "Sector": "섹터 강세 — 세부 섹터 ETF가 시장 대비 강하고 종목이 섹터 대비 강함 (5점).",
+  // detail — trend
+  "Trend Template": "Mark Minervini의 추세 조건 10가지. 가격이 150·200일선 위, 50>150>200 정배열, 200일선 상승, 52주 저점 대비 +30%↑·고점 대비 -25%↓, RS 백분위 80↑ 등. (충족 개수/전체)",
+  "RS 백분위": "스캔한 유니버스 내 상대강도 순위(0~100). 90이면 상위 10%. 3/6/12개월 수익률을 합성해 계산.",
+  "RS vs SPY 3M": "최근 3개월 이 종목 수익률 − S&P500(SPY) 수익률. 양수면 시장을 이긴 것.",
+  "RS vs QQQ 3M": "최근 3개월 이 종목 수익률 − 나스닥100(QQQ) 수익률. 양수면 기술주 지수보다 강함.",
+  "RS라인 SPY 신고가": "RS 라인(종목가격 ÷ SPY)이 최근 1년 최고치 근처(98%↑)인지. 가격이 아직 신고가가 아니어도 상대강도가 먼저 신고가를 내면 긍정적.",
+  "직전 상승추세": "베이스 이전에 강한 상승이 있었는지 (20일전 ÷ 120일전 가격 − 1). +25%↑면 건설적.",
+  // detail — base / pivot
+  "구간": "탐지된 베이스(횡보) 구간의 시작~끝 날짜.",
+  "길이/깊이": "베이스 기간(거래일)과 깊이(고점 대비 저점까지 하락률). 깊이 10~20% 우수, ~30% 양호, 35%↑ 제외.",
+  "High/Low": "베이스 구간의 최고가 / 최저가.",
+  "Pivot": "돌파 매수 기준가(보통 베이스 고점). 이 가격을 대량 거래로 넘으면 돌파 신호. 상태: ready/watch/early/broken_out/extended.",
+  "피봇거리": "현재가가 pivot까지 남은 거리(%). 0~5% ready, 5~10% watch, 그 이상 early.",
+  "Higher low": "베이스 후반 저점이 전반 저점보다 높은지(저점 절상). 매집의 신호.",
+  "50일선 위치": "현재가가 50일선의 0.95~1.15배 범위인지 (괄호는 50일선 대비 이격도). 건전한 베이스는 보통 50일선 근처에서 형성.",
+  // detail — volatility / vcp
+  "ATR 축소비": "베이스 후반 1/3 ATR ÷ 전반 1/3 ATR. 작을수록 변동성 축소. 0.75↓ 통과, 0.60↓ 우수. (ATR=일평균 진폭)",
+  "Range 축소비": "베이스 후반 1/3 일중 변동폭 ÷ 전반 1/3. 0.75↓면 변동성 축소로 봄.",
+  "최근 압축": "최근 10일 ATR가 50일 ATR의 80% 미만인지 (막판 변동성 급압축 여부).",
+  "변동성 등급": "변동성 축소 종합 등급 (excellent / good / weak).",
+  "VCP 3단(R1/R2/R3)": "베이스를 3등분한 각 구간의 변동폭(%). 뒤로 갈수록 줄어드는(R1>R2>R3) 게 VCP(변동성 수축 패턴).",
+  "VCP 통과/점수": "3단 수축 통과 여부와 0~1 점수 (단조 수축 + 마지막이 첫 구간의 60%↓면 우수).",
+  // detail — volume / sector
+  "Dry-up (10/50)": "최근 10일 평균 거래량 ÷ 50일 평균. 0.80 미만이면 '거래량 마름'(건전한 베이스 후반 특징). 0.70↓ 우수.",
+  "베이스 후반 감소": "베이스 후반부 평균 거래량이 전반부의 80% 미만인지.",
+  "대량 하락일(20d)": "최근 20일 중 −3%↑ 하락하며 거래량이 50일평균 1.5배↑였던 날 수. 2회↑면 분산(매도) 신호로 감점.",
+  "A/D 점수": "최근 50일 상승일 vs 하락일 거래량 균형(−1~+1). 양수면 매집 우위.",
+  "섹터 ETF": "이 종목에 매핑된 섹터 ETF (sector_mapping.csv 또는 섹터 기본값). 이 ETF 대비 상대강도로 섹터 점수 산출.",
+  "섹터 3M / 종목-섹터": "섹터 ETF의 3개월 수익률 / (종목 3개월 − 섹터 3개월). 종목이 섹터보다 강하면 뒤 값이 양수.",
+  "섹터 점수": "섹터 강세 종합(0~1). 종목>섹터>시장 구조이고 섹터가 추세 위·신고가 근처면 높음.",
+};
+
+// Wrap a label in a hover-tooltip span when the glossary has an entry for it.
+function term(label) {
+  const tip = GLOSSARY[label];
+  return tip
+    ? `<span class="term" data-tip="${esc(tip)}">${esc(label)}</span>`
+    : esc(label);
+}
+
 // ---------- score / detail panels ----------
 function scorePanel(s) {
   const parts = [
@@ -203,7 +252,7 @@ function scorePanel(s) {
   const bars = parts.map(([name, val, max]) => {
     const pct = max ? Math.max(0, Math.min(100, (val / max) * 100)) : 0;
     return `<div class="sbar">
-      <span class="sbar-name">${name}</span>
+      <span class="sbar-name">${term(name)}</span>
       <span class="sbar-track"><span class="sbar-fill" style="width:${pct}%"></span></span>
       <span class="sbar-val">${fmtNum(val, 0)}/${max}</span>
     </div>`;
@@ -218,7 +267,7 @@ function scorePanel(s) {
 function detailPanel(s) {
   const b = s.base || {}, p = s.pivot || {}, v = s.vcp || {}, vol = s.volatility || {}, vd = s.volume || {};
   const yesno = (x) => x === true ? "✓" : x === false ? "✗" : "—";
-  const row = (k, val) => `<div class="d-row"><span>${k}</span><span>${val}</span></div>`;
+  const row = (k, val) => `<div class="d-row"><span>${term(k)}</span><span>${val}</span></div>`;
   return `
     <div class="d-grid">
       <div class="d-card"><h4>추세 (Minervini)</h4>
@@ -508,4 +557,35 @@ $("#f-search").addEventListener("input", render);
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });
 
 window.openChart = openChart;
+
+// ---------- hover tooltips for indicator labels ----------
+// One shared tooltip on <body> that follows the cursor, so it never gets
+// clipped by the scrolling panel and disappears the moment the cursor leaves.
+(function setupTooltips() {
+  const tip = document.createElement("div");
+  tip.className = "tip hidden";
+  document.body.appendChild(tip);
+  const place = (e) => {
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = e.clientY - h - pad;
+    tip.style.left = Math.max(8, x) + "px";
+    tip.style.top = Math.max(8, y) + "px";
+  };
+  document.addEventListener("mouseover", (e) => {
+    const t = e.target.closest && e.target.closest(".term");
+    if (!t || !t.dataset.tip) return;
+    tip.textContent = t.dataset.tip;
+    tip.classList.remove("hidden");
+    place(e);
+  });
+  document.addEventListener("mousemove", (e) => {
+    if (!tip.classList.contains("hidden")) place(e);
+  });
+  document.addEventListener("mouseout", (e) => {
+    if (e.target.closest && e.target.closest(".term")) tip.classList.add("hidden");
+  });
+})();
+
 load();
