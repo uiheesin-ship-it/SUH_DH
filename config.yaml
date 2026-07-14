@@ -1,0 +1,101 @@
+# =====================================================================
+# Base Screener 설정 — "건전한 베이스" 스크리너의 모든 임계값을 여기서 조정.
+# app/base/config.py 가 이 파일을 읽고, 없으면 코드 내 기본값을 씁니다.
+# 값을 바꾸면 다음 스캔(빌드 또는 /api/base 호출)부터 반영됩니다.
+# =====================================================================
+
+# --- 대상 유니버스 ---------------------------------------------------
+universe:
+  source: finviz          # finviz(권장) | index
+  include_adr: true       # ADR 포함 여부
+  max_candidates: 300     # OHLCV 를 받아 정밀분석할 최대 후보 수(데이터 비용 상한)
+  # Finviz 1차필터(스크리너에서 미리 걸러 후보를 줄임).
+  finviz_price_above_sma50: true
+  finviz_price_above_sma200: true
+
+# --- 1차 유동성 필터(정밀분석 후 최종 적용) --------------------------
+min_price: 10
+min_market_cap: 500000000
+min_avg_dollar_volume_20d: 20000000
+min_history_days: 200
+
+# --- 벤치마크 / 섹터 ETF --------------------------------------------
+benchmarks: [SPY, QQQ, IWM]
+
+# --- 베이스 탐지 -----------------------------------------------------
+base:
+  min_length_days: 20
+  max_length_days: 120
+  min_depth: 0.05
+  max_depth: 0.35
+  pivot_ready_threshold: 0.05    # pivot 대비 ±5% 이내 → ready
+  pivot_watch_threshold: 0.10    # 10% 이내 → watch
+  breakout_extended_threshold: 0.05  # pivot 돌파 후 +5% 초과 → extended
+
+# --- Minervini Trend Template ---------------------------------------
+trend_template:
+  min_rs_percentile: 80
+  min_price_vs_52w_low: 1.30
+  min_price_vs_52w_high: 0.75
+
+# --- Prior Uptrend ---------------------------------------------------
+prior_uptrend:
+  min_return: 0.25       # 20일전/120일전 - 1 >= 0.25 이면 통과
+
+# --- 변동성 축소 / VCP ----------------------------------------------
+volatility:
+  atr_length: 10
+  atr_contraction_threshold: 0.75   # <=0.75 통과, <=0.60 우수
+  atr_contraction_excellent: 0.60
+  range_contraction_threshold: 0.75
+  recent_atr_compression: 0.80      # 최근10일 ATR < 최근50일 ATR * 0.8
+  vcp_pass_ratio: 0.75              # range_3 <= range_1 * 0.75 통과
+  vcp_excellent_ratio: 0.60         # range_3 <= range_1 * 0.60 우수
+
+# --- 거래량 감소(Volume dry-up) -------------------------------------
+volume:
+  dry_up_10d_vs_50d: 0.80
+  dry_up_5d_vs_50d: 0.70
+  high_volume_down_day_move: -0.03   # -3% 이상 하락
+  high_volume_down_day_threshold: 1.5  # 거래량 >= 50일평균 * 1.5
+  high_volume_down_days_max: 2         # 최근20일 중 2회 이상이면 감점
+
+# --- 50일선과의 거리 -------------------------------------------------
+sma50:
+  min_ratio: 0.95   # current >= SMA50 * 0.95
+  max_ratio: 1.15   # current <= SMA50 * 1.15
+
+# --- RS Line ---------------------------------------------------------
+rs_line:
+  near_high_ratio: 0.98   # rs_line >= rolling_max(252) * 0.98
+
+# --- Sector Action ---------------------------------------------------
+sector:
+  near_high_ratio: 0.95   # 섹터 ETF 가 52주 신고가 대비 이 비율 이상이면 가산
+
+# --- RS 백분위 합성 가중치 ------------------------------------------
+rs_composite:
+  w_3m: 0.4
+  w_6m: 0.3
+  w_12m: 0.3
+
+# --- 점수 배점(합계 100) --------------------------------------------
+scoring:
+  trend_weight: 25
+  rs_weight: 20
+  base_weight: 25
+  vcp_weight: 15
+  volume_weight: 10
+  sector_weight: 5
+  # 등급 컷
+  grade_prime: 85
+  grade_high: 75
+  grade_watch: 65
+
+# --- 알림 ------------------------------------------------------------
+alerts:
+  ready_min_score: 75
+  ready_max_distance_to_pivot: 0.05
+  breakout_min_score: 75
+  extended_pivot_ratio: 1.05   # current > pivot * 1.05
+  extended_sma50_ratio: 1.20   # 또는 current > SMA50 * 1.20

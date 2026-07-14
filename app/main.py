@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__, charts, earnings, kr, news, screener
+from .base import get_screen as base_get_screen
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -117,6 +118,23 @@ def kr_drift(ticker: str):
 def kr_registered_tickers():
     """Curated Korean tickers grouped by sector (for the picker)."""
     return {"tickers": kr.kr_tickers(), "groups": kr.kr_groups()}
+
+
+@app.get("/api/base")
+def base_screen():
+    """Healthy-base screener: scored watchlist of stocks forming a base.
+
+    Heavy (fetches OHLCV for the whole candidate universe), so the result is
+    cached server-side. The static GitHub Pages build pre-computes the same
+    payload into data/base.json.
+    """
+    try:
+        return base_get_screen()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "베이스 스크리너 실행에 실패했습니다.", "detail": str(e)},
+        )
 
 
 @app.get("/api/news")
