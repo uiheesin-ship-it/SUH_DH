@@ -8,6 +8,16 @@ const $ = (sel) => document.querySelector(sel);
 const STATIC = !!window.SUH_DH_STATIC;
 const BUILT = window.SUH_DH_BUILT || null;
 
+// A hosted backend (Render) lets the refresh button pull *real-time* new highs
+// on the static Pages site (the daily JSON only updates when the build runs).
+// apiUrl() returns a usable live endpoint, or null when there's no backend.
+const API_BASE = (window.SUH_DH_API_BASE || "").replace(/\/+$/, "");
+function apiUrl(path) {
+  if (!STATIC) return path;                    // local dev: same-origin FastAPI
+  return API_BASE ? API_BASE + path : null;    // Pages: hosted backend, else none
+}
+let usingLive = false;   // true once a live fetch succeeded (drives reasons/charts)
+
 // ---------- formatting ----------
 function fmtCap(v) {
   if (v == null) return "-";
@@ -27,27 +37,56 @@ function esc(s) {
 }
 
 // ---------- dashboard ----------
-async function loadDashboard() {
-  $("#status").textContent = "불러오는 중…";
+async function loadDashboard(live = false) {
+  // `live=true` (refresh button) pulls fresh data from the backend right now;
+  // otherwise we show the pre-built snapshot (instant, no cold-start wait).
+  const liveUrl = apiUrl("/api/highs");
+  const wantLive = !!live && !!liveUrl;
+  $("#status").textContent = wantLive
+    ? "실시간 불러오는 중… (백엔드가 자고 있으면 최대 60초)"
+    : "불러오는 중…";
   try {
-    const url = STATIC ? "../data/highs.json" : "/api/highs";
+    const url = wantLive ? liveUrl : (STATIC ? "../data/highs.json" : "/api/highs");
     const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
+      if (wantLive) return loadStaticFallback(data.error, data.detail);
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);
       return;
     }
+    usingLive = wantLive;
     render(data);
     $("#demo-badge").classList.toggle("hidden", !data.demo);
-    if (STATIC) {
+    if (usingLive) {
+      $("#status").textContent =
+        `${data.count}개 종목 · 실시간 ${new Date().toLocaleTimeString("ko-KR")}`;
+    } else if (STATIC) {
       const when = BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근";
-      $("#status").textContent = `${data.count}개 종목 · 마지막 갱신 ${when} · 매일 자동 갱신`;
+      const hint = liveUrl ? " · [새로고침]으로 실시간" : " · 매일 자동 갱신";
+      $("#status").textContent = `${data.count}개 종목 · 마지막 갱신 ${when}${hint}`;
     } else {
       $("#status").textContent =
         `${data.count}개 종목 · 업데이트 ${new Date().toLocaleTimeString("ko-KR")}`;
     }
   } catch (e) {
+    if (wantLive) return loadStaticFallback("실시간 백엔드에 연결하지 못했습니다", e.message);
     renderError("데이터를 불러오지 못했습니다", e.message);
+  }
+}
+
+// Live fetch failed (backend down/asleep) — show the last saved snapshot so the
+// page is never left blank, and say so in the status line.
+async function loadStaticFallback(msg, detail) {
+  usingLive = false;
+  try {
+    const res = await fetch("../data/highs.json", { cache: "no-store" });
+    const data = await res.json();
+    render(data);
+    $("#demo-badge").classList.toggle("hidden", !data.demo);
+    const when = BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근";
+    $("#status").textContent = `실시간 실패 → 저장본 표시 (${when})`;
+  } catch (e) {
+    renderError(msg || "데이터를 불러오지 못했습니다", detail || e.message);
   }
 }
 
@@ -138,8 +177,13 @@ function loadReasons(sectors) {
 async function pumpReasons() {
   if (!reasonQueue.length) return;
   const ticker = reasonQueue.shift();
+  const rurl = apiUrl(`/api/reason/${encodeURIComponent(ticker)}`);
+  if (!rurl) {                       // static snapshot with no backend to ask
+    fillReason(ticker, { news: [] });
+    return pumpReasons();
+  }
   try {
-    const res = await fetch(`/api/reason/${encodeURIComponent(ticker)}`);
+    const res = await fetch(rurl);
     fillReason(ticker, await res.json());
   } catch (_) {
     fillReason(ticker, { news: [] });
@@ -180,15 +224,24 @@ let chartData = null;
 let suppressRelayout = false;
 
 async function fetchChart(ticker) {
-  if (STATIC) {
-    const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
-    if (!res.ok) throw new Error("저장된 차트가 없습니다");
-    return res.json();
+  const curl = apiUrl(`/api/chart/${encodeURIComponent(ticker)}?range=max`);
+  // In live mode (or local), ask the backend so any ticker has a chart. In a
+  // pure static snapshot, read the pre-built file; fall back to the backend
+  // (if any) when a ticker wasn't pre-built.
+  if (!STATIC || usingLive) {
+    const res = await fetch(curl);
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
+    return d;
   }
-  const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=max`);
-  const d = await res.json();
-  if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
-  return d;
+  const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
+  if (res.ok) return res.json();
+  if (curl) {
+    const r2 = await fetch(curl);
+    const d = await r2.json();
+    if (r2.ok && !d.error) return d;
+  }
+  throw new Error("저장된 차트가 없습니다");
 }
 
 function openChart(ticker, company) {
@@ -345,7 +398,7 @@ function rescaleY(ev) {
 })();
 
 // ---------- events ----------
-$("#refresh-btn").addEventListener("click", loadDashboard);
+$("#refresh-btn").addEventListener("click", () => loadDashboard(true));
 $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });

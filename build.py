@@ -63,7 +63,9 @@ def main() -> None:
     # SUH_DH_API_BASE to a hosted FastAPI URL (or your ngrok URL) at build time.
     api_base = os.environ.get("SUH_DH_API_BASE", "").strip()
     if api_base:
-        for program in ("earnings", "kr"):
+        # highs: lets the refresh button pull real-time new highs live (the daily
+        # snapshot only updates when this build runs). earnings/kr: any-ticker.
+        for program in ("earnings", "kr", "highs"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
