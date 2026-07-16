@@ -6,7 +6,8 @@ on:
   schedule:
     # Refresh news (and the dashboard) every 6 hours so the digest — and the
     # Telegram channel that mirrors it — stays reasonably fresh.
-    # 00:30 / 06:30 / 12:30 / 18:30 UTC.
+    # 00:30 / 06:30 / 12:30 / 18:30 UTC. Base is NOT rescanned here (see
+    # SUH_DH_SKIP_BASE below); these runs reuse the last committed base.json.
     - cron: "30 */6 * * *"
     # Extra refreshes every 30 min through the US trading session so the
     # 52-week-high list stays fresh while the market is actually moving (that's
@@ -17,15 +18,13 @@ on:
     # finish in ~15 min; they still rebuild the highs list AND reuse the latest
     # committed base.json, so the base screen also shows here (just not rescanned).
     - cron: "*/30 13-22 * * 1-5"
-    # Hourly intraday base rescan (at :15). The base screener is heavy (~10-20
-    # min for the whole candidate universe), so rescanning it every 30 min would
-    # bloat every build to ~35-45 min and drag the highs freshness back down.
-    # Running it once an hour keeps the base screen fresh through the session
-    # (was only every 6h) while the :00/:30 runs above stay fast. This run does a
-    # full build (base NOT skipped) and commits the refreshed base.json, which the
-    # fast runs then reuse. Bump to "15,45 13-22 * * 1-5" for a 30-min base cadence
-    # (at the cost of slower builds / more Yahoo load).
-    - cron: "15 13-22 * * 1-5"
+    # Base screener rescan — heavy (~10-20 min), so run it only twice a day at
+    # the moments it's most useful, on US trading days:
+    #   12:00 UTC = 21:00 KST  → US pre-market (reflects some pre-open action)
+    #   22:00 UTC = 07:00 KST  → just after the US regular-session close
+    # These are full builds (base NOT skipped) that commit the refreshed
+    # base.json; every other run above then reuses it.
+    - cron: "0 12,22 * * 1-5"
   workflow_dispatch: {}
   push:
     branches: ["claude/funny-carson-ent3s7"]
@@ -67,11 +66,11 @@ jobs:
           # Optional: set this repo Variable to your hosted backend URL (e.g. a
           # Render service) so the static earnings page can query any ticker.
           SUH_DH_API_BASE: ${{ vars.SUH_DH_API_BASE }}
-          # The frequent intraday cron only needs a fresh 52-week-high list, not
-          # a full base rescan (the heaviest step). Skip it there so intraday
-          # builds finish in ~15 min instead of 30-45; the 6-hourly cron and
-          # manual runs still refresh the base screen.
-          SUH_DH_SKIP_BASE: ${{ github.event.schedule == '*/30 13-22 * * 1-5' && '1' || '' }}
+          # Base rescan (the heaviest step) runs ONLY on the twice-daily base
+          # cron (0 12,22) and on manual dispatch. Every other scheduled run —
+          # the 6-hourly news cron and the 30-min intraday highs cron — skips it
+          # and reuses the last committed base.json, so those builds stay fast.
+          SUH_DH_SKIP_BASE: ${{ (github.event.schedule == '*/30 13-22 * * 1-5' || github.event.schedule == '30 */6 * * *') && '1' || '' }}
       - name: Commit news.json for the Telegram job
         # This commit mirrors the news digest (for Telegram) and persists the
         # base-screener snapshot (so push builds can skip the heavy rescan).
