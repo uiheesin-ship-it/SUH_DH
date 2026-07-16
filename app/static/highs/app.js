@@ -17,6 +17,31 @@ function apiUrl(path) {
   return API_BASE ? API_BASE + path : null;    // Pages: hosted backend, else none
 }
 let usingLive = false;   // true once a live fetch succeeded (drives reasons/charts)
+let latestBuilt = BUILT;  // newest build seen; bumped by the static poller below
+
+// GitHub Pages (and its CDN) can keep serving a stale snapshot for a few
+// minutes. A per-request cache-buster guarantees the refresh button and the
+// auto-poller see the freshest committed build, not a cached copy.
+function bust(url) {
+  return url + (url.includes("?") ? "&" : "?") + "_=" + Date.now();
+}
+
+// A sleeping free-tier backend can take a long time to answer (or never).
+// Abort after `ms` so the refresh button fails fast to the saved snapshot
+// instead of hanging forever on "불러오는 중…".
+async function fetchWithTimeout(url, ms, opts = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function whenText() {
+  return latestBuilt ? new Date(latestBuilt).toLocaleString("ko-KR") : "최근";
+}
 
 // ---------- formatting ----------
 function fmtCap(v) {
@@ -46,8 +71,14 @@ async function loadDashboard(live = false) {
     ? "실시간 불러오는 중… (백엔드가 자고 있으면 최대 60초)"
     : "불러오는 중…";
   try {
-    const url = wantLive ? liveUrl : (STATIC ? "../data/highs.json" : "/api/highs");
-    const res = await fetch(url, { cache: "no-store" });
+    let res;
+    if (wantLive) {
+      // Allow for a free-tier cold start, but bail cleanly if it never wakes.
+      res = await fetchWithTimeout(liveUrl, 60000, { cache: "no-store" });
+    } else {
+      const url = STATIC ? bust("../data/highs.json") : "/api/highs";
+      res = await fetch(url, { cache: "no-store" });
+    }
     const data = await res.json();
     if (!res.ok || data.error) {
       if (wantLive) return loadStaticFallback(data.error, data.detail);
@@ -61,9 +92,8 @@ async function loadDashboard(live = false) {
       $("#status").textContent =
         `${data.count}개 종목 · 실시간 ${new Date().toLocaleTimeString("ko-KR")}`;
     } else if (STATIC) {
-      const when = BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근";
-      const hint = liveUrl ? " · [새로고침]으로 실시간" : " · 매일 자동 갱신";
-      $("#status").textContent = `${data.count}개 종목 · 마지막 갱신 ${when}${hint}`;
+      const hint = liveUrl ? " · [새로고침]으로 실시간" : " · 새 빌드 자동 반영";
+      $("#status").textContent = `${data.count}개 종목 · 마지막 갱신 ${whenText()}${hint}`;
     } else {
       $("#status").textContent =
         `${data.count}개 종목 · 업데이트 ${new Date().toLocaleTimeString("ko-KR")}`;
@@ -79,12 +109,11 @@ async function loadDashboard(live = false) {
 async function loadStaticFallback(msg, detail) {
   usingLive = false;
   try {
-    const res = await fetch("../data/highs.json", { cache: "no-store" });
+    const res = await fetch(bust("../data/highs.json"), { cache: "no-store" });
     const data = await res.json();
     render(data);
     $("#demo-badge").classList.toggle("hidden", !data.demo);
-    const when = BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근";
-    $("#status").textContent = `실시간 실패 → 저장본 표시 (${when})`;
+    $("#status").textContent = `실시간 실패 → 저장본 표시 (${whenText()})`;
   } catch (e) {
     renderError(msg || "데이터를 불러오지 못했습니다", detail || e.message);
   }
@@ -403,22 +432,47 @@ $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
 
-// ---------- auto refresh (live mode only) ----------
+// ---------- auto refresh ----------
+// Live mode: re-pull the backend each tick.
+// Static mode: cheaply poll meta.json for a newer build and only re-render when
+// the snapshot actually changed. The 52-week-high list only moves while the US
+// market is open, so most polls are no-ops — no flicker, no scroll reset — but
+// the moment a fresh build lands, the page picks it up on its own.
 let timer = null;
+
+async function checkForNewBuild() {
+  try {
+    const res = await fetch(bust("../data/meta.json"), { cache: "no-store" });
+    if (!res.ok) return;
+    const meta = await res.json();
+    if (meta.built && meta.built !== latestBuilt) {
+      latestBuilt = meta.built;
+      await loadDashboard(false);   // pull + render the fresh snapshot
+    }
+  } catch (_) { /* offline / not built yet — try again next tick */ }
+}
+
+function autoTick() {
+  return STATIC ? checkForNewBuild() : loadDashboard(false);
+}
+
 function scheduleAuto() {
   if (timer) clearInterval(timer);
   if (!$("#auto-toggle").checked) return;
-  timer = setInterval(loadDashboard, parseInt($("#auto-interval").value, 10) * 1000);
+  timer = setInterval(autoTick, parseInt($("#auto-interval").value, 10) * 1000);
 }
 $("#auto-toggle").addEventListener("change", scheduleAuto);
 $("#auto-interval").addEventListener("change", scheduleAuto);
 
 window.openChart = openChart;
 
-if (STATIC) {
-  const auto = document.querySelector(".auto");
-  if (auto) auto.classList.add("hidden");
-}
-
-loadDashboard();
-scheduleAuto();
+// Seed the "last build" marker from meta.json (config.js's baked SUH_DH_BUILT is
+// only the build this page shipped with), then load and start the poller.
+(async () => {
+  try {
+    const res = await fetch(bust("../data/meta.json"), { cache: "no-store" });
+    if (res.ok) { const m = await res.json(); if (m.built) latestBuilt = m.built; }
+  } catch (_) { /* ignore — fall back to the baked build time */ }
+  await loadDashboard();
+  scheduleAuto();
+})();
