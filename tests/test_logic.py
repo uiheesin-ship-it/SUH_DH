@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.indicators import attach_moving_averages, moving_average
-from app.screener import _normalize_change, group_by_sector
+from app.screener import _clean_tickers, _normalize_change, group_by_sector
 from app import demo_data, earnings, news, telegram
 
 
@@ -32,6 +32,22 @@ def test_normalize_change_fraction_and_percent():
     assert _normalize_change(0.0523) == 5.23   # finviz fraction -> percent
     assert _normalize_change(-0.011) == -1.1
     assert _normalize_change(None) is None
+
+
+def test_clean_tickers_strips_finviz_logo_prefix():
+    # Finviz's 1-letter avatar makes finvizfinance scrape ticker[0]+ticker.
+    # When EVERY symbol is prefixed, strip the leading char.
+    raw = ["AAAPL", "UUNH", "CCVS", "RRELY", "KKARO"]
+    assert _clean_tickers(raw) == ["AAPL", "UNH", "CVS", "RELY", "KARO"]
+
+
+def test_clean_tickers_leaves_clean_symbols_untouched():
+    # If Finviz drops the avatar (mixed / clean symbols), don't strip — a real
+    # double-letter start like AAPL/AA must survive.
+    clean = ["AAPL", "NVDA", "MSFT", "AA"]
+    assert _clean_tickers(clean) == clean
+    # A single genuine double-letter start among normal symbols is not stripped.
+    assert _clean_tickers(["NVDA", "AAPL", "MSFT"]) == ["NVDA", "AAPL", "MSFT"]
 
 
 def test_group_by_sector_sorted_by_market_cap():

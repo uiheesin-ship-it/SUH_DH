@@ -90,6 +90,24 @@ def _normalize_change(raw) -> float | None:
     return round(val * 100, 2) if abs(val) < 1.5 else round(val, 2)
 
 
+def _clean_tickers(raw: list[str]) -> list[str]:
+    """Undo Finviz's 1-letter logo-avatar prefix on scraped ticker symbols.
+
+    Finviz now renders a small avatar showing the ticker's first letter inside
+    the ticker cell, so finvizfinance's text scrape returns ``ticker[0]+ticker``
+    (AAPL -> AAAPL, UNH -> UUNH). The prefix is always the symbol's own first
+    letter, so every affected row satisfies ``t[0] == t[1]``. Only strip when
+    that holds for EVERY non-empty symbol — that way, if Finviz later drops the
+    avatar and returns clean symbols, a genuine double-letter start (AAPL, AA)
+    is left untouched.
+    """
+    valid = [t for t in raw if t]
+    prefixed = bool(valid) and all(len(t) >= 2 and t[0] == t[1] for t in valid)
+    if not prefixed:
+        return raw
+    return [t[1:] if t else t for t in raw]
+
+
 def _fetch_live() -> list[dict]:
     from finvizfinance.screener.overview import Overview
 
@@ -117,12 +135,14 @@ def _fetch_live() -> list[dict]:
     if df.empty:
         return []
 
+    tickers = _clean_tickers([str(r.get("Ticker") or "") for _, r in df.iterrows()])
+
     rows: list[dict] = []
-    for _, r in df.iterrows():
+    for (_, r), ticker in zip(df.iterrows(), tickers):
         industry = r.get("Industry")
         rows.append(
             {
-                "ticker": r.get("Ticker"),
+                "ticker": ticker,
                 "company": r.get("Company"),
                 "sector": (r.get("Sector") or "Unknown") or "Unknown",
                 "industry": industry if industry and str(industry) != "nan" else None,
