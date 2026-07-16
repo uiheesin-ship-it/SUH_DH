@@ -41,9 +41,19 @@ _FINVIZ_HEADERS = {
 # bursty callers; a short backoff usually clears it).
 _FINVIZ_RETRIES = int(os.environ.get("SUH_DH_FINVIZ_RETRIES", "3"))
 
+# When Finviz blocks the host's IP outright (common for datacenter IPs like a
+# hosted backend), route the request through a proxy. Set SUH_DH_FINVIZ_PROXY to
+# a proxy URL, e.g. http://user:pass@host:port  (http/https/socks5 all work).
+_FINVIZ_PROXY = os.environ.get("SUH_DH_FINVIZ_PROXY", "").strip()
+
+
+def _proxies() -> dict | None:
+    """requests-style proxy mapping, or None when no proxy is configured."""
+    return {"http": _FINVIZ_PROXY, "https": _FINVIZ_PROXY} if _FINVIZ_PROXY else None
+
 
 def _prime_finviz() -> None:
-    """Point finvizfinance at modern headers and warm a session cookie.
+    """Point finvizfinance at modern headers, an optional proxy, and a cookie.
 
     Fetching the homepage first lets Finviz set the cookies its anti-bot layer
     expects on the subsequent screener request. Best-effort — never fatal.
@@ -51,9 +61,13 @@ def _prime_finviz() -> None:
     from finvizfinance import util as fv_util
 
     fv_util.headers = _FINVIZ_HEADERS
+    proxies = _proxies()
+    if proxies:
+        # finvizfinance threads this into every screener request internally.
+        fv_util.set_proxy(proxies)
     try:
         fv_util.session.get(
-            "https://finviz.com/", headers=_FINVIZ_HEADERS, timeout=15
+            "https://finviz.com/", headers=_FINVIZ_HEADERS, timeout=15, proxies=proxies
         )
     except Exception:
         pass  # cookie warm-up is optional; the screener call still tries
