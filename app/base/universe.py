@@ -58,6 +58,10 @@ def _looks_like_fund(company: str | None, industry: str | None) -> bool:
 def _fetch_finviz(cfg: dict) -> list[dict]:
     from finvizfinance.screener.overview import Overview
 
+    from ..screener import _clean_tickers, _prime_finviz
+
+    _prime_finviz()  # modern headers + cookie/proxy, same as the highs screener
+
     uni = cfg["universe"]
     fos = Overview()
 
@@ -93,14 +97,19 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     if df is None or df.empty:
         return []
 
+    # Finviz's 1-letter logo avatar doubles the scraped symbol (SO -> SSO,
+    # V -> VV) exactly as in the highs screener; undo it here too, or the scan
+    # fetches OHLCV for the wrong security (SSO is a leveraged ETF, not Southern).
+    tickers = _clean_tickers([str(r.get("Ticker") or "") for _, r in df.iterrows()])
+
     rows: list[dict] = []
-    for _, r in df.iterrows():
+    for (_, r), ticker in zip(df.iterrows(), tickers):
         company = r.get("Company")
         industry = r.get("Industry")
         if _looks_like_fund(company, industry):
             continue
         rows.append({
-            "ticker": r.get("Ticker"),
+            "ticker": ticker,
             "company": company,
             "sector": (r.get("Sector") or "Unknown") or "Unknown",
             "industry": industry if industry and str(industry) != "nan" else None,
