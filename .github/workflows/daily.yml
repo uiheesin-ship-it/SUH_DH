@@ -13,7 +13,19 @@ on:
     # the only time it changes). 13:00–22:00 UTC Mon–Fri ≈ 22:00 KST → 07:00 KST,
     # covering the session open→close+settle in both EST and EDT. No daytime-KST
     # runs — the US market is closed then, so nothing would change anyway.
+    # These runs skip the heavy base rescan (see SUH_DH_SKIP_BASE below) so they
+    # finish in ~15 min; they still rebuild the highs list AND reuse the latest
+    # committed base.json, so the base screen also shows here (just not rescanned).
     - cron: "*/30 13-22 * * 1-5"
+    # Hourly intraday base rescan (at :15). The base screener is heavy (~10-20
+    # min for the whole candidate universe), so rescanning it every 30 min would
+    # bloat every build to ~35-45 min and drag the highs freshness back down.
+    # Running it once an hour keeps the base screen fresh through the session
+    # (was only every 6h) while the :00/:30 runs above stay fast. This run does a
+    # full build (base NOT skipped) and commits the refreshed base.json, which the
+    # fast runs then reuse. Bump to "15,45 13-22 * * 1-5" for a 30-min base cadence
+    # (at the cost of slower builds / more Yahoo load).
+    - cron: "15 13-22 * * 1-5"
   workflow_dispatch: {}
   push:
     branches: ["claude/funny-carson-ent3s7"]
