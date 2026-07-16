@@ -21,7 +21,7 @@ DEFAULTS: dict[str, Any] = {
     "universe": {
         "source": "finviz",
         "include_adr": True,
-        "max_candidates": 300,
+        "max_candidates": 1500,
         "finviz_price_above_sma50": True,
         "finviz_price_above_sma200": True,
     },

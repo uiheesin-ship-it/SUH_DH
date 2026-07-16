@@ -152,9 +152,16 @@ def get_candidates(cfg: dict) -> list[dict]:
             continue
         filtered.append(r)
 
-    # Largest first; cap to the configured budget so OHLCV fetching stays bounded.
+    # Do NOT simply keep the biggest N — that drops every mid/small-cap leader,
+    # which is exactly where Minervini bases usually form. Sort by market cap
+    # only for a stable tiering, then, if more names qualify than the budget,
+    # sample EVENLY across the whole cap range so large/mid/small stay
+    # represented (instead of an all-mega-cap list).
     filtered.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
-    cap = int(uni.get("max_candidates", 300))
+    cap = int(uni.get("max_candidates", 1500))
     if os.environ.get("SUH_DH_BASE_LIMIT"):
         cap = int(os.environ["SUH_DH_BASE_LIMIT"])
-    return filtered[:cap]
+    if 0 < cap < len(filtered):
+        step = len(filtered) / cap
+        filtered = [filtered[int(i * step)] for i in range(cap)]
+    return filtered

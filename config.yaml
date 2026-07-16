@@ -8,7 +8,9 @@
 universe:
   source: finviz          # finviz(권장) | index
   include_adr: true       # ADR 포함 여부
-  max_candidates: 300     # OHLCV 를 받아 정밀분석할 최대 후보 수(데이터 비용 상한)
+  # OHLCV 를 받아 정밀분석할 최대 후보 수. 상한을 넘으면 시총 구간 전체에서
+  # 고르게 표본을 뽑아 대형만 남지 않게 함(초대형주 편향 방지).
+  max_candidates: 1500
   # Finviz 1차필터(스크리너에서 미리 걸러 후보를 줄임).
   finviz_price_above_sma50: true
   finviz_price_above_sma200: true
