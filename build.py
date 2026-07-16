@@ -161,9 +161,14 @@ def main() -> None:
     # SUH_DH_FORCE_BASE=1.
     repo_base = ROOT / "data" / "base.json"
     event = os.environ.get("GITHUB_EVENT_NAME", "")
+    # SUH_DH_SKIP_BASE=1 forces reuse of the committed base.json even on a
+    # scheduled run. The frequent intraday cron sets this so those builds stay
+    # fast (the base scan is the single heaviest step, ~10-20 min); the 6-hourly
+    # cron and manual dispatch leave it unset, so the base screen still refreshes.
+    skip_base = os.environ.get("SUH_DH_SKIP_BASE", "") == "1"
     scan_base = (
         os.environ.get("SUH_DH_FORCE_BASE", "") == "1"
-        or event in ("schedule", "workflow_dispatch")
+        or (not skip_base and event in ("schedule", "workflow_dispatch"))
         or not repo_base.exists()
     )
     if scan_base:
