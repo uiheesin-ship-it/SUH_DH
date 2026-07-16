@@ -55,6 +55,11 @@ jobs:
           # Optional: set this repo Variable to your hosted backend URL (e.g. a
           # Render service) so the static earnings page can query any ticker.
           SUH_DH_API_BASE: ${{ vars.SUH_DH_API_BASE }}
+          # The frequent intraday cron only needs a fresh 52-week-high list, not
+          # a full base rescan (the heaviest step). Skip it there so intraday
+          # builds finish in ~15 min instead of 30-45; the 6-hourly cron and
+          # manual runs still refresh the base screen.
+          SUH_DH_SKIP_BASE: ${{ github.event.schedule == '*/30 13-22 * * 1-5' && '1' || '' }}
       - name: Commit news.json for the Telegram job
         # This commit mirrors the news digest (for Telegram) and persists the
         # base-screener snapshot (so push builds can skip the heavy rescan).
