@@ -104,8 +104,10 @@ async function loadDashboard(live = false) {
   }
 }
 
-// Live fetch failed (backend down/asleep) — show the last saved snapshot so the
-// page is never left blank, and say so in the status line.
+// Live fetch failed or no backend is connected — quietly show the freshest
+// saved snapshot instead of an alarming error. The snapshot is re-pulled
+// (cache-busted) so the button still does something useful: it lands on the
+// latest committed build. We say "저장본" so it's honest, without shouting "실패".
 async function loadStaticFallback(msg, detail) {
   usingLive = false;
   try {
@@ -113,7 +115,7 @@ async function loadStaticFallback(msg, detail) {
     const data = await res.json();
     render(data);
     $("#demo-badge").classList.toggle("hidden", !data.demo);
-    $("#status").textContent = `실시간 실패 → 저장본 표시 (${whenText()})`;
+    $("#status").textContent = `${data.count}개 종목 · 마지막 갱신 ${whenText()} · 저장본`;
   } catch (e) {
     renderError(msg || "데이터를 불러오지 못했습니다", detail || e.message);
   }
