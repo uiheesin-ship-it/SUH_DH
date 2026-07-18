@@ -55,7 +55,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base"):
+    for program in ("highs", "news", "earnings", "kr", "base", "krhighs"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -65,7 +65,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base"):
+        for program in ("earnings", "kr", "highs", "base", "krhighs"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -203,6 +203,51 @@ def main() -> None:
     elif repo_base.exists():
         print("Reusing committed data/base.json (skipping base scan on push) ...")
         shutil.copyfile(repo_base, SITE / "data" / "base.json")
+
+    # Korean 52-week highs (KOSPI+KOSDAQ). Also heavy (per-ticker OHLCV), so it
+    # follows the same cadence as the base screen: full scan on the 6-hourly cron
+    # / manual dispatch, reuse the committed snapshot on pushes and intraday crons.
+    repo_krh = ROOT / "data" / "krhighs.json"
+    scan_krh = (
+        os.environ.get("SUH_DH_FORCE_KRHIGHS", "") == "1"
+        or (not skip_base and event in ("schedule", "workflow_dispatch"))
+        or not repo_krh.exists()
+    )
+    if scan_krh:
+        print("Building Korean 52-week highs (full scan) ...")
+        try:
+            from app import krhighs
+
+            kr_dash = krhighs.get_dashboard()
+            write_json(SITE / "data" / "krhighs.json", kr_dash)
+            write_json(repo_krh, kr_dash)
+            # Pre-build charts for the biggest new-high names (Yahoo .KS/.KQ).
+            kr_stocks = _all_stocks(kr_dash)
+            kr_stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
+            for s in kr_stocks[:int(os.environ.get("SUH_DH_KRHIGHS_CHART_LIMIT", "40"))]:
+                sym = s.get("yahoo")
+                if not sym:
+                    continue
+                cp = SITE / "data" / "chart" / f"{sym}.json"
+                if cp.exists():
+                    continue
+                try:
+                    write_json(cp, charts.get_chart(sym, "max"))
+                except Exception as e:
+                    print(f"  kr chart {sym} failed: {e}")
+                time.sleep(0.3)
+            print(f"  KR highs: {kr_dash.get('count')} stocks.")
+        except Exception as e:
+            print(f"  KR highs failed: {e}")
+            if repo_krh.exists():
+                shutil.copyfile(repo_krh, SITE / "data" / "krhighs.json")
+            else:
+                write_json(SITE / "data" / "krhighs.json",
+                           {"count": 0, "sectors": [], "demo": False,
+                            "error": "KR highs unavailable", "detail": str(e)})
+    elif repo_krh.exists():
+        print("Reusing committed data/krhighs.json (skipping KR scan on push) ...")
+        shutil.copyfile(repo_krh, SITE / "data" / "krhighs.json")
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()

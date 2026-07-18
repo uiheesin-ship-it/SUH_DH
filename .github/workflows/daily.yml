@@ -38,6 +38,8 @@ on:
       # Ditto the persisted base-screener snapshot (committed on scheduled scans);
       # reused as-is on push builds, so a change to it must not loop the build.
       - "data/base.json"
+      # Same for the persisted Korean 52-week-high snapshot.
+      - "data/krhighs.json"
 
 permissions:
   # Write access so the build can commit data/news.json for the Telegram job.
@@ -78,11 +80,11 @@ jobs:
         # block the Pages deploy.
         continue-on-error: true
         run: |
-          if [ -n "$(git status --porcelain data/news.json data/base.json)" ]; then
+          if [ -n "$(git status --porcelain data/news.json data/base.json data/krhighs.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/news.json data/base.json
-            git commit -m "chore: update dashboard data (news, base screen)"
+            git add data/news.json data/base.json data/krhighs.json
+            git commit -m "chore: update dashboard data (news, base screen, KR highs)"
             # The Telegram job commits to this same branch on its own cadence.
             # Retry, auto-resolving in favor of this fresh build.
             for i in 1 2 3 4 5; do
