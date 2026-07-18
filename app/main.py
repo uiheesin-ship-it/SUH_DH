@@ -120,6 +120,19 @@ def kr_registered_tickers():
     return {"tickers": kr.kr_tickers(), "groups": kr.kr_groups()}
 
 
+@app.get("/api/krbase")
+def kr_base_screen():
+    """Korean (KOSPI+KOSDAQ) healthy-base screener — 국장 base watchlist."""
+    try:
+        from .base import get_screen_kr
+        return get_screen_kr()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "국장 베이스 스크리너 실행에 실패했습니다.", "detail": str(e)},
+        )
+
+
 @app.get("/api/krhighs")
 def kr_highs():
     """Korean (KOSPI+KOSDAQ) 52-week-high stocks, grouped by sector."""

@@ -128,20 +128,43 @@ def _made_new_high(bars: dict) -> bool:
     return today >= peak_prior * NEAR_RATIO
 
 
-def _fetch_live() -> list[dict]:
-    from .base import data as basedata  # reuse the proven Yahoo/Stooq bar fetcher
+def _demo_universe() -> list[dict]:
+    return [{"code": c, "name": n, "market": m, "sector": s, "industry": None,
+             "market_cap": cap, "price": px}
+            for c, n, m, s, cap, px, _ in _demo_base()]
 
-    listing = _fetch_listing()
-    # Filter: valid name (excl. SPAC/preferred), market-cap floor.
+
+def _demo_base():
+    return [
+        ("005930", "삼성전자", "KOSPI", "전기전자", 4.5e14, 78000, 1.9),
+        ("000660", "SK하이닉스", "KOSPI", "전기전자", 1.6e14, 220000, 3.2),
+        ("373220", "LG에너지솔루션", "KOSPI", "전기전자", 9.0e13, 385000, 2.1),
+        ("247540", "에코프로비엠", "KOSDAQ", "화학", 1.8e13, 185000, 4.5),
+        ("196170", "알테오젠", "KOSDAQ", "제약", 1.5e13, 290000, 5.1),
+        ("012450", "한화에어로스페이스", "KOSPI", "기계", 3.2e13, 640000, 2.8),
+    ]
+
+
+def kr_universe(limit: int | None = None) -> list[dict]:
+    """Filtered KOSPI+KOSDAQ candidate list (excl. SPAC/ETF/preferred, cap floor).
+
+    Shared by the highs screen and the KR base screener. Each row:
+    {code, name, market, sector, industry, market_cap, price}.
+    """
+    listing = _demo_universe() if _demo() else _fetch_listing()
     universe = [
         r for r in listing
         if not _is_excluded(r.get("name"))
         and (r.get("market_cap") is None or r["market_cap"] >= MIN_MARCAP_KRW)
     ]
-    # Largest first, then bound the count so the scheduled scan stays finite.
     universe.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
-    universe = universe[:SCAN_LIMIT]
+    return universe[: (limit or SCAN_LIMIT)]
 
+
+def _fetch_live() -> list[dict]:
+    from .base import data as basedata  # reuse the proven Yahoo/Stooq bar fetcher
+
+    universe = kr_universe()
     out: list[dict] = []
     for r in universe:
         sym = _yahoo_symbol(r["code"], r["market"])
@@ -174,18 +197,10 @@ def _fetch_live() -> list[dict]:
 
 
 def _demo_rows() -> list[dict]:
-    base = [
-        ("005930", "삼성전자", "KOSPI", "전기전자", 4.5e14, 78000, 1.9),
-        ("000660", "SK하이닉스", "KOSPI", "전기전자", 1.6e14, 220000, 3.2),
-        ("373220", "LG에너지솔루션", "KOSPI", "전기전자", 9.0e13, 385000, 2.1),
-        ("247540", "에코프로비엠", "KOSDAQ", "화학", 1.8e13, 185000, 4.5),
-        ("196170", "알테오젠", "KOSDAQ", "제약", 1.5e13, 290000, 5.1),
-        ("012450", "한화에어로스페이스", "KOSPI", "기계", 3.2e13, 640000, 2.8),
-    ]
     return [{
         "ticker": c, "company": n, "sector": s, "industry": None, "market": m,
         "yahoo": _yahoo_symbol(c, m), "market_cap": cap, "price": px, "change_pct": chg,
-    } for c, n, m, s, cap, px, chg in base]
+    } for c, n, m, s, cap, px, chg in _demo_base()]
 
 
 def fetch_new_highs() -> list[dict]:

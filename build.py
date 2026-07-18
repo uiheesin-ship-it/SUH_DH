@@ -55,7 +55,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "krhighs"):
+    for program in ("highs", "news", "earnings", "kr", "base", "krhighs", "krbase"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -65,7 +65,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "krhighs"):
+        for program in ("earnings", "kr", "highs", "base", "krhighs", "krbase"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -248,6 +248,47 @@ def main() -> None:
     elif repo_krh.exists():
         print("Reusing committed data/krhighs.json (skipping KR scan on push) ...")
         shutil.copyfile(repo_krh, SITE / "data" / "krhighs.json")
+
+    # Korean base screener (same heavy cadence as the US base screen).
+    repo_krb = ROOT / "data" / "krbase.json"
+    scan_krb = (
+        os.environ.get("SUH_DH_FORCE_KRBASE", "") == "1"
+        or (not skip_base and event in ("schedule", "workflow_dispatch"))
+        or not repo_krb.exists()
+    )
+    if scan_krb:
+        print("Building Korean base screener (full scan) ...")
+        try:
+            from app import base as base_screener
+
+            payload = base_screener.run_scan_kr(progress=True)
+            write_json(SITE / "data" / "krbase.json", payload)
+            write_json(repo_krb, payload)
+            for s in payload.get("stocks", [])[:int(os.environ.get("SUH_DH_KRBASE_CHART_LIMIT", "40"))]:
+                sym = s.get("yahoo")
+                if not sym:
+                    continue
+                cp = SITE / "data" / "chart" / f"{sym}.json"
+                if cp.exists():
+                    continue
+                try:
+                    write_json(cp, charts.get_chart(sym, "max"))
+                except Exception as e:
+                    print(f"  krbase chart {sym} failed: {e}")
+                time.sleep(0.3)
+            print(f"  KR base screen: {payload.get('count')} setups "
+                  f"(universe {payload.get('universe_size')}).")
+        except Exception as e:
+            print(f"  KR base screen failed: {e}")
+            if repo_krb.exists():
+                shutil.copyfile(repo_krb, SITE / "data" / "krbase.json")
+            else:
+                write_json(SITE / "data" / "krbase.json",
+                           {"built": built, "count": 0, "universe_size": 0, "stocks": [],
+                            "demo": False, "error": "KR base screen unavailable", "detail": str(e)})
+    elif repo_krb.exists():
+        print("Reusing committed data/krbase.json (skipping KR base scan on push) ...")
+        shutil.copyfile(repo_krb, SITE / "data" / "krbase.json")
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()
