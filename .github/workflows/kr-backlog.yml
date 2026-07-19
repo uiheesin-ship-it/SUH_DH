@@ -46,7 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/korean-listed-companies-backlog-7s64s4
+          # Commit into the deploy/default branch so the dashboard build picks
+          # the refreshed backlog up (same target as kr-dates.yml).
+          ref: claude/funny-carson-ent3s7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -70,10 +72,10 @@ jobs:
             git add data/kr_backlog.json data/dart_corp.json
             git commit -m "data(kr): refresh order backlog from DART"
             for i in 1 2 3 4 5; do
-              git push origin HEAD:claude/korean-listed-companies-backlog-7s64s4 && break
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
               echo "push rejected; rebasing (attempt $i) ..."
-              git fetch origin claude/korean-listed-companies-backlog-7s64s4
-              git rebase -X ours origin/claude/korean-listed-companies-backlog-7s64s4 || git rebase --abort
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
               sleep 3
             done
           else
