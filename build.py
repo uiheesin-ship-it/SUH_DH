@@ -55,7 +55,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "krhighs", "krbase"):
+    for program in ("highs", "news", "earnings", "kr", "base", "krhighs", "krbase", "backlog"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -65,7 +65,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "krhighs", "krbase"):
+        for program in ("earnings", "kr", "highs", "base", "krhighs", "krbase", "backlog"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -289,6 +289,24 @@ def main() -> None:
     elif repo_krb.exists():
         print("Reusing committed data/krbase.json (skipping KR base scan on push) ...")
         shutil.copyfile(repo_krb, SITE / "data" / "krbase.json")
+
+    # Korean order backlog (수주잔고). Unlike the scans above this is NOT built
+    # here: tools/kr_dart_backlog.py (the kr-backlog workflow) fetches it from
+    # DART and commits data/kr_backlog.json. The dashboard build just publishes
+    # the committed snapshot so GitHub Pages can read it statically.
+    repo_bl = ROOT / "data" / "kr_backlog.json"
+    try:
+        from app import backlog as backlog_mod
+
+        # get_dashboard() reshapes the stored map into the list view + QoQ/YoY the
+        # frontend reads (no network — it just reads the committed file).
+        write_json(SITE / "data" / "kr_backlog.json", backlog_mod.get_dashboard())
+        print(f"Publishing kr_backlog ({'present' if repo_bl.exists() else 'empty'}) ...")
+    except Exception as e:
+        print(f"  kr_backlog publish failed: {e}")
+        write_json(SITE / "data" / "kr_backlog.json",
+                   {"updated": None, "count": 0, "companies": [], "demo": False,
+                    "note": "아직 수주잔고 데이터가 없습니다. kr-backlog 워크플로를 실행하세요."})
 
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()

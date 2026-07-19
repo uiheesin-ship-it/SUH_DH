@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""Build/refresh data/kr_backlog.json — Korean quarterly 수주잔고 from DART.
+
+Order backlog (수주잔고) is disclosed only inside a company's *periodic report*
+(분기/반기/사업보고서), and only by firms that carry a backlog (건설·조선·방산·
+기계·플랜트·SI 등). It therefore changes for a company only when that company
+files a periodic report — so we never poll the whole ~2,600-name market daily.
+
+Two modes:
+
+  --backfill        One-time sweep. For every ticker (or a candidate seed list),
+                    pull ~15 months of periodic filings, parse each report's
+                    수주잔고 table, and keep the companies that actually disclose
+                    it. Heavy but run once (and re-runnable). ~30–60 min on CI.
+
+  (default)         Daily incremental. ONE market-wide list.json sweep over a
+                    small date window returns just the companies that filed a
+                    periodic report in that window; parse only those and merge.
+                    This is the cheap job the daily workflow runs.
+
+Runs where opendart.fss.or.kr is reachable (GitHub Actions), with a free key in
+the DART_API_KEY env var (register at https://opendart.fss.or.kr).
+
+  DART_API_KEY=xxx python tools/kr_dart_backlog.py --backfill
+  DART_API_KEY=xxx python tools/kr_dart_backlog.py            # daily, last 2 days
+  DART_API_KEY=xxx python tools/kr_dart_backlog.py --days 7   # catch-up window
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from app import dartdoc  # noqa: E402
+
+OUT = ROOT / "data" / "kr_backlog.json"
+MAX_QUARTERS = 8              # keep ~2 years so YoY is computable
+BACKFILL_DAYS = 470          # ~15.5 months of filings for the one-time sweep
+MARKET = {"Y": "KOSPI", "K": "KOSDAQ", "N": "KONEX", "E": "기타"}
+
+
+def load_out() -> dict:
+    if OUT.exists():
+        try:
+            data = json.loads(OUT.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                data.setdefault("companies", {})
+                data.setdefault("_meta", {})
+                return data
+        except Exception:
+            pass
+    return {"_meta": {}, "companies": {}}
+
+
+def save_out(data: dict) -> None:
+    data["_meta"]["updated"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    data["_meta"].setdefault(
+        "note",
+        "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. "
+        "표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요.",
+    )
+    OUT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _quarter_entry(f: dict, bl: dict) -> dict:
+    period = dartdoc.report_period(f["report_nm"])
+    return {
+        "period": period,
+        "quarter": dartdoc.period_to_quarter(period),
+        "rcept_dt": f["rcept_dt"],
+        "rcept_no": f["rcept_no"],
+        "report_nm": f["report_nm"],
+        "source": dartdoc.viewer_url(f["rcept_no"]),
+        "backlog_krw": bl.get("backlog_krw"),
+        "backlog_raw": bl.get("backlog_raw"),
+        "unit": bl.get("unit"),
+        "currency": bl.get("currency"),
+        "method": bl.get("method"),
+        "header": bl.get("header"),
+    }
+
+
+def merge(data: dict, f: dict, entry: dict) -> None:
+    """Upsert a company + one quarter (newest amended filing wins per period)."""
+    code = f.get("stock_code") or ""
+    if not code:
+        return
+    comp = data["companies"].setdefault(code, {
+        "stock_code": code,
+        "corp_code": f.get("corp_code", ""),
+        "name": f.get("corp_name", ""),
+        "market": MARKET.get(f.get("corp_cls", ""), ""),
+        "sector": "",
+        "quarters": [],
+    })
+    comp["name"] = f.get("corp_name") or comp.get("name") or code
+    if f.get("corp_cls"):
+        comp["market"] = MARKET.get(f["corp_cls"], comp.get("market", ""))
+
+    qs = [q for q in comp["quarters"] if q.get("period") != entry["period"]]
+    # if same period already present, keep whichever was filed later (amendment)
+    prev = next((q for q in comp["quarters"] if q.get("period") == entry["period"]), None)
+    if prev and prev.get("rcept_dt", "") > entry.get("rcept_dt", ""):
+        return
+    qs.append(entry)
+    qs.sort(key=lambda q: (q.get("period", ""), q.get("rcept_dt", "")), reverse=True)
+    comp["quarters"] = qs[:MAX_QUARTERS]
+
+
+def process(f: dict, data: dict, verbose: bool = False) -> bool:
+    """Fetch one filing's document, extract backlog, merge. True if backlog found."""
+    try:
+        body = dartdoc.fetch_document(f["rcept_no"])
+        bl = dartdoc.extract_backlog(body)
+    except Exception as e:
+        if verbose:
+            print(f"    {f.get('corp_name')} {f['rcept_no']} fetch/parse failed: {e}")
+        return False
+    if not bl:
+        return False
+    merge(data, f, _quarter_entry(f, bl))
+    if verbose:
+        print(f"    + {f.get('corp_name')} {f['report_nm']} "
+              f"= {bl.get('backlog_raw')} {bl.get('unit') or ''} ({bl.get('method')})")
+    return True
+
+
+# --------------------------------------------------------------------------- #
+def run_incremental(days: int) -> None:
+    end = date.today()
+    bgn = end - timedelta(days=days)
+    filings = dartdoc.market_periodic_filings(
+        bgn.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
+    print(f"incremental: {len(filings)} periodic filings in last {days}d")
+    data = load_out()
+    hits = 0
+    for i, f in enumerate(filings, 1):
+        if not f.get("stock_code"):        # non-listed filer, skip
+            continue
+        if process(f, data, verbose=True):
+            hits += 1
+        if i % 20 == 0:
+            print(f"  ... {i}/{len(filings)}")
+        time.sleep(0.15)
+    save_out(data)
+    print(f"done: {hits} filings with backlog merged; "
+          f"{len(data['companies'])} companies tracked.")
+
+
+def run_backfill(candidates: list[str] | None, limit: int | None) -> None:
+    corp = dartdoc.load_corp_map()
+    codes = candidates if candidates else sorted(corp)
+    if limit:
+        codes = codes[:limit]
+    end = date.today()
+    bgn = end - timedelta(days=BACKFILL_DAYS)
+    print(f"backfill: scanning {len(codes)} tickers "
+          f"({bgn} → {end}); keeping only backlog-disclosing firms")
+    data = load_out()
+    scanned = firms = 0
+    for i, code in enumerate(codes, 1):
+        cc = corp.get(code)
+        if not cc:
+            continue
+        scanned += 1
+        try:
+            filings = dartdoc.periodic_filings(cc, bgn.strftime("%Y%m%d"),
+                                               end.strftime("%Y%m%d"))
+        except Exception as e:
+            print(f"  {code} list failed: {e}")
+            filings = []
+        got = False
+        for f in filings:
+            f.setdefault("stock_code", code)
+            f.setdefault("corp_code", cc)
+            if process(f, data, verbose=False):
+                got = True
+            time.sleep(0.12)
+        if got:
+            firms += 1
+            print(f"  [{i}/{len(codes)}] {code} {data['companies'][code]['name']}: "
+                  f"{len(data['companies'][code]['quarters'])} quarters")
+        if i % 50 == 0:
+            print(f"  ... scanned {i}/{len(codes)} ({firms} with backlog)")
+            save_out(data)                 # checkpoint (resumable)
+    save_out(data)
+    print(f"backfill done: {firms} backlog-disclosing firms / {scanned} scanned.")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Build/refresh data/kr_backlog.json from DART")
+    ap.add_argument("--backfill", action="store_true",
+                    help="one-time full sweep to discover backlog-disclosing firms")
+    ap.add_argument("--days", type=int, default=2,
+                    help="incremental window in days (default 2)")
+    ap.add_argument("--candidates", type=str, default="",
+                    help="backfill only these 6-digit codes (comma-separated or @file)")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="cap number of tickers scanned in backfill (0 = all)")
+    args = ap.parse_args()
+
+    if not dartdoc.key():
+        raise SystemExit("DART_API_KEY is not set (register at opendart.fss.or.kr).")
+
+    if args.backfill:
+        cands: list[str] | None = None
+        if args.candidates:
+            if args.candidates.startswith("@"):
+                text = Path(args.candidates[1:]).read_text(encoding="utf-8")
+                cands = [c.strip() for c in text.replace(",", "\n").split() if c.strip()]
+            else:
+                cands = [c.strip() for c in args.candidates.split(",") if c.strip()]
+        run_backfill(cands, args.limit or None)
+    else:
+        run_incremental(args.days)
+
+
+if __name__ == "__main__":
+    main()

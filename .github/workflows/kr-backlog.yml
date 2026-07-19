@@ -1,0 +1,81 @@
+name: Refresh KR order backlog (DART)
+
+# Keeps data/kr_backlog.json up to date with Korean quarterly 수주잔고 from
+# OpenDART. Two ways to run:
+#
+#   * Daily cron (incremental)  — ONE market-wide list.json sweep finds the day's
+#     periodic-report filers and parses only those. Cheap: order backlog changes
+#     only when a company files a periodic report, so we never scan the whole
+#     ~2,600-name market. Commits the refreshed JSON, which the dashboard build
+#     then publishes to GitHub Pages.
+#   * Manual "backfill"         — one-time full sweep to discover which firms
+#     disclose backlog and seed ~1 year of history. Run this once first.
+#
+# Needs the repo secret DART_API_KEY (free key from https://opendart.fss.or.kr).
+on:
+  schedule:
+    # 14:00 UTC = 23:00 KST — after the Korean filing day, so a day's periodic
+    # reports are in. --days 2 overlaps so nothing is missed around midnight.
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "incremental (daily) or backfill (one-time full sweep)"
+        type: choice
+        options: [incremental, backfill]
+        default: incremental
+      days:
+        description: "incremental window in days"
+        required: false
+        default: "2"
+      limit:
+        description: "backfill: cap tickers scanned (0 = all; use e.g. 300 to test)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "kr-backlog"
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/korean-listed-companies-backlog-7s64s4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fetch KR order backlog from DART
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          MODE: ${{ github.event.inputs.mode || 'incremental' }}
+          DAYS: ${{ github.event.inputs.days || '2' }}
+          LIMIT: ${{ github.event.inputs.limit || '0' }}
+        run: |
+          if [ "$MODE" = "backfill" ]; then
+            python tools/kr_dart_backlog.py --backfill --limit "$LIMIT"
+          else
+            python tools/kr_dart_backlog.py --days "$DAYS"
+          fi
+      - name: Commit updated backlog
+        run: |
+          if [ -n "$(git status --porcelain data/kr_backlog.json data/dart_corp.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/kr_backlog.json data/dart_corp.json
+            git commit -m "data(kr): refresh order backlog from DART"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/korean-listed-companies-backlog-7s64s4 && break
+              echo "push rejected; rebasing (attempt $i) ..."
+              git fetch origin claude/korean-listed-companies-backlog-7s64s4
+              git rebase -X ours origin/claude/korean-listed-companies-backlog-7s64s4 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No backlog changes."
+          fi

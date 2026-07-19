@@ -1,0 +1,104 @@
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --panel-2: #273548;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --green: #22c55e;
+  --red: #ef4444;
+  --accent: #38bdf8;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.title { display: flex; align-items: center; gap: 10px; }
+.title h1 { font-size: 18px; margin: 0; }
+.home-link {
+  text-decoration: none; color: var(--muted); font-size: 20px; line-height: 1;
+  border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px;
+}
+.home-link:hover { color: var(--accent); border-color: var(--accent); }
+.controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.status { color: var(--muted); font-size: 13px; }
+input, select, button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px; font-size: 13px;
+}
+button, select { cursor: pointer; }
+button:hover, select:hover, input:focus { border-color: var(--accent); outline: none; }
+.search { width: 150px; }
+
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+.badge.demo { background: #7c2d12; color: #fdba74; }
+.hidden { display: none !important; }
+
+main { flex: 1 1 auto; overflow: auto; padding: 14px 18px; }
+.loading, .empty { color: var(--muted); padding: 24px; text-align: center; }
+.error { color: #fca5a5; padding: 18px; background: #3f1d1d; border-radius: 8px; }
+
+/* ---------- table ---------- */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th, .tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.tbl thead th {
+  position: sticky; top: 0; z-index: 1; background: var(--panel);
+  color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; white-space: nowrap;
+}
+.tbl thead th:hover { color: var(--text); }
+.th-right { text-align: right; }
+.tbl td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl td.strong { font-weight: 700; }
+tr.main { cursor: pointer; }
+tr.main:hover td { background: var(--panel-2); }
+.sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.cur { color: var(--muted); font-size: 11px; }
+.chg-up { color: var(--green); }
+.chg-down { color: var(--red); }
+.ext { color: var(--accent); text-decoration: none; font-size: 12px; }
+.ext:hover { text-decoration: underline; }
+
+/* ---------- expandable quarter detail ---------- */
+tr.detail td { background: #16233b; padding: 0; }
+.detail-inner { padding: 12px 16px; }
+.detail-title { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.qrow { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.qlabel { flex: 0 0 90px; color: var(--muted); font-size: 12.5px; }
+.qbar { flex: 1 1 auto; background: var(--panel-2); border-radius: 4px; height: 14px; overflow: hidden; }
+.qbar-fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #38bdf8); border-radius: 4px; }
+.qval { flex: 0 0 170px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+
+/* ---------- footer ---------- */
+.footer {
+  flex: 0 0 auto; padding: 12px 18px; color: var(--muted);
+  font-size: 12px; line-height: 1.6; border-top: 1px solid var(--border); background: var(--panel);
+}
+.footer b { color: var(--text); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .search { width: 110px; }
+  .tbl th.th-hide, .tbl td.td-hide { display: none; }
+  .qval { flex-basis: 120px; }
+  .qlabel { flex-basis: 64px; }
+}

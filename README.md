@@ -131,6 +131,8 @@ app/
   charts.py      Yahoo 과거 시세(차트) + 뉴스/실적(상승 이유)
   earnings.py    분기별 실적일 + EPS 컨센서스 판정 + 가이던스 vs 컨센 + 발표 전후 주가 드리프트
   news.py        주요 외신 RSS 수집 → AI/데이터센터 뉴스 선별/중복제거 → 한국어 요약
+  backlog.py     한국 수주잔고 대시보드(data/kr_backlog.json 로드 + 전분기/전년 증감 계산)
+  dartdoc.py     OpenDART 문서 클라이언트 + 수주잔고 표 파서(순수 함수, 오프라인 테스트)
   telegram.py    텔레그램 메시지 포맷 + 전송 + 전송이력 상태(표준 라이브러리만)
   indicators.py  이동평균(MA5/20/50/120) 계산
   cache.py       짧은 TTL 인메모리 캐시
@@ -144,8 +146,10 @@ app/
     earnings/    실적 발표 전후 주가 반응 프로그램(HTML/CSS/JS)
 tools/
   guidance.py            가이던스 vs 컨센서스 큐레이션 도우미(add/consensus)
+  kr_dart_backlog.py     DART에서 한국 수주잔고 수집 → data/kr_backlog.json (백필/증분)
 data/
   guidance.json          가이던스 vs 컨센서스 큐레이션 데이터(스키마 내장)
+  kr_backlog.json        회사별 분기 수주잔고(DART, kr-backlog 워크플로가 갱신)
 ```
 
 ### 화면 구조 (허브 + 프로그램)
@@ -220,6 +224,53 @@ rs_score, base_score, vcp_score, volume_score, sector_score`).
 - RS 백분위는 **스캔한 유니버스 기준** 상대값이라, 유니버스 구성(Finviz 필터)에 따라 값이
   달라집니다.
 - 펀더멘털(매출/EPS 성장 등)은 초기 버전에서 미반영입니다(구조상 추후 추가 가능).
+
+### 한국 수주잔고 프로그램 (`/backlog/`)
+
+분기별로 **수주잔고(order backlog)를 공시하는 회사**(건설·조선·방산·기계·플랜트·SI 등)의
+**최근 1개년 분기별 수주잔고 추이**를 정리합니다. 소스는 **DART 전자공시**입니다.
+
+- **데이터 출처**: 수주잔고는 DART의 정형 API(재무제표)에 없고, **정기보고서(분기·반기·
+  사업보고서) 본문 "사업의 내용 → 수주상황" 표** 안에 있습니다. 그래서 `list.json`으로
+  정기보고서를 찾고 `document.xml`로 보고서 원본을 받아 **수주잔고/수주잔액 열**을 파싱합니다.
+  회사마다 표 양식이 달라 **근사치**이며, 각 행에 **DART 원문 링크**를 함께 실어 검증할 수 있게 했습니다.
+- **화면**: 회사·섹터·최신 분기·수주잔고(₩ 조/억)·**전분기比·전년비** 증감. 회사 행을 누르면
+  **분기별 수주잔고 추이**(막대)가 펼쳐지고, 각 분기의 DART 원문으로 이동할 수 있습니다.
+  외화(USD 등) 표기 회사는 원문 단위 그대로 표시합니다(원화 환산하지 않음).
+
+**부하 걱정 없이 유지되는 이유 — 매일 전 종목을 스캔하지 않습니다.**
+수주잔고는 **회사가 정기보고서를 제출할 때만** 바뀝니다(1년에 4번). 그래서:
+
+- **매일 갱신(증분)**: `list.json` 을 `pblntf_ty=A`(정기공시) + 최근 날짜로 **딱 한 번 시장
+  전체 조회** → 그날 정기보고서를 낸 회사만 몇 개~수십 개가 나오고, **그 회사들만** 문서를
+  파싱합니다. 대부분의 날은 몇 건, 마감 시즌(5·8·11월 중순, 3월 말)에만 잠깐 수백 건 몰릴 뿐,
+  **상장사 ~2,600개를 매일 확인하지 않습니다.**
+- **최초 백필(1회)**: 전 종목의 최근 ~15개월 정기보고서를 훑어 **수주잔고를 실제로 공시하는
+  회사만** 추려 과거 이력을 채웁니다. 무겁지만 **한 번만** 돌리면 됩니다(재실행 가능·체크포인트 저장).
+
+**설정 (최초 1회):**
+
+1. <https://opendart.fss.or.kr> 에서 무료 **인증키**를 발급받습니다.
+2. 저장소 **Settings → Secrets and variables → Actions → New repository secret** 에
+   `DART_API_KEY` 를 등록합니다(실적일 프로그램과 공유).
+3. **Actions → "Refresh KR order backlog (DART)" → Run workflow** 에서 **mode=backfill** 로
+   한 번 실행해 과거 이력을 채웁니다(전체는 30~60분; `limit`으로 일부만 테스트 가능).
+4. 이후로는 **매일 자동(증분)** 으로 그날 제출된 정기보고서만 반영됩니다
+   (`.github/workflows/kr-backlog.yml` 의 `cron`, 기본 `0 14 * * *` = 23:00 KST).
+
+**실행 (로컬/CI, DART 접근 가능한 환경):**
+
+```bash
+DART_API_KEY=xxx python tools/kr_dart_backlog.py --backfill        # 최초 전체 백필
+DART_API_KEY=xxx python tools/kr_dart_backlog.py --backfill --limit 300  # 일부만 테스트
+DART_API_KEY=xxx python tools/kr_dart_backlog.py --days 2          # 증분(최근 2일)
+# 화면 미리보기(네트워크 불필요, 합성 데이터)
+SUH_DH_DEMO=1 python3 -m uvicorn app.main:app --port 8000          # → /backlog/
+```
+
+> ⚠️ `opendart.fss.or.kr` 는 egress allowlist 샌드박스(Claude Code on the web 등)에서 **차단**됩니다.
+> 실제 수집은 GitHub Actions처럼 해당 호스트에 접근 가능한 곳에서 돌아갑니다. 파싱 로직은
+> `tests/test_backlog.py` 로 오프라인 단위테스트합니다.
 
 ### AI 투자 뉴스 프로그램
 
@@ -325,13 +376,16 @@ API 예시:
 | `GET /api/drift/{ticker}` | 위 실적 표 + 발표일 기준 직전1일·D+1·D+7·D+30·D+60 주가 수익률 + 분기 평균/상승횟수 |
 | `GET /api/chart/{ticker}?range=max\|6mo` | OHLCV + 거래량 + MA5/20/50/120 |
 | `GET /api/news` | 선별된 AI 투자 뉴스 10~20건(한국어 요약 + 원문 링크) |
+| `GET /api/backlog` | 한국 수주잔고 공시 회사의 분기별 수주잔고(전분기/전년 증감 + DART 원문 링크) |
+| `GET /api/backlog/{stock_code}` | 한 종목의 수주잔고를 DART에서 라이브 재수집(DART_API_KEY 필요) |
 
 ## 네트워크 접근 안내 (중요)
 
 이 대시보드는 `finviz.com`, `query1/query2.finance.yahoo.com`,
 그리고 글로벌 뉴스 RSS 호스트(`www.reutersagency.com`, `www.cnbc.com`,
 `finance.yahoo.com`, `www.datacenterdynamics.com`, `www.theregister.com`,
-`asia.nikkei.com`, `feeds.bloomberg.com`, `feeds.a.dj.com`, `www.ft.com`), 그리고
+`asia.nikkei.com`, `feeds.bloomberg.com`, `feeds.a.dj.com`, `www.ft.com`),
+한국 실적일·수주잔고 수집 시 `opendart.fss.or.kr`, 그리고
 텔레그램 전송 시 `api.telegram.org` 로
 아웃바운드 요청을 보냅니다. 로컬 PC에서는 보통 문제없이 동작하지만,
 **Claude Code on the web 같은 egress allowlist가 적용된 샌드박스에서는 차단**됩니다.

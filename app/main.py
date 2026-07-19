@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, charts, earnings, kr, news, screener
+from . import __version__, backlog, charts, earnings, kr, news, screener
 from .base import get_screen as base_get_screen
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -160,6 +160,39 @@ def base_screen():
         return JSONResponse(
             status_code=502,
             content={"error": "베이스 스크리너 실행에 실패했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/backlog")
+def kr_backlog():
+    """Korean quarterly order backlog (수주잔고) from DART periodic reports.
+
+    Serves the committed data/kr_backlog.json view (built by
+    tools/kr_dart_backlog.py). Static GitHub Pages reads the same JSON directly.
+    """
+    try:
+        return backlog.get_dashboard()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "수주잔고 데이터를 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/backlog/{stock_code}")
+def kr_backlog_company(stock_code: str):
+    """Live single-company backlog refresh from DART (needs DART_API_KEY)."""
+    try:
+        rec = backlog.refresh_company(stock_code)
+        if not rec:
+            raise HTTPException(status_code=404, detail="수주잔고 공시를 찾지 못했습니다.")
+        return backlog._company_view(rec)
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "수주잔고 조회에 실패했습니다.", "detail": str(e)},
         )
 
 
