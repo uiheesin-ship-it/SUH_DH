@@ -146,6 +146,19 @@ def kr_highs():
         )
 
 
+@app.get("/api/krhighs60")
+def kr_highs60():
+    """Korean (KOSPI+KOSDAQ) 60-trading-day-high stocks, grouped by sector."""
+    try:
+        from . import krhighs60
+        return krhighs60.get_dashboard()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "국장 60일 신고가를 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
 @app.get("/api/base")
 def base_screen():
     """Healthy-base screener: scored watchlist of stocks forming a base.

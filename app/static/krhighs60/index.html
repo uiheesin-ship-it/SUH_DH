@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>국장 60일 신고가 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🇰🇷 국장 60일 신고가</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">불러오는 중…</span>
+      <button id="refresh-btn">새로고침</button>
+    </div>
+  </header>
+
+  <div id="split">
+    <div id="list-pane">
+      <main id="content">
+        <div class="loading">데이터를 불러오는 중입니다…</div>
+      </main>
+      <footer class="footer">
+        KOSPI·KOSDAQ 보통주 중 최근 60거래일(약 3개월) 신고가 (스팩·ETF·우선주 제외, 시총 1,500억원 이상).
+        종목 리스트·시총: FinanceDataReader(KRX) · 시세/차트: Yahoo Finance. 매일 자동 갱신.
+      </footer>
+    </div>
+
+    <div id="divider" class="hidden" title="좌우로 끌어 너비 조절"></div>
+
+    <aside id="chart-pane" class="hidden">
+      <div class="chart-head">
+        <div class="chart-title">
+          <span id="chart-ticker" class="chart-ticker"></span>
+          <span id="chart-company" class="chart-company"></span>
+        </div>
+        <div class="chart-actions">
+          <a id="chart-external" href="#" target="_blank" rel="noopener" class="ext-link">네이버 ↗</a>
+          <button id="chart-close" class="close" title="닫기">✕</button>
+        </div>
+      </div>
+      <div id="chart-area" class="chart-area"></div>
+      <div class="legend">
+        <span class="lg ma5">MA5</span>
+        <span class="lg ma20">MA20</span>
+        <span class="lg ma50">MA50</span>
+        <span class="lg ma120">MA120</span>
+        <span class="hint">· 드래그로 좌우 이동 · 휠로 확대/축소 · 더블클릭 시 전체기간</span>
+      </div>
+    </aside>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
