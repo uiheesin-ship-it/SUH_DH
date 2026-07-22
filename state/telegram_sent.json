@@ -1,10 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/technology/ai/articles/microsoft-msft-one-best-ai-140839126.html",
-"https://finance.yahoo.com/technology/ai/articles/hers-why-nvidia-nvda-one-140847423.html",
-"https://finance.yahoo.com/technology/ai/articles/tsmc-ai-chip-dominance-strengthens-141039182.html",
-"https://finance.yahoo.com/markets/stocks/articles/b-riley-raises-pt-applied-141054241.html",
-"https://finance.yahoo.com/technology/ai/articles/cantor-fitzgerald-raises-pt-marvell-141121931.html",
 "https://finance.yahoo.com/markets/stocks/articles/jim-cramer-considers-amd-stock-142132089.html",
 "https://finance.yahoo.com/markets/stocks/articles/jim-cramer-believes-micron-become-142402063.html",
 "https://finance.yahoo.com/technology/ai/articles/hp-vs-dell-ai-infrastructure-155000340.html",
@@ -499,7 +494,12 @@
 "https://www.cnbc.com/2026/07/22/open-ai-cyber-models-hack-hugging-face.html",
 "https://www.datacenterdynamics.com/en/news/amd-to-invest-5bn-in-anthropic-with-ai-company-to-deploy-2gw-of-instinct-mi450-gpus/",
 "https://www.datacenterdynamics.com/en/news/openai-reveals-32gw-data-center-project-in-effingham-county-georgia/",
-"https://www.datacenterdynamics.com/en/news/solaer-commits-to-data-centers-with-a-197-mw-energy-project-in-the-atacama-desert/"
+"https://www.datacenterdynamics.com/en/news/solaer-commits-to-data-centers-with-a-197-mw-energy-project-in-the-atacama-desert/",
+"https://asia.nikkei.com/business/markets/bonds/global-corporate-bond-sales-hit-3.7tn-in-first-half-on-ai-funding-race",
+"https://www.datacenterdynamics.com/en/news/core42-to-supply-sovereign-ai-cloud-to-telecoms-firm-e-in-uae/",
+"https://www.cnbc.com/2026/07/22/amazon-lays-off-some-employees-in-its-agi-unit.html",
+"https://www.datacenterdynamics.com/en/news/mgx-aip-and-blackrocks-gip-complete-40bn-acquisition-of-aligned-data-centers/",
+"https://www.cnbc.com/2026/07/22/this-is-the-stock-to-buy-after-openais-ai-agent-goes-rogue-in-a-cybersecurity-test.html"
 ],
-"updated": "2026-07-22T17:49:32+00:00"
+"updated": "2026-07-22T19:25:09+00:00"
 }
