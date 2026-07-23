@@ -1,10 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/markets/stocks/articles/dell-technologies-inc-dell-ai-233035592.html",
-"https://finance.yahoo.com/technology/ai/articles/zuckerberg-meta-ai-reorganization-goals-023300733.html",
-"https://finance.yahoo.com/technology/ai/articles/meta-ceo-sends-warning-ai-023300996.html",
-"https://finance.yahoo.com/real-estate/articles/ubs-reaffirms-buy-cbre-group-023341233.html",
-"https://finance.yahoo.com/technology/ai/articles/stifel-backs-equinix-eqix-ai-023350592.html",
 "https://finance.yahoo.com/real-estate/articles/prologis-pld-pursues-12-6-023411331.html",
 "https://finance.yahoo.com/real-estate/articles/citizens-highlights-mid-america-apartment-023505112.html",
 "https://finance.yahoo.com/technology/ai/articles/td-cowen-highlights-block-inc-023833556.html",
@@ -499,7 +494,12 @@
 "https://www.bloomberg.com/news/articles/2026-07-22/alphabet-posts-cloud-sales-beat-slight-miss-on-search-revenue",
 "https://www.datacenterdynamics.com/en/news/google-increases-2026-capex-195-205bn-as-it-accelerates-ai-data-center-buildout/",
 "https://www.bloomberg.com/news/articles/2026-07-22/wall-street-banks-trading-parts-of-35-billion-ai-chip-deal",
-"https://www.cnbc.com/2026/07/22/servicenow-ceo-kill-switch-rogue-ai.html"
+"https://www.cnbc.com/2026/07/22/servicenow-ceo-kill-switch-rogue-ai.html",
+"https://asia.nikkei.com/business/automobiles/elon-musk-touts-tesla-s-ai6-as-the-world-s-best-edge-ai-chip",
+"https://www.bloomberg.com/news/articles/2026-07-22/south-korea-s-economy-beats-estimates-as-chip-boom-continues",
+"https://www.bloomberg.com/news/articles/2026-07-23/china-s-psibot-becomes-latest-ai-startup-to-hit-1-billion-value",
+"https://www.bloomberg.com/news/articles/2026-07-23/openai-models-lurked-in-hugging-face-system-for-hours-undetected",
+"https://www.bloomberg.com/news/articles/2026-07-23/asian-chip-stocks-climb-as-alphabet-spending-revives-ai-momentum"
 ],
-"updated": "2026-07-22T23:30:52+00:00"
+"updated": "2026-07-23T06:07:31+00:00"
 }
