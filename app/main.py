@@ -133,6 +133,19 @@ def kr_base_screen():
         )
 
 
+@app.get("/api/krchart/{code}")
+def kr_chart(code: str, market: str | None = None):
+    """Same-day Korean OHLCV chart (FDR/Naver, Yahoo fallback) for KR pages."""
+    try:
+        from . import krdata
+        return krdata.kr_chart(code, market)
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"{code} 차트를 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
 @app.get("/api/krhighs")
 def kr_highs():
     """Korean (KOSPI+KOSDAQ) 52-week-high stocks, grouped by sector."""

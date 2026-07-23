@@ -221,21 +221,23 @@ def main() -> None:
             kr_dash = krhighs.get_dashboard()
             write_json(SITE / "data" / "krhighs.json", kr_dash)
             write_json(repo_krh, kr_dash)
-            # Pre-build charts for the biggest new-high names (Yahoo .KS/.KQ).
+            # Pre-build charts for the biggest new-high names via FDR (same-day),
+            # keyed by 6-digit code (matches the frontend's /api/krchart lookup).
+            from app import krdata
             kr_stocks = _all_stocks(kr_dash)
             kr_stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
             for s in kr_stocks[:int(os.environ.get("SUH_DH_KRHIGHS_CHART_LIMIT", "40"))]:
-                sym = s.get("yahoo")
-                if not sym:
+                code = s.get("ticker")
+                if not code:
                     continue
-                cp = SITE / "data" / "chart" / f"{sym}.json"
+                cp = SITE / "data" / "chart" / f"{code}.json"
                 if cp.exists():
                     continue
                 try:
-                    write_json(cp, charts.get_chart(sym, "max"))
+                    write_json(cp, krdata.kr_chart(code, s.get("market")))
                 except Exception as e:
-                    print(f"  kr chart {sym} failed: {e}")
-                time.sleep(0.3)
+                    print(f"  kr chart {code} failed: {e}")
+                time.sleep(0.2)
             print(f"  KR highs: {kr_dash.get('count')} stocks.")
         except Exception as e:
             print(f"  KR highs failed: {e}")
@@ -308,18 +310,19 @@ def main() -> None:
             payload = base_screener.run_scan_kr(progress=True)
             write_json(SITE / "data" / "krbase.json", payload)
             write_json(repo_krb, payload)
+            from app import krdata
             for s in payload.get("stocks", [])[:int(os.environ.get("SUH_DH_KRBASE_CHART_LIMIT", "40"))]:
-                sym = s.get("yahoo")
-                if not sym:
+                code = s.get("ticker")
+                if not code:
                     continue
-                cp = SITE / "data" / "chart" / f"{sym}.json"
+                cp = SITE / "data" / "chart" / f"{code}.json"
                 if cp.exists():
                     continue
                 try:
-                    write_json(cp, charts.get_chart(sym, "max"))
+                    write_json(cp, krdata.kr_chart(code, s.get("market")))
                 except Exception as e:
-                    print(f"  krbase chart {sym} failed: {e}")
-                time.sleep(0.3)
+                    print(f"  krbase chart {code} failed: {e}")
+                time.sleep(0.2)
             print(f"  KR base screen: {payload.get('count')} setups "
                   f"(universe {payload.get('universe_size')}).")
         except Exception as e:

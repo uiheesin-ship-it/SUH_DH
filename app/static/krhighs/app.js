@@ -54,7 +54,7 @@ function stockRow(s) {
   const yh = s.yahoo || s.ticker;
   return `<tr data-ticker="${esc(s.ticker)}">
     <td>
-      <button class="ticker-link" onclick="openChart('${esc(yh)}','${esc(s.company || "")}','${esc(s.ticker)}')">${esc(s.company || s.ticker)}</button>
+      <button class="ticker-link" onclick="openChart('${esc(s.ticker)}','${esc(s.company || "")}','${esc(s.market || "")}')">${esc(s.company || s.ticker)}</button>
       <div class="company">${esc(s.ticker)} · ${esc(s.market || "")}</div>
     </td>
     <td class="num ${cls}">${fmtPct(s.change_pct)}</td>
@@ -99,35 +99,37 @@ function render(data) {
 }
 
 // ---------- chart ----------
-let currentTicker = null, chartData = null, suppressRelayout = false;
+let currentTicker = null, chartData = null, suppressRelayout = false, chartMarket = null;
 
-async function fetchChart(yahoo) {
+async function fetchChart(code) {          // code = 6자리 종목코드
+  const mkt = chartMarket ? `?market=${encodeURIComponent(chartMarket)}` : "";
   if (STATIC) {
-    const res = await fetch(`../data/chart/${encodeURIComponent(yahoo)}.json`, { cache: "no-store" });
+    const res = await fetch(`../data/chart/${encodeURIComponent(code)}.json`, { cache: "no-store" });
     if (res.ok) return res.json();
-    if (API_BASE) {                    // not pre-built → ask the backend for any ticker
-      const r = await fetch(`${API_BASE}/api/chart/${encodeURIComponent(yahoo)}?range=max`);
+    if (API_BASE) {                    // not pre-built → same-day FDR chart from backend
+      const r = await fetch(`${API_BASE}/api/krchart/${encodeURIComponent(code)}${mkt}`);
       const d = await r.json();
       if (r.ok && !d.error) return d;
     }
     throw new Error("저장된 차트가 없습니다");
   }
-  const res = await fetch(`/api/chart/${encodeURIComponent(yahoo)}?range=max`);
+  const res = await fetch(`/api/krchart/${encodeURIComponent(code)}${mkt}`);
   const d = await res.json();
   if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
   return d;
 }
 
-function openChart(yahoo, company, code) {
-  currentTicker = yahoo;
-  $("#chart-ticker").textContent = code || yahoo;
+function openChart(code, company, market) {   // code = 6자리 종목코드
+  currentTicker = code;
+  chartMarket = market || null;
+  $("#chart-ticker").textContent = code;
   $("#chart-company").textContent = company || "";
   $("#chart-external").href = `https://finance.naver.com/item/main.naver?code=${encodeURIComponent(code || "")}`;
   $("#chart-pane").classList.remove("hidden");
   $("#divider").classList.remove("hidden");
   $("#list-pane").classList.add("chart-open");
   document.querySelectorAll("tr.active").forEach((r) => r.classList.remove("active"));
-  document.querySelectorAll(`tr[data-ticker="${CSS.escape(code || yahoo)}"]`).forEach((r) => r.classList.add("active"));
+  document.querySelectorAll(`tr[data-ticker="${CSS.escape(code)}"]`).forEach((r) => r.classList.add("active"));
   drawChart();
 }
 

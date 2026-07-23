@@ -162,14 +162,14 @@ def kr_universe(limit: int | None = None) -> list[dict]:
 
 
 def _fetch_live() -> list[dict]:
-    from .base import data as basedata  # reuse the proven Yahoo/Stooq bar fetcher
+    from . import krdata  # same-day FDR bars (Yahoo fallback), consistent with the chart
 
     universe = kr_universe()
     out: list[dict] = []
     for r in universe:
         sym = _yahoo_symbol(r["code"], r["market"])
         try:
-            bars = basedata.fetch_bars(sym)
+            bars = krdata.fetch_kr_bars(r["code"], r["market"])
         except Exception:
             continue
         if not bars or not bars.get("high"):

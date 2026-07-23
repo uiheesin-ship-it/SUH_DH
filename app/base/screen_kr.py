@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from . import data, detect, metrics, rs, scoring, sector
+from . import detect, metrics, rs, scoring, sector
 from .config import load as load_config
 
 KOSPI = "^KS11"
@@ -151,15 +151,15 @@ def _build_record(cand: dict, bars: dict, kospi: dict | None, kosdaq: dict | Non
 
 def run_scan(cfg: dict | None = None, limit: int | None = None,
              progress: bool = False) -> dict:
-    from .. import krhighs
+    from .. import krdata, krhighs
 
     cfg = cfg or load_config()
     built = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     candidates = krhighs.kr_universe(limit=limit)
-    benches = data.fetch_benchmarks([KOSPI, KOSDAQ])
-    kospi = benches.get(KOSPI)
-    kosdaq = benches.get(KOSDAQ)
+    # Same-day KOSPI/KOSDAQ index benchmarks (FDR/Naver, Yahoo fallback).
+    kospi = krdata.fetch_kr_index("KOSPI")
+    kosdaq = krdata.fetch_kr_index("KOSDAQ")
     kospi_ret_3m = metrics.pct_return(kospi["close"], metrics.TRADING_DAYS_3M) \
         if kospi and kospi.get("close") else None
 
@@ -168,7 +168,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     demo = os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
     for i, cand in enumerate(candidates):
         try:
-            bars = data.fetch_bars(_yahoo(cand["code"], cand.get("market", "KOSPI")))
+            bars = krdata.fetch_kr_bars(cand["code"], cand.get("market"))
             rec = _build_record(cand, bars, kospi, kosdaq, cfg, kospi_ret_3m)
             if rec:
                 records.append(rec)

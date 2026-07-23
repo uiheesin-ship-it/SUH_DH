@@ -318,19 +318,20 @@ function sma(arr, n) {
   return out;
 }
 
-async function fetchChart(ticker) {
+async function fetchChart(code) {          // code = 6자리 종목코드
+  const mkt = (currentRec && currentRec.market) ? `?market=${encodeURIComponent(currentRec.market)}` : "";
   if (STATIC) {
-    const res = await fetch(`../data/chart/${encodeURIComponent(ticker)}.json`, { cache: "no-store" });
+    const res = await fetch(`../data/chart/${encodeURIComponent(code)}.json`, { cache: "no-store" });
     if (res.ok) return res.json();
-    // Not pre-built — fall back to the hosted backend if one is configured.
+    // Not pre-built — fall back to the hosted backend (same-day FDR chart).
     if (API_BASE) {
-      const r = await fetch(`${API_BASE}/api/chart/${encodeURIComponent(ticker)}?range=max`);
+      const r = await fetch(`${API_BASE}/api/krchart/${encodeURIComponent(code)}${mkt}`);
       const d = await r.json();
       if (r.ok && !d.error) return d;
     }
     throw new Error("저장된 차트가 없습니다");
   }
-  const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=max`);
+  const res = await fetch(`/api/krchart/${encodeURIComponent(code)}${mkt}`);
   const d = await res.json();
   if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
   return d;
@@ -338,7 +339,7 @@ async function fetchChart(ticker) {
 
 function openChart(ticker) {                 // ticker = 종목코드(6자리)
   currentRec = STOCKS.find((s) => s.ticker === ticker) || {};
-  currentTicker = currentRec.yahoo || ticker;   // 차트는 야후 심볼(.KS/.KQ)로 조회
+  currentTicker = ticker;                        // 차트는 코드로 /api/krchart 조회
   $("#chart-ticker").textContent = ticker;
   $("#chart-company").textContent = currentRec.company_name || "";
   $("#chart-external").href = `https://finance.naver.com/item/main.naver?code=${encodeURIComponent(ticker)}`;
