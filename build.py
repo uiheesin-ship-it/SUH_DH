@@ -43,6 +43,21 @@ def write_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
 
 
+def publish_scan(dash: dict, site_path: Path, repo_path: Path) -> bool:
+    """Publish a scan result, but never clobber a good committed snapshot with an
+    empty one. Korean data (FDR/Naver) intermittently fails from the US build
+    server and returns 0 results; without this guard that 0 overwrites the last
+    good snapshot. Returns True if the fresh result was published.
+    """
+    if (dash.get("count") or 0) > 0 or not repo_path.exists():
+        write_json(site_path, dash)
+        write_json(repo_path, dash)
+        return True
+    print(f"  scan returned 0 — keeping committed {repo_path.name} (data source hiccup)")
+    shutil.copyfile(repo_path, site_path)
+    return False
+
+
 def main() -> None:
     if SITE.exists():
         shutil.rmtree(SITE)
@@ -219,8 +234,7 @@ def main() -> None:
             from app import krhighs
 
             kr_dash = krhighs.get_dashboard()
-            write_json(SITE / "data" / "krhighs.json", kr_dash)
-            write_json(repo_krh, kr_dash)
+            publish_scan(kr_dash, SITE / "data" / "krhighs.json", repo_krh)
             # Pre-build charts for the biggest new-high names via FDR (same-day),
             # keyed by 6-digit code (matches the frontend's /api/krchart lookup).
             from app import krdata
@@ -265,8 +279,7 @@ def main() -> None:
             from app import krhighs60
 
             kr60_dash = krhighs60.get_dashboard()
-            write_json(SITE / "data" / "krhighs60.json", kr60_dash)
-            write_json(repo_krh60, kr60_dash)
+            publish_scan(kr60_dash, SITE / "data" / "krhighs60.json", repo_krh60)
             # Pre-build charts for the biggest new-high names (Yahoo .KS/.KQ).
             kr60_stocks = _all_stocks(kr60_dash)
             kr60_stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
@@ -308,8 +321,7 @@ def main() -> None:
             from app import base as base_screener
 
             payload = base_screener.run_scan_kr(progress=True)
-            write_json(SITE / "data" / "krbase.json", payload)
-            write_json(repo_krb, payload)
+            publish_scan(payload, SITE / "data" / "krbase.json", repo_krb)
             from app import krdata
             for s in payload.get("stocks", [])[:int(os.environ.get("SUH_DH_KRBASE_CHART_LIMIT", "40"))]:
                 code = s.get("ticker")
