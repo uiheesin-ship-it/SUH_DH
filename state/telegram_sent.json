@@ -1,8 +1,5 @@
 {
 "sent": [
-"https://www.bloomberg.com/news/articles/2026-07-04/extreme-heat-breaks-across-eastern-us-severe-thunderstorms-to-follow",
-"https://www.bloomberg.com/news/articles/2026-07-05/investors-looking-for-shelter-from-ai-storm-are-turning-to-india",
-"https://www.bloomberg.com/news/articles/2026-07-05/bok-warns-of-risks-from-single-stock-leveraged-etfs-yonhap",
 "https://finance.yahoo.com/economy/article/rate-hike-readjustment-and-ai-hardware-momentum-what-to-watch-this-week-160059243.html",
 "https://finance.yahoo.com/markets/stocks/articles/nvidia-stock-down-13-over-183500892.html",
 "https://finance.yahoo.com/technology/ai/articles/clarivate-clvt-launches-ipone-ai-200603192.html",
@@ -499,7 +496,10 @@
 "https://www.bloomberg.com/news/articles/2026-07-23/amd-unveils-new-products-in-pursuit-of-2-trillion-opportunity",
 "https://www.datacenterdynamics.com/en/news/openai-to-deploy-amd-helios-rackscale-system-as-first-part-of-up-to-6gw-partnership/",
 "https://www.datacenterdynamics.com/en/news/meta-to-deploy-custom-amd-instinct-mi450-based-gpu-is-lead-customer-for-venice-epyc-cpu/",
-"https://www.datacenterdynamics.com/en/news/amd-partners-with-big-chip-co-cerebras-for-ultra-low-latency-and-high-throughput-ai-inference-system/"
+"https://www.datacenterdynamics.com/en/news/amd-partners-with-big-chip-co-cerebras-for-ultra-low-latency-and-high-throughput-ai-inference-system/",
+"https://www.cnbc.com/2026/07/23/cerebras-stock-gains-on-amd-partnership.html",
+"https://www.datacenterdynamics.com/en/news/amd-and-schneider-electric-launch-reference-standards-for-helios-ai-rack/",
+"https://www.bloomberg.com/news/articles/2026-07-23/trump-expands-ai-data-center-pledge-in-bid-to-ease-power-costs"
 ],
-"updated": "2026-07-23T18:46:43+00:00"
+"updated": "2026-07-23T20:15:07+00:00"
 }
