@@ -337,6 +337,47 @@ def main() -> None:
         print("Reusing committed data/krbase.json (skipping KR base scan on push) ...")
         shutil.copyfile(repo_krb, SITE / "data" / "krbase.json")
 
+    # Ensure EVERY build (including fast reuse builds that don't rescan) ships
+    # same-day KR charts, so the KR pages never depend on the possibly-stale
+    # hosted backend. Charts already written by the scan blocks above are skipped
+    # via cp.exists(); reuse builds fill them in fresh via FDR (same-day, Naver).
+    # Code-keyed to match the KR frontends' /api/krchart lookup.
+    try:
+        from app import krdata
+
+        seen, picks = set(), []
+        for fn in ("krbase.json", "krhighs.json", "krhighs60.json"):
+            fp = SITE / "data" / fn
+            if not fp.exists():
+                continue
+            try:
+                snap = json.loads(fp.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            rows = snap.get("stocks") if snap.get("stocks") else (
+                _all_stocks(snap) if snap.get("sectors") else [])
+            for s in rows:
+                code = s.get("ticker")
+                if code and code not in seen:
+                    seen.add(code)
+                    picks.append((s.get("market_cap") or 0, code, s.get("market")))
+        picks.sort(key=lambda p: p[0], reverse=True)
+        limit = int(os.environ.get("SUH_DH_KR_CHART_LIMIT", "60"))
+        fresh = 0
+        for _, code, market in picks[:limit]:
+            cp = SITE / "data" / "chart" / f"{code}.json"
+            if cp.exists():
+                continue
+            try:
+                write_json(cp, krdata.kr_chart(code, market))
+                fresh += 1
+            except Exception as e:
+                print(f"  kr chart {code} failed: {e}")
+            time.sleep(0.15)
+        print(f"  KR charts ensured ({fresh} freshly built of top {min(limit, len(picks))}).")
+    except Exception as e:
+        print(f"  KR chart prebuild step failed: {e}")
+
     # Korean order backlog (수주잔고). Unlike the scans above this is NOT built
     # here: tools/kr_dart_backlog.py (the kr-backlog workflow) fetches it from
     # DART and commits data/kr_backlog.json. The dashboard build just publishes

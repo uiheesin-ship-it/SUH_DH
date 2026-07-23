@@ -319,19 +319,20 @@ function sma(arr, n) {
 }
 
 async function fetchChart(code) {          // code = 6자리 종목코드
-  const mkt = (currentRec && currentRec.market) ? `?market=${encodeURIComponent(currentRec.market)}` : "";
+  const mkt = (currentRec && currentRec.market) ? `market=${encodeURIComponent(currentRec.market)}&` : "";
+  const cb = "_=" + Date.now();            // cache-bust: never serve a stale chart
   if (STATIC) {
-    const res = await fetch(`../data/chart/${encodeURIComponent(code)}.json`, { cache: "no-store" });
+    const res = await fetch(`../data/chart/${encodeURIComponent(code)}.json?${cb}`, { cache: "no-store" });
     if (res.ok) return res.json();
     // Not pre-built — fall back to the hosted backend (same-day FDR chart).
     if (API_BASE) {
-      const r = await fetch(`${API_BASE}/api/krchart/${encodeURIComponent(code)}${mkt}`);
+      const r = await fetch(`${API_BASE}/api/krchart/${encodeURIComponent(code)}?${mkt}${cb}`);
       const d = await r.json();
       if (r.ok && !d.error) return d;
     }
     throw new Error("저장된 차트가 없습니다");
   }
-  const res = await fetch(`/api/krchart/${encodeURIComponent(code)}${mkt}`);
+  const res = await fetch(`/api/krchart/${encodeURIComponent(code)}?${mkt}${cb}`);
   const d = await res.json();
   if (!res.ok || d.error) throw new Error(d.detail || d.error || "chart error");
   return d;
