@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from . import detect, metrics, rs, scoring, sector
+from . import detect, inbase, metrics, rs, scoring, sector
 from .config import load as load_config
 
 KOSPI = "^KS11"
@@ -146,6 +146,7 @@ def _build_record(cand: dict, bars: dict, kospi: dict | None, kosdaq: dict | Non
         "volume": vol, "sector_detail": sect,
         "sector_etf": None, "sector_return_3m": None,
         "sector_action_score": sect.get("sector_action_score"),
+        **inbase.short_term_metrics(close, high, low, base),
     }
 
 
@@ -193,6 +194,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         rec["trend"] = tt
         rec["trend_template_pass"] = tt["trend_template_pass"]
         scoring.compute_scores(rec, cfg)
+        inbase.compute(rec, cfg)
 
     def _sort_key(rec):
         total = rec.get("total_score") or 0

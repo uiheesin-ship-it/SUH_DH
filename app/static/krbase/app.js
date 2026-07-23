@@ -123,10 +123,15 @@ const GRADE_CLS = { Prime: "g-prime", High: "g-high", Watch: "g-watch", Low: "g-
 const ALERT_CLS = { ready: "a-ready", breakout: "a-breakout", extended: "a-extended", none: "" };
 const PIVOT_CLS = { ready: "p-ready", broken_out: "p-broken", watch: "p-watch",
                     early: "p-early", extended: "p-extended" };
+const IB_CLS = { prime: "ib-prime", high: "ib-high", watch: "ib-watch", low: "ib-low" };
+const BASETYPE = { flat: ["평평", "bt-flat"], tight: ["타이트", "bt-tight"],
+                   abc: ["ABC", "bt-abc"], base: ["베이스", "bt-base"], none: ["-", ""] };
 
 const COLS = [
   ["ticker", "티커", false],
   ["total_score", "점수", true],
+  ["inbase_score", "In-Base", true],
+  ["base_type", "유형", false],
   ["setup_grade", "등급", false],
   ["alert_type", "알림", false],
   ["current_price", "가격", true],
@@ -162,6 +167,8 @@ function render() {
         <div class="company">${esc(s.company_name || "")}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
+      <td class="num score"><b class="${IB_CLS[s.inbase_grade] || "ib-low"}">${fmtNum(s.inbase_score, 0)}</b>${s.extended ? ` <span class="ext-mark" title="이미 분출: ${esc((s.extension_flags || []).join(", "))}">분출</span>` : ""}</td>
+      <td>${(() => { const [t, c] = BASETYPE[s.base_type] || BASETYPE.none; return t === "-" ? "-" : `<span class="badge ${c}">${t}</span>`; })()}</td>
       <td><span class="badge ${g}">${esc(s.setup_grade || "-")}</span></td>
       <td>${s.alert_type && s.alert_type !== "none"
             ? `<span class="badge ${a}">${esc(s.alert_type)}</span>` : "-"}</td>
@@ -232,6 +239,12 @@ const GLOSSARY = {
   "섹터 ETF": "이 종목에 매핑된 섹터 ETF (sector_mapping.csv 또는 섹터 기본값). 이 ETF 대비 상대강도로 섹터 점수 산출.",
   "섹터 3M / 종목-섹터": "섹터 ETF의 3개월 수익률 / (종목 3개월 − 섹터 3개월). 종목이 섹터보다 강하면 뒤 값이 양수.",
   "섹터 점수": "섹터 강세 종합(0~1). 종목>섹터>시장 구조이고 섹터가 추세 위·신고가 근처면 높음.",
+  "In-Base 점수": "종합점수와 별개로 '아직 조용히 베이스 중(분출 전)'인 정도(0~100). 안-뻗음(30)+타이트(25)+거래량마름(15)+지지선(15)+구조(15). 이미 분출한 종목은 여기서 점수가 낮게 나옴.",
+  "베이스 유형": "평평(길고 얕은 횡보) · 타이트(짧고 매우 좁은 수축) · ABC(깊은 조정 후 저점 절상하며 지지선 반등) · 베이스(일반).",
+  "분출 여부": "엄격 기준으로 이미 급등했는지: 5일 +10%↑ / 10일 +12%↑ / 50일선 +12%↑ / 피봇 돌파·과열 / 베이스 상단 급등 중 하나라도 걸리면 '분출'로 감점.",
+  "단기 5일/10일": "최근 5거래일·10거래일 수익률. 크면 이미 튄 것(분출).",
+  "최근10일 변동폭": "최근 10일 (고가−저가)/현재가. 작을수록 타이트하게 눌려 있음.",
+  "베이스 내 위치": "현재가가 베이스 저점(0%)~고점(100%) 중 어디인지. 상단에서 막 급등했으면 분출 위험.",
 };
 
 // Wrap a label in a hover-tooltip span when the glossary has an entry for it.
@@ -302,6 +315,14 @@ function detailPanel(s) {
         ${row("섹터 ETF", esc(s.sector_etf || "-"))}
         ${row("섹터 3M / 종목-섹터", `${fmtPct(s.sector_return_3m)} / ${fmtPct(s.sector_detail?.stock_vs_sector_3m)}`)}
         ${row("섹터 점수", fmtNum(s.sector_action_score))}
+      </div>
+      <div class="d-card"><h4>In-Base 건전도 (분출 전 · 유형)</h4>
+        ${row("In-Base 점수", `${fmtNum(s.inbase_score, 0)} (${esc(s.inbase_grade || "-")})`)}
+        ${row("베이스 유형", (BASETYPE[s.base_type] || BASETYPE.none)[0])}
+        ${row("분출 여부", `${s.extended ? "✗ 분출" : "✓ 베이스 중"}${(s.extension_flags || []).length ? " · " + esc(s.extension_flags.join(", ")) : ""}`)}
+        ${row("단기 5일/10일", `${fmtPct(s.ret_5d)} / ${fmtPct(s.ret_10d)}`)}
+        ${row("최근10일 변동폭", fmtPct(s.recent_range_10, 1))}
+        ${row("베이스 내 위치", s.base_position == null ? "-" : (s.base_position * 100).toFixed(0) + "%")}
       </div>
     </div>`;
 }

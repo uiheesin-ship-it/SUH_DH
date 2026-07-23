@@ -101,3 +101,30 @@ alerts:
   breakout_min_score: 75
   extended_pivot_ratio: 1.05   # current > pivot * 1.05
   extended_sma50_ratio: 1.20   # 또는 current > SMA50 * 1.20
+
+# --- In-Base 건전도 점수 --------------------------------------------
+# total_score(추세+RS 편중)와 별개로, "아직 조용히 베이스 중(분출 전)"을 재는 점수.
+# 분출 기준은 엄격. 분출주는 숨기지 않고 점수만 낮게 나옴.
+inbase:
+  weights:
+    not_extended: 30   # 안 뻗음(단기 extension 역점수)
+    tightness: 25      # 타이트/변동성 축소
+    volume: 15         # 거래량 마름
+    support: 15        # 상승 지지선 위·정배열
+    structure: 15      # 베이스 길이·깊이·higher low
+  max_ret_5d: 0.10
+  max_ret_10d: 0.12
+  sma50_stretch: 1.12
+  tight_range: 0.08
+  min_len: 20
+  extended_cutoff: 0.5
+  grades: {prime: 80, high: 65, watch: 50}
+
+# 베이스 유형 태그 분류 기준
+base_type:
+  abc_min_depth: 0.18    # ABC 조정 바닥: 깊이 18%↑ + higher-low
+  tight_max_len: 45      # 타이트: 45일↓ + 얕음 + 최근 매우 타이트
+  tight_max_depth: 0.15
+  tight_max_range: 0.08
+  flat_min_len: 40       # 평평: 40일↑ + 얕음
+  flat_max_depth: 0.18

@@ -80,6 +80,18 @@ td.etf { color: var(--accent); }
 .p-early { background: #334155; color: #94a3b8; }
 .p-extended { background: #78350f; color: #fcd34d; }
 
+/* In-Base score (text color by grade) + base-type badges + 분출 mark */
+.ib-prime { color: #86efac; }
+.ib-high { color: #67e8f9; }
+.ib-watch { color: #fcd34d; }
+.ib-low { color: #94a3b8; }
+.bt-flat { background: #164e63; color: #a5f3fc; }
+.bt-tight { background: #14532d; color: #86efac; }
+.bt-abc { background: #4c1d95; color: #ddd6fe; }
+.bt-base { background: #334155; color: #cbd5e1; }
+.ext-mark { font-size: 10px; padding: 0 5px; border-radius: 999px;
+  background: #7f1d1d; color: #fca5a5; vertical-align: middle; }
+
 /* divider + chart pane */
 #divider { flex: 0 0 6px; cursor: col-resize; background: var(--border); }
 #divider.dragging, #divider:hover { background: var(--accent); }

@@ -196,3 +196,69 @@ def test_scoring_missing_fields_no_crash():
     scoring.compute_scores(rec, CFG)  # must not raise
     assert rec["total_score"] >= 0
     assert rec["setup_grade"] in ("Prime", "High", "Watch", "Low")
+
+
+# --------------------------------------------------------------------------- #
+# In-Base health score + base-type tag
+# --------------------------------------------------------------------------- #
+from app.base import inbase
+
+
+def test_short_term_metrics():
+    close = [100.0] * 30 + [110.0]        # +10% today vs 1 ago region
+    high = [c * 1.01 for c in close]
+    low = [c * 0.99 for c in close]
+    base = {"base_high": 111.0, "base_low": 99.0}
+    m = inbase.short_term_metrics(close, high, low, base)
+    assert m["ret_5d"] is not None and m["ret_10d"] is not None
+    assert 0 <= m["base_position"] <= 1.2
+    assert m["recent_range_10"] is not None
+
+
+def test_inbase_penalizes_extended():
+    ext = {
+        "current_price": 130, "sma50": 100, "sma150": 95, "sma200": 90,
+        "sma200_20d_ago": 89, "sma50_position_pass": False,
+        "ret_5d": 0.18, "ret_10d": 0.30, "base_position": 0.98,
+        "pivot": {"pivot_status": "extended"},
+        "vcp": {"vcp_score": 0.2}, "volatility": {}, "volume": {},
+        "base": {"base_detected": True, "base_depth": 0.12, "base_length_days": 30,
+                 "base_depth_grade": "excellent", "higher_low": True},
+    }
+    inbase.compute(ext, CFG)
+    assert ext["extended"] is True
+    assert ext["inbase_score"] < 50           # strongly penalized
+    assert ext["extension_flags"]             # reasons listed
+
+
+def test_inbase_rewards_quiet_base():
+    quiet = {
+        "current_price": 101, "sma50": 100, "sma150": 96, "sma200": 92,
+        "sma200_20d_ago": 90, "sma50_position_pass": True,
+        "ret_5d": 0.005, "ret_10d": -0.01, "base_position": 0.5,
+        "recent_range_10": 0.06,
+        "pivot": {"pivot_status": "watch"},
+        "vcp": {"vcp_score": 0.8},
+        "volatility": {"volatility_contraction_grade": "excellent",
+                       "volatility_contraction_pass": True, "recent_atr_compression_pass": True},
+        "volume": {"volume_dry_up_excellent": True, "volume_dry_up_pass": True,
+                   "high_volume_down_days_20d": 0, "accumulation_distribution_score": 0.4},
+        "base": {"base_detected": True, "base_depth": 0.12, "base_length_days": 40,
+                 "base_depth_grade": "excellent", "higher_low": True},
+    }
+    inbase.compute(quiet, CFG)
+    assert quiet["extended"] is False
+    assert quiet["inbase_score"] >= 70
+
+
+def test_base_type_tags():
+    def bt(depth, length, rr, hl):
+        rec = {"recent_range_10": rr,
+               "base": {"base_detected": True, "base_depth": depth,
+                        "base_length_days": length, "higher_low": hl}}
+        inbase.compute({**rec, "current_price": 100, "pivot": {}, "vcp": {},
+                        "volatility": {}, "volume": {}}, CFG)
+        return inbase._base_type({**rec}, CFG["base_type"])
+    assert bt(0.25, 60, 0.05, True) == "abc"      # deep + higher-low
+    assert bt(0.10, 30, 0.06, False) == "tight"   # short + very tight + shallow
+    assert bt(0.14, 60, 0.12, False) == "flat"    # long + shallow

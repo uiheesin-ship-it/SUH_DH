@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from . import data, detect, metrics, rs, scoring, sector
+from . import data, detect, inbase, metrics, rs, scoring, sector
 from .config import load as load_config
 
 
@@ -162,6 +162,8 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "sector_etf": sect.get("sector_etf"),
         "sector_return_3m": sect.get("sector_return_3m"),
         "sector_action_score": sect.get("sector_action_score"),
+        # short-term extras for the In-Base score (ret_5d/10d/21d, recent range, base position)
+        **inbase.short_term_metrics(close, high, low, base),
     }
 
 
@@ -218,6 +220,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         rec["trend"] = tt
         rec["trend_template_pass"] = tt["trend_template_pass"]
         scoring.compute_scores(rec, cfg)
+        inbase.compute(rec, cfg)   # In-Base health score + base-type tag
 
     records.sort(key=_sort_key, reverse=False)
 

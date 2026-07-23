@@ -83,6 +83,27 @@ DEFAULTS: dict[str, Any] = {
         "extended_pivot_ratio": 1.05,
         "extended_sma50_ratio": 1.20,
     },
+    # "In-Base" health score — rewards a tight, quiet, on-support, NOT-extended
+    # setup (still basing). Orthogonal to total_score. Strict extension penalty.
+    "inbase": {
+        "weights": {"not_extended": 30, "tightness": 25, "volume": 15,
+                    "support": 15, "structure": 15},
+        "max_ret_5d": 0.10,      # 최근 5일 +10% 초과 → 분출(감점)
+        "max_ret_10d": 0.12,     # 최근 10일 +12% 초과 → 분출(엄격)
+        "sma50_stretch": 1.12,   # 현재가 > 50일선 × 1.12 → 위로 뻗음(엄격)
+        "tight_range": 0.08,     # 최근 10일 고저폭/가 ≤ 8% → 타이트
+        "min_len": 20,
+        "extended_cutoff": 0.5,  # not_extended < 0.5 이면 extended=True
+        "grades": {"prime": 80, "high": 65, "watch": 50},
+    },
+    "base_type": {
+        "abc_min_depth": 0.18,   # 조정형(ABC): 깊이 ≥18% + higher-low
+        "tight_max_len": 45,     # 타이트: 45일 이하 + 얕음 + 최근 매우 타이트
+        "tight_max_depth": 0.15,
+        "tight_max_range": 0.08,
+        "flat_min_len": 40,      # 평평: 40일 이상 + 얕음
+        "flat_max_depth": 0.18,
+    },
 }
 
 
