@@ -1,9 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/real-estate/articles/prologis-pld-pursues-12-6-023411331.html",
-"https://finance.yahoo.com/real-estate/articles/citizens-highlights-mid-america-apartment-023505112.html",
-"https://finance.yahoo.com/technology/ai/articles/td-cowen-highlights-block-inc-023833556.html",
-"https://finance.yahoo.com/markets/stocks/articles/micron-earned-24-67-per-035200121.html",
 "https://www.bloomberg.com/news/articles/2026-07-04/india-s-cg-semi-starts-production-with-200-million-chips",
 "https://finance.yahoo.com/technology/ai/articles/factset-partners-google-cloud-googl-125357373.html",
 "https://finance.yahoo.com/technology/ai/articles/qualcomm-qcom-meta-meta-announce-125431859.html",
@@ -499,7 +495,11 @@
 "https://www.bloomberg.com/news/articles/2026-07-22/south-korea-s-economy-beats-estimates-as-chip-boom-continues",
 "https://www.bloomberg.com/news/articles/2026-07-23/china-s-psibot-becomes-latest-ai-startup-to-hit-1-billion-value",
 "https://www.bloomberg.com/news/articles/2026-07-23/openai-models-lurked-in-hugging-face-system-for-hours-undetected",
-"https://www.bloomberg.com/news/articles/2026-07-23/asian-chip-stocks-climb-as-alphabet-spending-revives-ai-momentum"
+"https://www.bloomberg.com/news/articles/2026-07-23/asian-chip-stocks-climb-as-alphabet-spending-revives-ai-momentum",
+"https://www.bloomberg.com/news/articles/2026-07-23/stmicro-forecasts-revenue-growth-as-ai-boom-boosts-chipmaker",
+"https://www.bloomberg.com/news/articles/2026-07-23/ai-data-center-boom-sparks-surge-fdi-applications-thailand",
+"https://www.datacenterdynamics.com/en/videos/dcd-studio-advanced-monitoring-and-predictability-at-scale-with-hiren-lad-eaton/",
+"https://www.datacenterdynamics.com/en/news/plan-for-data-center-at-nvidia-site-in-san-jose-faces-appeal/"
 ],
-"updated": "2026-07-23T06:07:31+00:00"
+"updated": "2026-07-23T11:25:09+00:00"
 }
