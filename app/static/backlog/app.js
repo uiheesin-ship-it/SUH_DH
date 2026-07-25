@@ -106,7 +106,21 @@ const COLS = [
 function render() {
   const rows = currentRows();
   if (!rows.length) {
-    $("#content").innerHTML = `<div class="empty">표시할 회사가 없습니다.</div>`;
+    // Distinguish "no data collected yet" from "filter matched nothing".
+    if (!ALL.length) {
+      $("#content").innerHTML = `<div class="empty setup">
+        <p><b>아직 수주잔고 데이터가 없습니다.</b></p>
+        <p>DART에서 수집하려면 저장소에 무료 인증키를 등록하고 최초 백필을 한 번 실행하세요:</p>
+        <ol>
+          <li><a class="ext" href="https://opendart.fss.or.kr" target="_blank" rel="noopener">opendart.fss.or.kr ↗</a> 에서 인증키 발급</li>
+          <li>저장소 <b>Settings → Secrets and variables → Actions</b> 에 <code>DART_API_KEY</code> 등록</li>
+          <li><b>Actions → "Refresh KR order backlog (DART)" → Run workflow → mode=backfill</b> 실행</li>
+        </ol>
+        <p class="muted">이후에는 매일 자동으로 그날 제출된 정기보고서만 반영됩니다.</p>
+      </div>`;
+    } else {
+      $("#content").innerHTML = `<div class="empty">검색·필터 결과가 없습니다.</div>`;
+    }
     return;
   }
   const head = COLS.map((c) => {

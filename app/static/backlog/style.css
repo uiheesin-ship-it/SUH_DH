@@ -57,6 +57,13 @@ button:hover, select:hover, input:focus { border-color: var(--accent); outline: 
 
 main { flex: 1 1 auto; overflow: auto; padding: 14px 18px; }
 .loading, .empty { color: var(--muted); padding: 24px; text-align: center; }
+.empty.setup { max-width: 620px; margin: 24px auto; text-align: left; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; line-height: 1.7; }
+.empty.setup b { color: var(--text); }
+.empty.setup ol { margin: 8px 0 8px 18px; padding: 0; }
+.empty.setup li { margin: 4px 0; }
+.empty.setup code { background: var(--panel-2); padding: 1px 6px; border-radius: 4px; color: var(--accent); }
+.empty.setup .muted { color: var(--muted); font-size: 12.5px; }
 .error { color: #fca5a5; padding: 18px; background: #3f1d1d; border-radius: 8px; }
 
 /* ---------- table ---------- */
