@@ -131,6 +131,7 @@ const COLS = [
   ["ticker", "티커", false],
   ["total_score", "점수", true],
   ["inbase_score", "In-Base", true],
+  ["beta", "β", true],
   ["base_type", "유형", false],
   ["setup_grade", "등급", false],
   ["alert_type", "알림", false],
@@ -168,6 +169,7 @@ function render() {
       </td>
       <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
       <td class="num score"><b class="${IB_CLS[s.inbase_grade] || "ib-low"}">${fmtNum(s.inbase_score, 0)}</b>${s.extended ? ` <span class="ext-mark" title="이미 분출: ${esc((s.extension_flags || []).join(", "))}">분출</span>` : ""}</td>
+      <td class="num${s.beta != null && s.beta < 0.8 ? " lowbeta" : ""}">${fmtNum(s.beta, 2)}</td>
       <td>${(() => { const [t, c] = BASETYPE[s.base_type] || BASETYPE.none; return t === "-" ? "-" : `<span class="badge ${c}">${t}</span>`; })()}</td>
       <td><span class="badge ${g}">${esc(s.setup_grade || "-")}</span></td>
       <td>${s.alert_type && s.alert_type !== "none"
@@ -239,7 +241,9 @@ const GLOSSARY = {
   "섹터 ETF": "이 종목에 매핑된 섹터 ETF (sector_mapping.csv 또는 섹터 기본값). 이 ETF 대비 상대강도로 섹터 점수 산출.",
   "섹터 3M / 종목-섹터": "섹터 ETF의 3개월 수익률 / (종목 3개월 − 섹터 3개월). 종목이 섹터보다 강하면 뒤 값이 양수.",
   "섹터 점수": "섹터 강세 종합(0~1). 종목>섹터>시장 구조이고 섹터가 추세 위·신고가 근처면 높음.",
-  "In-Base 점수": "종합점수와 별개로 '아직 조용히 베이스 중(분출 전)'인 정도(0~100). 안-뻗음(30)+타이트(25)+거래량마름(15)+지지선(15)+구조(15). 이미 분출한 종목은 여기서 점수가 낮게 나옴.",
+  "In-Base 점수": "종합점수와 별개로 '아직 조용히 베이스 중(분출 전)'인 정도(0~100). 안-뻗음(30)+타이트(25)+거래량마름(15)+지지선(15)+구조(15)에 저베타 페널티(vigor)를 곱함.",
+  "β": "최근 1년 일간수익률의 시장(코스피) 대비 베타. <1이면 시장보다 덜 움직이는 저변동.",
+  "베타 / 추력(vigor)": "vigor = 베타(0.6) + 추력(0.4). 추력 = 12개월 상승·52주 저점 대비 상승. 낮으면 '잠자는 방어주'로 보고 In-Base를 깎고, β<0.8 이면서 추력도 약하면 목록에서 제외.",
   "베이스 유형": "평평(길고 얕은 횡보) · 타이트(짧고 매우 좁은 수축) · ABC(깊은 조정 후 저점 절상하며 지지선 반등) · 베이스(일반).",
   "분출 여부": "엄격 기준으로 이미 급등했는지: 5일 +10%↑ / 10일 +12%↑ / 50일선 +12%↑ / 피봇 돌파·과열 / 베이스 상단 급등 중 하나라도 걸리면 '분출'로 감점.",
   "단기 5일/10일": "최근 5거래일·10거래일 수익률. 크면 이미 튄 것(분출).",
@@ -318,6 +322,7 @@ function detailPanel(s) {
       </div>
       <div class="d-card"><h4>In-Base 건전도 (분출 전 · 유형)</h4>
         ${row("In-Base 점수", `${fmtNum(s.inbase_score, 0)} (${esc(s.inbase_grade || "-")})`)}
+        ${row("베타 / 추력(vigor)", `β ${fmtNum(s.beta, 2)} · vigor ${fmtNum(s.vigor, 2)}`)}
         ${row("베이스 유형", (BASETYPE[s.base_type] || BASETYPE.none)[0])}
         ${row("분출 여부", `${s.extended ? "✗ 분출" : "✓ 베이스 중"}${(s.extension_flags || []).length ? " · " + esc(s.extension_flags.join(", ")) : ""}`)}
         ${row("단기 5일/10일", `${fmtPct(s.ret_5d)} / ${fmtPct(s.ret_10d)}`)}

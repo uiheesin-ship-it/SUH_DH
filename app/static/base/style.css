@@ -150,3 +150,4 @@ td.etf { color: var(--accent); }
   #chart-pane { position: fixed; inset: 0; width: 100% !important; max-width: 100%; z-index: 50; }
   .d-grid { grid-template-columns: 1fr; }
 }
+.lowbeta { color: #fca5a5; }

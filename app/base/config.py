@@ -95,6 +95,14 @@ DEFAULTS: dict[str, Any] = {
         "min_len": 20,
         "extended_cutoff": 0.5,  # not_extended < 0.5 이면 extended=True
         "grades": {"prime": 80, "high": 65, "watch": 50},
+        # 저베타/잠자는 종목 페널티(vigor = 베타 0.6 + 추력 0.4).
+        "beta_low": 1.0,          # β ≥ 1.0 → 감점 없음
+        "beta_floor": 0.8,        # β ≤ 0.8 → 베타 요인 0 (엄격)
+        "min_beta": 0.8,          # β < 0.8 이고 추력도 약하면 목록에서 제외
+        "thrust_min_ret_12m": 0.30,   # 12개월 +30% 미만이면 추력 약함
+        "thrust_min_from_low": 0.50,  # 52주 저점 대비 +50% 미만이면 추력 약함
+        "vigor_min": 0.5,         # In-Base × [0.5 .. 1.0] 감점 폭
+        "exclude_low_vigor": True,
     },
     "base_type": {
         "abc_min_depth": 0.22,      # ABC: 깊은 조정(≥22%) + higher-low + 상단 반등

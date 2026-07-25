@@ -177,8 +177,39 @@ def _base_type(rec: dict, bt: dict) -> str:
     return "base"
 
 
+def _vigor(rec: dict, ic: dict) -> tuple[float, float, bool]:
+    """Beta + thrust 'vigor' — separates a coiling leader from a sleepy defensive
+    name. Returns (In-Base multiplier, vigor 0..1, low_vigor exclude flag).
+
+    A low-beta utility (AES) or a name with no prior advance scores low here even
+    though it's quiet/tight, so its In-Base is knocked down; a clearly sleepy one
+    (low beta AND no thrust) is flagged for exclusion.
+    """
+    beta = rec.get("beta")
+    r12 = rec.get("ret_12m")
+    price, low52 = rec.get("current_price"), rec.get("low_52w")
+    from_low = (price / low52 - 1) if (low52 and price) else None
+
+    lo, hi = float(ic["beta_floor"]), float(ic["beta_low"])
+    bf = 1.0 if beta is None else (_clamp((beta - lo) / (hi - lo)) if hi > lo
+                                   else (1.0 if beta >= hi else 0.0))
+    cands = []
+    if r12 is not None:
+        cands.append(r12 / float(ic["thrust_min_ret_12m"]))
+    if from_low is not None:
+        cands.append(from_low / float(ic["thrust_min_from_low"]))
+    tf = _clamp(max(cands)) if cands else 0.5   # unknown thrust → neutral
+
+    vigor = 0.6 * bf + 0.4 * tf
+    vmin = float(ic["vigor_min"])
+    mult = vmin + (1 - vmin) * vigor
+    low_vigor = bool(ic.get("exclude_low_vigor", True) and beta is not None
+                     and beta < float(ic["min_beta"]) and tf < 0.5)
+    return mult, round(vigor, 3), low_vigor
+
+
 def compute(rec: dict, cfg: dict) -> None:
-    """Attach inbase_score, inbase_grade, base_type, extended, extension_flags."""
+    """Attach inbase_score, inbase_grade, base_type, extended, vigor, low_vigor."""
     ic = cfg["inbase"]
     w = ic["weights"]
     ne, flags = _not_extended(rec, ic)
@@ -190,8 +221,12 @@ def compute(rec: dict, cfg: dict) -> None:
         "structure": _structure(rec, ic),
     }
     score = sum(parts[k] * float(w[k]) for k in parts)
+    mult, vigor, low_vigor = _vigor(rec, ic)      # beta+thrust haircut
+    score *= mult
     rec["inbase_score"] = round(score, 1)
     rec["inbase_parts"] = {k: round(v, 3) for k, v in parts.items()}
+    rec["vigor"] = vigor
+    rec["low_vigor"] = low_vigor
     rec["extended"] = bool(ne < float(ic.get("extended_cutoff", 0.5)))
     rec["extension_flags"] = flags
     rec["base_type"] = _base_type(rec, cfg["base_type"])

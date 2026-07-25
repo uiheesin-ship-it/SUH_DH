@@ -109,6 +109,7 @@ def _build_record(cand: dict, bars: dict, kospi: dict | None, kosdaq: dict | Non
     near_ratio = float(cfg["rs_line"]["near_high_ratio"])
     rs_spy_near = rs_qqq_near = None
     rs_vs_spy_3m = rs_vs_qqq_3m = None
+    beta_val = metrics.beta(close, kospi["close"]) if kospi and kospi.get("close") else None
     if kospi and kospi.get("close"):
         line = metrics.rs_line(close, kospi["close"])
         rs_spy_near = metrics.near_rolling_high(line, 252, near_ratio)
@@ -142,6 +143,7 @@ def _build_record(cand: dict, bars: dict, kospi: dict | None, kosdaq: dict | Non
         "rs_vs_spy_3m": rs_vs_spy_3m, "rs_vs_qqq_3m": rs_vs_qqq_3m,
         "rs_line_spy_near_high": rs_spy_near, "rs_line_qqq_near_high": rs_qqq_near,
         "distance_to_sma50": dist_sma50, "sma50_position_pass": sma50_pass,
+        "beta": beta_val,   # vs KOSPI — for the In-Base vigor penalty
         "base": base, "pivot": pivot, "vcp": vcp, "volatility": volat,
         "volume": vol, "sector_detail": sect,
         "sector_etf": None, "sector_return_3m": None,
@@ -202,6 +204,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         dist = abs(dist) if dist is not None else 9.99
         return (-total, dist, -(rec.get("rs_percentile") or 0))
 
+    records = [r for r in records if not r.get("low_vigor")]
     records.sort(key=_sort_key)
 
     return {

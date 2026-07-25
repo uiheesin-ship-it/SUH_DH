@@ -126,6 +126,32 @@ def rs_line(stock_close: Sequence[float], bench_close: Sequence[float]) -> list[
     return [None if not math.isfinite(v) else round(float(v), 8) for v in rl]
 
 
+def beta(stock_close: Sequence[float], market_close: Sequence[float], window: int = 252) -> float | None:
+    """Beta = slope of daily stock returns vs market returns over ~1y (None if短)."""
+    if not stock_close or not market_close:
+        return None
+    n = min(len(stock_close), len(market_close), window + 1)
+    if n < 40:
+        return None
+    s = np.asarray(stock_close[-n:], dtype=float)
+    m = np.asarray(market_close[-n:], dtype=float)
+    mask = np.isfinite(s) & np.isfinite(m)
+    s, m = s[mask], m[mask]
+    if len(s) < 40:
+        return None
+    rs = np.diff(s) / s[:-1]
+    rm = np.diff(m) / m[:-1]
+    good = np.isfinite(rs) & np.isfinite(rm)
+    rs, rm = rs[good], rm[good]
+    if len(rm) < 30:
+        return None
+    var = float(np.var(rm))
+    if var <= 0:
+        return None
+    cov = float(np.cov(rs, rm)[0, 1])
+    return round(cov / var, 3)
+
+
 def near_rolling_high(series: Sequence[float | None], window: int, ratio: float) -> bool | None:
     """True if the last value is >= rolling max over ``window`` * ``ratio``."""
     vals = [v for v in series if v is not None]

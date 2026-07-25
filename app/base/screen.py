@@ -116,6 +116,7 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     rs_vs_spy_3m = rs_vs_qqq_3m = None
     spy = benches.get("SPY")
     qqq = benches.get("QQQ")
+    beta_val = metrics.beta(close, spy["close"]) if spy and spy.get("close") else None
     if spy and spy.get("close"):
         line = metrics.rs_line(close, spy["close"])
         rs_spy_near = metrics.near_rolling_high(line, 252, near_ratio)
@@ -155,6 +156,8 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "rs_line_spy_near_high": rs_spy_near, "rs_line_qqq_near_high": rs_qqq_near,
         # 50d line
         "distance_to_sma50": dist_sma50, "sma50_position_pass": sma50_pass,
+        # beta (vs SPY) — used by the In-Base vigor penalty
+        "beta": beta_val,
         # nested detail
         "base": base, "pivot": pivot, "vcp": vcp, "volatility": volat,
         "volume": vol, "sector_detail": sect,
@@ -220,8 +223,10 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         rec["trend"] = tt
         rec["trend_template_pass"] = tt["trend_template_pass"]
         scoring.compute_scores(rec, cfg)
-        inbase.compute(rec, cfg)   # In-Base health score + base-type tag
+        inbase.compute(rec, cfg)   # In-Base health score + base-type tag + vigor
 
+    # Drop clearly sleepy low-beta / no-thrust names (In-Base vigor exclude).
+    records = [r for r in records if not r.get("low_vigor")]
     records.sort(key=_sort_key, reverse=False)
 
     return {
