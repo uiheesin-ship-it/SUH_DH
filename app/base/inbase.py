@@ -148,6 +148,10 @@ def _structure(rec: dict, ic: dict) -> float:
 
 
 def _base_type(rec: dict, bt: dict) -> str:
+    """Archetype tag. Order: tight → flat → abc → base, so shallow coils and long
+    sideways bases are claimed first and only a *deep correction that has already
+    rebounded into the upper half with rising lows* is tagged ABC (otherwise ABC
+    swallows most names)."""
     b = rec.get("base") or {}
     if not b.get("base_detected"):
         return "none"
@@ -155,15 +159,21 @@ def _base_type(rec: dict, bt: dict) -> str:
     L = b.get("base_length_days")
     rr = rec.get("recent_range_10")
     hl = b.get("higher_low")
-    # order matters: corrective (deep + rising lows) first, then tight, then flat.
-    if depth is not None and depth >= float(bt["abc_min_depth"]) and hl:
-        return "abc"
-    if (L and L <= int(bt["tight_max_len"]) and depth is not None
-            and depth < float(bt["tight_max_depth"])
-            and rr is not None and rr <= float(bt["tight_max_range"])):
+    bpos = rec.get("base_position")
+
+    # tight: shallow AND recently very tight (coiling), any moderate length.
+    if (depth is not None and depth < float(bt["tight_max_depth"])
+            and rr is not None and rr <= float(bt["tight_max_range"])
+            and (L is None or L <= int(bt["tight_max_len"]))):
         return "tight"
+    # flat: long, shallow, sideways.
     if L and L >= int(bt["flat_min_len"]) and depth is not None and depth < float(bt["flat_max_depth"]):
         return "flat"
+    # abc: a real (deep) correction that has rebounded into the upper half of the
+    # base with rising lows — not a shallow drift and not still near the lows.
+    if (depth is not None and depth >= float(bt["abc_min_depth"]) and hl
+            and (bpos is None or bpos >= float(bt["abc_min_position"]))):
+        return "abc"
     return "base"
 
 

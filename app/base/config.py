@@ -97,12 +97,13 @@ DEFAULTS: dict[str, Any] = {
         "grades": {"prime": 80, "high": 65, "watch": 50},
     },
     "base_type": {
-        "abc_min_depth": 0.18,   # 조정형(ABC): 깊이 ≥18% + higher-low
-        "tight_max_len": 45,     # 타이트: 45일 이하 + 얕음 + 최근 매우 타이트
+        "abc_min_depth": 0.22,      # ABC: 깊은 조정(≥22%) + higher-low + 상단 반등
+        "abc_min_position": 0.5,    # 베이스 상단 절반(≥50%)까지 되돌린(반등한) 것만
+        "tight_max_len": 50,        # 타이트: 얕음 + 최근 매우 타이트(중간 길이 허용)
         "tight_max_depth": 0.15,
-        "tight_max_range": 0.08,
-        "flat_min_len": 40,      # 평평: 40일 이상 + 얕음
-        "flat_max_depth": 0.18,
+        "tight_max_range": 0.07,
+        "flat_min_len": 40,         # 평평: 40일↑ + 얕음
+        "flat_max_depth": 0.15,
     },
 }
 

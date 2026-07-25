@@ -262,3 +262,16 @@ def test_base_type_tags():
     assert bt(0.25, 60, 0.05, True) == "abc"      # deep + higher-low
     assert bt(0.10, 30, 0.06, False) == "tight"   # short + very tight + shallow
     assert bt(0.14, 60, 0.12, False) == "flat"    # long + shallow
+
+    # deep correction but price still near the lows (not rebounded) -> not abc
+    assert inbase._base_type(
+        {"recent_range_10": 0.10, "base_position": 0.2,
+         "base": {"base_detected": True, "base_depth": 0.25,
+                  "base_length_days": 60, "higher_low": True}},
+        CFG["base_type"]) == "base"
+    # deep + rebounded to upper half + higher-low -> abc
+    assert inbase._base_type(
+        {"recent_range_10": 0.10, "base_position": 0.7,
+         "base": {"base_detected": True, "base_depth": 0.25,
+                  "base_length_days": 60, "higher_low": True}},
+        CFG["base_type"]) == "abc"
