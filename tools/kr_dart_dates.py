@@ -139,7 +139,10 @@ def _filing_dates(corp_code: str, bgn: str, end: str, pblntf_ty: str,
 
 def preliminary_dates(corp_code: str, bgn: str, end: str) -> list[str]:
     """Dates of a company's 영업(잠정)실적 (공정공시) filings, newest first."""
-    return _filing_dates(corp_code, bgn, end, "I", lambda nm: MATCH in nm)
+    # 잠정실적, plus the annual/large-change earnings disclosure
+    # (매출액또는손익구조30%이상변동…) which some firms use for Q4 instead of 잠정.
+    return _filing_dates(corp_code, bgn, end, "I",
+                         lambda nm: ("잠정" in nm) or ("손익구조" in nm))
 
 
 def periodic_dates(corp_code: str, bgn: str, end: str) -> list[str]:
@@ -179,7 +182,8 @@ def main() -> None:
             print(f"  {t} failed: {e}")
             ds = []
         if ds:
-            data[t]["dates"] = _dedup_quarters(ds)
+            existing = data[t].get("dates") or []   # preserve manual patches
+            data[t]["dates"] = _dedup_quarters(ds + existing)
             data[t]["date_basis"] = basis
             if basis == "잠정실적":
                 prelim += 1
