@@ -1,13 +1,5 @@
 {
 "sent": [
-"https://www.investors.com/news/3m-dow-jones-ai-data-center-play-buy-signal/?src=A00220&yptr=yahoo",
-"https://finance.yahoo.com/markets/stocks/articles/dell-micron-sandisk-tumble-ai-163000464.html",
-"https://asia.nikkei.com/business/technology/artificial-intelligence/nvidia-kawasaki-heavy-to-build-robot-equipped-ai-shipyard-in-japan",
-"https://finance.yahoo.com/markets/article/dirty-jobs-host-mike-rowe-gen-z-electricians-are-making-up-to-280000-at-ai-data-centers-130758268.html",
-"https://finance.yahoo.com/technology/ai/articles/tencent-eyeing-major-investment-ai-133002354.html",
-"https://www.bloomberg.com/news/articles/2026-07-15/nokia-to-sell-nvidia-powered-ai-mobile-network-gear-from-2027",
-"https://www.bloomberg.com/news/articles/2026-07-15/asml-works-to-ship-chipmaking-tools-faster-to-meet-ai-demand",
-"https://www.bloomberg.com/news/articles/2026-07-15/indian-ai-startup-emergent-valued-at-1-5-billion-in-fundraising",
 "https://www.datacenterdynamics.com/en/news/us-govt-eases-ai-chip-export-controls-on-uae-following-countrys-support-in-iran-war/",
 "https://www.cnbc.com/2026/07/15/anthropic-ipo-banks-investor-meetings.html",
 "https://www.cnbc.com/2026/07/15/trump-blasts-new-york-gov-hochul-over-ai-data-center-moratorium.html",
@@ -499,7 +491,15 @@
 "https://finance.yahoo.com/technology/ai/articles/southern-company-ai-data-center-220221162.html",
 "https://www.bloomberg.com/news/videos/2026-07-31/why-high-chip-earnings-aren-t-good-enough-for-investors-video",
 "https://www.bloomberg.com/news/articles/2026-07-31/kioxia-sets-3-for-1-stock-split-after-profit-misses-estimates",
-"https://www.datacenterdynamics.com/en/whitepapers/the-ai-factory/"
+"https://www.datacenterdynamics.com/en/whitepapers/the-ai-factory/",
+"https://www.datacenterdynamics.com/en/news/lg-says-it-will-invest-additional-910m-in-200mw-data-center-near-seoul/",
+"https://www.datacenterdynamics.com/en/videos/dcd-talks-driving-efficient-water-usage-through-closed-loop-cooling-with-tuan-hoang-schneider-electric/",
+"https://www.ft.com/content/babf4c89-1a6f-447f-a17e-7e3e48f359b8?syn-25a6b1a6=1",
+"https://www.datacenterdynamics.com/en/news/cleancore-solutions-signs-on-cerebras-under-10-year-colocation-agreement/",
+"https://www.bloomberg.com/news/newsletters/2026-07-31/microsoft-keeps-data-center-spending-steady-while-peers-ramp-up-ai-plans",
+"https://www.datacenterdynamics.com/en/news/deepseek-planning-1gw-data-center-in-inner-mongolia-china-report/",
+"https://www.bloomberg.com/news/articles/2026-07-31/engie-flags-lower-renewable-additions-due-to-slow-us-permitting",
+"https://www.bloomberg.com/news/articles/2026-07-31/moonshot-s-kimi-built-on-20-000-nvidia-chip-cluster-from-alibaba"
 ],
-"updated": "2026-07-31T10:05:59+00:00"
+"updated": "2026-07-31T15:00:56+00:00"
 }
