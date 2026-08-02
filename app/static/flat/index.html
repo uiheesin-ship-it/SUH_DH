@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>평평 스크리너 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🟰 평평 스크리너</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">불러오는 중…</span>
+      <button id="watch-btn" title="관심종목만 보기">★ 관심 <span id="watch-count">0</span></button>
+      <button id="csv-btn" title="현재 필터 결과를 CSV로 저장">CSV ↓</button>
+      <button id="xls-btn" title="현재 필터 결과를 Excel로 저장">Excel ↓</button>
+      <button id="refresh-btn">새로고침</button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <label>최소 Flatness
+      <input type="range" id="f-score" min="0" max="100" step="5" value="65" />
+      <span id="f-score-val">65</span>
+    </label>
+    <label>유형(Category)
+      <select id="f-category">
+        <option value="">전체</option>
+        <option value="Continuation Flat Base">Continuation(상승후)</option>
+        <option value="Neutral Flat Base">Neutral(중립)</option>
+        <option value="Turnaround Flat Base">Turnaround(하락후)</option>
+      </select>
+    </label>
+    <label>상태(Status)
+      <select id="f-status">
+        <option value="Active Flat Base">Active(유지중)</option>
+        <option value="">전체</option>
+        <option value="Exited Upward">Exited Up(상단이탈)</option>
+        <option value="Exited Downward">Exited Down(하단이탈)</option>
+      </select>
+    </label>
+    <label>과거활동성
+      <select id="f-activity">
+        <option value="pass">통과만</option>
+        <option value="">전체</option>
+        <option value="fail">미달만</option>
+      </select>
+    </label>
+    <label>기간(일)
+      <input type="number" id="f-mindays" class="tiny" min="20" max="120" step="10" placeholder="min" />
+      –
+      <input type="number" id="f-maxdays" class="tiny" min="20" max="120" step="10" placeholder="max" />
+    </label>
+    <label>최대 Close Band
+      <input type="number" id="f-maxband" class="tiny" min="0" max="0.5" step="0.01" placeholder="%" />
+    </label>
+    <label>최소 Containment
+      <input type="number" id="f-mincontain" class="tiny" min="0" max="1" step="0.05" placeholder="0.8" />
+    </label>
+    <label>섹터
+      <select id="f-sector"><option value="">전체</option></select>
+    </label>
+    <label class="chk">저변동성 포함
+      <input type="checkbox" id="f-chronic" />
+    </label>
+    <label class="chk">REIT 포함
+      <input type="checkbox" id="f-reit" />
+    </label>
+    <label class="chk">미달 후보 포함
+      <input type="checkbox" id="f-unaccepted" title="카테고리별 추가기준(§8) 미충족 후보도 표시" />
+    </label>
+    <label class="search">검색
+      <input type="text" id="f-search" placeholder="티커/종목명" />
+    </label>
+    <span id="count-badge" class="count-badge"></span>
+  </div>
+
+  <div id="split">
+    <div id="list-pane">
+      <main id="content">
+        <div class="loading">스캔 결과를 불러오는 중입니다…</div>
+      </main>
+      <footer class="footer">
+        Flatness Score는 오직 현재 베이스의 평평도(종가 밴드·회귀 기울기·밀집도·중심이동·이상치)만 잽니다.
+        거래량·ATR·이동평균·RS·섹터·펀더멘털은 점수에 넣지 않으며, 과거 활동성은 별도로 계산합니다.
+        돌파 예측이나 매수 추천이 아닙니다.
+      </footer>
+    </div>
+
+    <div id="divider" class="hidden" title="좌우로 끌어 너비 조절"></div>
+
+    <aside id="chart-pane" class="hidden">
+      <div class="chart-head">
+        <div class="chart-title">
+          <span id="chart-ticker" class="chart-ticker"></span>
+          <span id="chart-company" class="chart-company"></span>
+        </div>
+        <div class="chart-actions">
+          <button id="chart-watch" class="close" title="관심종목 토글">☆</button>
+          <a id="chart-external" href="#" target="_blank" rel="noopener" class="ext-link">Yahoo ↗</a>
+          <button id="chart-close" class="close" title="닫기">✕</button>
+        </div>
+      </div>
+      <div id="score-panel" class="score-panel"></div>
+      <div id="chart-area" class="chart-area"></div>
+      <div class="legend">
+        <span class="lg base">베이스 구간</span>
+        <span class="lg pivot">중앙값</span>
+        <span class="lg ma50">Q10/Q90</span>
+        <span class="lg ma150">회귀선</span>
+        <span class="hint">· 드래그 이동 · 휠 확대/축소 · 더블클릭 전체기간</span>
+      </div>
+      <div id="detail-panel" class="detail-panel"></div>
+    </aside>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
