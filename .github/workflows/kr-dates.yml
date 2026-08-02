@@ -27,7 +27,7 @@ jobs:
           python-version: "3.11"
       - name: Fetch KR earnings dates from DART
         env:
-          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY || secrets.DART_API }}
         run: python tools/kr_dart_dates.py
       - name: Commit updated dates
         run: |

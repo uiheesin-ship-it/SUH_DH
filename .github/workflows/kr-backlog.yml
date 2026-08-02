@@ -58,7 +58,9 @@ jobs:
           python-version: "3.11"
       - name: Fetch KR order backlog from DART
         env:
-          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+          # Accept an inline one-off key, else the DART_API_KEY secret, else the
+          # DART_API secret (some repos named it that way).
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY || secrets.DART_API }}
           MODE: ${{ github.event.inputs.mode || 'incremental' }}
           DAYS: ${{ github.event.inputs.days || '2' }}
           LIMIT: ${{ github.event.inputs.limit || '0' }}
