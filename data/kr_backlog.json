@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-08-02T14:59:07+00:00",
+    "updated": "2026-08-02T15:30:24+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250514000994",
@@ -400,7 +400,57 @@
       "20260709000536",
       "20260715000525",
       "20260720000193",
-      "20260730000551"
+      "20260723000380",
+      "20260723000522",
+      "20260724000159",
+      "20260724000315",
+      "20260724000378",
+      "20260724000403",
+      "20260724000595",
+      "20260727000043",
+      "20260727000146",
+      "20260727000170",
+      "20260727000316",
+      "20260727000339",
+      "20260728000338",
+      "20260728000417",
+      "20260729000467",
+      "20260730000045",
+      "20260730000082",
+      "20260730000175",
+      "20260730000356",
+      "20260730000361",
+      "20260730000413",
+      "20260730000551",
+      "20260731000140",
+      "20260731000261",
+      "20260731000292",
+      "20260731000295",
+      "20260731000302",
+      "20260731000387",
+      "20260731000424",
+      "20260731000454",
+      "20260731000461",
+      "20260731000499",
+      "20260731000505",
+      "20260731000513",
+      "20260731000620",
+      "20260731000634",
+      "20260731000640",
+      "20260731000722",
+      "20260731000726",
+      "20260731000728",
+      "20260731000732",
+      "20260731000735",
+      "20260731000737",
+      "20260731000741",
+      "20260731000744",
+      "20260731000748",
+      "20260731000751",
+      "20260731000758",
+      "20260731000760",
+      "20260731000769",
+      "20260731000782"
     ]
   },
   "companies": {
@@ -3806,6 +3856,368 @@
         }
       ],
       "industry": "지주회사,경영자문컨설팅"
+    },
+    "096350": {
+      "stock_code": "096350",
+      "corp_code": "00177870",
+      "name": "대창솔루션",
+      "market": "KOSDAQ",
+      "sector": "구조용 금속제품, 탱크 및 증기발생기 제조업",
+      "quarters": [
+        {
+          "period": "2026-03",
+          "quarter": "2026 1Q",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000760",
+          "report_nm": "[기재정정]분기보고서 (2026.03)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000760",
+          "backlog_krw": 70580,
+          "backlog_raw": "70,580",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000758",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000758",
+          "backlog_krw": 67281000,
+          "backlog_raw": "67,281",
+          "unit": "천원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "내연기관구조재(선박엔진용MBS)"
+    },
+    "243870": {
+      "stock_code": "243870",
+      "corp_code": "00565215",
+      "name": "아이티센코어",
+      "market": "KONEX",
+      "sector": "컴퓨터 프로그래밍, 시스템 통합 및 관리업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000744",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000744",
+          "backlog_krw": 765509000000,
+          "backlog_raw": "765,509",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "건설ERP, 내부통제솔루션, 공간관리솔루션, 소프트웨어 개발 및 공급 자문/ IT 컨설팅 外"
+    },
+    "462350": {
+      "stock_code": "462350",
+      "corp_code": "01700587",
+      "name": "이노스페이스",
+      "market": "KOSDAQ",
+      "sector": "항공기,우주선 및 부품 제조업",
+      "quarters": [
+        {
+          "period": "2026-03",
+          "quarter": "2026 1Q",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000741",
+          "report_nm": "[기재정정]분기보고서 (2026.03)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000741",
+          "backlog_krw": 9353000000000,
+          "backlog_raw": "9,353,000",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000737",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000737",
+          "backlog_krw": 9353000000000,
+          "backlog_raw": "9,353,000",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2025-09",
+          "quarter": "2025 3Q",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000735",
+          "report_nm": "[기재정정]분기보고서 (2025.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000735",
+          "backlog_krw": 9494000000000,
+          "backlog_raw": "9,494,000",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2025-06",
+          "quarter": "2025 반기",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000732",
+          "report_nm": "[기재정정]반기보고서 (2025.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000732",
+          "backlog_krw": 1879000000,
+          "backlog_raw": "1,879",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2025-03",
+          "quarter": "2025 1Q",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000728",
+          "report_nm": "[기재정정]분기보고서 (2025.03)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000728",
+          "backlog_krw": 1879000000,
+          "backlog_raw": "1,879",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2024-12",
+          "quarter": "2024 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000726",
+          "report_nm": "[기재정정]사업보고서 (2024.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000726",
+          "backlog_krw": 3694000000,
+          "backlog_raw": "3,694",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
+          "period": "2024-09",
+          "quarter": "2024 3Q",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000722",
+          "report_nm": "[기재정정]분기보고서 (2024.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000722",
+          "backlog_krw": 2422000000,
+          "backlog_raw": "2,422",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "소형발사체, 로켓추진기관, 과학로켓, 시험평가용역"
+    },
+    "376900": {
+      "stock_code": "376900",
+      "corp_code": "01335143",
+      "name": "로킷헬스케어",
+      "market": "KOSDAQ",
+      "sector": "의료용품 및 기타 의약 관련제품 제조업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000634",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000634",
+          "backlog_krw": 1066423,
+          "backlog_raw": "1,066,423",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "장기 재생 플랫폼"
+    },
+    "037440": {
+      "stock_code": "037440",
+      "corp_code": "00236863",
+      "name": "희림",
+      "market": "KOSDAQ",
+      "sector": "건축기술, 엔지니어링 및 관련 기술 서비스업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000505",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000505",
+          "backlog_krw": 804219,
+          "backlog_raw": "804,219",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기말 공사계약잔액"
+        }
+      ],
+      "industry": "설계 및 감리용역"
+    },
+    "222420": {
+      "stock_code": "222420",
+      "corp_code": "01091054",
+      "name": "쎄노텍",
+      "market": "KOSDAQ",
+      "sector": "기타 비금속 광물제품 제조업",
+      "quarters": [
+        {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000295",
+          "report_nm": "반기보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000295",
+          "backlog_krw": 1361,
+          "backlog_raw": "1,361",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "세라믹 비드"
+    },
+    "388050": {
+      "stock_code": "388050",
+      "corp_code": "01462605",
+      "name": "지투파워",
+      "market": "KOSDAQ",
+      "sector": "전동기, 발전기 및 전기 변환 · 공급 · 제어 장치 제조업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-31",
+          "rcept_no": "20260731000292",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260731000292",
+          "backlog_krw": 400,
+          "backlog_raw": "400",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "수·배전반, 태양광발전시스템, 인버터(PCS)"
+    },
+    "039420": {
+      "stock_code": "039420",
+      "corp_code": "00246620",
+      "name": "케이엘넷",
+      "market": "KOSDAQ",
+      "sector": "전기 통신업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-30",
+          "rcept_no": "20260730000045",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730000045",
+          "backlog_krw": 5361468656,
+          "backlog_raw": "5,361,468,656",
+          "unit": "원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "EC/EDI"
+    },
+    "0203K0": {
+      "stock_code": "0203K0",
+      "corp_code": "01831708",
+      "name": "송우인포텍",
+      "market": "KONEX",
+      "sector": "소프트웨어 개발 및 공급업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-27",
+          "rcept_no": "20260727000043",
+          "report_nm": "사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260727000043",
+          "backlog_krw": 23,
+          "backlog_raw": "23",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "AI 지능형 교통체계 솔루션 및 관련 시스템"
+    },
+    "101670": {
+      "stock_code": "101670",
+      "corp_code": "00527491",
+      "name": "하이드로리튬",
+      "market": "KOSDAQ",
+      "sector": "구조용 금속제품, 탱크 및 증기발생기 제조업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-24",
+          "rcept_no": "20260724000378",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724000378",
+          "backlog_krw": 1061277,
+          "backlog_raw": "1,061,277",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기초계약잔액"
+        }
+      ],
+      "industry": "영구앵커,교량용케이블,타이케이블"
+    },
+    "456010": {
+      "stock_code": "456010",
+      "corp_code": "01373709",
+      "name": "아이씨티케이",
+      "market": "KOSDAQ",
+      "sector": "반도체 제조업",
+      "quarters": [
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-07-23",
+          "rcept_no": "20260723000522",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723000522",
+          "backlog_krw": 12761850,
+          "backlog_raw": "12,761,850",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "PUF반도체,보안솔루션(보안반도체,정보통신모듈기기,정보통신용반도체) 제조,개발"
     }
   }
 }
