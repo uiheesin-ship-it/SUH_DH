@@ -58,12 +58,14 @@ def _col(df, *names):
 def load_sector_map() -> dict[str, tuple]:
     """6-digit code -> (sector, industry) from FinanceDataReader's KRX listing.
 
-    Free, one network call, and consistent with the rest of the KR dashboard
-    (app/krhighs.py). Returns {} on any failure so it never blocks the DART run.
+    Uses the *descriptive* listing ("KRX-DESC"): only that variant carries the
+    업종(Sector)/주요제품(Industry) columns. Plain "KRX" is a price snapshot with
+    no sector, so it silently mapped every company to 기타. Returns {} on any
+    failure so it never blocks the DART run.
     """
     try:
         import FinanceDataReader as fdr
-        krx = fdr.StockListing("KRX")
+        krx = fdr.StockListing("KRX-DESC")
     except Exception as e:
         print(f"sector map unavailable ({e}); companies will be grouped as 기타")
         return {}
@@ -75,7 +77,7 @@ def load_sector_map() -> dict[str, tuple]:
         for _, r in krx.iterrows():
             out[str(r[c_code]).zfill(6)] = (
                 (r[c_sec] if c_sec else None), (r[c_ind] if c_ind else None))
-    print(f"sector map: {len(out)} codes")
+    print(f"sector map: {len(out)} codes ({sum(1 for v in out.values() if v[0])} with sector)")
     return out
 
 
