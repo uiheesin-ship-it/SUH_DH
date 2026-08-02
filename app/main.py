@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import __version__, backlog, charts, earnings, kr, news, screener
 from .base import get_screen as base_get_screen
+from .flat import get_screen as flat_get_screen
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -186,6 +187,22 @@ def base_screen():
         return JSONResponse(
             status_code=502,
             content={"error": "베이스 스크리너 실행에 실패했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/flat")
+def flat_screen():
+    """Flat Base Screener: US stocks currently in a flat, horizontal, tight base.
+
+    Measures only how flat the current base is (no volume/ATR/VCP/MA/RS/sector in
+    the score). Heavy — caches server-side; the static build writes data/flat.json.
+    """
+    try:
+        return flat_get_screen()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "평평 스크리너 실행에 실패했습니다.", "detail": str(e)},
         )
 
 

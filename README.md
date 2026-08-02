@@ -158,6 +158,7 @@ data/
 - `/highs/` — 52주 신고가 프로그램.
 - `/news/` — AI 투자 뉴스 프로그램.
 - `/base/` — **베이스 스크리너** 프로그램 (아래 참고).
+- `/flat/` — **평평 스크리너** 프로그램 (아래 참고).
 
 ### 베이스 스크리너 프로그램 (`/base/`)
 
@@ -224,6 +225,115 @@ rs_score, base_score, vcp_score, volume_score, sector_score`).
 - RS 백분위는 **스캔한 유니버스 기준** 상대값이라, 유니버스 구성(Finviz 필터)에 따라 값이
   달라집니다.
 - 펀더멘털(매출/EPS 성장 등)은 초기 버전에서 미반영입니다(구조상 추후 추가 가능).
+
+### 평평 스크리너 프로그램 (`/flat/`)
+
+미국 상장 보통주 중 **"지금 평평한 베이스(수평·좁은 밀집)를 형성 중인 종목"** 만 자동으로
+찾아 주는 스크리너입니다. **베이스 스크리너와는 완전히 별개 프로그램**이며(코드도
+`app/flat/` 로 분리), 목적과 채점 방식이 다릅니다.
+
+> **목적**: 주가 돌파를 예측하거나 매수 종목을 추천하는 것이 **아닙니다.** 일정 기간
+> 주가가 수평적이고 좁은 범위에 밀집된 종목을 찾아 **후보군을 제공**하는 것이 목적이며,
+> 이후 거래량·변동성·실적·펀더멘털은 사용자가 직접 검토합니다.
+
+**핵심 원칙 (스펙 그대로)**
+
+- 상승 후 베이스(**Continuation**)뿐 아니라 하락 후 바닥 다지기(**Turnaround**)도 포함합니다.
+- 이전 상승 추세는 **하드 필터가 아니라 태그**로만 씁니다.
+- **평평도(Flatness)와 과거 활동성(Historical Activity)은 반드시 별도로 계산**합니다.
+  과거 활동성·이전 수익률은 **Flatness Score에 절대 넣지 않습니다.**
+- REIT·장기간 죽어있는 종목이 "평평하다"는 이유만으로 상위에 오르지 않도록 별도의
+  **Historical Activity Filter** 와 **Chronically Low Volatility 제외**를 적용합니다.
+- **이 버전에서 계산/채점하지 않는 것**: 거래량 감소·거래량 고갈·ATR·과거대비 변동성
+  축소·VCP·볼린저밴드·이동평균 정배열·Minervini·RS(상대강도)·SPY 상대수익률·섹터
+  동조화·실적/EPS·펀더멘털·돌파확률/목표가. (섹터와 RS 백분위는 **표시 전용 열**로만
+  넣고 점수엔 미포함.)
+
+**동작 방식**
+
+- **1차 유니버스** (`app/flat/universe.py`): NYSE·NASDAQ 보통주. Finviz로 주가 ≥ $5,
+  거래량, 펀드 제외를 1차로 거른 뒤, **REIT**(industry가 `REIT - …` 이거나 종목명에 REIT)·
+  ETF/ETN·우선주·SPAC·워런트·유닛을 제외합니다. Real Estate **섹터 전체가 아니라 REIT만**
+  제외합니다. 이동평균 필터는 쓰지 않습니다(평평한 베이스는 어디든 생기므로). 20일 평균
+  거래대금 $10M 미만은 정밀분석 후 제외.
+- **복수 기간 탐색** (`app/flat/bases.py`): 현재 거래일을 끝으로 **20·30·40·50·60·80·100·120**
+  거래일을 각각 독립 베이스 후보로 계산하고, 기간별 기준을 통과한 것 중 **Flatness Score가
+  가장 높은 기간**을 최적 베이스로 선택합니다(짧다고 유리하지 않도록 기간별 허용치를 다르게).
+- **평평도 지표** (`app/flat/metrics.py`): Close Band = `(Q90−Q10)/median`, Base Drift =
+  `exp(회귀기울기×(일수−1))−1`(로그종가 OLS), Containment(중앙값 ±7.5% 안 비율),
+  Center Shift(후반/전반 중앙값 차), Outlier Ratio(|일간수익률|≥8% 비율), Current Position
+  (밴드 내 현재가 위치). 하루 꼬리 영향을 줄이려 **고저가 대신 종가 분위수**를 씁니다.
+- **과거 활동성** (`app/flat/activity.py`): **베이스 시작 이전 데이터만** 사용(룩어헤드
+  방지). 이전 120/252일 Close Band, 과거 252일 내 최대 |20·60일 수익률|, Base Distinctness
+  (이전252일밴드/현재밴드). `이전120밴드≥20% OR 최대이동≥15% OR distinctness≥1.5` 중
+  하나면 통과. 넷 다 낮으면 **만성 저변동성**으로 기본 제외(체크박스로 포함 가능).
+- **이전 추세 태그** (`app/flat/trend_tag.py`): 베이스 직전 60·120일 수익률 중 절대값 큰 값이
+  ≥+20% → Continuation, ≤−20% → Turnaround, 그 사이 → Neutral. Neutral/Turnaround는 하락 중간
+  휴식이 섞이지 않도록 §8의 더 엄격한 기준(40일·80점·밀집85%·드리프트5%·중심5%·활동성통과)을
+  요구합니다.
+- **Flatness Score** (`app/flat/scoring.py`, 100점): Close Band 35 · Base Drift 25 ·
+  Containment 20 · Center Shift 10 · Outlier 10. 각 항목은 **그 기간의 허용치 대비** 0~1로
+  클립. 등급: **Very Flat ≥85 · Flat ≥75 · Moderately Flat ≥65 · Not Flat <65.**
+
+**필터/정렬/저장**: 상단에서 최소 Flatness·유형·상태·과거활동성·기간·Close Band·밀집도·
+섹터·저변동성/REIT/미달 포함 여부·검색으로 거르고, 헤더 클릭 정렬, **CSV ↓ / Excel ↓**
+(둘 다 순수 클라이언트 생성, 서버 의존성 없음), **★ 관심종목**(브라우저 localStorage)으로
+저장합니다. 종목을 누르면 베이스 구간 음영 + Q10/Q90 + 중앙값 + 회귀 추세선 + 전·후반
+중앙값을 얹은 가격 차트가 열립니다(거래량·이동평균은 오버레이하지 않음).
+
+**설정 (`flat_config.yaml`)** — 모든 임계값을 여기서 조정합니다. 파일이 없으면
+`app/flat/config.py`의 기본값으로 동작하고, 일부만 적어도 그 값만 덮어씁니다.
+사용자 변경 항목: `universe.include_reit`(REIT 포함), `universe.include_adr`, `min_price`,
+`min_market_cap`, `min_avg_dollar_volume_20d`, 기간별 `thresholds.*`, `historical_activity.*`,
+`chronic_low_vol.*`, 점수 배점 `score.*`.
+
+**합리적 기본값(스펙에 명시 안 된 부분)** — 코드에 고정하지 않고 설정으로 노출했습니다.
+
+- **회귀**: scipy Theil-Sen 대신 **순수 numpy OLS**로 로그종가 기울기를 구합니다(의존성 0;
+  이상치는 Outlier Ratio가 별도로 통제). 필요하면 scipy로 교체 가능.
+- **Excel 다운로드**: openpyxl 없이 **브라우저에서 HTML 테이블(.xls)** 로 생성(서버 의존성 0).
+- **REIT 판정**: 무료 데이터 한계상 Finviz industry(`REIT - …`)·종목명 휴리스틱.
+- **유니버스 상한**: `universe.max_candidates`(기본 1500) + 시총 구간 균등표본(대형 편중 방지).
+- **관심종목**: 서버 상태 없이 브라우저 localStorage.
+- **데이터 부족**: 임의 값으로 채우지 않고 스캔 요약에 "데이터부족"으로 별도 집계합니다.
+
+**실행**
+
+```bash
+# 라이브(백엔드가 스캔): 대시보드 실행 후 /flat/ 로 접속
+python3 -m uvicorn app.main:app --port 8000     # → http://127.0.0.1:8000/flat/
+curl http://127.0.0.1:8000/api/flat             # API 직접 호출
+
+# 네트워크 없이 UI/로직 미리보기(합성 데이터)
+SUH_DH_DEMO=1 python3 -m uvicorn app.main:app --port 8000
+
+# 핵심 계산 로직 오프라인 테스트
+python -m pytest tests/test_flat.py -q
+```
+
+정적 사이트(GitHub Pages)에서는 `build.py`가 결과를 `data/flat.json`으로 미리 만들고
+개별 차트를 `data/chart/`(베이스 스크리너와 공유)로 프리빌드합니다. 스캔이 무거워서
+베이스 스크리너와 같은 캐던스로 예약/수동 빌드에서만 전체 스캔하고, 일반 push·잦은
+intraday 빌드(`SUH_DH_SKIP_BASE=1`)에서는 커밋된 스냅샷을 재사용합니다. 후보 수는
+`SUH_DH_FLAT_LIMIT`, 차트 프리빌드 수는 `SUH_DH_FLAT_CHART_LIMIT`, 강제 재스캔은
+`SUH_DH_FORCE_FLAT=1`로 조절합니다.
+
+**주요 출력 컬럼**: `ticker, company_name, security_type, sector, industry, current_price,
+market_cap, avg_dollar_volume_20d, base_start_date, base_end_date, base_days, close_band,
+raw_high_low_range, base_drift, containment_ratio, center_shift, outlier_days, outlier_ratio,
+current_position, flatness_score, flatness_grade, prior_60d_return, prior_120d_return,
+representative_prior_return, prior_120_close_band, prior_252_close_band, max_abs_20d_return,
+max_abs_60d_return, base_distinctness, historical_activity_pass, chronically_low_vol,
+base_category, base_status, is_reit, rs_percentile, exclude_reason`.
+
+**한계점 (반드시 유의)**
+
+- 가격 기반 스크리너는 **투자 추천이 아니며**, 정성적 차트 판독을 대체하지 않습니다.
+- Flatness Score는 **"지금 평평한 정도"만** 재며, 앞으로 돌파할지/살 만한지와 무관합니다.
+- 무료 데이터(Yahoo/Stooq/Finviz)는 지연·누락·오류가 있을 수 있고, REIT/증권유형 판정은
+  무료 데이터 한계상 휴리스틱입니다.
+- 가격은 **조정 종가(auto_adjust)** 를 씁니다. 배당·액면분할이 일관 반영되어 배당 락이
+  베이스 드리프트로 오인되지 않도록 했습니다.
 
 ### 한국 수주잔고 프로그램 (`/backlog/`)
 

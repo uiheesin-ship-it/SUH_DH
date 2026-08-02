@@ -70,7 +70,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "krhighs", "krhighs60", "krbase", "backlog"):
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -80,7 +80,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "krhighs", "krhighs60", "krbase", "backlog"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -218,6 +218,48 @@ def main() -> None:
     elif repo_base.exists():
         print("Reusing committed data/base.json (skipping base scan on push) ...")
         shutil.copyfile(repo_base, SITE / "data" / "base.json")
+
+    # Flat Base Screener (US). Same heavy cadence + gating as the base screen:
+    # full scan on scheduled/manual builds, reuse the committed snapshot on plain
+    # pushes and on the fast intraday cron (SUH_DH_SKIP_BASE=1). Force with
+    # SUH_DH_FORCE_FLAT=1. Charts share data/chart/ (US bars) with the base page.
+    repo_flat = ROOT / "data" / "flat.json"
+    scan_flat = (
+        os.environ.get("SUH_DH_FORCE_FLAT", "") == "1"
+        or (not skip_base and event in ("schedule", "workflow_dispatch"))
+        or not repo_flat.exists()
+    )
+    if scan_flat:
+        print("Building flat screener (full scan) ...")
+        try:
+            from app import flat as flat_screener
+
+            payload = flat_screener.run_scan(progress=True)
+            if publish_scan(payload, SITE / "data" / "flat.json", repo_flat):
+                chart_limit = int(os.environ.get("SUH_DH_FLAT_CHART_LIMIT", "60"))
+                for s in payload.get("stocks", [])[:chart_limit]:
+                    t = s["ticker"]
+                    cp = SITE / "data" / "chart" / f"{t}.json"
+                    if cp.exists():
+                        continue
+                    try:
+                        write_json(cp, charts.get_chart(t, "max"))
+                    except Exception as e:
+                        print(f"  flat chart {t} failed: {e}")
+                    time.sleep(0.3)
+                print(f"  flat screen: {payload.get('count')} flat bases "
+                      f"(universe {payload.get('universe_size')}).")
+        except Exception as e:
+            print(f"  flat screen failed: {e}")
+            if repo_flat.exists():
+                shutil.copyfile(repo_flat, SITE / "data" / "flat.json")
+            else:
+                write_json(SITE / "data" / "flat.json",
+                           {"built": built, "count": 0, "universe_size": 0, "stocks": [],
+                            "demo": False, "error": "flat screen unavailable", "detail": str(e)})
+    elif repo_flat.exists():
+        print("Reusing committed data/flat.json (skipping flat scan on push) ...")
+        shutil.copyfile(repo_flat, SITE / "data" / "flat.json")
 
     # Korean 52-week highs (KOSPI+KOSDAQ). Also heavy (per-ticker OHLCV), so it
     # follows the same cadence as the base screen: full scan on the 6-hourly cron
