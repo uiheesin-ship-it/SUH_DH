@@ -128,7 +128,27 @@ function render() {
     return `<th class="th-${c.align}" data-key="${c.key}">${c.label}${arrow}</th>`;
   }).join("");
 
-  const body = rows.map(rowHtml).join("");
+  // Group rows by sector (업종). Sectors ordered by total backlog desc; rows
+  // inside each keep the current sort order.
+  const groups = new Map();
+  for (const r of rows) {
+    const s = r.sector || "기타";
+    if (!groups.has(s)) groups.set(s, []);
+    groups.get(s).push(r);
+  }
+  const sectorTotal = (list) =>
+    list.reduce((a, r) => a + (r.latest_backlog_krw || 0), 0);
+  const ordered = [...groups.entries()].sort((a, b) => sectorTotal(b[1]) - sectorTotal(a[1]));
+
+  const body = ordered.map(([sec, list]) => {
+    const total = sectorTotal(list);
+    const header = `<tr class="sector-head"><td colspan="7">
+      <span class="sec-name">${esc(sec)}</span>
+      <span class="sec-meta">${list.length}개사 · 합계 ₩${fmtWon(total)}</span>
+    </td></tr>`;
+    return header + list.map(rowHtml).join("");
+  }).join("");
+
   $("#content").innerHTML =
     `<table class="tbl"><thead><tr>${head}<th></th></tr></thead><tbody>${body}</tbody></table>`;
 

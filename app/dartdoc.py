@@ -108,14 +108,23 @@ def _list(params: str, max_pages: int = 20) -> list[dict]:
     rows: list[dict] = []
     for page in range(1, max_pages + 1):
         url = f"{BASE}/list.json?crtfc_key={key()}&{params}&page_no={page}&page_count=100"
-        try:
-            js = json.loads(_get(url))
-        except Exception:
+        js = None
+        for attempt in range(4):               # retry transient rate limits
+            try:
+                js = json.loads(_get(url))
+            except Exception:
+                js = None
+                break
+            if js.get("status") in ("020", "101", "800"):   # rate/temporary limits
+                time.sleep(2 * (attempt + 1))
+                continue
+            break
+        if not js:
             break
         status = js.get("status")
         if status == "013":                    # no matching data
             break
-        if status != "000":                    # 020 rate-limit, 011 usage, …
+        if status != "000":                    # 011 usage, 020 after retries, …
             raise RuntimeError(f"DART status {status}: {js.get('message')}")
         rows.extend(js.get("list", []))
         if js.get("page_no", 1) >= js.get("total_page", 1):
@@ -181,21 +190,32 @@ def viewer_url(rcept_no: str) -> str:
 # --------------------------------------------------------------------------- #
 # document.xml — download the report body
 # --------------------------------------------------------------------------- #
-def fetch_document(rcept_no: str) -> str:
-    """Download a filing's document.xml zip and return its concatenated body."""
-    raw = _get(f"{BASE}/document.xml?crtfc_key={key()}&rcept_no={rcept_no}", timeout=90)
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(raw))
-    except zipfile.BadZipFile:
-        # DART returns a small XML error payload (not a zip) on bad key / limit.
-        return raw.decode("utf-8", "replace")
-    parts: list[str] = []
-    for name in zf.namelist():
+def fetch_document(rcept_no: str, retries: int = 4) -> str:
+    """Download a filing's document.xml zip and return its concatenated body.
+
+    Retries on DART's rate-limit error payload (status 020) so concurrent
+    backfills don't misread a throttled response as "no backlog".
+    """
+    url = f"{BASE}/document.xml?crtfc_key={key()}&rcept_no={rcept_no}"
+    for attempt in range(retries):
+        raw = _get(url, timeout=90)
         try:
-            parts.append(zf.read(name).decode("utf-8", "replace"))
-        except Exception:
-            continue
-    return "\n".join(parts)
+            zf = zipfile.ZipFile(io.BytesIO(raw))
+        except zipfile.BadZipFile:
+            # DART returns a small XML error payload (not a zip) on limit/bad key.
+            body = raw.decode("utf-8", "replace")
+            if any(s in body for s in ("020", "101", "800")) and attempt < retries - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            return body
+        parts: list[str] = []
+        for name in zf.namelist():
+            try:
+                parts.append(zf.read(name).decode("utf-8", "replace"))
+            except Exception:
+                continue
+        return "\n".join(parts)
+    return ""
 
 
 # --------------------------------------------------------------------------- #

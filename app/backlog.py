@@ -63,6 +63,7 @@ def _company_view(rec: dict) -> dict | None:
         "name": rec.get("name") or rec.get("stock_code"),
         "market": rec.get("market") or "",
         "sector": rec.get("sector") or "기타",
+        "industry": rec.get("industry") or "",
         "latest_backlog_krw": latest.get("backlog_krw"),
         "latest_backlog_raw": latest.get("backlog_raw"),
         "latest_unit": latest.get("unit"),
