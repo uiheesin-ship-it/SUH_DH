@@ -8,7 +8,27 @@ const API_BASE = (window.SUH_DH_API_BASE || "").replace(/\/+$/, "");
 function bust(url) { return url + (url.includes("?") ? "&" : "?") + "_=" + Date.now(); }
 
 let ALL = [];            // all company rows
-let SORT = { key: "latest_backlog_krw", dir: -1 };
+
+// Quarter columns shown in the backlog matrix, left (older) -> right (newest).
+// To add a past quarter, prepend it here — the cell reads that period's backlog
+// straight from each company's stored `quarters[]`, so no extra collection is
+// needed once the backfill has run. NOTE: Korea files no Q4 분기보고서; the
+// "4Q" figure comes from the annual 사업보고서 (period YYYY-12).
+const QUARTERS = [
+  { period: "2026-03", label: "2026 1Q" },
+];
+const NEWEST_Q = QUARTERS[QUARTERS.length - 1].period;
+
+// A company's stored record for one business period (e.g. "2026-03"), or null.
+function qrec(r, period) {
+  return (r.quarters || []).find((q) => q.period === period) || null;
+}
+function qbacklog(r, period) {
+  const q = qrec(r, period);
+  return q ? q.backlog_krw : null;
+}
+
+let SORT = { key: "q:" + NEWEST_Q, dir: -1 };   // newest quarter backlog, desc
 
 // ---------- formatting ----------
 function fmtWon(v) {                 // won -> 조 / 억
@@ -78,8 +98,11 @@ function currentRows() {
     return true;
   });
   const { key, dir } = SORT;
+  const val = key.startsWith("q:")
+    ? (r) => qbacklog(r, key.slice(2))
+    : (r) => r[key];
   rows = rows.slice().sort((a, b) => {
-    let x = a[key], y = b[key];
+    let x = val(a), y = val(b);
     if (typeof x === "string" || typeof y === "string") {
       x = x || ""; y = y || "";
       return dir * String(x).localeCompare(String(y), "ko");
@@ -94,14 +117,14 @@ function currentRows() {
 }
 
 // ---------- render ----------
-const COLS = [
-  { key: "name", label: "회사", align: "left" },
-  { key: "sector", label: "섹터", align: "left" },
-  { key: "latest_quarter", label: "최신 분기", align: "left" },
-  { key: "latest_backlog_krw", label: "수주잔고", align: "right" },
-  { key: "qoq_pct", label: "전분기比", align: "right" },
-  { key: "yoy_pct", label: "전년비", align: "right" },
-];
+// 회사 · 섹터 + one column per quarter (backlog), left(old) -> right(newest).
+function columns() {
+  return [
+    { key: "name", label: "회사", align: "left" },
+    { key: "sector", label: "섹터", align: "left" },
+    ...QUARTERS.map((q) => ({ key: "q:" + q.period, label: q.label, align: "right", period: q.period })),
+  ];
+}
 
 function render() {
   const rows = currentRows();
@@ -123,13 +146,15 @@ function render() {
     }
     return;
   }
-  const head = COLS.map((c) => {
+  const cols = columns();
+  const colspan = cols.length + 1;   // + trailing DART link column
+  const head = cols.map((c) => {
     const arrow = SORT.key === c.key ? (SORT.dir < 0 ? " ▾" : " ▴") : "";
     return `<th class="th-${c.align}" data-key="${c.key}">${c.label}${arrow}</th>`;
   }).join("");
 
-  // Group rows by sector (업종). Sectors ordered by total backlog desc; rows
-  // inside each keep the current sort order.
+  // Group rows by sector (업종). Sectors ordered by newest-quarter backlog desc;
+  // rows inside each keep the current sort order.
   const groups = new Map();
   for (const r of rows) {
     const s = r.sector || "기타";
@@ -137,16 +162,16 @@ function render() {
     groups.get(s).push(r);
   }
   const sectorTotal = (list) =>
-    list.reduce((a, r) => a + (r.latest_backlog_krw || 0), 0);
+    list.reduce((a, r) => a + (qbacklog(r, NEWEST_Q) || 0), 0);
   const ordered = [...groups.entries()].sort((a, b) => sectorTotal(b[1]) - sectorTotal(a[1]));
 
   const body = ordered.map(([sec, list]) => {
     const total = sectorTotal(list);
-    const header = `<tr class="sector-head"><td colspan="7">
+    const header = `<tr class="sector-head"><td colspan="${colspan}">
       <span class="sec-name">${esc(sec)}</span>
       <span class="sec-meta">${list.length}개사 · 합계 ₩${fmtWon(total)}</span>
     </td></tr>`;
-    return header + list.map(rowHtml).join("");
+    return header + list.map((r) => rowHtml(r, cols, colspan)).join("");
   }).join("");
 
   $("#content").innerHTML =
@@ -169,32 +194,30 @@ function render() {
   });
 }
 
-function backlogCell(r) {
-  if (r.currency) {                 // FX-denominated: show raw + currency
-    return `${esc(r.latest_backlog_raw || "-")} <span class="cur">${esc(r.currency)}</span>`;
-  }
-  return `₩${fmtWon(r.latest_backlog_krw)}`;
+// One quarter's backlog cell (matched by business period, e.g. "2026-03").
+function quarterCell(r, period) {
+  const q = qrec(r, period);
+  if (!q) return `<td class="num">-</td>`;              // no filing that quarter
+  const val = q.currency
+    ? `${esc(q.backlog_raw || "-")} <span class="cur">${esc(q.currency)}</span>`
+    : `₩${fmtWon(q.backlog_krw)}`;
+  const dt = q.rcept_dt ? `<div class="sub">${esc(q.rcept_dt)}</div>` : "";
+  return `<td class="num strong">${val}${dt}</td>`;
 }
 
-function chgCell(v) {
-  if (v == null) return `<td class="num">-</td>`;
-  const cls = v > 0 ? "chg-up" : v < 0 ? "chg-down" : "";
-  return `<td class="num ${cls}">${fmtPct(v)}</td>`;
-}
-
-function rowHtml(r) {
-  const src = r.source
-    ? `<a class="ext" href="${esc(r.source)}" target="_blank" rel="noopener">DART ↗</a>` : "";
-  return `<tr class="main">
-    <td><b>${esc(r.name)}</b><div class="sub">${esc(r.stock_code)} · ${esc(r.market || "")}</div></td>
-    <td>${esc(r.sector || "-")}</td>
-    <td>${esc(r.latest_quarter || "-")}<div class="sub">${esc(r.latest_rcept_dt || "")}</div></td>
-    <td class="num strong">${backlogCell(r)}</td>
-    ${chgCell(r.qoq_pct)}
-    ${chgCell(r.yoy_pct)}
-    <td class="num">${src}</td>
-  </tr>
-  <tr class="detail hidden"><td colspan="7">${detailHtml(r)}</td></tr>`;
+function rowHtml(r, cols, colspan) {
+  // trailing DART link points at the newest shown quarter's source
+  const newest = qrec(r, NEWEST_Q);
+  const src = newest && newest.source
+    ? `<a class="ext" href="${esc(newest.source)}" target="_blank" rel="noopener">DART ↗</a>` : "";
+  const cells = cols.map((c) => {
+    if (c.key === "name")
+      return `<td><b>${esc(r.name)}</b><div class="sub">${esc(r.stock_code)} · ${esc(r.market || "")}</div></td>`;
+    if (c.key === "sector") return `<td>${esc(r.sector || "-")}</td>`;
+    return quarterCell(r, c.period);            // q:<period> columns
+  }).join("");
+  return `<tr class="main">${cells}<td class="num">${src}</td></tr>
+  <tr class="detail hidden"><td colspan="${colspan}">${detailHtml(r)}</td></tr>`;
 }
 
 function detailHtml(r) {
