@@ -27,7 +27,11 @@ on:
       days:
         description: "incremental window in days"
         required: false
-        default: "2"
+        default: "10"
+      max_docs:
+        description: "incremental: max report docs per run (caps deadline-day spikes; resumes next run)"
+        required: false
+        default: "250"
       limit:
         description: "backfill: cap tickers scanned (0 = all; use e.g. 300 to test)"
         required: false
@@ -62,13 +66,17 @@ jobs:
           # DART_API secret (some repos named it that way).
           DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY || secrets.DART_API }}
           MODE: ${{ github.event.inputs.mode || 'incremental' }}
-          DAYS: ${{ github.event.inputs.days || '2' }}
+          # Wide default window so a report-deadline cluster stays in range while
+          # --max-docs chews through it over several nightly runs (seen-set skips
+          # already-fetched filings, so re-listing is cheap).
+          DAYS: ${{ github.event.inputs.days || '10' }}
+          MAX_DOCS: ${{ github.event.inputs.max_docs || '250' }}
           LIMIT: ${{ github.event.inputs.limit || '0' }}
         run: |
           if [ "$MODE" = "backfill" ]; then
             python tools/kr_dart_backlog.py --backfill --limit "$LIMIT"
           else
-            python tools/kr_dart_backlog.py --days "$DAYS"
+            python tools/kr_dart_backlog.py --days "$DAYS" --max-docs "$MAX_DOCS"
           fi
       - name: Commit updated backlog
         run: |

@@ -133,24 +133,51 @@ def process(f: dict, data: dict, verbose: bool = False) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-def run_incremental(days: int) -> None:
+SEEN_CAP = 8000              # keep only the most recent rcept_no's (bounds file size)
+
+
+def run_incremental(days: int, max_docs: int) -> None:
+    """Process the window's periodic filings, but bounded so a report-deadline
+    day (e.g. mid-Aug 반기보고서) never explodes into an hours-long download.
+
+    We remember every rcept_no already fetched (``_meta.seen``) so nothing is
+    re-downloaded, cap document fetches per run at ``max_docs``, and fetch
+    already-tracked companies first — so on a heavy day the run stays short and
+    simply resumes the leftover the next night(s). A wide window keeps the
+    backlog of unprocessed filings in range until it's fully chewed through.
+    """
     end = date.today()
     bgn = end - timedelta(days=days)
     filings = dartdoc.market_periodic_filings(
         bgn.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
-    print(f"incremental: {len(filings)} periodic filings in last {days}d")
     data = load_out()
-    hits = 0
-    for i, f in enumerate(filings, 1):
-        if not f.get("stock_code"):        # non-listed filer, skip
-            continue
+    seen = set(data["_meta"].get("seen", []))
+    known = data["companies"]
+
+    todo = [f for f in filings if f.get("stock_code") and f["rcept_no"] not in seen]
+    # already-tracked companies first (keep them fresh), then discover new ones.
+    todo.sort(key=lambda f: f["stock_code"] not in known)
+    print(f"incremental: {len(filings)} filings in last {days}d; "
+          f"{len(todo)} new to check (cap {max_docs}/run)")
+
+    hits = processed = 0
+    for f in todo:
+        if processed >= max_docs:
+            print(f"  reached max-docs cap ({max_docs}); "
+                  f"{len(todo) - processed} filings will continue next run")
+            break
         if process(f, data, verbose=True):
             hits += 1
-        if i % 20 == 0:
-            print(f"  ... {i}/{len(filings)}")
+        seen.add(f["rcept_no"])            # mark processed (backlog or not)
+        processed += 1
+        if processed % 20 == 0:
+            print(f"  ... {processed}/{min(len(todo), max_docs)}")
         time.sleep(0.15)
+
+    # persist the seen set, most-recent-first (rcept_no is time-ordered).
+    data["_meta"]["seen"] = sorted(seen)[-SEEN_CAP:]
     save_out(data)
-    print(f"done: {hits} filings with backlog merged; "
+    print(f"done: {processed} filings checked, {hits} had backlog; "
           f"{len(data['companies'])} companies tracked.")
 
 
@@ -164,6 +191,7 @@ def run_backfill(candidates: list[str] | None, limit: int | None) -> None:
     print(f"backfill: scanning {len(codes)} tickers "
           f"({bgn} → {end}); keeping only backlog-disclosing firms")
     data = load_out()
+    seen = set(data["_meta"].get("seen", []))
     scanned = firms = 0
     for i, code in enumerate(codes, 1):
         cc = corp.get(code)
@@ -180,8 +208,11 @@ def run_backfill(candidates: list[str] | None, limit: int | None) -> None:
         for f in filings:
             f.setdefault("stock_code", code)
             f.setdefault("corp_code", cc)
+            if f["rcept_no"] in seen:
+                continue
             if process(f, data, verbose=False):
                 got = True
+            seen.add(f["rcept_no"])
             time.sleep(0.12)
         if got:
             firms += 1
@@ -189,7 +220,9 @@ def run_backfill(candidates: list[str] | None, limit: int | None) -> None:
                   f"{len(data['companies'][code]['quarters'])} quarters")
         if i % 50 == 0:
             print(f"  ... scanned {i}/{len(codes)} ({firms} with backlog)")
+            data["_meta"]["seen"] = sorted(seen)[-SEEN_CAP:]
             save_out(data)                 # checkpoint (resumable)
+    data["_meta"]["seen"] = sorted(seen)[-SEEN_CAP:]
     save_out(data)
     print(f"backfill done: {firms} backlog-disclosing firms / {scanned} scanned.")
 
@@ -200,6 +233,9 @@ def main() -> None:
                     help="one-time full sweep to discover backlog-disclosing firms")
     ap.add_argument("--days", type=int, default=2,
                     help="incremental window in days (default 2)")
+    ap.add_argument("--max-docs", type=int, default=250, dest="max_docs",
+                    help="incremental: max report documents to fetch per run "
+                         "(default 250; caps report-deadline spikes, resumes next run)")
     ap.add_argument("--candidates", type=str, default="",
                     help="backfill only these 6-digit codes (comma-separated or @file)")
     ap.add_argument("--limit", type=int, default=0,
@@ -219,7 +255,7 @@ def main() -> None:
                 cands = [c.strip() for c in args.candidates.split(",") if c.strip()]
         run_backfill(cands, args.limit or None)
     else:
-        run_incremental(args.days)
+        run_incremental(args.days, args.max_docs)
 
 
 if __name__ == "__main__":
