@@ -55,28 +55,47 @@ def _col(df, *names):
     return None
 
 
-def load_sector_map() -> dict[str, tuple]:
-    """6-digit code -> (sector, industry) from FinanceDataReader's KRX listing.
+KRX_CORP_LIST = ("https://kind.krx.co.kr/corpgeneral/corpList.do"
+                 "?method=download&searchType=13")
 
-    Uses the *descriptive* listing ("KRX-DESC"): only that variant carries the
-    업종(Sector)/주요제품(Industry) columns. Plain "KRX" is a price snapshot with
-    no sector, so it silently mapped every company to 기타. Returns {} on any
-    failure so it never blocks the DART run.
+
+def load_sector_map() -> dict[str, tuple]:
+    """6-digit code -> (sector, industry) from the KRX 상장회사목록.
+
+    Scrapes KRX's corpList.do directly: its 업종 column is the real industry
+    classification (e.g. "종합 건설업", "의약품 제조업"), and 주요제품 the main
+    products. We do NOT use FinanceDataReader's StockListing here:
+
+      * "KRX"      is a price snapshot with no 업종 column at all → all 기타.
+      * "KRX-DESC" routes to a cached CSV whose "Sector" column is the KOSDAQ
+        소속부 (우량기업부/관리종목), NaN for KOSPI — not an industry.
+
+    One request, EUC-KR HTML table. Returns {} on any failure so a KRX outage
+    never blocks the DART run (companies then group as 기타).
     """
     try:
-        import FinanceDataReader as fdr
-        krx = fdr.StockListing("KRX-DESC")
+        import io
+        import urllib.request
+        import pandas as pd
+        req = urllib.request.Request(KRX_CORP_LIST, headers={"User-Agent": "Mozilla/5.0"})
+        html = urllib.request.urlopen(req, timeout=60).read().decode("euc-kr", "replace")
+        df = pd.read_html(io.StringIO(html), header=0)[0]
     except Exception as e:
         print(f"sector map unavailable ({e}); companies will be grouped as 기타")
         return {}
-    c_code = _col(krx, "Code", "Symbol")
-    c_sec = _col(krx, "Sector")
-    c_ind = _col(krx, "Industry")
+    c_code = _col(df, "종목코드", "Code")
+    c_sec = _col(df, "업종", "Sector")
+    c_ind = _col(df, "주요제품", "Industry")
     out: dict[str, tuple] = {}
     if c_code:
-        for _, r in krx.iterrows():
-            out[str(r[c_code]).zfill(6)] = (
-                (r[c_sec] if c_sec else None), (r[c_ind] if c_ind else None))
+        for _, r in df.iterrows():
+            code = str(r[c_code]).split(".")[0].zfill(6)   # 종목코드 may parse as int
+            sec = r[c_sec] if c_sec else None
+            ind = r[c_ind] if c_ind else None
+            out[code] = (
+                None if sec is None or pd.isna(sec) else str(sec),
+                None if ind is None or pd.isna(ind) else str(ind),
+            )
     print(f"sector map: {len(out)} codes ({sum(1 for v in out.values() if v[0])} with sector)")
     return out
 
