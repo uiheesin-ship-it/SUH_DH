@@ -275,12 +275,18 @@ def _fetch_one(code: str, cc: str, f: dict):
     return code, cc, f, bl
 
 
-def run_backfill(candidates: list[str] | None, limit: int | None) -> None:
+def run_backfill(candidates: list[str] | None, limit: int | None,
+                 offset: int = 0) -> None:
     corp = dartdoc.load_corp_map()
     sectors = load_sector_map()
     codes = [c for c in (candidates if candidates else sorted(corp)) if corp.get(c)]
+    total = len(codes)
+    if offset:
+        codes = codes[offset:]
     if limit:
         codes = codes[:limit]
+    print(f"backfill scope: {len(codes)} tickers "
+          f"(offset {offset}, limit {limit or 'none'}, market total {total})")
     end = date.today().strftime("%Y%m%d")
     bgn = (date.today() - timedelta(days=BACKFILL_DAYS)).strftime("%Y%m%d")
     data = load_out()
@@ -356,6 +362,8 @@ def main() -> None:
                     help="backfill only these 6-digit codes (comma-separated or @file)")
     ap.add_argument("--limit", type=int, default=0,
                     help="cap number of tickers scanned in backfill (0 = all)")
+    ap.add_argument("--offset", type=int, default=0,
+                    help="skip the first N tickers in backfill (chunked seeding)")
     args = ap.parse_args()
 
     if not dartdoc.key():
@@ -369,7 +377,7 @@ def main() -> None:
                 cands = [c.strip() for c in text.replace(",", "\n").split() if c.strip()]
             else:
                 cands = [c.strip() for c in args.candidates.split(",") if c.strip()]
-        run_backfill(cands, args.limit or None)
+        run_backfill(cands, args.limit or None, args.offset)
     else:
         run_incremental(args.days, args.max_docs)
 

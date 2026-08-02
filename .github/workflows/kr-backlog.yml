@@ -36,6 +36,10 @@ on:
         description: "backfill: cap tickers scanned (0 = all; use e.g. 300 to test)"
         required: false
         default: "0"
+      offset:
+        description: "backfill: skip the first N tickers (for chunked full-market seeding)"
+        required: false
+        default: "0"
       dart_key:
         description: "OpenDART key for a one-off run (leave blank to use the DART_API_KEY secret; the daily cron needs the secret)"
         required: false
@@ -77,9 +81,10 @@ jobs:
           DAYS: ${{ github.event.inputs.days || '10' }}
           MAX_DOCS: ${{ github.event.inputs.max_docs || '250' }}
           LIMIT: ${{ github.event.inputs.limit || '0' }}
+          OFFSET: ${{ github.event.inputs.offset || '0' }}
         run: |
           if [ "$MODE" = "backfill" ]; then
-            python tools/kr_dart_backlog.py --backfill --limit "$LIMIT"
+            python tools/kr_dart_backlog.py --backfill --limit "$LIMIT" --offset "$OFFSET"
           else
             python tools/kr_dart_backlog.py --days "$DAYS" --max-docs "$MAX_DOCS"
           fi
