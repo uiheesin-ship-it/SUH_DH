@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-08-02T12:59:37+00:00",
+    "updated": "2026-08-02T13:26:38+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250514000994",
@@ -409,7 +409,7 @@
       "corp_code": "00145109",
       "name": "유한양행",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -481,14 +481,15 @@
           "method": "total-row",
           "header": "수주잔고 금액"
         }
-      ]
+      ],
+      "industry": "의약품 제조업"
     },
     "000150": {
       "stock_code": "000150",
       "corp_code": "00117212",
       "name": "두산",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -574,14 +575,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "전자부품 제조업"
     },
     "000210": {
       "stock_code": "000210",
       "corp_code": "00109693",
       "name": "DL",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -653,14 +655,15 @@
           "method": "total-row",
           "header": "계약잔액"
         }
-      ]
+      ],
+      "industry": "기초 화학물질 제조업"
     },
     "000320": {
       "stock_code": "000320",
       "corp_code": "00113508",
       "name": "노루홀딩스",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -746,14 +749,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기타 금융업"
     },
     "000500": {
       "stock_code": "000500",
       "corp_code": "00104768",
       "name": "가온전선",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -825,14 +829,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "절연선 및 케이블 제조업"
     },
     "000670": {
       "stock_code": "000670",
       "corp_code": "00141307",
       "name": "영풍",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -904,14 +909,15 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "1차 비철금속 제조업"
     },
     "000680": {
       "stock_code": "000680",
       "corp_code": "00104698",
       "name": "LS네트웍스",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -983,14 +989,15 @@
           "method": "row-sum",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "상품 종합 도매업"
     },
     "000720": {
       "stock_code": "000720",
       "corp_code": "00164478",
       "name": "현대건설",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1076,7 +1083,8 @@
           "method": "row-sum",
           "header": "계약잔액"
         }
-      ]
+      ],
+      "industry": "토목 건설업"
     },
     "000800": {
       "stock_code": "000800",
@@ -1162,7 +1170,7 @@
       "corp_code": "00166519",
       "name": "화천기공",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1234,14 +1242,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "특수 목적용 기계 제조업"
     },
     "000970": {
       "stock_code": "000970",
       "corp_code": "00159573",
       "name": "한국주철관공업",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1313,14 +1322,15 @@
           "method": "row-sum",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "1차 철강 제조업"
     },
     "000880": {
       "stock_code": "000880",
       "corp_code": "00160588",
       "name": "한화",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1392,14 +1402,15 @@
           "method": "row-sum",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기타 화학제품 제조업"
     },
     "001230": {
       "stock_code": "001230",
       "corp_code": "00114792",
       "name": "동국홀딩스",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1471,14 +1482,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기타 금융업"
     },
     "001260": {
       "stock_code": "001260",
       "corp_code": "00107066",
       "name": "남광토건",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1564,14 +1576,15 @@
           "method": "total-row",
           "header": "공사계약잔액"
         }
-      ]
+      ],
+      "industry": "토목 건설업"
     },
     "001390": {
       "stock_code": "001390",
       "corp_code": "00101220",
       "name": "KG케미칼",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1657,14 +1670,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기초 화학물질 제조업"
     },
     "001430": {
       "stock_code": "001430",
       "corp_code": "00106669",
       "name": "세아베스틸지주",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1736,14 +1750,15 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "1차 철강 제조업"
     },
     "001470": {
       "stock_code": "001470",
       "corp_code": "00125974",
       "name": "삼부토건",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1815,14 +1830,15 @@
           "method": "single-row",
           "header": "기초공사계약잔액"
         }
-      ]
+      ],
+      "industry": "토목 건설업"
     },
     "001520": {
       "stock_code": "001520",
       "corp_code": "00117337",
       "name": "동양",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1908,14 +1924,15 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "시멘트, 석회, 플라스터 및 그 제품 제조업"
     },
     "001550": {
       "stock_code": "001550",
       "corp_code": "00148948",
       "name": "조비",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -1973,14 +1990,15 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "비료, 농약 및 살균, 살충제 제조업"
     },
     "001780": {
       "stock_code": "001780",
       "corp_code": "00117027",
       "name": "알루코",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2052,14 +2070,15 @@
           "method": "total-row",
           "header": "기초공사 계약잔액"
         }
-      ]
+      ],
+      "industry": "1차 비철금속 제조업"
     },
     "001820": {
       "stock_code": "001820",
       "corp_code": "00129350",
       "name": "삼화콘덴서공업",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2131,14 +2150,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "전자부품 제조업"
     },
     "001840": {
       "stock_code": "001840",
       "corp_code": "00145668",
       "name": "이화공영",
       "market": "KOSDAQ",
-      "sector": "",
+      "sector": "관리종목(소속부없음)",
       "quarters": [
         {
           "period": "2026-03",
@@ -2224,7 +2244,8 @@
           "method": "total-row",
           "header": "최근결산기말 공사계약잔액"
         }
-      ]
+      ],
+      "industry": "건물 건설업"
     },
     "001890": {
       "stock_code": "001890",
@@ -2389,7 +2410,7 @@
       "corp_code": "00101433",
       "name": "경농",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2447,14 +2468,15 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "비료, 농약 및 살균, 살충제 제조업"
     },
     "002020": {
       "stock_code": "002020",
       "corp_code": "00152862",
       "name": "코오롱",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2526,14 +2548,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기타 금융업"
     },
     "002150": {
       "stock_code": "002150",
       "corp_code": "00114552",
       "name": "도화엔지니어링",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2619,14 +2642,15 @@
           "method": "total-row",
           "header": "기초계약잔액"
         }
-      ]
+      ],
+      "industry": "건축기술, 엔지니어링 및 관련 기술 서비스업"
     },
     "002290": {
       "stock_code": "002290",
       "corp_code": "00127936",
       "name": "삼일기업공사",
       "market": "KOSDAQ",
-      "sector": "",
+      "sector": "우량기업부",
       "quarters": [
         {
           "period": "2026-03",
@@ -2698,14 +2722,15 @@
           "method": "total-row",
           "header": "최근결산기말 공사계약잔액"
         }
-      ]
+      ],
+      "industry": "건물 건설업"
     },
     "002350": {
       "stock_code": "002350",
       "corp_code": "00173874",
       "name": "넥센타이어",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2777,14 +2802,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "고무제품 제조업"
     },
     "002380": {
       "stock_code": "002380",
       "corp_code": "00105271",
       "name": "케이씨씨",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2856,14 +2882,15 @@
           "method": "single-row",
           "header": "수주총액, 기납품액 및 수주잔고는 VAT 별도입니다."
         }
-      ]
+      ],
+      "industry": "기타 화학제품 제조업"
     },
     "002410": {
       "stock_code": "002410",
       "corp_code": "00122694",
       "name": "범양건영",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -2963,14 +2990,15 @@
           "method": "total-row",
           "header": "계약잔액"
         }
-      ]
+      ],
+      "industry": "건물 건설업"
     },
     "002460": {
       "stock_code": "002460",
       "corp_code": "00174527",
       "name": "HS화성",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3042,14 +3070,15 @@
           "method": "total-row",
           "header": "최근기말 공사계약잔액"
         }
-      ]
+      ],
+      "industry": "건물 건설업"
     },
     "002780": {
       "stock_code": "002780",
       "corp_code": "00150828",
       "name": "진흥기업",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3121,14 +3150,15 @@
           "method": "total-row",
           "header": "계약잔액"
         }
-      ]
+      ],
+      "industry": "토목 건설업"
     },
     "002820": {
       "stock_code": "002820",
       "corp_code": "00132211",
       "name": "SUN&L",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3200,14 +3230,15 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "플라스틱제품 제조업"
     },
     "002990": {
       "stock_code": "002990",
       "corp_code": "00106313",
       "name": "금호건설",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3293,14 +3324,15 @@
           "method": "total-row",
           "header": "기말공사 계약잔액"
         }
-      ]
+      ],
+      "industry": "건물 건설업"
     },
     "003030": {
       "stock_code": "003030",
       "corp_code": "00124197",
       "name": "세아제강지주",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3372,14 +3404,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기타 금융업"
     },
     "003070": {
       "stock_code": "003070",
       "corp_code": "00152880",
       "name": "코오롱글로벌",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3465,14 +3498,15 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "토목 건설업"
     },
     "003300": {
       "stock_code": "003300",
       "corp_code": "00162993",
       "name": "한일홀딩스",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3544,14 +3578,15 @@
           "method": "row-sum",
           "header": "계약잔액"
         }
-      ]
+      ],
+      "industry": "시멘트, 석회, 플라스터 및 그 제품 제조업"
     },
     "003490": {
       "stock_code": "003490",
       "corp_code": "00113526",
       "name": "대한항공",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3623,14 +3658,15 @@
           "method": "row-sum",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "항공 여객 운송업"
     },
     "003720": {
       "stock_code": "003720",
       "corp_code": "00127255",
       "name": "삼영",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3674,14 +3710,15 @@
           "method": "row-sum",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "플라스틱제품 제조업"
     },
     "004150": {
       "stock_code": "004150",
       "corp_code": "00171636",
       "name": "한솔홀딩스",
       "market": "KOSPI",
-      "sector": "",
+      "sector": "nan",
       "quarters": [
         {
           "period": "2026-03",
@@ -3767,7 +3804,8 @@
           "method": "total-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "기타 금융업"
     }
   }
 }
