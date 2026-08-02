@@ -324,7 +324,8 @@ raw_high_low_range, base_drift, containment_ratio, center_shift, outlier_days, o
 current_position, flatness_score, flatness_grade, prior_60d_return, prior_120d_return,
 representative_prior_return, prior_120_close_band, prior_252_close_band, max_abs_20d_return,
 max_abs_60d_return, base_distinctness, historical_activity_pass, chronically_low_vol,
-base_category, base_status, is_reit, rs_percentile, exclude_reason`.
+base_category, base_status, is_reit, rs_percentile, beta, exclude_reason`.
+(`rs_percentile`·`beta`·섹터는 **표시 전용**이며 Flatness Score에는 포함하지 않습니다.)
 
 **한계점 (반드시 유의)**
 

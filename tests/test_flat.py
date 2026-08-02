@@ -8,7 +8,7 @@ import math
 
 import numpy as np
 
-from app.flat import activity, bases, metrics, scoring, trend_tag
+from app.flat import activity, bases, metrics, scoring, screen, trend_tag
 from app.flat.config import load, thresholds_for
 
 
@@ -167,6 +167,18 @@ def test_prior_trend_categories():
     flat = [100.0 + 0.5 * math.sin(i) for i in range(260)]
     t3 = trend_tag.prior_trend(flat, len(flat) - 60, CFG)
     assert t3["base_category"] == "Neutral Flat Base"
+
+
+def test_scan_record_has_display_only_beta():
+    # beta is a display-only column (like sector/RS%): present on records, and
+    # must never be one of the Flatness Score inputs.
+    import os
+    os.environ["SUH_DH_DEMO"] = "1"
+    res = screen.run_scan(limit=3)
+    assert res["stocks"], "demo scan should return records"
+    for s in res["stocks"]:
+        assert "beta" in s
+        assert "rs_percentile" in s
 
 
 def test_acceptance_neutral_stricter():

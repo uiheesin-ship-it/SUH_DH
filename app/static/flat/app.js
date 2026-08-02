@@ -154,6 +154,7 @@ const COLS = [
   ["current_price", "가격", true],
   ["market_cap", "시총", true],
   ["rs_percentile", "RS%", true],
+  ["beta", "β", true],
   ["sector", "섹터", false],
 ];
 
@@ -194,6 +195,7 @@ function render() {
       <td class="num">${fmtPrice(s.current_price)}</td>
       <td class="num">${fmtCap(s.market_cap)}</td>
       <td class="num">${fmtNum(s.rs_percentile, 0)}</td>
+      <td class="num${s.beta != null && s.beta < 0.8 ? " lowbeta" : ""}">${fmtNum(s.beta, 2)}</td>
       <td class="etf">${esc(s.sector || "-")}</td>
     </tr>`;
   }).join("");
@@ -242,6 +244,7 @@ const GLOSSARY = {
   "만성 저변동성": "이전252일밴드<20% + 최대20일수익<12% + 최대60일수익<12% + Distinctness<1.3 을 모두 만족하는 원래 안 움직이는 종목. 기본 제외.",
   "미달": "카테고리별 추가기준(§8) 미충족. Continuation은 20일·70점, Neutral/Turnaround는 40일·80점·밀집85%·드리프트5%·중심5%·활동성통과 필요.",
   "RS%": "스캔 유니버스 내 12개월 수익률 백분위(참고용, 점수 무관).",
+  "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타(참고용, 평탄도 점수엔 미포함). <1이면 시장보다 덜 움직이는 저변동, >1이면 더 크게 움직임. 0.8 미만은 강조 표시.",
 };
 function term(label) {
   const tip = GLOSSARY[label];
@@ -307,6 +310,7 @@ function detailPanel(s) {
         ${row("가격 / 시총", `${fmtPrice(s.current_price)} / ${fmtCap(s.market_cap)}`)}
         ${row("평균 거래대금(20d)", s.avg_dollar_volume_20d == null ? "-" : "$" + fmtCap(s.avg_dollar_volume_20d))}
         ${row("RS%", fmtNum(s.rs_percentile, 0))}
+        ${row("β", fmtNum(s.beta, 2))}
         ${row("상위 후보기간", (s.candidate_periods || []).map((c) =>
             `${c.base_days}d:${fmtNum(c.flatness_score, 0)}${c.accepted ? "" : "*"}`).join(" · ") || "-")}
       </div>
@@ -557,7 +561,7 @@ const EXPORT_COLS = [
   "prior_120_close_band", "prior_252_close_band",
   "max_abs_20d_return", "max_abs_60d_return", "base_distinctness",
   "historical_activity_pass", "chronically_low_vol",
-  "base_category", "base_status", "is_reit", "rs_percentile", "exclude_reason",
+  "base_category", "base_status", "is_reit", "rs_percentile", "beta", "exclude_reason",
 ];
 
 function exportCsv() {

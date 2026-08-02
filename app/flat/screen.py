@@ -56,7 +56,7 @@ def _evaluate_candidate_base(base: dict, closes: list, cfg: dict) -> dict:
     return {"trend": trend, "hist": hist, "accepted": accepted, "reasons": reasons}
 
 
-def _build_record(cand: dict, bars: dict, cfg: dict) -> dict | None:
+def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) -> dict | None:
     close = bars.get("close") or []
     high = bars.get("high") or []
     low = bars.get("low") or []
@@ -114,6 +114,9 @@ def _build_record(cand: dict, bars: dict, cfg: dict) -> dict | None:
     } for b, m in enriched[:top_n]]
 
     ret_12m = bmetrics.pct_return(close, bmetrics.TRADING_DAYS_12M)
+    # Beta vs SPY — DISPLAY ONLY, never enters the Flatness Score (same policy as
+    # sector / RS%). A flat base can be low- or high-beta; we just surface it.
+    beta_val = bmetrics.beta(close, spy["close"]) if spy and spy.get("close") else None
 
     rec = {
         "ticker": cand["ticker"],
@@ -169,6 +172,7 @@ def _build_record(cand: dict, bars: dict, cfg: dict) -> dict | None:
         "exclude_reason": ", ".join(reasons) if reasons else None,
         # --- display-only extras (NOT in flatness score) ---
         "ret_12m": ret_12m,
+        "beta": beta_val,        # vs SPY (252d) — display only
         "rs_percentile": None,   # filled after the loop
         "candidate_periods": candidates_view,
         # chart series key
@@ -201,6 +205,14 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     if limit:
         candidates = candidates[:limit]
 
+    # SPY once, for the display-only beta column (not in the Flatness Score).
+    try:
+        spy = basedata.fetch_bars("SPY")
+        if not spy.get("close"):
+            spy = None
+    except Exception:
+        spy = None
+
     records: list[dict] = []
     failures = 0
     insufficient = 0
@@ -208,7 +220,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     for i, cand in enumerate(candidates):
         try:
             bars = basedata.fetch_bars(cand["ticker"])
-            rec = _build_record(cand, bars, cfg)
+            rec = _build_record(cand, bars, cfg, spy)
             if rec is None:
                 pass
             elif rec.get("_insufficient"):
