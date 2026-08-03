@@ -1,0 +1,50 @@
+{
+  "ticker": "CAT",
+  "company": "Caterpillar Inc.",
+  "sector": "Industrials",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "calendar_year": 2026,
+  "calendar_quarter": 2,
+  "call_date": "2026-04-30",
+  "published_at": "2026-04-30",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Order growth moderated but backlog remains elevated. Demand for power generation equipment tied to data center investment accelerated."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Backlog was stable. Book-to-bill was near one. Pricing power held versus cost. Dealer inventory ticked up slightly."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "Is demand weakening or is this normal seasonality?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Demand is healthy overall; the moderation is seasonal. Data center-driven power demand is a new growth driver."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "ticker": "JPM",
+  "kpis": [
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric_id": "revenue",
+      "metric_name": "Total revenue",
+      "value": null,
+      "unit": "B_USD",
+      "actual_or_guidance": "actual",
+      "yoy_growth": 0.05,
+      "verification_status": "verified",
+      "source_page": "PR-1"
+    },
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric_id": "gross_margin",
+      "metric_name": "Gross margin",
+      "value": 0.0,
+      "unit": "pct",
+      "actual_or_guidance": "actual",
+      "yoy_growth": null,
+      "verification_status": "verified",
+      "source_page": "PR-2"
+    },
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric_id": "op_metric",
+      "metric_name": "Operating KPI",
+      "value": 1.0,
+      "unit": "x",
+      "actual_or_guidance": "actual",
+      "yoy_growth": 0.04000000000000001,
+      "verification_status": "verified",
+      "source_page": "PR-3"
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric_id": "revenue",
+      "metric_name": "Total revenue",
+      "value": null,
+      "unit": "B_USD",
+      "actual_or_guidance": "actual",
+      "yoy_growth": -0.02,
+      "verification_status": "verified",
+      "source_page": "PR-1"
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric_id": "gross_margin",
+      "metric_name": "Gross margin",
+      "value": 0.0,
+      "unit": "pct",
+      "actual_or_guidance": "actual",
+      "yoy_growth": null,
+      "verification_status": "verified",
+      "source_page": "PR-2"
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric_id": "op_metric",
+      "metric_name": "Operating KPI",
+      "value": 1.0,
+      "unit": "x",
+      "actual_or_guidance": "actual",
+      "yoy_growth": -0.016,
+      "verification_status": "verified",
+      "source_page": "PR-3"
+    }
+  ],
+  "guidance": []
+}

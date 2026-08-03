@@ -25,9 +25,28 @@ _cors = os.environ.get("SUH_DH_CORS_ORIGINS", "*").strip()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if _cors == "*" else [o.strip() for o in _cors.split(",") if o.strip()],
-    allow_methods=["GET"],
+    # eai adds POST endpoints (seed/upload/run-batch) for the Next.js frontend.
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Earnings-AI subsystem (conference-call analysis → investment themes). Mounted
+# under /api/eai/* as a separate bounded context; kept optional so a missing
+# async/DB dependency never blocks the legacy price dashboards.
+try:
+    from .eai.router import init_eai
+    from .eai.router import router as eai_router
+
+    app.include_router(eai_router)
+
+    @app.on_event("startup")
+    async def _eai_startup():  # create tables (MVP) + recover interrupted jobs
+        if os.environ.get("EAI_AUTO_INIT", "1") == "1":
+            await init_eai()
+except Exception as _eai_err:  # pragma: no cover - surfaces as a log line only
+    import logging
+
+    logging.getLogger(__name__).warning("eai subsystem not mounted: %s", _eai_err)
 
 
 @app.get("/api/health")

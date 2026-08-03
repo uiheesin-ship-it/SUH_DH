@@ -70,7 +70,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog"):
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -80,9 +80,22 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
+
+    # Earnings-AI (컨콜 투자 테마): publish the committed snapshot (data/eai/*.json,
+    # produced by the eai.yml workflow which runs the LLM pipeline). The main
+    # Pages build stays dependency-light — it just copies the latest snapshot,
+    # exactly like base.json reuse. Missing snapshot = the page shows a friendly
+    # "not generated yet" state.
+    repo_eai = ROOT / "data" / "eai"
+    if repo_eai.exists():
+        dst = SITE / "data" / "eai"
+        shutil.copytree(repo_eai, dst, dirs_exist_ok=True)
+        print(f"  eai snapshot published ({sum(1 for _ in repo_eai.rglob('*.json'))} json files).")
+    else:
+        print("  no data/eai snapshot yet (run the eai.yml workflow to generate).")
 
     # Tickers that have curated guidance data — for the earnings side panel.
     # Grouped by the watchlist's sector order (names omitted in the UI).

@@ -1,0 +1,50 @@
+{
+  "ticker": "WMT",
+  "company": "Walmart Inc.",
+  "sector": "Consumer Defensive",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 1,
+  "calendar_year": 2026,
+  "calendar_quarter": 1,
+  "call_date": "2026-02-20",
+  "published_at": "2026-02-20",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Traffic was strong and we saw continued trade-down from higher-income shoppers. Consumer demand held up."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Comparable sales grew 4%. We managed inventory well with some destocking. Pricing was competitive with promotional activity in discretionary categories."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "Are you seeing consumer weakness or more trade-down?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "We see trade-down and value-seeking behavior, a sign of consumer caution. Inventory is healthy after destocking."
+        }
+      ]
+    }
+  ]
+}

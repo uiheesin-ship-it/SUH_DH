@@ -1,0 +1,95 @@
+{
+  "ticker": "NVDA",
+  "kpis": [
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric_id": "revenue",
+      "metric_name": "Total revenue",
+      "value": null,
+      "unit": "B_USD",
+      "actual_or_guidance": "actual",
+      "yoy_growth": 0.78,
+      "verification_status": "verified",
+      "source_page": "PR-1"
+    },
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric_id": "gross_margin",
+      "metric_name": "Gross margin",
+      "value": 0.75,
+      "unit": "pct",
+      "actual_or_guidance": "actual",
+      "yoy_growth": null,
+      "verification_status": "verified",
+      "source_page": "PR-2"
+    },
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric_id": "op_metric",
+      "metric_name": "Operating KPI",
+      "value": 1.0,
+      "unit": "x",
+      "actual_or_guidance": "actual",
+      "yoy_growth": 0.6240000000000001,
+      "verification_status": "verified",
+      "source_page": "PR-3"
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric_id": "revenue",
+      "metric_name": "Total revenue",
+      "value": null,
+      "unit": "B_USD",
+      "actual_or_guidance": "actual",
+      "yoy_growth": 1.22,
+      "verification_status": "verified",
+      "source_page": "PR-1"
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric_id": "gross_margin",
+      "metric_name": "Gross margin",
+      "value": 0.76,
+      "unit": "pct",
+      "actual_or_guidance": "actual",
+      "yoy_growth": null,
+      "verification_status": "verified",
+      "source_page": "PR-2"
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric_id": "op_metric",
+      "metric_name": "Operating KPI",
+      "value": 1.0,
+      "unit": "x",
+      "actual_or_guidance": "actual",
+      "yoy_growth": 0.976,
+      "verification_status": "verified",
+      "source_page": "PR-3"
+    }
+  ],
+  "guidance": [
+    {
+      "fiscal_period": "FY2026Q1",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 28.0,
+      "consensus": 26.5,
+      "verification_status": "verified",
+      "sources": [
+        "synthetic://fixture"
+      ]
+    },
+    {
+      "fiscal_period": "FY2026Q2",
+      "metric": "revenue",
+      "unit": "B_USD",
+      "guidance_mid": 33.0,
+      "consensus": 30.0,
+      "verification_status": "verified",
+      "sources": [
+        "synthetic://fixture"
+      ]
+    }
+  ]
+}

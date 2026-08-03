@@ -1,0 +1,50 @@
+{
+  "ticker": "NVDA",
+  "company": "NVIDIA Corporation",
+  "sector": "Technology",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "calendar_year": 2026,
+  "calendar_quarter": 2,
+  "call_date": "2026-05-28",
+  "published_at": "2026-05-28",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Data center demand accelerated further and AI adoption is broadening across enterprises. We are still supply constrained but adding capacity."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Revenue was $30.0 billion, up 122% year over year, another record. We expect data center investment to remain robust and raised our guidance."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "How is HBM supply and pricing trending?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "HBM supply is improving into next quarter and pricing power remains strong. Gross margin expanded to 76%."
+        }
+      ]
+    }
+  ]
+}

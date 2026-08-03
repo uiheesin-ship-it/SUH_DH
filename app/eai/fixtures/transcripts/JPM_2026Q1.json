@@ -1,0 +1,50 @@
+{
+  "ticker": "JPM",
+  "company": "JPMorgan Chase & Co.",
+  "sector": "Financial",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 1,
+  "calendar_year": 2026,
+  "calendar_quarter": 1,
+  "call_date": "2026-01-14",
+  "published_at": "2026-01-14",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "The consumer remains healthy overall though we see early signs of credit normalization. Loan growth was modest."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Net interest income was strong. Charge-offs ticked up and we increased credit provision. Consumer spending was resilient. NIM was stable."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "Are you seeing consumer weakness or rising delinquency?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Delinquency rose modestly and we are watching credit deterioration in lower-income segments. Overall the consumer is still healthy."
+        }
+      ]
+    }
+  ]
+}

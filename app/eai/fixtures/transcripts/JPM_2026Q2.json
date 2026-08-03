@@ -1,0 +1,50 @@
+{
+  "ticker": "JPM",
+  "company": "JPMorgan Chase & Co.",
+  "sector": "Financial",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "calendar_year": 2026,
+  "calendar_quarter": 2,
+  "call_date": "2026-04-11",
+  "published_at": "2026-04-11",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Consumer health softened slightly and credit normalization continued. We remain well reserved."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Charge-offs increased again and credit provision rose. Delinquency trends worsened modestly. Loan growth was subdued and NIM compressed."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "How concerned are you about credit deterioration and delinquency?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Credit deterioration is gradual, not alarming. Delinquency is rising in cards. We increased provisions as a precaution."
+        }
+      ]
+    }
+  ]
+}

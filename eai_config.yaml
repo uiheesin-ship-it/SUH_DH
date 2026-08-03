@@ -1,0 +1,117 @@
+# =====================================================================
+# Earnings-AI (app/eai) 설정 — Provider·유니버스·Topic Ontology·Score 가중치를
+# 여기서 교체합니다. app/eai/config.py 가 이 파일을 읽고, 없으면 코드 기본값을
+# 씁니다. 비밀값(API Key/DB URL)은 여기 두지 말고 환경변수를 사용하세요.
+# =====================================================================
+
+# --- Provider 선택 (설정으로 교체, 요구 §1-12) -----------------------
+providers:
+  transcript: mock          # mock | manual_upload  (정식 API 어댑터는 후속 Phase)
+  financial: guidance_json  # guidance_json | manual_upload
+  llm: mock                 # mock | anthropic   (env EAI_LLM_PROVIDER 로도 덮어씀)
+  storage: local            # local | s3
+
+# --- LLM 모델 등급 (논리명만; 실제 ID는 env, 요구 §8) ----------------
+# 코드 기본값이며, 환경변수 EAI_FAST_MODEL / EAI_BALANCED_MODEL /
+# EAI_DEEP_MODEL 이 있으면 그 값이 우선합니다. 특정 모델명 하드코딩 금지.
+llm:
+  fast_model_env: EAI_FAST_MODEL
+  balanced_model_env: EAI_BALANCED_MODEL
+  deep_model_env: EAI_DEEP_MODEL
+  max_retries: 3
+  temperature: 0.0
+
+# --- Prompt / Ontology / Score 버전 (재현성, 요구 §20) ---------------
+versions:
+  prompt_version: "p1"
+  ontology_version: "onto1"
+  score_version: "s1"
+
+# --- 분기 가중치 (요구 §5, 설정 교체) --------------------------------
+quarter_weights: [0.40, 0.30, 0.20, 0.10]   # 최신 → 3분기 전
+
+# --- Narrative / Fundamental 분류 임계값 (요구 §13) ------------------
+classification:
+  classification_rule_version: "c1"
+  narrative_threshold: 0.60      # >= 이면 Narrative 강함
+  fundamental_threshold: 0.60    # >= 이면 Numbers 강함
+  minimum_verified_kpi_count: 3  # 이 미만이면 Fundamental Score 강제 생성 안 함
+  minimum_company_breadth: 3     # Theme breadth 최소(미만이면 Data Insufficient)
+
+# --- Theme Score 가중치 (요구 §14, 합계 100) -------------------------
+theme_score_weights:
+  breadth: 25
+  momentum: 20
+  intensity: 15
+  persistence: 10
+  value_chain_confirmation: 15
+  numeric_confirmation: 15
+
+# --- Incremental Information Score 가중치 (요구 §4, Experimental) -----
+incremental_score_weights:
+  new_topic_contribution: 20
+  new_value_chain_position: 15
+  independent_confirmation: 15
+  contradictory_signal_contribution: 15
+  numeric_specificity: 10
+  transcript_information_density: 10
+  existing_universe_redundancy: -10   # 중복 클수록 감점
+  data_availability_reliability: 15
+
+# --- MVP 유니버스 (Phase 2, 6개 기업 · 최근 2개 분기, 요구 §23) -------
+# universe_type: core|specialist|dynamic, signal_roles: 복수 가능(요구 §3)
+universe:
+  - ticker: NVDA
+    name: NVIDIA Corporation
+    sector: Technology
+    industry: Semiconductors
+    universe_type: core
+    tracked_quarters: 2
+    signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [ai_compute_supplier]
+  - ticker: MSFT
+    name: Microsoft Corporation
+    sector: Technology
+    industry: Software - Infrastructure
+    universe_type: core
+    tracked_quarters: 2
+    signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [cloud_platform, ai_demand_buyer]
+  - ticker: JPM
+    name: JPMorgan Chase & Co.
+    sector: Financial
+    industry: Banks - Diversified
+    universe_type: core
+    tracked_quarters: 2
+    signal_roles: [credit_sensor, consumer_health_sensor]
+    value_chain_positions: [credit_provider]
+  - ticker: WMT
+    name: Walmart Inc.
+    sector: Consumer Defensive
+    industry: Discount Stores
+    universe_type: core
+    tracked_quarters: 2
+    signal_roles: [consumer_health_sensor, pricing_sensor, inventory_sensor]
+    value_chain_positions: [retail_distribution]
+  - ticker: CAT
+    name: Caterpillar Inc.
+    sector: Industrials
+    industry: Farm & Heavy Construction Machinery
+    universe_type: core
+    tracked_quarters: 2
+    signal_roles: [capex_sensor, demand_sensor, supply_chain_sensor]
+    value_chain_positions: [capital_equipment]
+  - ticker: XOM
+    name: Exxon Mobil Corporation
+    sector: Energy
+    industry: Oil & Gas Integrated
+    universe_type: core
+    tracked_quarters: 2
+    signal_roles: [commodity_sensor, capex_sensor]
+    value_chain_positions: [energy_upstream]
+
+# --- MVP 신뢰도 게이트 (요구 §11-6, §23) -----------------------------
+# 6개 기업 단계에서는 High Conviction 테마를 만들지 않고 Prototype 표기.
+maturity:
+  high_conviction_min_companies: 20
+  mvp_label: "Prototype / Insufficient Breadth"

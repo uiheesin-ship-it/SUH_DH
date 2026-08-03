@@ -1,0 +1,67 @@
+# Local dev stack for the Earnings-AI (app/eai) subsystem (spec §2).
+# The legacy price dashboards keep running via ./run.sh with no DB; this
+# compose file brings up Postgres + Redis + the FastAPI backend, a Celery
+# worker/beat (durable queue for 50+ companies), and the Next.js frontend.
+#
+#   docker compose up --build
+#
+# MVP note: with no DB configured the backend falls back to a local SQLite
+# file, so you can also run it without Postgres for the 6-company MVP.
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eai
+      POSTGRES_PASSWORD: eai
+      POSTGRES_DB: eai
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  backend:
+    build: { context: ., dockerfile: docker/backend.Dockerfile }
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      EAI_DATABASE_URL: postgresql+asyncpg://eai:eai@postgres:5432/eai
+      EAI_REDIS_URL: redis://redis:6379/0
+      EAI_LLM_PROVIDER: ${EAI_LLM_PROVIDER:-mock}
+      EAI_ANTHROPIC_API_KEY: ${EAI_ANTHROPIC_API_KEY:-}
+      EAI_FAST_MODEL: ${EAI_FAST_MODEL:-}
+      EAI_BALANCED_MODEL: ${EAI_BALANCED_MODEL:-}
+      EAI_DEEP_MODEL: ${EAI_DEEP_MODEL:-}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  worker:
+    build: { context: ., dockerfile: docker/backend.Dockerfile }
+    command: celery -A app.eai.tasks.celery_app worker --loglevel=info
+    environment:
+      EAI_DATABASE_URL: postgresql+asyncpg://eai:eai@postgres:5432/eai
+      EAI_REDIS_URL: redis://redis:6379/0
+      EAI_LLM_PROVIDER: ${EAI_LLM_PROVIDER:-mock}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  frontend:
+    build: { context: ./frontend, dockerfile: Dockerfile }
+    command: npm run dev
+    environment:
+      NEXT_PUBLIC_EAI_API_BASE: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [backend]
+
+volumes:
+  pgdata:

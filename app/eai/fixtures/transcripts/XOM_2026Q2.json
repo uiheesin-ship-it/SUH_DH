@@ -1,0 +1,50 @@
+{
+  "ticker": "XOM",
+  "company": "Exxon Mobil Corporation",
+  "sector": "Energy",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "calendar_year": 2026,
+  "calendar_quarter": 2,
+  "call_date": "2026-05-02",
+  "published_at": "2026-05-02",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Production increased again and we kept capital expenditure disciplined despite commodity price weakness."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Upstream volumes grew. Capital expenditure was steady. Lower commodity prices weighed on realizations though cost control helped margins."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "Will you cut capex if commodity prices stay weak?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "We will maintain capital expenditure discipline through the cycle. Commodity price weakness is manageable given our low cost base."
+        }
+      ]
+    }
+  ]
+}

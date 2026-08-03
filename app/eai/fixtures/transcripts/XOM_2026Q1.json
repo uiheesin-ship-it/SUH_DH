@@ -1,0 +1,50 @@
+{
+  "ticker": "XOM",
+  "company": "Exxon Mobil Corporation",
+  "sector": "Energy",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 1,
+  "calendar_year": 2026,
+  "calendar_quarter": 1,
+  "call_date": "2026-01-31",
+  "published_at": "2026-01-31",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Production grew and we maintained capital expenditure discipline. Commodity prices were volatile."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Upstream volumes rose. Capital expenditure was in line with plan. Pricing followed commodity markets. Margins were pressured by lower crude."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "How are you thinking about capex and commodity price exposure?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Capital expenditure is disciplined. Commodity price weakness pressured margins but our cost position is strong."
+        }
+      ]
+    }
+  ]
+}

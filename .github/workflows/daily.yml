@@ -46,6 +46,9 @@ on:
       - "data/krhighs60.json"
       # And the persisted Korean base-screener snapshot.
       - "data/krbase.json"
+      # And the Earnings-AI snapshot (committed by the eai.yml workflow); the
+      # scheduled builds republish it, so its own commits must not loop the build.
+      - "data/eai/**"
 
 permissions:
   # Write access so the build can commit data/news.json for the Telegram job.
