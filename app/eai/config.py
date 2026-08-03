@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     # Directory the DirectoryTranscriptProvider reads committed transcripts from.
     transcript_dir: str = str(ROOT / "data" / "eai" / "transcripts")
 
+    # Licensed transcript API (spec §6.1 priority-1 slot). Default shape is
+    # Financial Modeling Prep; point transcript_api_base at any compatible API.
+    # Key comes from the environment (never hardcoded).
+    transcript_api_key: str | None = None
+    transcript_api_base: str = "https://financialmodelingprep.com"
+    transcript_max_quarters: int = 4
+
 
 @functools.lru_cache
 def settings() -> Settings:

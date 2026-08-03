@@ -48,8 +48,14 @@ python -m pytest ../../tests/eai -q      # 30 tests
    - **비용 절감**: `EAI_LLM_CACHE_FILE=data/eai/llm_cache.json` 로 **바뀐 콜만** 과금(§9).
 2. **게시**: 기존 `build.py`가 `data/eai/*.json`을 `site/data/eai/`로 복사하고,
    허브에 **📞 카드**(`app/static/eai/`)가 표시됨(바닐라 정적 페이지, `../data/eai/*.json` 읽음).
-3. **실제 컨콜 자동 편입**: 저장소 Variable `EAI_TRANSCRIPT_PROVIDER=directory` 설정 후
-   `data/eai/transcripts/`에 `<TICKER>_<FY>Q<Q>.json`(또는 `.txt`)을 커밋 → 다음 실행에서 자동 분석.
+3. **실제 컨콜 원문 — 두 가지 방식**:
+   - **(A) 인터넷에서 자동 수집(권장)**: 라이선스된 트랜스크립트 API에서 매일 자동으로 가져옵니다.
+     Variable `EAI_TRANSCRIPT_PROVIDER=fmp` + Secret `EAI_TRANSCRIPT_API_KEY`
+     (기본 형식은 Financial Modeling Prep; `EAI_TRANSCRIPT_API_BASE`로 호환 API 지정 가능).
+     유니버스의 각 티커에 대해 최근 `tracked_quarters` 분량을 자동 수집·분석.
+     ⚠️ 무단 스크래핑이 아니라 **라이선스 API**만 사용하며, 전체 원문은 재배포하지 않고 파생 분석과 검증된 짧은 인용만 저장/표시.
+   - **(B) 파일 드롭**: Variable `EAI_TRANSCRIPT_PROVIDER=directory` + `data/eai/transcripts/`에
+     `<TICKER>_<FY>Q<Q>.json`(또는 `.txt`) 커밋.
    실제 LLM은 Secret `EAI_ANTHROPIC_API_KEY` + Variable `EAI_LLM_PROVIDER=anthropic` + 모델 Variable.
 
 > 참고: 라이브 Pages 사이트에 반영하려면 이 브랜치를 **배포 브랜치로 병합**해야 합니다

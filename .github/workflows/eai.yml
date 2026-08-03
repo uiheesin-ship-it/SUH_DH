@@ -8,9 +8,13 @@ name: Earnings-AI daily analysis
 # Cost control: EAI_LLM_CACHE_FILE persists LLM results in data/eai/llm_cache.json,
 # so each run only pays for NEW/changed calls; unchanged ones are cache hits.
 #
-# Real transcripts: set the repo Variable EAI_TRANSCRIPT_PROVIDER=directory and
-# drop <TICKER>_<FY>Q<Q>.json (or .txt) files into data/eai/transcripts/ — the
-# next run ingests and analyzes them automatically. For real LLM analysis set the
+# Real transcripts — two ways:
+#   (A) Auto-fetch from a licensed API (no manual files): Variable
+#       EAI_TRANSCRIPT_PROVIDER=fmp + secret EAI_TRANSCRIPT_API_KEY. The run
+#       pulls each universe ticker's recent calls automatically every day.
+#   (B) Drop files: Variable EAI_TRANSCRIPT_PROVIDER=directory and commit
+#       <TICKER>_<FY>Q<Q>.json (or .txt) into data/eai/transcripts/.
+# For real LLM analysis set the
 # secret EAI_ANTHROPIC_API_KEY and Variables EAI_LLM_PROVIDER=anthropic +
 # EAI_FAST_MODEL / EAI_BALANCED_MODEL / EAI_DEEP_MODEL. Defaults use the mock
 # provider so the pipeline runs with no secret (Prototype snapshot).
@@ -51,6 +55,10 @@ jobs:
           EAI_LLM_PROVIDER: ${{ vars.EAI_LLM_PROVIDER || 'mock' }}
           EAI_TRANSCRIPT_PROVIDER: ${{ vars.EAI_TRANSCRIPT_PROVIDER || 'mock' }}
           EAI_ANTHROPIC_API_KEY: ${{ secrets.EAI_ANTHROPIC_API_KEY }}
+          # Licensed transcript API (set EAI_TRANSCRIPT_PROVIDER=fmp to auto-fetch
+          # calls from the internet). Key from a secret; base URL optional.
+          EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
+          EAI_TRANSCRIPT_API_BASE: ${{ vars.EAI_TRANSCRIPT_API_BASE }}
           EAI_FAST_MODEL: ${{ vars.EAI_FAST_MODEL }}
           EAI_BALANCED_MODEL: ${{ vars.EAI_BALANCED_MODEL }}
           EAI_DEEP_MODEL: ${{ vars.EAI_DEEP_MODEL }}

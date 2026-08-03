@@ -53,13 +53,35 @@ async def recover_incomplete(session: AsyncSession) -> list[int]:
 
 
 async def ingest_company(session: AsyncSession, company: Company) -> int:
-    """Fetch all available transcripts + financials for one company. Returns #calls."""
+    """Fetch recent transcripts + financials for one company. Returns #calls.
+
+    Capped to the company's tracked_quarters (spec §5) and resilient per call:
+    a transcript-source error on one quarter (e.g. an API hiccup) is recorded
+    and skipped so the others still ingest (spec §23).
+    """
     tprov = get_transcript_provider()
     fprov = get_financial_provider()
+
+    limit = company.universe_types[0].tracked_quarters if company.universe_types else None
+    refs = list(tprov.list_available(company.ticker))
+    refs.sort(key=lambda r: (r.fiscal_year, r.fiscal_quarter), reverse=True)
+    if limit:
+        refs = refs[:limit]
+
     calls = 0
-    for ref in tprov.list_available(company.ticker):
-        raw = tprov.fetch(ref)
-        version, created = await ingest.ingest_transcript(session, company, raw)
+    for ref in refs:
+        try:
+            raw = tprov.fetch(ref)
+            await ingest.ingest_transcript(session, company, raw)
+        except Exception as e:  # keep going on a single bad quarter
+            from ..models import ProviderError
+            session.add(ProviderError(provider=getattr(tprov, "name", "?"),
+                                      error_type="transcript_fetch",
+                                      payload={"ticker": company.ticker,
+                                               "period": f"{ref.fiscal_year}Q{ref.fiscal_quarter}",
+                                               "error": str(e)}))
+            await session.commit()
+            continue
         period = pipeline.fiscal_period(ref.fiscal_year, ref.fiscal_quarter)
         kpis = fprov.fetch_kpis(company.ticker, period)
         guidance = fprov.fetch_guidance(company.ticker, period)
