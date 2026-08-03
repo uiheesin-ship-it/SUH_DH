@@ -22,8 +22,9 @@ name: Earnings-AI daily analysis
 # provider so the pipeline runs with no secret (Prototype snapshot).
 on:
   schedule:
-    # 08:00 UTC daily (17:00 KST) — after the prior US session's calls are out.
-    - cron: "0 8 * * *"
+    # Daily at 04:00 KST = 19:00 UTC (previous day). Collects up to the daily
+    # budget and resumes the backfill/frontier the next day.
+    - cron: "0 19 * * *"
   workflow_dispatch: {}
   push:
     branches: ["claude/us-earnings-investment-themes-695ie0"]
@@ -71,9 +72,12 @@ jobs:
         if: ${{ vars.EAI_HARVEST_ENABLED == 'true' }}
         env:
           EAI_HARVEST_PROVIDER: ${{ vars.EAI_HARVEST_PROVIDER || 'alphavantage' }}
-          EAI_HARVEST_DAILY_BUDGET: ${{ vars.EAI_HARVEST_DAILY_BUDGET || '23' }}
+          EAI_HARVEST_DAILY_BUDGET: ${{ vars.EAI_HARVEST_DAILY_BUDGET || '20' }}
           EAI_HARVEST_QUARTERS_PER_TICKER: ${{ vars.EAI_HARVEST_QUARTERS_PER_TICKER || '2' }}
           EAI_HARVEST_TICKERS: ${{ vars.EAI_HARVEST_TICKERS }}
+          # Prioritized backfill + frontier recheck (empty falls back to eai_config.yaml)
+          EAI_HARVEST_QUARTERS: ${{ vars.EAI_HARVEST_QUARTERS }}
+          EAI_HARVEST_RECHECK_QUARTERS: ${{ vars.EAI_HARVEST_RECHECK_QUARTERS }}
           EAI_ALPHAVANTAGE_API_KEY: ${{ secrets.EAI_ALPHAVANTAGE_API_KEY }}
           EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
           EAI_TRANSCRIPT_API_BASE: ${{ vars.EAI_TRANSCRIPT_API_BASE }}

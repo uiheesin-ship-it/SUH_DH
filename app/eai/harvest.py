@@ -153,6 +153,78 @@ def run_harvest(provider, tickers: list[str], *, out_dir: Path, ledger_path: Pat
     return res
 
 
+def _parse_qlabel(qlabel: str) -> tuple[int, int]:
+    y, q = qlabel.upper().split("Q")
+    return int(y), int(q)
+
+
+def run_harvest_quarters(provider, tickers: list[str], quarters: list[str],
+                         recheck_quarters: list[str], *, out_dir: Path, ledger_path: Path,
+                         daily_budget: int, now: str | None = None) -> HarvestResult:
+    """Budgeted harvest over an EXPLICIT, prioritized quarter list (spec §22).
+
+    Order: backfill ``quarters`` (e.g. 2026Q1 → 2025Q1) across all tickers first;
+    only once those are done does ``recheck_quarters`` (the ongoing frontier,
+    e.g. 2026Q2) get budget. Frontier quarters re-try 'empty' every run so
+    not-yet-reported calls are picked up when they appear; backfill 'empty' is
+    left alone. No listing call — we fetch each (ticker, quarter) directly.
+    """
+    ledger = _load_ledger(ledger_path)
+    tinfo_all = ledger.setdefault("tickers", {})
+    res = HarvestResult()
+
+    def budget_left() -> bool:
+        if res.requests_used >= daily_budget:
+            res.budget_exhausted = True
+            return False
+        return True
+
+    # backfill first (recheck=False), then frontier (recheck=True); quarter-major
+    worklist = [(t, q, False) for q in quarters for t in tickers] + \
+               [(t, q, True) for q in recheck_quarters for t in tickers]
+
+    for ticker, qlabel, recheck in worklist:
+        if not budget_left():
+            break
+        collected = tinfo_all.setdefault(ticker, {}).setdefault("collected", {})
+        status = collected.get(qlabel)
+        file_exists = ((out_dir / f"{ticker}_{qlabel}.json").exists()
+                       or (out_dir / f"{ticker}_{qlabel}.txt").exists())
+
+        if status == "collected" and file_exists:
+            res.skipped += 1
+            continue
+        if status == "empty" and not recheck:
+            res.skipped += 1           # backfill empty is permanent
+            continue
+        # else: never attempted / error / frontier-empty / collected-but-missing → fetch
+        if not budget_left():
+            break
+        year, quarter = _parse_qlabel(qlabel)
+        ref = TranscriptRef(ticker=ticker, fiscal_year=year, fiscal_quarter=quarter,
+                            source=getattr(provider, "name", "api"), source_identifier=qlabel)
+        tag = f"{ticker}_{qlabel}"
+        try:
+            raw = provider.fetch(ref)
+            res.requests_used += 1
+            _serialize(raw, out_dir, ticker, year, quarter)
+            collected[qlabel] = "collected"
+            res.collected.append(tag)
+        except ValueError:             # genuinely no transcript for this quarter
+            res.requests_used += 1
+            collected[qlabel] = "empty"
+            res.empty.append(tag)
+        except Exception as e:         # transient throttle/network → retry next run
+            res.requests_used += 1
+            collected[qlabel] = "error"
+            res.errors.append(f"{tag}: {e}")
+
+    res.worklist_done = not res.budget_exhausted
+    ledger.setdefault("history", []).append({"run": now, **res.as_dict()})
+    _save_ledger(ledger_path, ledger, now)
+    return res
+
+
 def _default_tickers() -> list[str]:
     override = config.settings().harvest_tickers
     if override:
@@ -174,12 +246,27 @@ def main() -> None:
     provider = get_transcript_provider(s.harvest_provider)
     tickers = ([t.strip().upper() for t in args.tickers.split(",") if t.strip()]
                if args.tickers else _default_tickers())
-    res = run_harvest(provider, tickers, out_dir=Path(args.out), ledger_path=Path(args.ledger),
-                      daily_budget=args.budget, quarters_per_ticker=args.quarters, now=args.now)
-    print(f"harvest: requests={res.requests_used}/{args.budget} "
-          f"collected={len(res.collected)} empty={len(res.empty)} "
-          f"errors={len(res.errors)} skipped={res.skipped} "
-          f"budget_exhausted={res.budget_exhausted}")
+
+    quarters = config.harvest_quarters()
+    if quarters:
+        # Explicit prioritized backfill + frontier recheck (preferred).
+        res = run_harvest_quarters(
+            provider, tickers, quarters, config.harvest_recheck_quarters(),
+            out_dir=Path(args.out), ledger_path=Path(args.ledger),
+            daily_budget=args.budget, now=args.now)
+        print(f"harvest[quarters]: requests={res.requests_used}/{args.budget} "
+              f"collected={len(res.collected)} empty={len(res.empty)} "
+              f"errors={len(res.errors)} skipped={res.skipped} "
+              f"budget_exhausted={res.budget_exhausted} tickers={len(tickers)}")
+    else:
+        # Fallback: most-recent-N quarters via the provider's own listing.
+        res = run_harvest(provider, tickers, out_dir=Path(args.out),
+                          ledger_path=Path(args.ledger), daily_budget=args.budget,
+                          quarters_per_ticker=args.quarters, now=args.now)
+        print(f"harvest: requests={res.requests_used}/{args.budget} "
+              f"collected={len(res.collected)} empty={len(res.empty)} "
+              f"errors={len(res.errors)} skipped={res.skipped} "
+              f"budget_exhausted={res.budget_exhausted}")
     if res.collected:
         print("  new:", ", ".join(res.collected))
 

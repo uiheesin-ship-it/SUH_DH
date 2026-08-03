@@ -6,14 +6,12 @@
 
 # --- Provider 선택 (설정으로 교체, 요구 §1-12) -----------------------
 providers:
-  transcript: mock          # mock | manual_upload  (정식 API 어댑터는 후속 Phase)
+  transcript: mock          # mock | directory | manual_upload | fmp | alphavantage
   financial: guidance_json  # guidance_json | manual_upload
   llm: mock                 # mock | anthropic   (env EAI_LLM_PROVIDER 로도 덮어씀)
   storage: local            # local | s3
 
 # --- LLM 모델 등급 (논리명만; 실제 ID는 env, 요구 §8) ----------------
-# 코드 기본값이며, 환경변수 EAI_FAST_MODEL / EAI_BALANCED_MODEL /
-# EAI_DEEP_MODEL 이 있으면 그 값이 우선합니다. 특정 모델명 하드코딩 금지.
 llm:
   fast_model_env: EAI_FAST_MODEL
   balanced_model_env: EAI_BALANCED_MODEL
@@ -28,15 +26,15 @@ versions:
   score_version: "s1"
 
 # --- 분기 가중치 (요구 §5, 설정 교체) --------------------------------
-quarter_weights: [0.40, 0.30, 0.20, 0.10]   # 최신 → 3분기 전
+quarter_weights: [0.40, 0.30, 0.20, 0.10]
 
 # --- Narrative / Fundamental 분류 임계값 (요구 §13) ------------------
 classification:
   classification_rule_version: "c1"
-  narrative_threshold: 0.60      # >= 이면 Narrative 강함
-  fundamental_threshold: 0.60    # >= 이면 Numbers 강함
-  minimum_verified_kpi_count: 3  # 이 미만이면 Fundamental Score 강제 생성 안 함
-  minimum_company_breadth: 3     # Theme breadth 최소(미만이면 Data Insufficient)
+  narrative_threshold: 0.60
+  fundamental_threshold: 0.60
+  minimum_verified_kpi_count: 3
+  minimum_company_breadth: 3
 
 # --- Theme Score 가중치 (요구 §14, 합계 100) -------------------------
 theme_score_weights:
@@ -55,63 +53,342 @@ incremental_score_weights:
   contradictory_signal_contribution: 15
   numeric_specificity: 10
   transcript_information_density: 10
-  existing_universe_redundancy: -10   # 중복 클수록 감점
+  existing_universe_redundancy: -10
   data_availability_reliability: 15
 
-# --- MVP 유니버스 (Phase 2, 6개 기업 · 최근 2개 분기, 요구 §23) -------
-# universe_type: core|specialist|dynamic, signal_roles: 복수 가능(요구 §3)
+# --- 증분 수집(harvest) 계획 (Alpha Vantage 무료 한도 내, 재개형) -----
+# 백필 우선순위: 2026Q1 → 과거 역순(2025Q4..2025Q1). 그 다음 recheck_quarters
+# (진행 중인 분기)를 매일 재확인해 신규 발표분을 편입. env(EAI_HARVEST_QUARTERS /
+# EAI_HARVEST_RECHECK_QUARTERS)로 덮어쓸 수 있습니다.
+harvest:
+  quarters: ["2026Q1", "2025Q4", "2025Q3", "2025Q2", "2025Q1"]
+  recheck_quarters: ["2026Q2"]
+
+# --- Core 유니버스 (요구 §3) -----------------------------------------
 universe:
   - ticker: NVDA
     name: NVIDIA Corporation
     sector: Technology
     industry: Semiconductors
     universe_type: core
-    tracked_quarters: 2
+    tracked_quarters: 6
     signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor]
     value_chain_positions: [ai_compute_supplier]
+  - ticker: AVGO
+    name: Broadcom Inc.
+    sector: Technology
+    industry: Semiconductors
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [ai_compute_supplier, networking]
+  - ticker: TSM
+    name: Taiwan Semiconductor
+    sector: Technology
+    industry: Semiconductors
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [supply_chain_sensor, demand_sensor, capex_sensor]
+    value_chain_positions: [semiconductor_manufacturing]
+  - ticker: ASML
+    name: ASML Holding
+    sector: Technology
+    industry: Semiconductor Equipment
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, supply_chain_sensor]
+    value_chain_positions: [semiconductor_equipment]
+  - ticker: MU
+    name: Micron Technology
+    sector: Technology
+    industry: Semiconductor Memory
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [pricing_sensor, inventory_sensor, demand_sensor]
+    value_chain_positions: [semiconductor_manufacturing]
+  - ticker: AMAT
+    name: Applied Materials
+    sector: Technology
+    industry: Semiconductor Equipment
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, demand_sensor]
+    value_chain_positions: [semiconductor_equipment]
+  - ticker: ANET
+    name: Arista Networks
+    sector: Technology
+    industry: Computer Hardware
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [networking]
+  - ticker: VRT
+    name: Vertiv Holdings
+    sector: Technology
+    industry: Electrical Equipment
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, demand_sensor]
+    value_chain_positions: [datacenter_infrastructure]
   - ticker: MSFT
     name: Microsoft Corporation
     sector: Technology
     industry: Software - Infrastructure
     universe_type: core
-    tracked_quarters: 2
+    tracked_quarters: 6
     signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor]
     value_chain_positions: [cloud_platform, ai_demand_buyer]
+  - ticker: AMZN
+    name: Amazon.com Inc.
+    sector: Technology
+    industry: Internet Retail
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, consumer_health_sensor, demand_sensor]
+    value_chain_positions: [cloud_platform, retail_distribution]
+  - ticker: GOOGL
+    name: Alphabet Inc.
+    sector: Technology
+    industry: Internet Content & Information
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [cloud_platform, digital_advertising]
+  - ticker: META
+    name: Meta Platforms
+    sector: Technology
+    industry: Internet Content & Information
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, demand_sensor]
+    value_chain_positions: [digital_advertising, ai_demand_buyer]
+  - ticker: ORCL
+    name: Oracle Corporation
+    sector: Technology
+    industry: Software - Infrastructure
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, demand_sensor]
+    value_chain_positions: [cloud_platform]
+  - ticker: CRM
+    name: Salesforce Inc.
+    sector: Technology
+    industry: Software - Application
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [software_application]
+  - ticker: NOW
+    name: ServiceNow Inc.
+    sector: Technology
+    industry: Software - Application
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [software_application]
+  - ticker: PANW
+    name: Palo Alto Networks
+    sector: Technology
+    industry: Software - Infrastructure
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [cybersecurity]
+  - ticker: CRWD
+    name: CrowdStrike Holdings
+    sector: Technology
+    industry: Software - Infrastructure
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, technology_adoption_sensor]
+    value_chain_positions: [cybersecurity]
   - ticker: JPM
     name: JPMorgan Chase & Co.
     sector: Financial
     industry: Banks - Diversified
     universe_type: core
-    tracked_quarters: 2
+    tracked_quarters: 6
     signal_roles: [credit_sensor, consumer_health_sensor]
-    value_chain_positions: [credit_provider]
+    value_chain_positions: [bank]
+  - ticker: BAC
+    name: Bank of America
+    sector: Financial
+    industry: Banks - Diversified
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [credit_sensor, consumer_health_sensor]
+    value_chain_positions: [bank]
+  - ticker: GS
+    name: Goldman Sachs
+    sector: Financial
+    industry: Capital Markets
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [credit_sensor]
+    value_chain_positions: [investment_bank]
+  - ticker: V
+    name: Visa Inc.
+    sector: Financial
+    industry: Credit Services
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor]
+    value_chain_positions: [payment_network]
+  - ticker: MA
+    name: Mastercard Inc.
+    sector: Financial
+    industry: Credit Services
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor]
+    value_chain_positions: [payment_network]
+  - ticker: AXP
+    name: American Express
+    sector: Financial
+    industry: Credit Services
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [credit_sensor, consumer_health_sensor]
+    value_chain_positions: [consumer_credit]
+  - ticker: COF
+    name: Capital One
+    sector: Financial
+    industry: Credit Services
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [credit_sensor, consumer_health_sensor]
+    value_chain_positions: [consumer_credit]
   - ticker: WMT
     name: Walmart Inc.
-    sector: Consumer Defensive
+    sector: Consumer
     industry: Discount Stores
     universe_type: core
-    tracked_quarters: 2
+    tracked_quarters: 6
     signal_roles: [consumer_health_sensor, pricing_sensor, inventory_sensor]
     value_chain_positions: [retail_distribution]
+  - ticker: COST
+    name: Costco Wholesale
+    sector: Consumer
+    industry: Discount Stores
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor, pricing_sensor]
+    value_chain_positions: [retail_distribution]
+  - ticker: HD
+    name: Home Depot
+    sector: Consumer
+    industry: Home Improvement Retail
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor, inventory_sensor]
+    value_chain_positions: [retail_distribution]
+  - ticker: MCD
+    name: McDonald's Corporation
+    sector: Consumer
+    industry: Restaurants
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor, pricing_sensor]
+    value_chain_positions: [restaurant]
+  - ticker: BKNG
+    name: Booking Holdings
+    sector: Consumer
+    industry: Travel Services
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor, demand_sensor]
+    value_chain_positions: [travel]
   - ticker: CAT
     name: Caterpillar Inc.
     sector: Industrials
     industry: Farm & Heavy Construction Machinery
     universe_type: core
-    tracked_quarters: 2
+    tracked_quarters: 6
     signal_roles: [capex_sensor, demand_sensor, supply_chain_sensor]
     value_chain_positions: [capital_equipment]
+  - ticker: ETN
+    name: Eaton Corporation
+    sector: Industrials
+    industry: Specialty Industrial Machinery
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [capex_sensor, demand_sensor]
+    value_chain_positions: [capital_equipment, datacenter_infrastructure]
+  - ticker: GE
+    name: GE Aerospace
+    sector: Industrials
+    industry: Aerospace & Defense
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, supply_chain_sensor]
+    value_chain_positions: [capital_equipment]
+  - ticker: UPS
+    name: United Parcel Service
+    sector: Industrials
+    industry: Integrated Freight & Logistics
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, consumer_health_sensor]
+    value_chain_positions: [logistics]
+  - ticker: FDX
+    name: FedEx Corporation
+    sector: Industrials
+    industry: Integrated Freight & Logistics
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, consumer_health_sensor]
+    value_chain_positions: [logistics]
+  - ticker: UNP
+    name: Union Pacific
+    sector: Industrials
+    industry: Railroads
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor, commodity_sensor]
+    value_chain_positions: [rail]
   - ticker: XOM
     name: Exxon Mobil Corporation
-    sector: Energy
+    sector: Energy/Materials/Healthcare
     industry: Oil & Gas Integrated
     universe_type: core
-    tracked_quarters: 2
+    tracked_quarters: 6
     signal_roles: [commodity_sensor, capex_sensor]
     value_chain_positions: [energy_upstream]
+  - ticker: SLB
+    name: Schlumberger
+    sector: Energy/Materials/Healthcare
+    industry: Oil & Gas Equipment & Services
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [commodity_sensor, capex_sensor]
+    value_chain_positions: [oil_services]
+  - ticker: FCX
+    name: Freeport-McMoRan
+    sector: Energy/Materials/Healthcare
+    industry: Copper
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [commodity_sensor, demand_sensor]
+    value_chain_positions: [metals_mining]
+  - ticker: UNH
+    name: UnitedHealth Group
+    sector: Energy/Materials/Healthcare
+    industry: Healthcare Plans
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [consumer_health_sensor]
+    value_chain_positions: [health_insurance]
+  - ticker: LLY
+    name: Eli Lilly and Company
+    sector: Energy/Materials/Healthcare
+    industry: Drug Manufacturers - General
+    universe_type: core
+    tracked_quarters: 6
+    signal_roles: [demand_sensor]
+    value_chain_positions: [pharma]
+
 
 # --- MVP 신뢰도 게이트 (요구 §11-6, §23) -----------------------------
-# 6개 기업 단계에서는 High Conviction 테마를 만들지 않고 Prototype 표기.
 maturity:
   high_conviction_min_companies: 20
   mvp_label: "Prototype / Insufficient Breadth"

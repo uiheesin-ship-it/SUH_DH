@@ -13,7 +13,7 @@ def test_bad_int_env_falls_back_to_default(monkeypatch):
     from app.eai import config
     config.reset_cache()
     s = config.settings()
-    assert s.harvest_daily_budget == 23          # default, not a crash
+    assert s.harvest_daily_budget == 20          # default, not a crash
     assert s.harvest_quarters_per_ticker == 2
     config.reset_cache()
 

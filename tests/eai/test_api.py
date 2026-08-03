@@ -15,9 +15,12 @@ from starlette.testclient import TestClient
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    import os
     monkeypatch.setenv("EAI_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path/'api.db'}")
     monkeypatch.setenv("EAI_STORAGE_DIR", str(tmp_path / "storage"))
     monkeypatch.setenv("EAI_LLM_PROVIDER", "mock")
+    monkeypatch.setenv("EAI_CONFIG_FILE",
+                       os.path.join(os.path.dirname(__file__), "mvp6_config.yaml"))
 
     from app.eai import config, db
     from app.eai.router import init_eai, router
