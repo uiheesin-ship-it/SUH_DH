@@ -1,0 +1,52 @@
+# Test-only config: the 6 MVP companies (matching app/eai/fixtures/*). Tests set
+# EAI_CONFIG_FILE to this so they stay stable regardless of the production
+# eai_config.yaml universe (which is now 40 companies).
+providers:
+  transcript: mock
+  financial: guidance_json
+  llm: mock
+  storage: local
+
+versions:
+  prompt_version: "p1"
+  ontology_version: "onto1"
+  score_version: "s1"
+
+quarter_weights: [0.40, 0.30, 0.20, 0.10]
+
+classification:
+  classification_rule_version: "c1"
+  narrative_threshold: 0.60
+  fundamental_threshold: 0.60
+  minimum_verified_kpi_count: 3
+  minimum_company_breadth: 3
+
+theme_score_weights:
+  breadth: 25
+  momentum: 20
+  intensity: 15
+  persistence: 10
+  value_chain_confirmation: 15
+  numeric_confirmation: 15
+
+incremental_score_weights:
+  new_topic_contribution: 20
+  new_value_chain_position: 15
+  independent_confirmation: 15
+  contradictory_signal_contribution: 15
+  numeric_specificity: 10
+  transcript_information_density: 10
+  existing_universe_redundancy: -10
+  data_availability_reliability: 15
+
+universe:
+  - {ticker: NVDA, name: NVIDIA Corporation, sector: Technology, industry: Semiconductors, universe_type: core, tracked_quarters: 2, signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor], value_chain_positions: [ai_compute_supplier]}
+  - {ticker: MSFT, name: Microsoft Corporation, sector: Technology, industry: Software - Infrastructure, universe_type: core, tracked_quarters: 2, signal_roles: [capex_sensor, demand_sensor, technology_adoption_sensor], value_chain_positions: [cloud_platform, ai_demand_buyer]}
+  - {ticker: JPM, name: JPMorgan Chase & Co., sector: Financial, industry: Banks - Diversified, universe_type: core, tracked_quarters: 2, signal_roles: [credit_sensor, consumer_health_sensor], value_chain_positions: [credit_provider]}
+  - {ticker: WMT, name: Walmart Inc., sector: Consumer Defensive, industry: Discount Stores, universe_type: core, tracked_quarters: 2, signal_roles: [consumer_health_sensor, pricing_sensor, inventory_sensor], value_chain_positions: [retail_distribution]}
+  - {ticker: CAT, name: Caterpillar Inc., sector: Industrials, industry: Farm & Heavy Construction Machinery, universe_type: core, tracked_quarters: 2, signal_roles: [capex_sensor, demand_sensor, supply_chain_sensor], value_chain_positions: [capital_equipment]}
+  - {ticker: XOM, name: Exxon Mobil Corporation, sector: Energy, industry: Oil & Gas Integrated, universe_type: core, tracked_quarters: 2, signal_roles: [commodity_sensor, capex_sensor], value_chain_positions: [energy_upstream]}
+
+maturity:
+  high_conviction_min_companies: 20
+  mvp_label: "Prototype / Insufficient Breadth"

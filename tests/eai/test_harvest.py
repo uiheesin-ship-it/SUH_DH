@@ -153,6 +153,53 @@ def test_existing_file_is_skipped(tmp_path):
     assert prov.fetch_calls == []                       # file present → no API call
 
 
+def test_quarter_backfill_priority_and_budget(tmp_path):
+    """Backfill fills quarter-by-quarter in priority order, capped by budget."""
+    out, ledger = _paths(tmp_path)
+    prov = FakeProvider({})  # quarters not used in explicit mode
+    tickers = ["AAA", "BBB", "CCC"]
+    quarters = ["2026Q1", "2025Q4"]
+    # budget 4 → 2026Q1 for AAA,BBB,CCC (3) + 2025Q4 for AAA (1) = 4
+    r = harvest.run_harvest_quarters(prov, tickers, quarters, [], out_dir=out,
+                                     ledger_path=ledger, daily_budget=4, now="run1")
+    assert r.requests_used == 4
+    assert r.collected == ["AAA_2026Q1", "BBB_2026Q1", "CCC_2026Q1", "AAA_2025Q4"]
+    assert r.budget_exhausted is True
+
+
+def test_quarter_backfill_resumes_next_run(tmp_path):
+    out, ledger = _paths(tmp_path)
+    prov = FakeProvider({})
+    tickers = ["AAA", "BBB", "CCC"]
+    quarters = ["2026Q1", "2025Q4"]
+    harvest.run_harvest_quarters(prov, tickers, quarters, [], out_dir=out,
+                                 ledger_path=ledger, daily_budget=4, now="run1")
+    prov.fetch_calls.clear()
+    r2 = harvest.run_harvest_quarters(prov, tickers, quarters, [], out_dir=out,
+                                      ledger_path=ledger, daily_budget=10, now="run2")
+    # already-collected not re-fetched; remaining backfill completed
+    assert not any(k in ("AAA_2026Q1", "BBB_2026Q1", "CCC_2026Q1", "AAA_2025Q4")
+                   for k in prov.fetch_calls)
+    for t in tickers:
+        assert (out / f"{t}_2026Q1.json").exists() and (out / f"{t}_2025Q4.json").exists()
+
+
+def test_frontier_recheck_retries_empty_but_backfill_does_not(tmp_path):
+    """Frontier (2026Q2) empties are retried each run; backfill empties are not."""
+    out, ledger = _paths(tmp_path)
+    # 2025Q4 (backfill) empty AND 2026Q2 (frontier) empty on first run
+    prov = FakeProvider({}, empty={"AAA_2025Q4", "AAA_2026Q2"})
+    harvest.run_harvest_quarters(prov, ["AAA"], ["2025Q4"], ["2026Q2"], out_dir=out,
+                                 ledger_path=ledger, daily_budget=10, now="run1")
+    prov.fetch_calls.clear()
+    prov.empty = set()  # both now have data available
+    r2 = harvest.run_harvest_quarters(prov, ["AAA"], ["2025Q4"], ["2026Q2"], out_dir=out,
+                                      ledger_path=ledger, daily_budget=10, now="run2")
+    assert "AAA_2026Q2" in prov.fetch_calls        # frontier retried → now collected
+    assert "AAA_2025Q4" not in prov.fetch_calls     # backfill empty left alone
+    assert "AAA_2026Q2" in r2.collected
+
+
 def test_harvest_with_alpha_vantage_then_directory_reads_it(tmp_path, monkeypatch):
     """End-to-end: harvest via the real AV adapter (HTTP mocked) → directory reads."""
     from app.eai.providers.transcript.alphavantage import AlphaVantageTranscriptProvider

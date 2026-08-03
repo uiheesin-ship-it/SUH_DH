@@ -22,13 +22,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # string (e.g. a repo Variable mistakenly set to "true"). A single bad value
 # must never crash config loading for the whole app.
 _INT_DEFAULTS = {
-    "harvest_daily_budget": 23,
+    "harvest_daily_budget": 20,
     "harvest_quarters_per_ticker": 2,
     "transcript_max_quarters": 4,
 }
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-CONFIG_PATH = Path(os.environ.get("EAI_CONFIG_FILE") or (ROOT / "eai_config.yaml"))
+
+
+def _config_path() -> Path:
+    """Resolve the config file at call time so EAI_CONFIG_FILE overrides work
+    (tests point this at a fixed 6-company universe)."""
+    return Path(os.environ.get("EAI_CONFIG_FILE") or (ROOT / "eai_config.yaml"))
 
 
 class Settings(BaseSettings):
@@ -82,7 +87,7 @@ class Settings(BaseSettings):
     # most `harvest_daily_budget` API requests per run, skips already-collected
     # (ledger + files), and resumes next run. Keeps free-tier usage under 25/day.
     harvest_provider: str = "alphavantage"        # which API to harvest from
-    harvest_daily_budget: int = 23                # max API requests per run
+    harvest_daily_budget: int = 20                # max API requests per run
     harvest_quarters_per_ticker: int = 2          # recent quarters to target
     harvest_tickers: str | None = None            # optional CSV subset override
 
@@ -116,8 +121,9 @@ def settings() -> Settings:
 
 @functools.lru_cache
 def _yaml() -> dict[str, Any]:
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
+    path = _config_path()
+    if path.exists():
+        with open(path, "r", encoding="utf-8") as fh:
             return yaml.safe_load(fh) or {}
     return {}
 
@@ -206,6 +212,25 @@ def incremental_score_weights() -> dict[str, float]:
 
 def universe() -> list[dict[str, Any]]:
     return list(_yaml().get("universe", []))
+
+
+def harvest_quarters() -> list[str]:
+    """Backfill quarters in priority order (env EAI_HARVEST_QUARTERS or yaml)."""
+    env = os.environ.get("EAI_HARVEST_QUARTERS")
+    if env:
+        return [q.strip() for q in env.split(",") if q.strip()]
+    return list(_yaml().get("harvest", {}).get("quarters", []))
+
+
+def harvest_recheck_quarters() -> list[str]:
+    """Frontier quarters rechecked every run (env EAI_HARVEST_RECHECK_QUARTERS or yaml).
+
+    Their 'empty' results are retried daily so newly-released calls get picked up.
+    """
+    env = os.environ.get("EAI_HARVEST_RECHECK_QUARTERS")
+    if env:
+        return [q.strip() for q in env.split(",") if q.strip()]
+    return list(_yaml().get("harvest", {}).get("recheck_quarters", []))
 
 
 def maturity() -> dict[str, Any]:
