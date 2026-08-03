@@ -77,6 +77,8 @@ jobs:
           EAI_ALPHAVANTAGE_API_KEY: ${{ secrets.EAI_ALPHAVANTAGE_API_KEY }}
           EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
           EAI_TRANSCRIPT_API_BASE: ${{ vars.EAI_TRANSCRIPT_API_BASE }}
+          # Space out requests for free tiers (Alpha Vantage ~5/min). Default 15s.
+          EAI_TRANSCRIPT_API_DELAY: ${{ vars.EAI_TRANSCRIPT_API_DELAY || '15' }}
         run: python -m app.eai.harvest --now "$(date -u +%FT%TZ)"
 
       # Step 2 — ANALYZE: read the collected files (directory provider) and export

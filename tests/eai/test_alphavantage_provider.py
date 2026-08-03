@@ -51,6 +51,16 @@ def test_rate_limit_message_yields_empty_list():
     assert p.list_available("NVDA") == []
 
 
+def test_throttle_message_surfaced_on_fetch():
+    from app.eai.providers.transcript.base import TranscriptRef
+    import pytest
+    p = _provider(transcript={"Information": "This is a premium endpoint. "
+                              "Please subscribe to a premium plan."})
+    ref = TranscriptRef("NVDA", 2026, 2, source="alphavantage", source_identifier="2026Q2")
+    with pytest.raises(RuntimeError, match="premium endpoint"):
+        p.fetch(ref)
+
+
 def test_no_key_returns_empty():
     assert AlphaVantageTranscriptProvider(api_key=None).list_available("NVDA") == []
 

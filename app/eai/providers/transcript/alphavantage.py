@@ -13,6 +13,7 @@ not redistributed — only derived analysis + verified short quotes are stored.
 from __future__ import annotations
 
 import re
+import time
 
 from ... import config
 from ...services.preprocess import role_from_title
@@ -30,11 +31,14 @@ class AlphaVantageTranscriptProvider:
         self.api_key = api_key or s.alphavantage_api_key
         self.base = (base or s.alphavantage_base).rstrip("/")
         self.max_quarters = s.transcript_max_quarters
+        self.delay = s.transcript_api_delay
 
     # --- HTTP (isolated so tests can monkeypatch without a network) ---------
     def _get(self, params: dict) -> dict:
         import httpx  # lazy
 
+        if self.delay:  # respect free-tier per-minute throttling
+            time.sleep(self.delay)
         params = {**params, "apikey": self.api_key}
         with httpx.Client(timeout=30.0) as client:
             r = client.get(f"{self.base}/query", params=params)
@@ -52,7 +56,11 @@ class AlphaVantageTranscriptProvider:
         if not self.api_key:
             return []
         data = self._get({"function": "EARNINGS", "symbol": ticker.upper()})
-        if _rate_limited(data):
+        msg = _throttle_message(data)
+        if msg:
+            # Surface the exact API message so premium-gating vs rate-limiting is
+            # visible in the Actions log / harvest ledger (not a silent empty).
+            print(f"[alphavantage] {ticker} EARNINGS not usable — {msg}")
             return []
         refs: list[TranscriptRef] = []
         for row in data.get("quarterlyEarnings", []) or []:
@@ -72,8 +80,11 @@ class AlphaVantageTranscriptProvider:
         qlabel = f"{ref.fiscal_year}Q{ref.fiscal_quarter}"
         data = self._get({"function": "EARNINGS_CALL_TRANSCRIPT",
                           "symbol": ref.ticker, "quarter": qlabel})
-        if _rate_limited(data):
-            raise RuntimeError("Alpha Vantage rate limit / info message")
+        msg = _throttle_message(data)
+        if msg:
+            # Include the verbatim API message (premium-endpoint notice vs rate
+            # limit) so it lands in the harvest ledger for diagnosis.
+            raise RuntimeError(f"Alpha Vantage: {msg}")
         turns = data.get("transcript") or []
         if not turns:
             raise ValueError(f"no transcript for {ref.ticker} {qlabel}")
@@ -87,9 +98,15 @@ class AlphaVantageTranscriptProvider:
             structured={"sections": sections})
 
 
-def _rate_limited(data: dict) -> bool:
-    # AV returns {"Information": ...} or {"Note": ...} when throttled/limited.
-    return isinstance(data, dict) and ("Information" in data or "Note" in data)
+def _throttle_message(data: dict) -> str | None:
+    """Return AV's throttle/premium message if present, else None.
+
+    Alpha Vantage returns {"Information": ...} (rate limit reached OR premium
+    endpoint) or {"Note": ...} (call-frequency limit) instead of data.
+    """
+    if not isinstance(data, dict):
+        return None
+    return data.get("Information") or data.get("Note")
 
 
 def _to_sections(turns: list[dict]) -> list[dict]:

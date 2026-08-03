@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     # 6-company MVP / coverage testing before committing to a paid plan.
     alphavantage_api_key: str | None = None
     alphavantage_base: str = "https://www.alphavantage.co"
+    # Seconds to wait between transcript-API requests (free tiers throttle to a
+    # few per minute). 0 = no delay. The workflow sets ~15 for Alpha Vantage.
+    transcript_api_delay: float = 0.0
 
     # Incremental transcript harvester (budget-limited, resumable). Collects at
     # most `harvest_daily_budget` API requests per run, skips already-collected
@@ -94,6 +97,16 @@ class Settings(BaseSettings):
             return int(v)
         except (TypeError, ValueError):
             return _INT_DEFAULTS[info.field_name]
+
+    @field_validator("transcript_api_delay", mode="before")
+    @classmethod
+    def _coerce_float(cls, v):
+        try:
+            if v is None or (isinstance(v, str) and not v.strip()):
+                return 0.0
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
 
 
 @functools.lru_cache
