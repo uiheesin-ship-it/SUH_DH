@@ -83,6 +83,106 @@
           3
         ]
       ]
+    },
+    "AVGO": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "TSM": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "ASML": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "MU": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "AMAT": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "ANET": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "VRT": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "AMZN": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "GOOGL": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "META": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "ORCL": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "CRM": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "NOW": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "PANW": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "CRWD": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "BAC": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "GS": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "V": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "MA": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "AXP": {
+      "collected": {
+        "2026Q1": "collected"
+      }
     }
   },
   "history": [
@@ -149,7 +249,38 @@
       "skipped": 6,
       "budget_exhausted": false,
       "worklist_done": true
+    },
+    {
+      "run": "2026-08-03T15:07:06Z",
+      "requests_used": 20,
+      "collected": [
+        "AVGO_2026Q1",
+        "TSM_2026Q1",
+        "ASML_2026Q1",
+        "MU_2026Q1",
+        "AMAT_2026Q1",
+        "ANET_2026Q1",
+        "VRT_2026Q1",
+        "AMZN_2026Q1",
+        "GOOGL_2026Q1",
+        "META_2026Q1",
+        "ORCL_2026Q1",
+        "CRM_2026Q1",
+        "NOW_2026Q1",
+        "PANW_2026Q1",
+        "CRWD_2026Q1",
+        "BAC_2026Q1",
+        "GS_2026Q1",
+        "V_2026Q1",
+        "MA_2026Q1",
+        "AXP_2026Q1"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 3,
+      "budget_exhausted": true,
+      "worklist_done": false
     }
   ],
-  "updated": "2026-08-03T13:05:12Z"
+  "updated": "2026-08-03T15:07:06Z"
 }

@@ -1,0 +1,1 @@
+{"ticker": "UNP", "name": "Union Pacific", "sector": "Industrials", "industry": "Railroads", "universe_type": "core", "signal_roles": ["commodity_sensor", "demand_sensor"], "value_chain_positions": ["rail"], "calls": [], "quarterly_comparisons": []}

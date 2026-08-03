@@ -1,0 +1,1 @@
+{"ticker": "ETN", "name": "Eaton Corporation", "sector": "Industrials", "industry": "Specialty Industrial Machinery", "universe_type": "core", "signal_roles": ["capex_sensor", "demand_sensor"], "value_chain_positions": ["capital_equipment", "datacenter_infrastructure"], "calls": [], "quarterly_comparisons": []}
