@@ -86,6 +86,26 @@ def test_search_finds_paragraph(client):
     assert any("HBM" in (res["snippet_en"] or "") for res in body["results"])
 
 
+def test_company_evolution(client):
+    h = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.get("/api/eai/private/company/NVDA/evolution", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["quarters"]                       # per-quarter summaries
+    assert data["llm_ready"] is False             # mock → not real analysis
+
+
+def test_investment_points_ordered_by_first_mentioned(client):
+    h = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.get("/api/eai/private/investment-points", headers=h)
+    assert r.status_code == 200
+    pts = r.json()["points"]
+    assert isinstance(pts, list)
+    if len(pts) > 1:  # ordered newest first-mention first
+        fm = [p["first_mentioned"] for p in pts if p["first_mentioned"]]
+        assert fm == sorted(fm, reverse=True)
+
+
 def test_bundle_download_one_file(client):
     h = {"Authorization": f"Bearer {_token(client)}"}
     r = client.post("/api/eai/private/download", headers=h,

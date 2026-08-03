@@ -34,11 +34,17 @@ services:
     environment:
       EAI_DATABASE_URL: postgresql+asyncpg://eai:eai@postgres:5432/eai
       EAI_REDIS_URL: redis://redis:6379/0
+      # Private 4-tab app password (login). REQUIRED to use the private tabs.
+      EAI_APP_PASSWORD: ${EAI_APP_PASSWORD:-changeme}
       EAI_LLM_PROVIDER: ${EAI_LLM_PROVIDER:-mock}
       EAI_ANTHROPIC_API_KEY: ${EAI_ANTHROPIC_API_KEY:-}
       EAI_FAST_MODEL: ${EAI_FAST_MODEL:-}
       EAI_BALANCED_MODEL: ${EAI_BALANCED_MODEL:-}
       EAI_DEEP_MODEL: ${EAI_DEEP_MODEL:-}
+      # Local harvesting into the app DB (optional): AV key + provider.
+      EAI_ALPHAVANTAGE_API_KEY: ${EAI_ALPHAVANTAGE_API_KEY:-}
+      EAI_HARVEST_PROVIDER: ${EAI_HARVEST_PROVIDER:-alphavantage}
+      EAI_TRANSCRIPT_API_DELAY: ${EAI_TRANSCRIPT_API_DELAY:-15}
     ports: ["8000:8000"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -59,7 +65,8 @@ services:
     build: { context: ./frontend, dockerfile: Dockerfile }
     command: npm run dev
     environment:
-      NEXT_PUBLIC_EAI_API_BASE: http://localhost:8000
+      # Next server-side rewrites proxy /api/eai/* to the backend service.
+      NEXT_PUBLIC_EAI_API_BASE: http://backend:8000
     ports: ["3000:3000"]
     depends_on: [backend]
 

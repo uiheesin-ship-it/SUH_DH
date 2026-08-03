@@ -50,6 +50,17 @@ async def transcript(ticker: str, fy: int, fq: int,
     return data
 
 
+@router.get("/private/company/{ticker}/evolution",
+            dependencies=[Depends(auth.require_auth)])
+async def evolution(ticker: str, session: AsyncSession = Depends(get_session)):
+    return await pq.company_evolution(session, ticker)
+
+
+@router.get("/private/investment-points", dependencies=[Depends(auth.require_auth)])
+async def investment_points(session: AsyncSession = Depends(get_session)):
+    return {"points": await pq.investment_points(session)}
+
+
 @router.get("/private/search", dependencies=[Depends(auth.require_auth)])
 async def search(q: str, ticker: str | None = None, limit: int = 50,
                  session: AsyncSession = Depends(get_session)):

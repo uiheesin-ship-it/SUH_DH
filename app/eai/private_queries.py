@@ -16,6 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .models import (
     CallSummary,
     Company,
+    CrossCompanyTheme,
+    InvestmentTheme,
+    QuarterlyComparison,
     TranscriptDocument,
     TranscriptParagraph,
 )
@@ -152,6 +155,104 @@ def _snippet(text: str | None, terms: list[str], window: int = 160) -> str | Non
     start = max(0, pos - window // 2)
     end = min(len(text), pos + window // 2)
     return ("…" if start > 0 else "") + text[start:end] + ("…" if end < len(text) else "")
+
+
+# ------------------------ tab ① right: company evolution -------------------
+
+async def company_evolution(session: AsyncSession, ticker: str) -> dict:
+    """Last ~year of a company's calls: per-quarter summary + QoQ tone/emphasis
+    changes (tab ① right panel) — how the narrative shifted over time."""
+    summaries = list((await session.execute(select(CallSummary).where(
+        CallSummary.ticker == ticker.upper()).order_by(
+        CallSummary.fiscal_year.desc(), CallSummary.fiscal_quarter.desc()).limit(4))).scalars())
+    qoq = list((await session.execute(select(QuarterlyComparison).where(
+        QuarterlyComparison.ticker == ticker.upper()).order_by(
+        QuarterlyComparison.created_at.desc()).limit(4))).scalars())
+
+    llm_ready = any((s.payload or {}).get("executive_summary_ko") and
+                    (s.model_id or "").startswith(("anthropic", "claude")) for s in summaries)
+    return {
+        "ticker": ticker.upper(),
+        "llm_ready": llm_ready,  # False on mock → UI shows "LLM 연결 시 실제 분석" note
+        "quarters": [{
+            "fiscal_year": s.fiscal_year, "fiscal_quarter": s.fiscal_quarter,
+            "executive_summary_ko": (s.payload or {}).get("executive_summary_ko"),
+            "prepared_vs_qa_gap": (s.payload or {}).get("prepared_vs_qa_gap"),
+            "narrative_vs_numbers_gap": (s.payload or {}).get("narrative_vs_numbers_gap"),
+            "scores": (s.payload or {}).get("scores"),
+        } for s in summaries],
+        "changes": [{
+            "from_period": q.from_period, "to_period": q.to_period,
+            "tone_changes": (q.payload or {}).get("tone_changes"),
+            "management_emphasis_changes": (q.payload or {}).get("management_emphasis_changes"),
+            "newly_emerging_topics": (q.payload or {}).get("newly_emerging_topics", []),
+            "accelerating_topics": (q.payload or {}).get("accelerating_topics", []),
+            "weakening_topics": (q.payload or {}).get("weakening_topics", []),
+            "disappeared_topics": (q.payload or {}).get("disappeared_topics", []),
+        } for q in qoq],
+    }
+
+
+# ------------------------ tab ② investment points --------------------------
+
+async def investment_points(session: AsyncSession) -> list[dict]:
+    """Accumulated investment points, ordered by FIRST-mentioned time (spec §5).
+
+    Themes recur across snapshots; we group by theme_id, anchor each to its
+    earliest appearance (first_mentioned), accumulate the companies/quarters it
+    has shown up in, and attach the latest detail. Newest first-mention on top;
+    a theme first surfaced in an older (back-filled) quarter slots into its
+    historical position rather than jumping to the top.
+    """
+    themes = list((await session.execute(select(CrossCompanyTheme).order_by(
+        CrossCompanyTheme.created_at))).scalars())
+    invs = list((await session.execute(select(InvestmentTheme))).scalars())
+    inv_by_row: dict[int, InvestmentTheme] = {i.theme_row_id: i for i in invs if i.theme_row_id}
+
+    grouped: dict[str, dict] = {}
+    for t in themes:
+        g = grouped.setdefault(t.theme_id, {
+            "theme_id": t.theme_id, "theme_name_ko": t.theme_name_ko,
+            "theme_name_en": t.theme_name_en, "first_mentioned": t.created_at,
+            "snapshots": [], "companies": set(), "latest_row_id": t.id,
+        })
+        g["theme_name_ko"] = t.theme_name_ko
+        g["latest_row_id"] = t.id
+        payload = t.payload or {}
+        for c in payload.get("companies_mentioning", []):
+            g["companies"].add(c)
+        g["snapshots"].append({
+            "as_of": t.analysis_as_of.isoformat() if t.analysis_as_of else None,
+            "theme_score": t.theme_score, "score_status": t.score_status,
+            "companies": payload.get("companies_mentioning", []),
+        })
+
+    points = []
+    for g in grouped.values():
+        inv = inv_by_row.get(g["latest_row_id"])
+        ip = (inv.payload or {}) if inv else {}
+        points.append({
+            "theme_id": g["theme_id"], "theme_name_ko": g["theme_name_ko"],
+            "theme_name_en": g["theme_name_en"],
+            "first_mentioned": g["first_mentioned"].isoformat() if g["first_mentioned"] else None,
+            "companies": sorted(g["companies"]),
+            "update_count": len(g["snapshots"]),
+            "conviction": inv.conviction if inv else "low",
+            "narrative_confirmation_status": inv.narrative_confirmation_status if inv else None,
+            "maturity_label": inv.maturity_label if inv else None,
+            "detail": {
+                "why_it_is_emerging": ip.get("why_it_is_emerging"),
+                "direct_beneficiaries": ip.get("direct_beneficiaries", []),
+                "secondary_beneficiaries": ip.get("secondary_beneficiaries", []),
+                "potential_losers": ip.get("potential_losers", []),
+                "unconfirmed_assumptions": ip.get("unconfirmed_assumptions", []),
+                "risks": ip.get("risks", []),
+                "next_quarter_checkpoints": ip.get("next_quarter_checkpoints", []),
+            },
+            "snapshots": g["snapshots"],
+        })
+    points.sort(key=lambda p: p["first_mentioned"] or "", reverse=True)
+    return points
 
 
 # ------------------------------ bundle download ----------------------------
