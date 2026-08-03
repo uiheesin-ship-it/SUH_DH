@@ -30,7 +30,7 @@ services:
 
   backend:
     build: { context: ., dockerfile: docker/backend.Dockerfile }
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.eai_asgi:app --host 0.0.0.0 --port 8000
     environment:
       EAI_DATABASE_URL: postgresql+asyncpg://eai:eai@postgres:5432/eai
       EAI_REDIS_URL: redis://redis:6379/0

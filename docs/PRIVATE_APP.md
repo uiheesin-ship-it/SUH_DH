@@ -13,7 +13,7 @@
 ```bash
 # 1) 백엔드 (SQLite, 비밀번호 지정)
 pip install -r requirements-eai.txt
-EAI_APP_PASSWORD='내비밀번호' EAI_LLM_PROVIDER=mock uvicorn app.main:app --port 8000
+EAI_APP_PASSWORD='내비밀번호' EAI_LLM_PROVIDER=mock uvicorn app.eai_asgi:app --port 8000
 
 # 2) 데이터 채우기 (택1)
 #   (a) 데모: 6개 기업 합성 컨콜로 화면 먼저 보기
