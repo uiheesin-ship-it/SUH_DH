@@ -47,5 +47,12 @@ docker compose up --build
 `EAI_LLM_PROVIDER=anthropic` + `EAI_ANTHROPIC_API_KEY` + `EAI_FAST_MODEL/EAI_BALANCED_MODEL/EAI_DEEP_MODEL`.
 전문·번역·톤 분석·투자포인트가 실제 분석으로 채워집니다(캐시로 재분석 저렴).
 
-## 배포 (무료 티어, 나중에)
-같은 코드를 Render/Fly 등 비공개 호스팅에 올리고 `EAI_APP_PASSWORD`만 지정하면 **로그인 URL로 어디서나** 접근. 무료 티어는 유휴 시 잠들거나 DB가 초기화될 수 있어(재수집으로 복구) 유의.
+## 배포 — 무료 티어, 설치 없이 (권장)
+서비스 **1개**(FastAPI가 화면+API 함께 서빙)로 배포합니다. 블루프린트: `render.private.yaml`.
+
+1. https://dashboard.render.com → **New → Blueprint** → 이 저장소 연결 → `render.private.yaml` 선택 → **Apply**
+2. 프롬프트에서 **`EAI_APP_PASSWORD`**(로그인 비밀번호) 입력
+3. 빌드 후 `https://suh-dh-private.onrender.com` 같은 URL 생성 → 열고 로그인 → 4탭(6개 기업 데모 자동 채움)
+
+무료 플랜: 유휴 15분 후 잠들어 첫 요청이 ~30~60초. SQLite는 재배포 시 초기화(EAI_DEMO_SEED=1이 데모 재생성).
+**영속 실데이터**가 필요하면 `EAI_DATABASE_URL`을 무료 관리형 Postgres(예: Neon)로 지정하고 `EAI_DEMO_SEED=0` 후 harvester 실행.

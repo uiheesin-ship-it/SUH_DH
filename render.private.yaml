@@ -1,0 +1,36 @@
+# Render Blueprint for the PRIVATE research app (login-gated 4-tab).
+# One Docker web service that serves the built frontend + the API.
+#
+# Deploy:
+#   1) Push this repo (done).
+#   2) https://dashboard.render.com → New → Blueprint → connect this repo →
+#      select this file (render.private.yaml) → Apply.
+#   3) When prompted, set EAI_APP_PASSWORD (your login password).
+#   4) Render builds & gives a URL like https://suh-dh-private.onrender.com
+#      → open it → log in → 4 tabs (populated with the 6-company demo).
+#
+# Free plan notes:
+#   - Sleeps after ~15 min idle (first request wakes it, ~30-60s).
+#   - SQLite here is EPHEMERAL (resets on redeploy). EAI_DEMO_SEED=1 repopulates
+#     the demo on start. For PERSISTENT real data, set EAI_DATABASE_URL to a free
+#     managed Postgres (e.g. Neon) and EAI_DEMO_SEED=0, then run the harvester.
+services:
+  - type: web
+    name: suh-dh-private
+    runtime: docker
+    dockerfilePath: ./docker/private.Dockerfile
+    plan: free
+    envVars:
+      - key: EAI_APP_PASSWORD      # your login password (set in the dashboard)
+        sync: false
+      - key: EAI_LLM_PROVIDER
+        value: mock                # free; switch to 'anthropic' + keys for real analysis
+      - key: EAI_DEMO_SEED
+        value: "1"                 # populate the 6-company demo on first start
+      - key: EAI_STATIC_DIR
+        value: /app/frontend/out
+      # Optional real data (persistent DB + Alpha Vantage):
+      # - key: EAI_DATABASE_URL     # postgresql+asyncpg://…  (e.g. Neon free)
+      #   sync: false
+      # - key: EAI_ALPHAVANTAGE_API_KEY
+      #   sync: false
