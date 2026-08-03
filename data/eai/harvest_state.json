@@ -2,8 +2,8 @@
   "tickers": {
     "NVDA": {
       "collected": {
-        "2026Q2": "error",
-        "2026Q1": "error"
+        "2026Q2": "collected",
+        "2026Q1": "collected"
       },
       "quarters": [
         [
@@ -46,7 +46,20 @@
       "skipped": 0,
       "budget_exhausted": false,
       "worklist_done": true
+    },
+    {
+      "run": "2026-08-03T12:25:37Z",
+      "requests_used": 2,
+      "collected": [
+        "NVDA_2026Q2",
+        "NVDA_2026Q1"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 0,
+      "budget_exhausted": false,
+      "worklist_done": true
     }
   ],
-  "updated": "2026-08-03T12:20:57Z"
+  "updated": "2026-08-03T12:25:37Z"
 }
