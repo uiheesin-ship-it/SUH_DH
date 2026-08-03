@@ -137,8 +137,18 @@ async def run_batch(session: AsyncSession, tickers: list[str] | None = None,
         if job is not None:
             await update_progress(session, job, company.ticker, results[company.ticker]["status"])
 
-    theme_result = await themes.build_themes(session, as_of=datetime.now(timezone.utc))
+    try:
+        theme_result = await themes.build_themes(session, as_of=datetime.now(timezone.utc))
+    except Exception as e:  # never crash the batch on a theme-stage error
+        theme_result = {"status": "error", "error": str(e), "themes": 0}
     results["_themes"] = theme_result
+
+    # A theme-stage LLM outage (e.g. invalid key with no company transcripts to
+    # trip the earlier check) must also preserve the last good snapshot.
+    if theme_result.get("status") == "unavailable":
+        if job is not None:
+            await set_status(session, job, "failed", "LLM analysis unavailable")
+        return {"status": "llm_unavailable", "results": results}
 
     final = "partially_completed" if any_fail else "completed"
     if job is not None:
