@@ -1,0 +1,50 @@
+{
+  "ticker": "MSFT",
+  "company": "Microsoft Corporation",
+  "sector": "Technology",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 1,
+  "calendar_year": 2026,
+  "calendar_quarter": 1,
+  "call_date": "2026-01-28",
+  "published_at": "2026-01-28",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Cloud demand was strong and AI adoption across Copilot is accelerating. We are increasing capital expenditure to meet AI compute demand."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Revenue grew 16% year over year. Azure growth was strong. Capital expenditure rose to support data center investment. We expect cloud demand to stay healthy."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "How should we think about capex and cloud optimization?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Capital expenditure will remain elevated for data center investment. Some customers continue cloud optimization but demand is robust."
+        }
+      ]
+    }
+  ]
+}

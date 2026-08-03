@@ -1,0 +1,50 @@
+{
+  "ticker": "MSFT",
+  "company": "Microsoft Corporation",
+  "sector": "Technology",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "calendar_year": 2026,
+  "calendar_quarter": 2,
+  "call_date": "2026-04-29",
+  "published_at": "2026-04-29",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "AI adoption accelerated and data center investment increased again to meet strong demand. Power demand for our data centers is a growing focus."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Revenue grew 18% year over year. Azure demand was exceptional and we raised capital expenditure guidance for data center investment."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "Is power demand a constraint on data center investment?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Power demand is a real constraint and we are investing in supply. Cloud demand remains strong with pricing power intact."
+        }
+      ]
+    }
+  ]
+}

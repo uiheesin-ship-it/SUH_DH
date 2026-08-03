@@ -1,0 +1,50 @@
+{
+  "ticker": "WMT",
+  "company": "Walmart Inc.",
+  "sector": "Consumer Defensive",
+  "fiscal_year": 2026,
+  "fiscal_quarter": 2,
+  "calendar_year": 2026,
+  "calendar_quarter": 2,
+  "call_date": "2026-05-15",
+  "published_at": "2026-05-15",
+  "language": "en",
+  "sections": [
+    {
+      "section_type": "prepared_remarks",
+      "turns": [
+        {
+          "speaker_name": "Operator",
+          "speaker_role": "operator",
+          "text": "Good day and welcome to the earnings conference call."
+        },
+        {
+          "speaker_name": "CEO",
+          "speaker_role": "ceo",
+          "text": "Traffic accelerated and trade-down continued as consumers seek value. Grocery demand was strong."
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Comparable sales grew 5%. Inventory destocking is complete and inventory is lean. Promotional activity increased in discretionary spending categories."
+        }
+      ]
+    },
+    {
+      "section_type": "qa",
+      "turns": [
+        {
+          "speaker_name": "Analyst",
+          "speaker_role": "analyst",
+          "speaker_company": "Research Partners",
+          "text": "How is discretionary spending and pricing trending?"
+        },
+        {
+          "speaker_name": "CFO",
+          "speaker_role": "cfo",
+          "text": "Discretionary spending remains soft, a sign of consumer weakness, but our pricing power in grocery is strong."
+        }
+      ]
+    }
+  ]
+}

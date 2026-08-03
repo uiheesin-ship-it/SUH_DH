@@ -1,0 +1,23 @@
+# Earnings-AI (app/eai) backend dependencies. Kept separate from the legacy
+# price-dashboard requirements.txt so the existing Render deploy stays lean;
+# the eai stack runs via docker-compose (see docker-compose.yml).
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+SQLAlchemy[asyncio]>=2.0
+alembic>=1.13
+aiosqlite>=0.20          # local/dev + tests (no Postgres server needed)
+asyncpg>=0.29            # PostgreSQL driver (prod)
+psycopg[binary]>=3.1     # Alembic sync migrations on Postgres
+redis>=5.0               # cache + Celery broker
+celery>=5.3              # durable job queue (50+ companies)
+python-multipart>=0.0.9  # file uploads
+pyyaml>=6.0
+pypdf>=4.0               # optional: PDF transcript upload
+anthropic>=0.39          # optional: real LLM provider (mock needs nothing)
+boto3>=1.34              # optional: S3-compatible object store (prod)
+httpx>=0.27
+# tests: pytest, pytest-asyncio, vitest/playwright (frontend)
+pytest>=8.0
+pytest-asyncio>=0.23
