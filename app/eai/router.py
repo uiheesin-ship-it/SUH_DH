@@ -31,6 +31,12 @@ async def init_eai() -> None:
         await jobs.recover_incomplete(s)
 
 
+def include_private(app_or_router) -> None:
+    """Attach the login-gated private API (transcripts/search/download)."""
+    from .private_router import router as private
+    app_or_router.include_router(private)
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "version": "0.1.0",

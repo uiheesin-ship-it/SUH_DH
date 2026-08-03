@@ -34,10 +34,11 @@ app.add_middleware(
 # under /api/eai/* as a separate bounded context; kept optional so a missing
 # async/DB dependency never blocks the legacy price dashboards.
 try:
-    from .eai.router import init_eai
+    from .eai.router import include_private, init_eai
     from .eai.router import router as eai_router
 
     app.include_router(eai_router)
+    include_private(app)  # login-gated /api/eai/private/* (transcripts/search/download)
 
     @app.on_event("startup")
     async def _eai_startup():  # create tables (MVP) + recover interrupted jobs

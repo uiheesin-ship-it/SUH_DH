@@ -217,6 +217,9 @@ class TranscriptParagraph(Base):
     preceding_question_id: Mapped[str | None] = mapped_column(String(64))
     answer_to_question_id: Mapped[str | None] = mapped_column(String(64))
     paragraph_hash: Mapped[str] = mapped_column(String(64), index=True)
+    # Optional cached Korean translation (filled by a translate step when an LLM
+    # is available; null until then — the UI shows the English original).
+    translation_ko: Mapped[str | None] = mapped_column(Text)
 
     version: Mapped[TranscriptVersion] = relationship(back_populates="paragraphs")
 
