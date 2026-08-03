@@ -98,8 +98,11 @@ def run_harvest(provider, tickers: list[str], *, out_dir: Path, ledger_path: Pat
         tinfo = tinfo_all.setdefault(ticker, {})
         collected = tinfo.setdefault("collected", {})
 
-        # 1) ensure we know this ticker's available quarters (costs 1 request once)
-        if "quarters" not in tinfo:
+        # 1) ensure we know this ticker's available quarters (costs 1 request).
+        # Re-list when the stored list is EMPTY too: an empty list often means the
+        # listing call was throttled last run (not that the ticker has no calls),
+        # so we must retry rather than cache the emptiness forever.
+        if not tinfo.get("quarters"):
             if not budget_left():
                 break
             refs = provider.list_available(ticker)

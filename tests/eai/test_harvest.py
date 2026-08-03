@@ -131,6 +131,18 @@ def test_self_heal_refetches_when_file_missing(tmp_path):
     assert (out / "AAA_2026Q2.json").exists()
 
 
+def test_empty_quarter_list_is_retried_next_run(tmp_path):
+    """A throttled listing (empty quarters) must be retried, not cached forever."""
+    out, ledger = _paths(tmp_path)
+    prov = FakeProvider({})                      # AAA lists nothing (throttled)
+    harvest.run_harvest(prov, ["AAA"], out_dir=out, ledger_path=ledger,
+                        daily_budget=10, quarters_per_ticker=2, now="run1")
+    prov.quarters = {"AAA": [(2026, 2)]}         # now available next run
+    r2 = harvest.run_harvest(prov, ["AAA"], out_dir=out, ledger_path=ledger,
+                             daily_budget=10, quarters_per_ticker=2, now="run2")
+    assert "AAA_2026Q2" in r2.collected          # re-listed and collected
+
+
 def test_existing_file_is_skipped(tmp_path):
     out, ledger = _paths(tmp_path)
     out.mkdir(parents=True)
