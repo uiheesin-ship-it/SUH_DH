@@ -1,0 +1,52 @@
+{
+  "tickers": {
+    "NVDA": {
+      "collected": {
+        "2026Q2": "error",
+        "2026Q1": "error"
+      },
+      "quarters": [
+        [
+          2026,
+          2
+        ],
+        [
+          2026,
+          1
+        ],
+        [
+          2025,
+          4
+        ],
+        [
+          2025,
+          3
+        ]
+      ]
+    },
+    "MSFT": {
+      "collected": {},
+      "quarters": []
+    },
+    "JPM": {
+      "collected": {},
+      "quarters": []
+    }
+  },
+  "history": [
+    {
+      "run": "2026-08-03T12:20:57Z",
+      "requests_used": 5,
+      "collected": [],
+      "empty": [],
+      "errors": [
+        "NVDA_2026Q2: Alpha Vantage rate limit / info message",
+        "NVDA_2026Q1: Alpha Vantage rate limit / info message"
+      ],
+      "skipped": 0,
+      "budget_exhausted": false,
+      "worklist_done": true
+    }
+  ],
+  "updated": "2026-08-03T12:20:57Z"
+}
