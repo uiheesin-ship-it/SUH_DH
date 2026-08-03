@@ -50,18 +50,49 @@ jobs:
           cache: "pip"
       - run: pip install -r requirements-eai.txt
 
-      - name: Run analysis + export snapshot
+      # Persist harvested RAW transcripts privately between runs (they are NOT
+      # committed to the public repo — see .gitignore). If the cache is evicted,
+      # the harvester self-heals by re-fetching (ledger + missing file → refetch).
+      - name: Restore harvested transcripts (private cache)
+        if: ${{ vars.EAI_HARVEST_ENABLED == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: data/eai/transcripts
+          key: eai-transcripts-${{ github.run_id }}
+          restore-keys: |
+            eai-transcripts-
+
+      # Step 1 — HARVEST: budget-limited, resumable transcript collection.
+      # Fetches at most EAI_HARVEST_DAILY_BUDGET (default 23) API requests/run,
+      # skips already-collected quarters (ledger + files), and resumes next run —
+      # so the Alpha Vantage free 25/day limit is never exceeded. No-op if no
+      # harvest key is set. Runs only when EAI_HARVEST_ENABLED=true.
+      - name: Harvest transcripts (incremental, budgeted)
+        if: ${{ vars.EAI_HARVEST_ENABLED == 'true' }}
+        env:
+          EAI_HARVEST_PROVIDER: ${{ vars.EAI_HARVEST_PROVIDER || 'alphavantage' }}
+          EAI_HARVEST_DAILY_BUDGET: ${{ vars.EAI_HARVEST_DAILY_BUDGET || '23' }}
+          EAI_HARVEST_QUARTERS_PER_TICKER: ${{ vars.EAI_HARVEST_QUARTERS_PER_TICKER || '2' }}
+          EAI_HARVEST_TICKERS: ${{ vars.EAI_HARVEST_TICKERS }}
+          EAI_ALPHAVANTAGE_API_KEY: ${{ secrets.EAI_ALPHAVANTAGE_API_KEY }}
+          EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
+          EAI_TRANSCRIPT_API_BASE: ${{ vars.EAI_TRANSCRIPT_API_BASE }}
+        run: python -m app.eai.harvest --now "$(date -u +%FT%TZ)"
+
+      # Step 2 — ANALYZE: read the collected files (directory provider) and export
+      # the static snapshot. Uses the configured LLM (mock = free) with a persistent
+      # cache so only new/changed calls cost anything. The transcript provider is
+      # forced to 'directory' here so analysis never re-hits the paid/limited API.
+      - name: Analyze collected transcripts + export snapshot
         env:
           EAI_DATABASE_URL: "sqlite+aiosqlite:///eai_ci.db"
           EAI_LLM_CACHE_FILE: "data/eai/llm_cache.json"
           EAI_LLM_PROVIDER: ${{ vars.EAI_LLM_PROVIDER || 'mock' }}
-          EAI_TRANSCRIPT_PROVIDER: ${{ vars.EAI_TRANSCRIPT_PROVIDER || 'mock' }}
+          # If harvesting is on, analyze the committed files; otherwise fall back
+          # to whatever EAI_TRANSCRIPT_PROVIDER is set to (e.g. mock fixtures).
+          EAI_TRANSCRIPT_PROVIDER: ${{ vars.EAI_HARVEST_ENABLED == 'true' && 'directory' || (vars.EAI_TRANSCRIPT_PROVIDER || 'mock') }}
           EAI_ANTHROPIC_API_KEY: ${{ secrets.EAI_ANTHROPIC_API_KEY }}
-          # Licensed transcript API (set EAI_TRANSCRIPT_PROVIDER=fmp to auto-fetch
-          # calls from the internet). Key from a secret; base URL optional.
           EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
-          EAI_TRANSCRIPT_API_BASE: ${{ vars.EAI_TRANSCRIPT_API_BASE }}
-          # Alpha Vantage (free 25/day) — set EAI_TRANSCRIPT_PROVIDER=alphavantage
           EAI_ALPHAVANTAGE_API_KEY: ${{ secrets.EAI_ALPHAVANTAGE_API_KEY }}
           EAI_FAST_MODEL: ${{ vars.EAI_FAST_MODEL }}
           EAI_BALANCED_MODEL: ${{ vars.EAI_BALANCED_MODEL }}

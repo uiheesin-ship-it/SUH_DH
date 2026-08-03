@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     alphavantage_api_key: str | None = None
     alphavantage_base: str = "https://www.alphavantage.co"
 
+    # Incremental transcript harvester (budget-limited, resumable). Collects at
+    # most `harvest_daily_budget` API requests per run, skips already-collected
+    # (ledger + files), and resumes next run. Keeps free-tier usage under 25/day.
+    harvest_provider: str = "alphavantage"        # which API to harvest from
+    harvest_daily_budget: int = 23                # max API requests per run
+    harvest_quarters_per_ticker: int = 2          # recent quarters to target
+    harvest_tickers: str | None = None            # optional CSV subset override
+
 
 @functools.lru_cache
 def settings() -> Settings:
