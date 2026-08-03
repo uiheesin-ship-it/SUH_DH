@@ -1,0 +1,120 @@
+{
+  "tickers": {
+    "NVDA": {
+      "collected": {
+        "2026Q2": "collected",
+        "2026Q1": "collected"
+      },
+      "quarters": [
+        [
+          2026,
+          2
+        ],
+        [
+          2026,
+          1
+        ],
+        [
+          2025,
+          4
+        ],
+        [
+          2025,
+          3
+        ]
+      ]
+    },
+    "MSFT": {
+      "collected": {
+        "2026Q2": "collected",
+        "2026Q1": "collected"
+      },
+      "quarters": [
+        [
+          2026,
+          2
+        ],
+        [
+          2026,
+          1
+        ],
+        [
+          2025,
+          4
+        ],
+        [
+          2025,
+          3
+        ]
+      ]
+    },
+    "JPM": {
+      "collected": {
+        "2026Q2": "collected",
+        "2026Q1": "collected"
+      },
+      "quarters": [
+        [
+          2026,
+          2
+        ],
+        [
+          2026,
+          1
+        ],
+        [
+          2025,
+          4
+        ],
+        [
+          2025,
+          3
+        ]
+      ]
+    }
+  },
+  "history": [
+    {
+      "run": "2026-08-03T12:20:57Z",
+      "requests_used": 5,
+      "collected": [],
+      "empty": [],
+      "errors": [
+        "NVDA_2026Q2: Alpha Vantage rate limit / info message",
+        "NVDA_2026Q1: Alpha Vantage rate limit / info message"
+      ],
+      "skipped": 0,
+      "budget_exhausted": false,
+      "worklist_done": true
+    },
+    {
+      "run": "2026-08-03T12:25:37Z",
+      "requests_used": 2,
+      "collected": [
+        "NVDA_2026Q2",
+        "NVDA_2026Q1"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 0,
+      "budget_exhausted": false,
+      "worklist_done": true
+    },
+    {
+      "run": "2026-08-03T12:28:13Z",
+      "requests_used": 6,
+      "collected": [
+        "MSFT_2026Q2",
+        "MSFT_2026Q1",
+        "JPM_2026Q2",
+        "JPM_2026Q1"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 2,
+      "budget_exhausted": false,
+      "worklist_done": true
+    }
+  ],
+  "updated": "2026-08-03T12:28:13Z"
+}

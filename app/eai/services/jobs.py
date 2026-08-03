@@ -53,13 +53,35 @@ async def recover_incomplete(session: AsyncSession) -> list[int]:
 
 
 async def ingest_company(session: AsyncSession, company: Company) -> int:
-    """Fetch all available transcripts + financials for one company. Returns #calls."""
+    """Fetch recent transcripts + financials for one company. Returns #calls.
+
+    Capped to the company's tracked_quarters (spec §5) and resilient per call:
+    a transcript-source error on one quarter (e.g. an API hiccup) is recorded
+    and skipped so the others still ingest (spec §23).
+    """
     tprov = get_transcript_provider()
     fprov = get_financial_provider()
+
+    limit = company.universe_types[0].tracked_quarters if company.universe_types else None
+    refs = list(tprov.list_available(company.ticker))
+    refs.sort(key=lambda r: (r.fiscal_year, r.fiscal_quarter), reverse=True)
+    if limit:
+        refs = refs[:limit]
+
     calls = 0
-    for ref in tprov.list_available(company.ticker):
-        raw = tprov.fetch(ref)
-        version, created = await ingest.ingest_transcript(session, company, raw)
+    for ref in refs:
+        try:
+            raw = tprov.fetch(ref)
+            await ingest.ingest_transcript(session, company, raw)
+        except Exception as e:  # keep going on a single bad quarter
+            from ..models import ProviderError
+            session.add(ProviderError(provider=getattr(tprov, "name", "?"),
+                                      error_type="transcript_fetch",
+                                      payload={"ticker": company.ticker,
+                                               "period": f"{ref.fiscal_year}Q{ref.fiscal_quarter}",
+                                               "error": str(e)}))
+            await session.commit()
+            continue
         period = pipeline.fiscal_period(ref.fiscal_year, ref.fiscal_quarter)
         kpis = fprov.fetch_kpis(company.ticker, period)
         guidance = fprov.fetch_guidance(company.ticker, period)
@@ -115,8 +137,18 @@ async def run_batch(session: AsyncSession, tickers: list[str] | None = None,
         if job is not None:
             await update_progress(session, job, company.ticker, results[company.ticker]["status"])
 
-    theme_result = await themes.build_themes(session, as_of=datetime.now(timezone.utc))
+    try:
+        theme_result = await themes.build_themes(session, as_of=datetime.now(timezone.utc))
+    except Exception as e:  # never crash the batch on a theme-stage error
+        theme_result = {"status": "error", "error": str(e), "themes": 0}
     results["_themes"] = theme_result
+
+    # A theme-stage LLM outage (e.g. invalid key with no company transcripts to
+    # trip the earlier check) must also preserve the last good snapshot.
+    if theme_result.get("status") == "unavailable":
+        if job is not None:
+            await set_status(session, job, "failed", "LLM analysis unavailable")
+        return {"status": "llm_unavailable", "results": results}
 
     final = "partially_completed" if any_fail else "completed"
     if job is not None:

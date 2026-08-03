@@ -47,6 +47,16 @@ def run_stage(provider, tier: str, system: str, user: str, schema_model: Type[T]
         except LLMUnavailable as e:
             # No usable LLM — surface clearly, never fake analysis (spec §8).
             return StageOutcome(model=None, status="unavailable", usage=usages, error=str(e))
+        except Exception as e:  # provider API/network error — never crash the batch
+            err = f"{type(e).__name__}: {e}"
+            if _is_auth_error(e):
+                # Invalid/unauthorized key: retrying won't help. Surface as
+                # unavailable so the caller preserves the last good snapshot.
+                return StageOutcome(model=None, status="unavailable", usage=usages, error=err)
+            last_error = err
+            if attempt >= max_retries:
+                return StageOutcome(model=None, status="error", usage=usages, error=err)
+            continue  # transient (rate limit / network) → retry
 
         usages.append(_usage_row(result, stage, versions, attempt))
 
@@ -62,6 +72,16 @@ def run_stage(provider, tier: str, system: str, user: str, schema_model: Type[T]
 
     status = "needs_manual_review"
     return StageOutcome(model=None, status=status, usage=usages, error=last_error)
+
+
+def _is_auth_error(e: Exception) -> bool:
+    """Recognize an invalid/unauthorized API key across providers (no import)."""
+    name = type(e).__name__.lower()
+    if "authentication" in name or "permissiondenied" in name:
+        return True
+    msg = str(e).lower()
+    return ("api key" in msg and ("invalid" in msg or "incorrect" in msg)) or \
+           "401" in msg or "unauthorized" in msg
 
 
 def _usage_row(result: LLMResult, stage: str, versions: dict, attempt: int) -> dict:

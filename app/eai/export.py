@@ -40,6 +40,13 @@ async def export_snapshot(out_dir: Path, run: bool = True) -> dict:
             job = await jobs.create_job(s, "batch", {"source": "export"})
             result = await jobs.run_batch(s, job=job)
 
+    # If the LLM was unavailable (e.g. an invalid key), do NOT overwrite the last
+    # good snapshot with an empty one — preserve it and signal failure (spec §8).
+    if run and (result or {}).get("status") == "llm_unavailable":
+        await dispose()
+        return {"built": built, "batch_status": "llm_unavailable", "written": False,
+                "error": (result or {}).get("message", "LLM analysis unavailable")}
+
     async with sessionmaker()() as s:
         companies = await queries.list_companies(s)
         themes = await queries.list_themes(s)
@@ -71,16 +78,27 @@ async def export_snapshot(out_dir: Path, run: bool = True) -> dict:
             _write(out_dir / "company" / f"{c['ticker']}.json", detail)
 
     await dispose()
-    return {"built": built, **meta}
+    return {"built": built, "written": True, **meta}
 
 
 def main() -> None:
+    import sys
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(config.ROOT / "data" / "eai"))
     ap.add_argument("--no-run", action="store_true",
                     help="export current DB without re-running analysis")
     args = ap.parse_args()
     meta = asyncio.run(export_snapshot(Path(args.out), run=not args.no_run))
+
+    if meta.get("written") is False:
+        print("ERROR: LLM analysis unavailable — the existing snapshot was PRESERVED "
+              "(not overwritten).\n"
+              f"  reason: {meta.get('error')}\n"
+              "  fix: verify EAI_ANTHROPIC_API_KEY is a valid, active key, or set "
+              "EAI_LLM_PROVIDER=mock for a free run.", file=sys.stderr)
+        sys.exit(1)
+
     print(f"eai snapshot written to {args.out}: {meta['counts']} "
           f"(llm={meta['llm_provider']}, status={meta['batch_status']})")
 

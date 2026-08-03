@@ -171,8 +171,26 @@ def parse_structured(raw: dict) -> ParsedTranscript:
 _QA_MARKERS = re.compile(
     r"(question[\s-]and[\s-]answer|q\s*&\s*a|questions?\s+and\s+answers?)", re.I
 )
-# "Colette Kress -- Chief Financial Officer" / "Operator"
-_SPEAKER_LINE = re.compile(r"^\s*([A-Z][\w.\-'’ ]{1,60}?)\s*(?:--|—|–|:)\s*(.*)$")
+# Two common transcript speaker conventions, both handled:
+#   "Colette Kress -- Chief Financial Officer"   (title after --, body follows)
+#   "Colette Kress: We had a strong quarter."    (API style: inline body after :)
+_SPEAKER_LINE = re.compile(r"^\s*([A-Z][\w.\-'’ ]{1,60}?)\s*(--|—|–|:)\s*(.*)$")
+
+
+def _speaker_line(line: str):
+    """Return (name, role_hint_title, inline_body) if this is a speaker line."""
+    m = _SPEAKER_LINE.match(line)
+    if not m:
+        return None
+    name, sep, rest = m.group(1).strip(), m.group(2), m.group(3).strip()
+    tokens = name.split()
+    if sep in ("--", "—", "–") and len(tokens) <= 6:
+        return name, rest, ""            # rest = title metadata; body on next lines
+    if sep == ":":
+        titlecase = all(t[:1].isupper() for t in tokens if t)
+        if name.lower() == "operator" or (2 <= len(tokens) <= 4 and titlecase):
+            return name, "", rest         # rest = inline spoken body
+    return None
 
 
 def parse_plaintext(text: str, ticker: str, fiscal_year: int, fiscal_quarter: int,
@@ -193,6 +211,26 @@ def parse_plaintext(text: str, ticker: str, fiscal_year: int, fiscal_quarter: in
     cur_buf: list[str] = []
     seq_in_section = {"prepared_remarks": 0, "qa": 0}
     last_question_id: str | None = None
+    # Names that spoke in Prepared Remarks are management; in Q&A an unknown
+    # name is therefore the analyst (question) and a known name is the answer.
+    # This is what lets us separate Q from A when the source text has no titles
+    # (e.g. an API's "Name: body" format).
+    mgmt_role_by_name: dict[str, str] = {}
+
+    def role_for(name: str, title: str) -> str:
+        if name.lower() == "operator":
+            return "operator"
+        if section_type == "prepared_remarks":
+            role = role_from_title(title, "prepared_remarks")
+            if role != "operator":
+                mgmt_role_by_name[name] = role
+            return role
+        if name in mgmt_role_by_name:            # Q&A: known management → answer
+            return mgmt_role_by_name[name]
+        role = role_from_title(title, "qa")      # else default (analyst if unknown)
+        if role in ("ceo", "cfo", "other_management"):
+            mgmt_role_by_name[name] = role
+        return role
 
     def flush():
         nonlocal cur_buf, last_question_id
@@ -229,17 +267,13 @@ def parse_plaintext(text: str, ticker: str, fiscal_year: int, fiscal_quarter: in
             section_type = "qa"
             cur_name, cur_role = None, None
             continue
-        m = _SPEAKER_LINE.match(line)
-        if m and len(m.group(1).split()) <= 6:
+        parsed_speaker = _speaker_line(line)
+        if parsed_speaker is not None:
+            name, title, inline_body = parsed_speaker
             flush()
-            name = m.group(1).strip()
-            title = m.group(2).strip()
             cur_name = name
-            if name.lower() == "operator":
-                cur_role = "operator"
-            else:
-                cur_role = role_from_title(title, section_type)
-            cur_buf = []  # title is speaker metadata, not paragraph body
+            cur_role = role_for(name, title)
+            cur_buf = [inline_body] if inline_body else []
             continue
         cur_buf.append(line)
     flush()
