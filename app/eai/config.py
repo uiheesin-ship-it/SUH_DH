@@ -15,7 +15,17 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Fallback values for integer settings when an env var holds a non-numeric
+# string (e.g. a repo Variable mistakenly set to "true"). A single bad value
+# must never crash config loading for the whole app.
+_INT_DEFAULTS = {
+    "harvest_daily_budget": 23,
+    "harvest_quarters_per_ticker": 2,
+    "transcript_max_quarters": 4,
+}
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = Path(os.environ.get("EAI_CONFIG_FILE") or (ROOT / "eai_config.yaml"))
@@ -72,6 +82,18 @@ class Settings(BaseSettings):
     harvest_daily_budget: int = 23                # max API requests per run
     harvest_quarters_per_ticker: int = 2          # recent quarters to target
     harvest_tickers: str | None = None            # optional CSV subset override
+
+    @field_validator("harvest_daily_budget", "harvest_quarters_per_ticker",
+                     "transcript_max_quarters", mode="before")
+    @classmethod
+    def _coerce_int(cls, v, info):
+        """Tolerate a bad env value (e.g. 'true' or '') → use the sane default."""
+        try:
+            if v is None or (isinstance(v, str) and not v.strip()):
+                return _INT_DEFAULTS[info.field_name]
+            return int(v)
+        except (TypeError, ValueError):
+            return _INT_DEFAULTS[info.field_name]
 
 
 @functools.lru_cache
