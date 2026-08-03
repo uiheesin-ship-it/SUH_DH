@@ -11,6 +11,9 @@ def get_transcript_provider(name: str | None = None):
     if name == "mock":
         from .mock import MockTranscriptProvider
         return MockTranscriptProvider()
+    if name == "directory":
+        from .directory import DirectoryTranscriptProvider
+        return DirectoryTranscriptProvider()
     if name == "manual_upload":
         # ManualUpload is invoked per-file via from_upload(); expose the module.
         from . import manual_upload

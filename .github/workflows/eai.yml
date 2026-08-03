@@ -1,0 +1,78 @@
+name: Earnings-AI daily analysis
+
+# Runs the conference-call analysis pipeline and commits a fresh static snapshot
+# to data/eai/*.json. The main "Build & deploy dashboard" workflow then copies
+# that snapshot into the GitHub Pages site (see build.py), so the 📞 card shows
+# up-to-date results — same model as every other program here.
+#
+# Cost control: EAI_LLM_CACHE_FILE persists LLM results in data/eai/llm_cache.json,
+# so each run only pays for NEW/changed calls; unchanged ones are cache hits.
+#
+# Real transcripts: set the repo Variable EAI_TRANSCRIPT_PROVIDER=directory and
+# drop <TICKER>_<FY>Q<Q>.json (or .txt) files into data/eai/transcripts/ — the
+# next run ingests and analyzes them automatically. For real LLM analysis set the
+# secret EAI_ANTHROPIC_API_KEY and Variables EAI_LLM_PROVIDER=anthropic +
+# EAI_FAST_MODEL / EAI_BALANCED_MODEL / EAI_DEEP_MODEL. Defaults use the mock
+# provider so the pipeline runs with no secret (Prototype snapshot).
+on:
+  schedule:
+    # 08:00 UTC daily (17:00 KST) — after the prior US session's calls are out.
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+  push:
+    branches: ["claude/us-earnings-investment-themes-695ie0"]
+    paths:
+      - "app/eai/**"
+      - "eai_config.yaml"
+      - "data/eai/transcripts/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "eai-analysis"
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install -r requirements-eai.txt
+
+      - name: Run analysis + export snapshot
+        env:
+          EAI_DATABASE_URL: "sqlite+aiosqlite:///eai_ci.db"
+          EAI_LLM_CACHE_FILE: "data/eai/llm_cache.json"
+          EAI_LLM_PROVIDER: ${{ vars.EAI_LLM_PROVIDER || 'mock' }}
+          EAI_TRANSCRIPT_PROVIDER: ${{ vars.EAI_TRANSCRIPT_PROVIDER || 'mock' }}
+          EAI_ANTHROPIC_API_KEY: ${{ secrets.EAI_ANTHROPIC_API_KEY }}
+          EAI_FAST_MODEL: ${{ vars.EAI_FAST_MODEL }}
+          EAI_BALANCED_MODEL: ${{ vars.EAI_BALANCED_MODEL }}
+          EAI_DEEP_MODEL: ${{ vars.EAI_DEEP_MODEL }}
+        run: |
+          python -m app.eai.export --out data/eai
+          rm -f eai_ci.db
+
+      - name: Commit snapshot
+        continue-on-error: true
+        run: |
+          if [ -n "$(git status --porcelain data/eai)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/eai
+            git commit -m "chore(eai): refresh conference-call analysis snapshot"
+            for i in 1 2 3 4 5; do
+              git push origin "HEAD:${GITHUB_REF_NAME}" && break
+              echo "push rejected; rebasing (attempt $i) ..."
+              git fetch origin "${GITHUB_REF_NAME}"
+              git rebase -X ours "origin/${GITHUB_REF_NAME}" || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "eai snapshot unchanged."
+          fi

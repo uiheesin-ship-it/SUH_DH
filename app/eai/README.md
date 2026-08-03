@@ -38,3 +38,23 @@ python -m pytest ../../tests/eai -q      # 30 tests
 ```
 기본 Provider는 mock(오프라인). 실제 LLM: `EAI_LLM_PROVIDER=anthropic`,
 `EAI_ANTHROPIC_API_KEY`, `EAI_FAST_MODEL/EAI_BALANCED_MODEL/EAI_DEEP_MODEL`.
+
+## 배포 모델 — GitHub Pages 자동 갱신 (기존 프로그램과 동일)
+로컬/Docker는 개발용입니다. **운영은 다른 카드(신고가·수주잔고 등)와 똑같이**
+"GitHub Actions가 매일 분석해 JSON을 커밋 → Pages가 정적 서빙"입니다.
+
+1. **매일 분석**: `.github/workflows/eai.yml`(cron 08:00 UTC)이
+   `python -m app.eai.export --out data/eai` 를 실행해 스냅샷 JSON을 `data/eai/`에 커밋.
+   - **비용 절감**: `EAI_LLM_CACHE_FILE=data/eai/llm_cache.json` 로 **바뀐 콜만** 과금(§9).
+2. **게시**: 기존 `build.py`가 `data/eai/*.json`을 `site/data/eai/`로 복사하고,
+   허브에 **📞 카드**(`app/static/eai/`)가 표시됨(바닐라 정적 페이지, `../data/eai/*.json` 읽음).
+3. **실제 컨콜 자동 편입**: 저장소 Variable `EAI_TRANSCRIPT_PROVIDER=directory` 설정 후
+   `data/eai/transcripts/`에 `<TICKER>_<FY>Q<Q>.json`(또는 `.txt`)을 커밋 → 다음 실행에서 자동 분석.
+   실제 LLM은 Secret `EAI_ANTHROPIC_API_KEY` + Variable `EAI_LLM_PROVIDER=anthropic` + 모델 Variable.
+
+> 참고: 라이브 Pages 사이트에 반영하려면 이 브랜치를 **배포 브랜치로 병합**해야 합니다
+> (현재 Pages 배포는 `daily.yml` 기준). 병합 전까지는 `data/eai/`에 커밋된 **mock 스냅샷**이
+> 프로토타입으로 표시됩니다.
+
+정적/라이브 겸용: 페이지는 정적 모드에서 `../data/eai/*.json`, 로컬(FastAPI) 모드에서
+`/api/eai/*` 를 읽습니다(`config.js`의 `SUH_DH_STATIC` 토글, 기존 페이지와 동일).

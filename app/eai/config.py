@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     # Local object store root (MVP) / uploads.
     storage_dir: str = str(ROOT / "eai_storage")
 
+    # Persistent LLM cache file (spec §9). Set to data/eai/llm_cache.json in CI so
+    # the daily run only pays for new/changed calls. Empty = no persistent cache.
+    llm_cache_file: str | None = None
+
+    # Directory the DirectoryTranscriptProvider reads committed transcripts from.
+    transcript_dir: str = str(ROOT / "data" / "eai" / "transcripts")
+
 
 @functools.lru_cache
 def settings() -> Settings:
