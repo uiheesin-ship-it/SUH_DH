@@ -1,0 +1,1 @@
+{"ticker": "HD", "name": "Home Depot", "sector": "Consumer", "industry": "Home Improvement Retail", "universe_type": "core", "signal_roles": ["consumer_health_sensor", "inventory_sensor"], "value_chain_positions": ["retail_distribution"], "calls": [], "quarterly_comparisons": []}

@@ -1,0 +1,1 @@
+{"ticker": "COST", "name": "Costco Wholesale", "sector": "Consumer", "industry": "Discount Stores", "universe_type": "core", "signal_roles": ["consumer_health_sensor", "pricing_sensor"], "value_chain_positions": ["retail_distribution"], "calls": [], "quarterly_comparisons": []}

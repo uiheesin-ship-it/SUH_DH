@@ -1,1 +1,1 @@
-{"ticker": "XOM", "name": "Exxon Mobil Corporation", "sector": "Energy", "industry": "Oil & Gas Integrated", "universe_type": "core", "signal_roles": ["capex_sensor", "commodity_sensor"], "value_chain_positions": ["energy_upstream"], "calls": [], "quarterly_comparisons": []}
+{"ticker": "XOM", "name": "Exxon Mobil Corporation", "sector": "Energy/Materials/Healthcare", "industry": "Oil & Gas Integrated", "universe_type": "core", "signal_roles": ["capex_sensor", "commodity_sensor"], "value_chain_positions": ["energy_upstream"], "calls": [], "quarterly_comparisons": []}
