@@ -3,7 +3,11 @@
     "NVDA": {
       "collected": {
         "2026Q2": "collected",
-        "2026Q1": "collected"
+        "2026Q1": "collected",
+        "2025Q4": "collected",
+        "2025Q3": "collected",
+        "2025Q2": "collected",
+        "2025Q1": "collected"
       },
       "quarters": [
         [
@@ -27,7 +31,11 @@
     "MSFT": {
       "collected": {
         "2026Q2": "collected",
-        "2026Q1": "collected"
+        "2026Q1": "collected",
+        "2025Q4": "collected",
+        "2025Q3": "collected",
+        "2025Q2": "collected",
+        "2025Q1": "collected"
       },
       "quarters": [
         [
@@ -51,7 +59,11 @@
     "JPM": {
       "collected": {
         "2026Q2": "collected",
-        "2026Q1": "collected"
+        "2026Q1": "collected",
+        "2025Q4": "collected",
+        "2025Q3": "collected",
+        "2025Q2": "collected",
+        "2025Q1": "collected"
       },
       "quarters": [
         [
@@ -114,7 +126,30 @@
       "skipped": 2,
       "budget_exhausted": false,
       "worklist_done": true
+    },
+    {
+      "run": "2026-08-03T13:05:12Z",
+      "requests_used": 12,
+      "collected": [
+        "NVDA_2025Q4",
+        "MSFT_2025Q4",
+        "JPM_2025Q4",
+        "NVDA_2025Q3",
+        "MSFT_2025Q3",
+        "JPM_2025Q3",
+        "NVDA_2025Q2",
+        "MSFT_2025Q2",
+        "JPM_2025Q2",
+        "NVDA_2025Q1",
+        "MSFT_2025Q1",
+        "JPM_2025Q1"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 6,
+      "budget_exhausted": false,
+      "worklist_done": true
     }
   ],
-  "updated": "2026-08-03T12:28:13Z"
+  "updated": "2026-08-03T13:05:12Z"
 }
