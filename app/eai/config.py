@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     transcript_api_base: str = "https://financialmodelingprep.com"
     transcript_max_quarters: int = 4
 
+    # Alpha Vantage transcript API (free tier: 25 requests/day). Good for the
+    # 6-company MVP / coverage testing before committing to a paid plan.
+    alphavantage_api_key: str | None = None
+    alphavantage_base: str = "https://www.alphavantage.co"
+
 
 @functools.lru_cache
 def settings() -> Settings:

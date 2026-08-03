@@ -50,10 +50,13 @@ python -m pytest ../../tests/eai -q      # 30 tests
    허브에 **📞 카드**(`app/static/eai/`)가 표시됨(바닐라 정적 페이지, `../data/eai/*.json` 읽음).
 3. **실제 컨콜 원문 — 두 가지 방식**:
    - **(A) 인터넷에서 자동 수집(권장)**: 라이선스된 트랜스크립트 API에서 매일 자동으로 가져옵니다.
-     Variable `EAI_TRANSCRIPT_PROVIDER=fmp` + Secret `EAI_TRANSCRIPT_API_KEY`
-     (기본 형식은 Financial Modeling Prep; `EAI_TRANSCRIPT_API_BASE`로 호환 API 지정 가능).
-     유니버스의 각 티커에 대해 최근 `tracked_quarters` 분량을 자동 수집·분석.
-     ⚠️ 무단 스크래핑이 아니라 **라이선스 API**만 사용하며, 전체 원문은 재배포하지 않고 파생 분석과 검증된 짧은 인용만 저장/표시.
+     각 티커에 대해 최근 `tracked_quarters` 분량을 자동 수집·분석. ⚠️ 무단 스크래핑이 아니라
+     **라이선스 API**만 사용하며, 전체 원문은 재배포하지 않고 파생 분석과 검증된 짧은 인용만 저장/표시.
+     - **Alpha Vantage** (무료 ~25 req/day, MVP 테스트 적합):
+       Variable `EAI_TRANSCRIPT_PROVIDER=alphavantage` + Secret `EAI_ALPHAVANTAGE_API_KEY`
+     - **FMP / 호환 유료 API** (커버리지·볼륨 큼):
+       Variable `EAI_TRANSCRIPT_PROVIDER=fmp` + Secret `EAI_TRANSCRIPT_API_KEY`
+       (`EAI_TRANSCRIPT_API_BASE`로 호환 API 지정 가능)
    - **(B) 파일 드롭**: Variable `EAI_TRANSCRIPT_PROVIDER=directory` + `data/eai/transcripts/`에
      `<TICKER>_<FY>Q<Q>.json`(또는 `.txt`) 커밋.
    실제 LLM은 Secret `EAI_ANTHROPIC_API_KEY` + Variable `EAI_LLM_PROVIDER=anthropic` + 모델 Variable.

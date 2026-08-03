@@ -17,6 +17,9 @@ def get_transcript_provider(name: str | None = None):
     if name == "fmp":
         from .fmp import FMPTranscriptProvider
         return FMPTranscriptProvider()
+    if name == "alphavantage":
+        from .alphavantage import AlphaVantageTranscriptProvider
+        return AlphaVantageTranscriptProvider()
     if name == "manual_upload":
         # ManualUpload is invoked per-file via from_upload(); expose the module.
         from . import manual_upload
