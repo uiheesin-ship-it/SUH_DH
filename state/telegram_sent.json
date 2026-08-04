@@ -1,15 +1,5 @@
 {
 "sent": [
-"https://www.bloomberg.com/news/articles/2026-07-21/nvidia-touts-progress-getting-new-rubin-design-to-customers",
-"https://finance.yahoo.com/technology/ai/articles/hut-8-signs-9-8-103741725.html",
-"https://finance.yahoo.com/markets/stocks/articles/nvidia-nvda-strengthens-improving-ai-131813986.html",
-"https://asia.nikkei.com/spotlight/supply-chain/nvidia-and-wistron-to-build-blackwell-ai-servers-in-texas",
-"https://www.investors.com/news/technology/google-stock-ai-chip-frozen-earnings-ironwood/?src=A00220&yptr=yahoo",
-"https://finance.yahoo.com/technology/ai/articles/broadcom-ai-mix-shift-avgo-171151763.html",
-"https://www.bloomberg.com/news/articles/2026-07-21/stock-market-today-dow-s-p-live-updates",
-"https://www.datacenterdynamics.com/en/news/chinas-zai-partially-operating-1gw-data-center-using-chinese-made-chips-report/",
-"https://www.bloomberg.com/news/articles/2026-07-22/blackstone-tying-up-3-billion-airtrunk-loan-as-data-center-debt-binge-woes-grow",
-"https://www.datacenterdynamics.com/en/news/tata-acquires-land-in-india-for-openai-data-centers-report/",
 "https://www.cnbc.com/2026/07/22/japanese-ai-winners-toilets-fiberglass-and-seasoning.html",
 "https://www.bloomberg.com/news/articles/2026-07-22/sony-and-mitsubishi-set-up-ai-vision-joint-venture-for-factories",
 "https://finance.yahoo.com/markets/stocks/articles/claude-ai-says-michael-burry-222230187.html",
@@ -499,7 +489,17 @@
 "https://finance.yahoo.com/markets/stocks/articles/micron-mu-vs-asml-asml-120820932.html",
 "https://finance.yahoo.com/markets/stocks/articles/nvidia-vs-advanced-micro-devices-121501950.html",
 "https://finance.yahoo.com/technology/ai/articles/semiconductor-q2-2026-earnings-beat-121519010.html",
-"https://www.cnbc.com/2026/08/04/ai-tax-preparers.html"
+"https://www.cnbc.com/2026/08/04/ai-tax-preparers.html",
+"https://www.bloomberg.com/news/articles/2026-08-04/canada-posts-fourth-straight-trade-surplus-on-gold-shipments",
+"https://www.datacenterdynamics.com/en/news/foxconn-subsidiary-visionbayai-launches-5mw-nvidia-powered-ai-cluster-in-taiwan/",
+"https://www.bloomberg.com/news/articles/2026-08-04/blackstone-has-pitched-mega-debt-package-for-anthropic-chip-deal",
+"https://www.datacenterdynamics.com/en/news/former-microsoft-researcher-launches-data-center-robotics-startup/",
+"https://finance.yahoo.com/energy/articles/ge-vernova-set-biggest-winner-153026256.html",
+"https://www.datacenterdynamics.com/en/news/distributed-ai-cloud-provider-perimeter-compute-launches/",
+"https://finance.yahoo.com/technology/ai/articles/sk-hynix-rises-brokerages-launch-153134939.html",
+"https://www.datacenterdynamics.com/en/news/velox-ionx-hpc-to-deploy-7000-furiosaai-rngd-accelerators-at-swedish-data-center/",
+"https://finance.yahoo.com/markets/stocks/articles/why-direxion-daily-semiconductor-bull-154247447.html",
+"https://www.datacenterdynamics.com/en/news/ai-lab-moonshot-leases-20000-nvidia-gpus-from-alibaba-cloud-report/"
 ],
-"updated": "2026-08-04T15:03:58+00:00"
+"updated": "2026-08-04T17:13:48+00:00"
 }
