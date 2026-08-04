@@ -25,9 +25,12 @@ DEFAULTS: dict[str, Any] = {
         "finviz_price_above_sma50": True,
         "finviz_price_above_sma200": True,
     },
-    "min_price": 10,
-    "min_market_cap": 500_000_000,
-    "min_avg_dollar_volume_20d": 20_000_000,
+    # Quality floor is market cap, not price (matches the flat screener). The
+    # $1 min_price is only a sub-$1 penny-stock data-noise guard; the above-SMA
+    # Finviz filters still keep this to uptrending "healthy base" names.
+    "min_price": 1,
+    "min_market_cap": 300_000_000,
+    "min_avg_dollar_volume_20d": 10_000_000,
     "min_history_days": 200,
     "benchmarks": ["SPY", "QQQ", "IWM"],
     "base": {

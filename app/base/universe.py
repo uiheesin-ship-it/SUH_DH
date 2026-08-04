@@ -69,7 +69,7 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     # finvizfinance rejects (ValueError) and retry, so a version mismatch on one
     # option string never aborts the whole scan.
     desired: list[tuple[str, str]] = [
-        ("Price", "Over $10"),
+        ("Price", "Over $1"),
         ("Average Volume", "Over 500K"),
         ("Market Cap.", "Small (over $300mln)"),
         ("Industry", "Stocks only (ex-Funds)"),
