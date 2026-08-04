@@ -1,0 +1,58 @@
+name: Refresh 52-week highs (fast)
+
+# Lightweight, frequent refresh of ONLY the US 52-week-high list, decoupled from
+# the heavy full-site build/deploy in daily.yml. It commits data/highs.json +
+# data/meta.json to the branch; the static highs page reads those via
+# raw.githubusercontent, so the list refreshes without a Pages redeploy — and it
+# keeps working even when GitHub drops daily.yml's scheduled runs.
+on:
+  schedule:
+    # Every 20 min through the US session (13:00–22:00 UTC Mon–Fri). The list
+    # only moves while the market is open. Off-:00/:30 minute to avoid the
+    # cron rush and reduce the chance GitHub delays/drops the run.
+    - cron: "3,23,43 13-22 * * 1-5"
+    # A few off-hours refreshes so the pre-open list isn't stale.
+    - cron: "17 0,11 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Separate from the "pages" group so this never queues behind a Pages deploy.
+concurrency:
+  group: "highs-data"
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - name: Refresh highs list
+        run: python tools/build_highs.py
+      - name: Commit data/highs.json
+        run: |
+          if [ -n "$(git status --porcelain data/highs.json data/meta.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/highs.json data/meta.json
+            git commit -m "data(highs): refresh 52-week-high list"
+            # daily.yml (Pages build) and the Telegram job push to this branch too;
+            # retry, auto-resolving in favor of this fresh highs data.
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              echo "push rejected; rebasing (attempt $i) ..."
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "highs list unchanged."
+          fi

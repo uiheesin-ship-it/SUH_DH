@@ -84,6 +84,27 @@ def main() -> None:
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
+    # --- US 52-week highs, published FIRST (fix #1) --------------------------
+    # The new-high LIST is cheap (one Finviz fetch) and is the thing that changes
+    # intraday, so publish it up front — before the heavy base/flat/KR scans — so
+    # it is never blocked by, or lost to a failure in, those steps. We write the
+    # repo copy too (data/highs.json, data/meta.json); the standalone highs.yml
+    # workflow commits the same files far more often, and the static page reads
+    # them via raw.githubusercontent so the list refreshes without a Pages
+    # redeploy. Per-ticker reasons + charts are still enriched at the END of the
+    # build (they're slow and change slowly).
+    try:
+        early = screener.get_dashboard()
+        early["built"] = built
+        write_json(SITE / "data" / "highs.json", early)
+        write_json(ROOT / "data" / "highs.json", early)
+        meta = {"built": built, "count": early.get("count", 0)}
+        write_json(SITE / "data" / "meta.json", meta)
+        write_json(ROOT / "data" / "meta.json", meta)
+        print(f"  early highs list published: {early.get('count', 0)} stocks.")
+    except Exception as e:
+        print(f"  early highs list failed: {e}")
+
     # Earnings-AI (컨콜 투자 테마): publish the committed snapshot (data/eai/*.json,
     # produced by the eai.yml workflow which runs the LLM pipeline). The main
     # Pages build stays dependency-light — it just copies the latest snapshot,
@@ -463,10 +484,12 @@ def main() -> None:
                    {"updated": None, "count": 0, "companies": [], "demo": False,
                     "note": "아직 수주잔고 데이터가 없습니다. kr-backlog 워크플로를 실행하세요."})
 
-    # US 52-week highs: rescanned on EVERY build (purely schedule/time-driven —
-    # whatever Finviz shows at build time is what's published). No daytime freeze.
+    # US 52-week highs: re-fetch and enrich with per-ticker reasons + charts
+    # (the slow part). The bare list was already published up front; this pass
+    # replaces it with the reason/chart-enriched version.
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
     dashboard = screener.get_dashboard()
+    dashboard["built"] = built
     stocks = _all_stocks(dashboard)
     # Most important (largest) names first so we never run out of budget on them.
     stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
@@ -492,10 +515,10 @@ def main() -> None:
 
     # Stocks beyond the limit still appear in the list (without reason/chart).
     write_json(SITE / "data" / "highs.json", dashboard)
-    write_json(
-        SITE / "data" / "meta.json",
-        {"built": built, "count": dashboard["count"], "charts": fetched},
-    )
+    write_json(ROOT / "data" / "highs.json", dashboard)     # repo copy for raw fetch
+    meta = {"built": built, "count": dashboard["count"], "charts": fetched}
+    write_json(SITE / "data" / "meta.json", meta)
+    write_json(ROOT / "data" / "meta.json", meta)
     print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
 
 

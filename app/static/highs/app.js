@@ -26,6 +26,22 @@ function bust(url) {
   return url + (url.includes("?") ? "&" : "?") + "_=" + Date.now();
 }
 
+// Static mode: the new-high list/meta are committed to the repo very frequently
+// by the highs.yml workflow. Read them from raw.githubusercontent (fresh,
+// independent of Pages redeploys); fall back to the deployed snapshot if raw is
+// unreachable (CORS/offline), so there's never a regression.
+const RAW_BASE =
+  "https://raw.githubusercontent.com/uiheesin-ship-it/SUH_DH/refs/heads/claude/funny-carson-ent3s7/data";
+async function fetchData(file) {
+  if (STATIC) {
+    try {
+      const r = await fetch(bust(`${RAW_BASE}/${file}`), { cache: "no-store" });
+      if (r.ok) return r;
+    } catch (_) { /* fall through to the deployed copy */ }
+  }
+  return fetch(bust(`../data/${file}`), { cache: "no-store" });
+}
+
 // A sleeping free-tier backend can take a long time to answer (or never).
 // Abort after `ms` so the refresh button fails fast to the saved snapshot
 // instead of hanging forever on "불러오는 중…".
@@ -110,9 +126,10 @@ async function loadDashboard(live = false) {
     if (wantLive) {
       // Allow for a free-tier cold start, but bail cleanly if it never wakes.
       res = await fetchWithTimeout(liveUrl, 60000, { cache: "no-store" });
+    } else if (STATIC) {
+      res = await fetchData("highs.json");
     } else {
-      const url = STATIC ? bust("../data/highs.json") : "/api/highs";
-      res = await fetch(url, { cache: "no-store" });
+      res = await fetch("/api/highs", { cache: "no-store" });
     }
     const data = await res.json();
     if (!res.ok || data.error) {
@@ -146,7 +163,7 @@ async function loadDashboard(live = false) {
 async function loadStaticFallback(msg, detail) {
   usingLive = false;
   try {
-    const res = await fetch(bust("../data/highs.json"), { cache: "no-store" });
+    const res = await fetchData("highs.json");
     const data = await res.json();
     render(data);
     $("#demo-badge").classList.toggle("hidden", !data.demo);
@@ -481,7 +498,7 @@ let timer = null;
 
 async function checkForNewBuild() {
   try {
-    const res = await fetch(bust("../data/meta.json"), { cache: "no-store" });
+    const res = await fetchData("meta.json");
     if (!res.ok) return;
     const meta = await res.json();
     if (meta.built && meta.built !== latestBuilt) {
@@ -509,7 +526,7 @@ window.openChart = openChart;
 // only the build this page shipped with), then load and start the poller.
 (async () => {
   try {
-    const res = await fetch(bust("../data/meta.json"), { cache: "no-store" });
+    const res = await fetchData("meta.json");
     if (res.ok) { const m = await res.json(); if (m.built) latestBuilt = m.built; }
   } catch (_) { /* ignore — fall back to the baked build time */ }
   await loadDashboard();
