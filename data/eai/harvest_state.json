@@ -183,6 +183,91 @@
       "collected": {
         "2026Q1": "collected"
       }
+    },
+    "COF": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "WMT": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "COST": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "HD": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "MCD": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "BKNG": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "CAT": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "ETN": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "GE": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "UPS": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "FDX": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "UNP": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "XOM": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "SLB": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "FCX": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "UNH": {
+      "collected": {
+        "2026Q1": "collected"
+      }
+    },
+    "LLY": {
+      "collected": {
+        "2026Q1": "collected"
+      }
     }
   },
   "history": [
@@ -311,7 +396,38 @@
       "skipped": 0,
       "budget_exhausted": true,
       "worklist_done": false
+    },
+    {
+      "run": "2026-08-04T20:19:55Z",
+      "requests_used": 20,
+      "collected": [
+        "V_2026Q1",
+        "MA_2026Q1",
+        "AXP_2026Q1",
+        "COF_2026Q1",
+        "WMT_2026Q1",
+        "COST_2026Q1",
+        "HD_2026Q1",
+        "MCD_2026Q1",
+        "BKNG_2026Q1",
+        "CAT_2026Q1",
+        "ETN_2026Q1",
+        "GE_2026Q1",
+        "UPS_2026Q1",
+        "FDX_2026Q1",
+        "UNP_2026Q1",
+        "XOM_2026Q1",
+        "SLB_2026Q1",
+        "FCX_2026Q1",
+        "UNH_2026Q1",
+        "LLY_2026Q1"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 20,
+      "budget_exhausted": true,
+      "worklist_done": false
     }
   ],
-  "updated": "2026-08-03T20:21:19Z"
+  "updated": "2026-08-04T20:19:55Z"
 }
