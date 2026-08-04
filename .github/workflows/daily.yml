@@ -35,9 +35,6 @@ on:
       # This workflow commits the news digest here; ignore only that file so it
       # doesn't re-trigger itself — but DO rebuild for data/guidance.json edits.
       - "data/news.json"
-      # The persisted US 52-week-high snapshot (committed on active-window scans
-      # so daytime builds can freeze/reuse it); must not re-trigger the build.
-      - "data/highs.json"
       # Ditto the persisted base-screener snapshot (committed on scheduled scans);
       # reused as-is on push builds, so a change to it must not loop the build.
       - "data/base.json"
@@ -92,10 +89,10 @@ jobs:
         # block the Pages deploy.
         continue-on-error: true
         run: |
-          if [ -n "$(git status --porcelain data/news.json data/base.json data/flat.json data/highs.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
+          if [ -n "$(git status --porcelain data/news.json data/base.json data/flat.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/news.json data/base.json data/flat.json data/highs.json data/krhighs.json data/krhighs60.json data/krbase.json
+            git add data/news.json data/base.json data/flat.json data/krhighs.json data/krhighs60.json data/krbase.json
             git commit -m "chore: update dashboard data (news, base, flat, KR highs, KR base)"
             # The Telegram job commits to this same branch on its own cadence.
             # Retry, auto-resolving in favor of this fresh build.

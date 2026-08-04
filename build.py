@@ -463,87 +463,40 @@ def main() -> None:
                    {"updated": None, "count": 0, "companies": [], "demo": False,
                     "note": "아직 수주잔고 데이터가 없습니다. kr-backlog 워크플로를 실행하세요."})
 
-    # US 52-week highs only change while the US market is open (Korean overnight).
-    # During Korean daytime a rescan would replace the morning's COMPLETE list
-    # with a near-empty pre-open snapshot, so we FREEZE the highs then and only
-    # RE-SCAN inside the active window: 12:30–22:00 UTC ≈ 21:30 KST (evening) →
-    # 07:00 KST (after the US close has settled — that's when the day's new-high
-    # list is final). Manual dispatch always rescans. Tune the window via
-    # SUH_DH_HIGHS_ACTIVE_START / _END (minutes past 00:00 UTC).
-    repo_highs = ROOT / "data" / "highs.json"
-    _now = datetime.now(timezone.utc)
-    _now_min = _now.hour * 60 + _now.minute
-    _win_start = int(os.environ.get("SUH_DH_HIGHS_ACTIVE_START", str(12 * 60 + 30)))  # 12:30 UTC
-    _win_end = int(os.environ.get("SUH_DH_HIGHS_ACTIVE_END", str(22 * 60)))           # 22:00 UTC
-    scan_highs = (
-        os.environ.get("SUH_DH_FORCE_HIGHS", "") == "1"
-        or event == "workflow_dispatch"
-        or (_win_start <= _now_min <= _win_end)
-        or not repo_highs.exists()
+    # US 52-week highs: rescanned on EVERY build (purely schedule/time-driven —
+    # whatever Finviz shows at build time is what's published). No daytime freeze.
+    print(f"Fetching 52-week highs (limit={LIMIT}) ...")
+    dashboard = screener.get_dashboard()
+    stocks = _all_stocks(dashboard)
+    # Most important (largest) names first so we never run out of budget on them.
+    stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
+    print(f"  {len(stocks)} tickers found.")
+
+    fetched = 0
+    for s in stocks[:LIMIT]:
+        ticker = s["ticker"]
+        try:
+            s["reason"] = charts.get_reason(ticker)
+        except Exception as e:
+            print(f"  reason {ticker} failed: {e}")
+            s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
+        try:
+            chart = charts.get_chart(ticker, "max")
+            write_json(SITE / "data" / "chart" / f"{ticker}.json", chart)
+        except Exception as e:
+            print(f"  chart {ticker} failed: {e}")
+        fetched += 1
+        if fetched % 20 == 0:
+            print(f"  ... {fetched} processed")
+        time.sleep(0.3)  # be gentle with Yahoo
+
+    # Stocks beyond the limit still appear in the list (without reason/chart).
+    write_json(SITE / "data" / "highs.json", dashboard)
+    write_json(
+        SITE / "data" / "meta.json",
+        {"built": built, "count": dashboard["count"], "charts": fetched},
     )
-    do_scan = scan_highs
-    if do_scan:
-        print(f"Fetching 52-week highs (limit={LIMIT}) ...")
-        fresh = screener.get_dashboard()
-        # A near-empty scan almost always means the US market is CLOSED (pre-open
-        # / between sessions), not a genuinely empty market. Don't let that
-        # handful overwrite the last good committed list — keep it until a real
-        # session (≥ SUH_DH_HIGHS_MIN_KEEP names) produces today's list.
-        _min_keep = int(os.environ.get("SUH_DH_HIGHS_MIN_KEEP", "10"))
-        if (fresh.get("count", 0) < _min_keep and repo_highs.exists()
-                and os.environ.get("SUH_DH_FORCE_HIGHS", "") != "1"):
-            committed = json.loads(repo_highs.read_text(encoding="utf-8"))
-            if committed.get("count", 0) >= fresh.get("count", 0):
-                print(f"  scan {fresh.get('count', 0)} < {_min_keep} (market likely closed) "
-                      f"— keeping committed {committed.get('count', 0)}.")
-                do_scan = False
-    if do_scan:
-        dashboard = fresh
-        dashboard["built"] = built   # stamp the scan time (survives the freeze)
-        stocks = _all_stocks(dashboard)
-        # Most important (largest) names first so we never run out of budget.
-        stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
-        print(f"  {len(stocks)} tickers found.")
-
-        fetched = 0
-        for s in stocks[:LIMIT]:
-            ticker = s["ticker"]
-            try:
-                s["reason"] = charts.get_reason(ticker)
-            except Exception as e:
-                print(f"  reason {ticker} failed: {e}")
-                s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
-            try:
-                chart = charts.get_chart(ticker, "max")
-                write_json(SITE / "data" / "chart" / f"{ticker}.json", chart)
-            except Exception as e:
-                print(f"  chart {ticker} failed: {e}")
-            fetched += 1
-            if fetched % 20 == 0:
-                print(f"  ... {fetched} processed")
-            time.sleep(0.3)  # be gentle with Yahoo
-
-        # Stocks beyond the limit still appear in the list (without reason/chart).
-        write_json(SITE / "data" / "highs.json", dashboard)
-        write_json(repo_highs, dashboard)   # persist so frozen builds can reuse it
-        write_json(
-            SITE / "data" / "meta.json",
-            {"built": built, "count": dashboard["count"], "charts": fetched},
-        )
-        print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
-    else:
-        # Frozen (Korean daytime): reuse the last committed highs snapshot as-is,
-        # keeping its original scan time so "마지막 갱신" stays honest. Charts for
-        # these tickers fall back to the live backend / Yahoo link on click.
-        print("Freezing US highs (outside active window) — reusing committed highs.json ...")
-        frozen = json.loads(repo_highs.read_text(encoding="utf-8"))
-        write_json(SITE / "data" / "highs.json", frozen)
-        write_json(
-            SITE / "data" / "meta.json",
-            {"built": frozen.get("built", built), "count": frozen.get("count", 0),
-             "charts": 0, "frozen": True},
-        )
-        print(f"Frozen. Reused {frozen.get('count', 0)} highs from data/highs.json.")
+    print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
 
 
 if __name__ == "__main__":

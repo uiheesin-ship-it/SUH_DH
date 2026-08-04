@@ -121,10 +121,6 @@ async function loadDashboard(live = false) {
       return;
     }
     usingLive = wantLive;
-    // Prefer the highs data's OWN build time: outside the active window the list
-    // is frozen (reused), so "마지막 갱신" should show when the list was actually
-    // last scanned, not the site build time.
-    if (data.built) latestBuilt = data.built;
     render(data);
     $("#demo-badge").classList.toggle("hidden", !data.demo);
     if (usingLive) {
