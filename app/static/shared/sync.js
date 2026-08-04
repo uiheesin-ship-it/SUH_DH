@@ -127,12 +127,22 @@
       btn.addEventListener("click", openDialog);
       container.insertBefore(btn, container.firstChild);
 
-      // On load, if a code is set, adopt the cloud list (cloud wins).
-      (async () => {
-        if (!getCode()) return;
+      // Adopt the cloud list (cloud wins). Runs on load and again whenever the
+      // tab regains focus/visibility, so a star made on another device shows up
+      // when you come back to this tab — no manual refresh needed. Throttled so
+      // rapid tab-switching doesn't hammer the service.
+      let lastPull = 0;
+      const autoPull = async (force) => {
+        if (!getCode() || document.hidden) return;
+        const now = Date.now();
+        if (!force && now - lastPull < 3000) return;
+        lastPull = now;
         const cloud = await window.SUHSync.pull(program);
         if (Array.isArray(cloud)) setList(cloud);
-      })();
+      };
+      autoPull(true);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) autoPull(); });
+      window.addEventListener("focus", () => autoPull());
 
       function openDialog() {
         const ov = document.createElement("div");
