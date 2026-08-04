@@ -62,6 +62,9 @@ table.screen tbody tr:hover { background: var(--panel-2); }
 table.screen tr.active { background: #1d3a52; }
 .tk .ticker-link { background: none; border: none; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 0; }
 .tk .company { color: var(--muted); font-size: 11px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+button.star { background: none; border: none; color: #fbbf24; cursor: pointer; font-size: 13px; padding: 0 4px 0 0; line-height: 1; }
+.tk .star { vertical-align: middle; }
+#watch-btn.on { background: #78350f; color: #fcd34d; }
 td.score b { font-size: 14px; }
 td.notes { white-space: normal; color: var(--muted); font-size: 11px; max-width: 260px; }
 td.etf { color: var(--accent); }

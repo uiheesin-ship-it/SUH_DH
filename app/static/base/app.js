@@ -19,6 +19,9 @@ let currentTicker = null;
 let currentRec = null;
 let chartData = null;
 let suppressRelayout = false;
+let watchOnly = false;
+const WATCH_KEY = "suh_base_watch";
+let WATCH = new Set(JSON.parse(localStorage.getItem(WATCH_KEY) || "[]"));
 
 // ---------- formatting ----------
 function fmtCap(v) {
@@ -86,6 +89,7 @@ function filtered() {
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
+    if (watchOnly && !WATCH.has(s.ticker)) return false;
     if ((s.total_score ?? 0) < minScore) return false;
     if (grade && s.setup_grade !== grade) return false;
     if (pivot && (s.pivot?.pivot_status) !== pivot) return false;
@@ -149,6 +153,7 @@ const COLS = [
 function render() {
   const rows = filtered();
   $("#count-badge").textContent = `${rows.length}종목`;
+  const wc = $("#watch-count"); if (wc) wc.textContent = WATCH.size;
   if (!rows.length) {
     $("#content").innerHTML = `<div class="loading">조건에 맞는 종목이 없습니다. 필터를 완화해 보세요.</div>`;
     return;
@@ -165,6 +170,7 @@ function render() {
     const dist = s.pivot?.distance_to_pivot;
     return `<tr data-ticker="${esc(s.ticker)}">
       <td class="tk">
+        <button class="star" data-star="${esc(s.ticker)}" title="관심종목">${WATCH.has(s.ticker) ? "★" : "☆"}</button>
         <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
         <div class="company">${esc(s.company_name || "")}</div>
       </td>
@@ -197,9 +203,21 @@ function render() {
       else { sortKey = k; sortDir = (k === "ticker" || k === "sector_etf") ? 1 : -1; }
       render();
     }));
+  document.querySelectorAll("button.star").forEach((b) =>
+    b.addEventListener("click", (e) => { e.stopPropagation(); toggleWatch(b.dataset.star); }));
   if (currentTicker) {
     document.querySelectorAll(`tr[data-ticker="${CSS.escape(currentTicker)}"]`)
       .forEach((r) => r.classList.add("active"));
+  }
+}
+
+// ---------- watchlist ----------
+function toggleWatch(ticker) {
+  if (WATCH.has(ticker)) WATCH.delete(ticker); else WATCH.add(ticker);
+  localStorage.setItem(WATCH_KEY, JSON.stringify([...WATCH]));
+  render();
+  if (currentTicker === ticker) {
+    const cw = $("#chart-watch"); if (cw) cw.textContent = WATCH.has(ticker) ? "★" : "☆";
   }
 }
 
@@ -370,6 +388,7 @@ function openChart(ticker) {
   $("#chart-ticker").textContent = ticker;
   $("#chart-company").textContent = currentRec.company_name || "";
   $("#chart-external").href = `https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}`;
+  { const cw = $("#chart-watch"); if (cw) cw.textContent = WATCH.has(ticker) ? "★" : "☆"; }
   $("#score-panel").innerHTML = scorePanel(currentRec);
   $("#detail-panel").innerHTML = detailPanel(currentRec);
 
@@ -575,6 +594,8 @@ function exportCsv() {
 // ---------- events ----------
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
+$("#watch-btn").addEventListener("click", () => { watchOnly = !watchOnly; $("#watch-btn").classList.toggle("on", watchOnly); render(); });
+$("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
