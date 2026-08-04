@@ -481,9 +481,24 @@ def main() -> None:
         or (_win_start <= _now_min <= _win_end)
         or not repo_highs.exists()
     )
-    if scan_highs:
+    do_scan = scan_highs
+    if do_scan:
         print(f"Fetching 52-week highs (limit={LIMIT}) ...")
-        dashboard = screener.get_dashboard()
+        fresh = screener.get_dashboard()
+        # A near-empty scan almost always means the US market is CLOSED (pre-open
+        # / between sessions), not a genuinely empty market. Don't let that
+        # handful overwrite the last good committed list — keep it until a real
+        # session (≥ SUH_DH_HIGHS_MIN_KEEP names) produces today's list.
+        _min_keep = int(os.environ.get("SUH_DH_HIGHS_MIN_KEEP", "10"))
+        if (fresh.get("count", 0) < _min_keep and repo_highs.exists()
+                and os.environ.get("SUH_DH_FORCE_HIGHS", "") != "1"):
+            committed = json.loads(repo_highs.read_text(encoding="utf-8"))
+            if committed.get("count", 0) >= fresh.get("count", 0):
+                print(f"  scan {fresh.get('count', 0)} < {_min_keep} (market likely closed) "
+                      f"— keeping committed {committed.get('count', 0)}.")
+                do_scan = False
+    if do_scan:
+        dashboard = fresh
         dashboard["built"] = built   # stamp the scan time (survives the freeze)
         stocks = _all_stocks(dashboard)
         # Most important (largest) names first so we never run out of budget.
