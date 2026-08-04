@@ -3,53 +3,58 @@
 //
 // The dashboard is a static site (no backend/DB), so a starred list normally
 // lives only in this browser's localStorage. This module layers an optional
-// cloud copy on top, using kvdb.io — a free, CORS-enabled key-value store made
-// for browser apps. The user creates or enters a personal "sync code" (a kvdb
-// bucket id) once per device; each program stores its starred tickers under a
-// per-program key inside that bucket, so base/ and flat/ share one code but keep
-// separate lists.
+// cloud copy on top, using jsonblob.com — a free, anonymous, CORS-enabled JSON
+// store. The user creates or enters a personal "sync code" (a jsonblob id) once
+// per device; ONE blob holds both programs' lists as {base:[...], flat:[...]},
+// so base/ and flat/ share a single code but keep separate lists.
 //
 // localStorage stays the source of truth locally: every cloud call is
-// best-effort and swallows errors, so the page keeps working if kvdb.io is
-// unreachable. Convergence model: on load a connected device adopts the cloud
-// list (last-write-wins); linking a brand-new code merges local ∪ cloud so
-// neither side is lost.
+// best-effort and swallows errors, so the page keeps working if the service is
+// unreachable. Convergence: on load a connected device adopts the cloud list
+// (last-write-wins); linking a brand-new code merges local ∪ cloud so neither
+// side is lost. A push reads the blob first so it never clobbers the sibling
+// program's list.
 (function () {
-  const KV_BASE = "https://kvdb.io";
+  const API = "https://jsonblob.com/api/jsonBlob";
   const CODE_KEY = "suh_sync_code";
 
   const getCode = () => localStorage.getItem(CODE_KEY) || "";
   const setCode = (c) => c ? localStorage.setItem(CODE_KEY, c) : localStorage.removeItem(CODE_KEY);
+  const EMPTY = () => ({ base: [], flat: [] });
 
-  async function createBucket() {
-    // Anonymous bucket — returns a plain-text bucket id.
-    const res = await fetch(KV_BASE + "/", { method: "POST", body: "{}" });
+  async function createBlob(initial) {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(initial || EMPTY()),
+    });
     if (!res.ok) throw new Error("코드 생성 실패 (" + res.status + ")");
-    const id = (await res.text()).trim();
-    if (!id) throw new Error("코드 생성 실패 (빈 응답)");
-    return id;
+    // jsonblob returns the new id in the X-jsonblob header (CORS-exposed); fall
+    // back to the Location header's last path segment.
+    let id = res.headers.get("x-jsonblob");
+    if (!id) { const loc = res.headers.get("Location"); if (loc) id = loc.split("/").pop(); }
+    if (!id) throw new Error("코드 생성 실패 (응답에서 코드를 못 읽음)");
+    return id.trim();
   }
 
-  async function cloudGet(program) {
+  async function getBlob() {
     const code = getCode();
     if (!code) return null;
-    const res = await fetch(`${KV_BASE}/${encodeURIComponent(code)}/${encodeURIComponent(program)}`,
-                           { cache: "no-store" });
-    if (res.status === 404) return [];          // key not set yet
+    const res = await fetch(`${API}/${encodeURIComponent(code)}`,
+                           { cache: "no-store", headers: { "Accept": "application/json" } });
+    if (res.status === 404) return EMPTY();
     if (!res.ok) throw new Error("읽기 실패 (" + res.status + ")");
-    const txt = (await res.text()).trim();
-    if (!txt) return [];
-    try { const a = JSON.parse(txt); return Array.isArray(a) ? a : []; }
-    catch { return []; }
+    try { const o = await res.json(); return (o && typeof o === "object") ? o : EMPTY(); }
+    catch { return EMPTY(); }
   }
 
-  async function cloudPut(program, arr) {
+  async function putBlob(obj) {
     const code = getCode();
     if (!code) return;
-    await fetch(`${KV_BASE}/${encodeURIComponent(code)}/${encodeURIComponent(program)}`, {
+    await fetch(`${API}/${encodeURIComponent(code)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(arr || []),
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(obj || EMPTY()),
     });
   }
 
@@ -81,10 +86,27 @@
   }
 
   window.SUHSync = {
-    getCode, setCode, createBucket,
+    getCode, setCode,
     hasCode: () => !!getCode(),
-    async pull(program) { try { return await cloudGet(program); } catch { return null; } },
-    async push(program, arr) { try { await cloudPut(program, arr); } catch { /* best-effort */ } },
+
+    async pull(program) {
+      try { const o = await getBlob(); if (!o) return null; return Array.isArray(o[program]) ? o[program] : []; }
+      catch { return null; }
+    },
+    async push(program, arr) {
+      try {
+        const o = (await getBlob()) || EMPTY();
+        o[program] = arr || [];
+        await putBlob(o);
+      } catch { /* best-effort */ }
+    },
+    async createCode(program, seedList) {
+      const init = EMPTY();
+      init[program] = seedList || [];
+      const id = await createBlob(init);
+      setCode(id);
+      return id;
+    },
 
     // Add a "☁ 동기화" button to `container` and wire the setup dialog.
     //   getList() -> current array of tickers
@@ -139,41 +161,35 @@
             </div>
           </div>`;
         document.body.appendChild(ov);
-        const q = (sel) => ov.querySelector(sel);
-        const msg = (t, ok) => { const m = q("#suh-sync-msg"); m.textContent = t; m.classList.toggle("ok", !!ok); };
+        const qs = (sel) => ov.querySelector(sel);
+        const msg = (t, ok) => { const m = qs("#suh-sync-msg"); m.textContent = t; m.classList.toggle("ok", !!ok); };
         const close = () => ov.remove();
         ov.addEventListener("click", (e) => { if (e.target === ov) close(); });
-        q("#suh-sync-close").addEventListener("click", close);
+        qs("#suh-sync-close").addEventListener("click", close);
 
         if (connected) {
-          q("#suh-sync-code").textContent = getCode();
-          q("#suh-sync-copy").addEventListener("click", async () => {
+          qs("#suh-sync-code").textContent = getCode();
+          qs("#suh-sync-copy").addEventListener("click", async () => {
             try { await navigator.clipboard.writeText(getCode()); msg("복사됐습니다. 다른 기기에 붙여넣으세요.", true); }
             catch { msg("복사 실패 — 코드를 길게 눌러 직접 복사하세요."); }
           });
-          q("#suh-sync-sync").addEventListener("click", async () => {
+          qs("#suh-sync-sync").addEventListener("click", async () => {
             msg("동기화 중…");
             const cloud = await window.SUHSync.pull(program);
             if (Array.isArray(cloud)) { setList(cloud); msg("최신 목록을 받아왔습니다.", true); }
             else msg("동기화 실패 — 잠시 후 다시 시도하세요.");
           });
-          q("#suh-sync-disc").addEventListener("click", () => { setCode(""); refresh(); close(); });
+          qs("#suh-sync-disc").addEventListener("click", () => { setCode(""); refresh(); close(); });
         } else {
-          q("#suh-sync-new").addEventListener("click", async () => {
+          qs("#suh-sync-new").addEventListener("click", async () => {
             msg("코드 생성 중…");
             try {
-              const code = await createBucket();
-              setCode(code);
-              await window.SUHSync.push(program, getList());   // seed cloud with current stars
-              refresh();
-              q("#suh-sync-msg").classList.add("ok");
-              msg("코드가 생성됐습니다. '코드 복사'로 다른 기기에 입력하세요.", true);
-              // Re-render the dialog in the connected state.
-              close(); openDialog();
+              await window.SUHSync.createCode(program, getList());   // seed cloud with current stars
+              refresh(); close(); openDialog();                      // reopen in connected state
             } catch (e) { msg(e.message || "생성 실패"); }
           });
-          q("#suh-sync-connect").addEventListener("click", async () => {
-            const code = q("#suh-sync-input").value.trim();
+          qs("#suh-sync-connect").addEventListener("click", async () => {
+            const code = qs("#suh-sync-input").value.trim();
             if (!code) { msg("코드를 입력하세요."); return; }
             msg("연결 중…");
             setCode(code);
