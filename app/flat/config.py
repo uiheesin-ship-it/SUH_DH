@@ -25,8 +25,10 @@ DEFAULTS: dict[str, Any] = {
         "include_adr": True,
         "max_candidates": 1500,
     },
-    "min_price": 5.0,
-    "min_market_cap": 0,           # not gated by default (spec lists it as optional)
+    # Quality floor is market cap, not price. min_price is only a sub-$1
+    # penny-stock data-noise guard; min_market_cap does the real filtering.
+    "min_price": 1.0,
+    "min_market_cap": 300_000_000,   # small-cap and up
     "min_avg_dollar_volume_20d": 10_000_000,
     # Need base(≤120) + prior activity(≤252) for a clean, look-ahead-free split.
     "min_history_days": 180,

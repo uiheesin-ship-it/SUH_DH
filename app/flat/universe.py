@@ -77,10 +77,15 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     uni = cfg["universe"]
     fos = Overview()
 
-    # Wide net: price >= $5, liquid, common stock only. No SMA / new-high signal
-    # filter — flat bases exist below and above the moving averages.
+    # Wide net: small-cap and up ($300M+), liquid, common stock only, priced
+    # over $1 (only to dodge sub-$1 penny-stock data noise — the real quality
+    # floor is market cap, not price). No SMA / new-high signal filter — flat
+    # bases exist below and above the moving averages. Any option string the
+    # installed finvizfinance rejects is dropped; the code-side min_market_cap /
+    # min_price gates below still enforce the same thresholds regardless.
     desired: list[tuple[str, str]] = [
-        ("Price", "Over $5"),
+        ("Price", "Over $1"),
+        ("Market Cap.", "Small (over $300mln)"),
         ("Average Volume", "Over 500K"),
         ("Industry", "Stocks only (ex-Funds)"),
     ]
