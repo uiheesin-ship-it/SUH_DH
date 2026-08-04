@@ -215,6 +215,7 @@ function render() {
 function toggleWatch(ticker) {
   if (WATCH.has(ticker)) WATCH.delete(ticker); else WATCH.add(ticker);
   localStorage.setItem(WATCH_KEY, JSON.stringify([...WATCH]));
+  if (window.SUHSync) SUHSync.push("base", [...WATCH]);   // best-effort cloud sync
   render();
   if (currentTicker === ticker) {
     const cw = $("#chart-watch"); if (cw) cw.textContent = WATCH.has(ticker) ? "★" : "☆";
@@ -605,6 +606,19 @@ $("#f-search").addEventListener("input", render);
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });
 
 window.openChart = openChart;
+
+// ---------- cross-device watchlist sync (☁ button) ----------
+if (window.SUHSync) {
+  SUHSync.mount("base", {
+    container: document.querySelector(".controls"),
+    getList: () => [...WATCH],
+    setList: (arr) => {
+      WATCH = new Set(arr);
+      localStorage.setItem(WATCH_KEY, JSON.stringify([...WATCH]));
+      render();
+    },
+  });
+}
 
 // ---------- hover tooltips for indicator labels ----------
 // One shared tooltip on <body> that follows the cursor, so it never gets

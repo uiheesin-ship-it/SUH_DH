@@ -222,6 +222,7 @@ function render() {
 function toggleWatch(ticker) {
   if (WATCH.has(ticker)) WATCH.delete(ticker); else WATCH.add(ticker);
   localStorage.setItem(WATCH_KEY, JSON.stringify([...WATCH]));
+  if (window.SUHSync) SUHSync.push("flat", [...WATCH]);   // best-effort cloud sync
   render();
   if (currentTicker === ticker) $("#chart-watch").textContent = WATCH.has(ticker) ? "★" : "☆";
 }
@@ -610,6 +611,19 @@ window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("ch
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });
 
 window.openChart = openChart;
+
+// ---------- cross-device watchlist sync (☁ button) ----------
+if (window.SUHSync) {
+  SUHSync.mount("flat", {
+    container: document.querySelector(".controls"),
+    getList: () => [...WATCH],
+    setList: (arr) => {
+      WATCH = new Set(arr);
+      localStorage.setItem(WATCH_KEY, JSON.stringify([...WATCH]));
+      render();
+    },
+  });
+}
 
 // ---------- hover tooltips ----------
 (function setupTooltips() {
