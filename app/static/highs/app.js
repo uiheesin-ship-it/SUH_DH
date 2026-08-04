@@ -61,6 +61,41 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// ---------- favorites (★) ----------
+// Per-browser bookmarks kept in localStorage: { TICKER: "YYYY-MM-DD" } where the
+// date is when the star was (re)turned on. A starred ticker keeps its star and
+// that date whenever it reappears in the list; un-starring then re-starring
+// stamps the new date. (Stored locally, so it's per device/browser.)
+const FAV_KEY = "suh_dh_fav_highs";
+function loadFavs() {
+  try { return JSON.parse(localStorage.getItem(FAV_KEY) || "{}") || {}; }
+  catch (_) { return {}; }
+}
+function saveFavs(f) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(f)); } catch (_) {}
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function starCellInner(ticker) {
+  const since = loadFavs()[ticker];
+  const on = !!since;
+  return `<button class="star${on ? " on" : ""}" title="${on ? "즐겨찾기 해제" : "즐겨찾기"}"
+      onclick="toggleFav('${esc(ticker)}')">${on ? "★" : "☆"}</button>` +
+    (on ? `<div class="star-date">${esc(since)}</div>` : "");
+}
+function toggleFav(ticker) {
+  const favs = loadFavs();
+  if (favs[ticker]) delete favs[ticker];
+  else favs[ticker] = todayStr();          // stamp (re)star date
+  saveFavs(favs);
+  document.querySelectorAll(`[data-star="${CSS.escape(ticker)}"]`).forEach((cell) => {
+    cell.innerHTML = starCellInner(ticker);
+  });
+}
+window.toggleFav = toggleFav;
+
 // ---------- dashboard ----------
 async function loadDashboard(live = false) {
   // `live=true` (refresh button) pulls fresh data from the backend right now;
@@ -86,6 +121,10 @@ async function loadDashboard(live = false) {
       return;
     }
     usingLive = wantLive;
+    // Prefer the highs data's OWN build time: outside the active window the list
+    // is frozen (reused), so "마지막 갱신" should show when the list was actually
+    // last scanned, not the site build time.
+    if (data.built) latestBuilt = data.built;
     render(data);
     $("#demo-badge").classList.toggle("hidden", !data.demo);
     if (usingLive) {
@@ -130,6 +169,7 @@ function renderError(msg, detail) {
 function stockRow(s) {
   const cls = (s.change_pct ?? 0) >= 0 ? "chg-up" : "chg-down";
   return `<tr data-ticker="${esc(s.ticker)}">
+    <td class="star-cell" data-star="${esc(s.ticker)}">${starCellInner(s.ticker)}</td>
     <td>
       <button class="ticker-link" onclick="openChart('${esc(s.ticker)}','${esc(s.company || "")}')">${esc(s.ticker)}</button>
       <div class="company">${esc(s.company || "")}</div>
@@ -145,10 +185,11 @@ function stockRow(s) {
 function stockTable(stocks) {
   return `<table>
     <colgroup>
-      <col class="c-ticker"><col class="c-chg"><col class="c-price">
+      <col class="c-star"><col class="c-ticker"><col class="c-chg"><col class="c-price">
       <col class="c-cap"><col class="c-desc"><col class="c-reason">
     </colgroup>
     <thead><tr>
+      <th class="star-th" title="즐겨찾기">★</th>
       <th>티커</th><th class="num">전일대비</th><th class="num">가격</th>
       <th class="num">시총</th><th>사업 개요</th><th>상승 이유 (뉴스 · 실적)</th>
     </tr></thead>
