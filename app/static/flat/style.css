@@ -162,5 +162,25 @@ td.etf { color: var(--accent); }
 @media (max-width: 720px) {
   #chart-pane { position: fixed; inset: 0; width: 100% !important; max-width: 100%; z-index: 50; }
   .d-grid { grid-template-columns: 1fr; }
+
+  /* Compact header for phones (desktop layout unchanged — these only apply
+     at <=720px). Keep the title on one line and let the buttons/status wrap
+     onto their own rows instead of squeezing the title into a vertical stack. */
+  .topbar { flex-wrap: wrap; gap: 6px 8px; padding: 8px 10px; }
+  .title { flex: 1 1 auto; gap: 8px; min-width: 0; }
+  .title h1 { font-size: 15px; white-space: nowrap; }
+  .home-link { font-size: 18px; }
+  .controls { width: 100%; flex-wrap: wrap; gap: 6px; }
+  .status { flex-basis: 100%; font-size: 11px; line-height: 1.35; order: 5; }
+  .topbar button { padding: 5px 9px; font-size: 12px; }
+  #suh-sync-btn { order: 1; }
+
+  /* Filter bar: tighter spacing, inputs/selects sized to the screen. */
+  .filters { gap: 8px 10px; padding: 8px 10px; }
+  .filters label { gap: 4px; }
+  .filters input[type=range] { width: 100px; }
+  .filters .search { flex: 1 1 100%; }
+  .filters .search input { width: 100%; }
+  .count-badge { margin-left: auto; }
 }
 .lowbeta { color: #fca5a5; }
