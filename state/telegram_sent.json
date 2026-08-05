@@ -1,8 +1,5 @@
 {
 "sent": [
-"https://www.datacenterdynamics.com/en/news/amd-launches-instinct-mi400-series-gpus-for-ai-workloads/",
-"https://www.bloomberg.com/news/articles/2026-07-23/amd-unveils-new-products-in-pursuit-of-2-trillion-opportunity",
-"https://www.datacenterdynamics.com/en/news/openai-to-deploy-amd-helios-rackscale-system-as-first-part-of-up-to-6gw-partnership/",
 "https://www.datacenterdynamics.com/en/news/meta-to-deploy-custom-amd-instinct-mi450-based-gpu-is-lead-customer-for-venice-epyc-cpu/",
 "https://www.datacenterdynamics.com/en/news/amd-partners-with-big-chip-co-cerebras-for-ultra-low-latency-and-high-throughput-ai-inference-system/",
 "https://www.cnbc.com/2026/07/23/cerebras-stock-gains-on-amd-partnership.html",
@@ -499,7 +496,10 @@
 "https://www.datacenterdynamics.com/en/news/amogy-2g-energy-test-ammonia-to-power-system-for-data-center-use/",
 "https://www.datacenterdynamics.com/en/news/national-science-foundation-announces-100m-ai-infrastructure-hubs-program-to-boost-science-rd/",
 "https://www.datacenterdynamics.com/en/news/the-digital-valley-asturias-project-for-a-data-center-in-salas/",
-"https://www.bloomberg.com/news/videos/2026-08-05/why-spacex-s-ai-business-matters-more-than-rockets-video"
+"https://www.bloomberg.com/news/videos/2026-08-05/why-spacex-s-ai-business-matters-more-than-rockets-video",
+"https://www.bloomberg.com/news/videos/2026-08-05/bloomberg-tech-8-5-2026-video",
+"https://www.cnbc.com/2026/08/05/microsoft-makes-openai-gpt-5point6-sol-default-in-github-copilot-for-staff.html",
+"https://www.cnbc.com/2026/08/05/meta-debuts-muse-code-to-take-on-anthropic-and-openai-.html"
 ],
-"updated": "2026-08-05T19:38:52+00:00"
+"updated": "2026-08-05T21:12:46+00:00"
 }
