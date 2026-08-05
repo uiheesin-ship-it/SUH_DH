@@ -39,8 +39,8 @@ function esc(s) {
 async function load() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const url = STATIC ? "../data/krbase.json" : "/api/krbase";
-    const res = await fetch(url, { cache: "no-store" });
+    const res = STATIC ? await SUHData.fetch("krbase.json", true)
+                       : await fetch("/api/krbase", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);

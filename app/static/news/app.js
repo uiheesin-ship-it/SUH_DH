@@ -29,8 +29,8 @@ function fmtTime(item) {
 async function loadNews() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const url = STATIC ? "../data/news.json" : "/api/news";
-    const res = await fetch(url, { cache: "no-store" });
+    const res = STATIC ? await SUHData.fetch("news.json", true)
+                       : await fetch("/api/news", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "뉴스를 불러오지 못했습니다.", data.detail);

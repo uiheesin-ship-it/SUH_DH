@@ -25,8 +25,8 @@ function esc(s) {
 async function loadDashboard() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const url = STATIC ? bust("../data/krhighs60.json") : "/api/krhighs60";
-    const res = await fetch(url, { cache: "no-store" });
+    const res = STATIC ? await SUHData.fetch("krhighs60.json", true)
+                       : await fetch("/api/krhighs60", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);

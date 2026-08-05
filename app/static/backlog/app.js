@@ -53,8 +53,8 @@ function esc(s) {
 async function loadData() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const url = STATIC ? bust("../data/kr_backlog.json") : "/api/backlog";
-    const res = await fetch(url, { cache: "no-store" });
+    const res = STATIC ? await SUHData.fetch("kr_backlog.json", true)
+                       : await fetch("/api/backlog", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);
