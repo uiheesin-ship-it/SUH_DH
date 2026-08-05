@@ -127,18 +127,30 @@
       btn.addEventListener("click", openDialog);
       container.insertBefore(btn, container.firstChild);
 
-      // Adopt the cloud list (cloud wins). Runs on load and again whenever the
-      // tab regains focus/visibility, so a star made on another device shows up
-      // when you come back to this tab — no manual refresh needed. Throttled so
-      // rapid tab-switching doesn't hammer the service.
+      // Loss-proof adopt: a NON-EMPTY cloud list wins (so adds/removes made on
+      // another device show up). An EMPTY or failed cloud read NEVER wipes local
+      // — instead, if we have local stars, we push them up to HEAL the cloud.
+      // This is the fix for "stars all disappeared": a transient empty read used
+      // to overwrite the local list with [].
+      const adopt = async (cloud) => {
+        if (Array.isArray(cloud) && cloud.length) { setList(cloud); return "adopted"; }
+        if (Array.isArray(cloud) && cloud.length === 0 && getList().length) {
+          await window.SUHSync.push(program, getList());   // heal empty cloud from local
+          return "healed";
+        }
+        return "kept";
+      };
+
+      // Runs on load and again whenever the tab regains focus/visibility, so a
+      // change made on another device shows up when you return — no manual
+      // refresh. Throttled so rapid tab-switching doesn't hammer the service.
       let lastPull = 0;
       const autoPull = async (force) => {
         if (!getCode() || document.hidden) return;
         const now = Date.now();
         if (!force && now - lastPull < 3000) return;
         lastPull = now;
-        const cloud = await window.SUHSync.pull(program);
-        if (Array.isArray(cloud)) setList(cloud);
+        await adopt(await window.SUHSync.pull(program));
       };
       autoPull(true);
       document.addEventListener("visibilitychange", () => { if (!document.hidden) autoPull(); });
@@ -185,9 +197,10 @@
           });
           qs("#suh-sync-sync").addEventListener("click", async () => {
             msg("동기화 중…");
-            const cloud = await window.SUHSync.pull(program);
-            if (Array.isArray(cloud)) { setList(cloud); msg("최신 목록을 받아왔습니다.", true); }
-            else msg("동기화 실패 — 잠시 후 다시 시도하세요.");
+            const r = await adopt(await window.SUHSync.pull(program));
+            if (r === "adopted") msg("최신 목록을 받아왔습니다.", true);
+            else if (r === "healed") msg("클라우드가 비어 있어 이 기기 목록으로 복구했습니다.", true);
+            else msg("변경 없음 (또는 읽기 실패) — 로컬 목록 유지.", true);
           });
           qs("#suh-sync-disc").addEventListener("click", () => { setCode(""); refresh(); close(); });
         } else {
