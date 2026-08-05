@@ -1,61 +1,96 @@
 "use strict";
-// Cross-device watchlist sync for the SUH_DH screeners.
+// Cross-device watchlist sync — timestamp-merge, loss-proof.
 //
-// The dashboard is a static site (no backend/DB), so a starred list normally
-// lives only in this browser's localStorage. This module layers an optional
-// cloud copy on top, using jsonblob.com — a free, anonymous, CORS-enabled JSON
-// store. The user creates or enters a personal "sync code" (a jsonblob id) once
-// per device; ONE blob holds both programs' lists as {base:[...], flat:[...]},
-// so base/ and flat/ share a single code but keep separate lists.
+// Model: per program (base/flat) we keep a map  { TICKER: {on:bool, t:ms} }.
+// The starred list is the tickers whose latest entry has on=true. Merge across
+// devices is per-ticker last-write-wins by timestamp, so a star OR un-star made
+// on any device propagates, and — crucially — a transient empty/failed cloud
+// read can never wipe local stars (an unknown ticker just keeps its local
+// entry). One jsonblob holds every program's map: { base:{...}, flat:{...} }.
 //
-// localStorage stays the source of truth locally: every cloud call is
-// best-effort and swallows errors, so the page keeps working if the service is
-// unreachable. Convergence: on load a connected device adopts the cloud list
-// (last-write-wins); linking a brand-new code merges local ∪ cloud so neither
-// side is lost. A push reads the blob first so it never clobbers the sibling
-// program's list.
+// localStorage is always safe on its own; every cloud call is best-effort and
+// swallows errors, so stars keep working offline / if the service is down.
 (function () {
   const API = "https://jsonblob.com/api/jsonBlob";
   const CODE_KEY = "suh_sync_code";
+  const mapKey = (program) => `suh_wl_${program}`;
 
+  // Monotonic-ish timestamp. Date.now() is fine in the browser.
+  const now = () => Date.now();
   const getCode = () => localStorage.getItem(CODE_KEY) || "";
   const setCode = (c) => c ? localStorage.setItem(CODE_KEY, c) : localStorage.removeItem(CODE_KEY);
-  const EMPTY = () => ({ base: [], flat: [] });
 
+  function loadMap(program) {
+    try { const o = JSON.parse(localStorage.getItem(mapKey(program)) || "{}"); return (o && typeof o === "object") ? o : {}; }
+    catch { return {}; }
+  }
+  function saveMap(program, map) {
+    try { localStorage.setItem(mapKey(program), JSON.stringify(map)); } catch (_) {}
+  }
+  function deriveList(map) {
+    return Object.keys(map).filter((t) => map[t] && map[t].on);
+  }
+  function mergeMaps(a, b) {
+    const out = {};
+    for (const k of new Set([...Object.keys(a || {}), ...Object.keys(b || {})])) {
+      const x = a && a[k], y = b && b[k];
+      if (!x) out[k] = y;
+      else if (!y) out[k] = x;
+      else out[k] = ((y.t || 0) > (x.t || 0)) ? y : x;   // later timestamp wins
+    }
+    return out;
+  }
+
+  // ---- cloud: one blob holds every program's map ----
+  async function getBlob() {
+    const code = getCode(); if (!code) return null;
+    const res = await fetch(`${API}/${encodeURIComponent(code)}?_=${now()}`,
+                           { cache: "no-store", headers: { Accept: "application/json" } });
+    if (res.status === 404) return {};
+    if (!res.ok) throw new Error("read " + res.status);
+    try { const o = await res.json(); return (o && typeof o === "object") ? o : {}; }
+    catch { return {}; }
+  }
+  async function putBlob(obj) {
+    const code = getCode(); if (!code) return;
+    await fetch(`${API}/${encodeURIComponent(code)}`, {
+      method: "PUT", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(obj || {}) });
+  }
   async function createBlob(initial) {
     const res = await fetch(API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(initial || EMPTY()),
-    });
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(initial || {}) });
     if (!res.ok) throw new Error("코드 생성 실패 (" + res.status + ")");
-    // jsonblob returns the new id in the X-jsonblob header (CORS-exposed); fall
-    // back to the Location header's last path segment.
     let id = res.headers.get("x-jsonblob");
     if (!id) { const loc = res.headers.get("Location"); if (loc) id = loc.split("/").pop(); }
     if (!id) throw new Error("코드 생성 실패 (응답에서 코드를 못 읽음)");
     return id.trim();
   }
 
-  async function getBlob() {
-    const code = getCode();
-    if (!code) return null;
-    const res = await fetch(`${API}/${encodeURIComponent(code)}`,
-                           { cache: "no-store", headers: { "Accept": "application/json" } });
-    if (res.status === 404) return EMPTY();
-    if (!res.ok) throw new Error("읽기 실패 (" + res.status + ")");
-    try { const o = await res.json(); return (o && typeof o === "object") ? o : EMPTY(); }
-    catch { return EMPTY(); }
+  // Merge local program map INTO the cloud blob (preserving sibling programs),
+  // fold any cloud-newer entries back into local, and write back. Best-effort.
+  async function pushProgram(program) {
+    if (!getCode()) return;
+    try {
+      const blob = (await getBlob()) || {};
+      const merged = mergeMaps(blob[program] || {}, loadMap(program));
+      saveMap(program, merged);
+      blob[program] = merged;
+      await putBlob(blob);
+    } catch (_) { /* will retry on next change/focus */ }
   }
 
-  async function putBlob(obj) {
-    const code = getCode();
-    if (!code) return;
-    await fetch(`${API}/${encodeURIComponent(code)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(obj || EMPTY()),
-    });
+  // Merge cloud into local (loss-proof); returns the merged map or null on failure.
+  async function pullProgram(program) {
+    if (!getCode()) return null;
+    try {
+      const blob = await getBlob();
+      if (!blob) return null;
+      const merged = mergeMaps(loadMap(program), blob[program] || {});
+      saveMap(program, merged);
+      return merged;
+    } catch (_) { return null; }
   }
 
   function injectStyles() {
@@ -89,31 +124,25 @@
     getCode, setCode,
     hasCode: () => !!getCode(),
 
-    async pull(program) {
-      try { const o = await getBlob(); if (!o) return null; return Array.isArray(o[program]) ? o[program] : []; }
-      catch { return null; }
-    },
-    async push(program, arr) {
-      try {
-        const o = (await getBlob()) || EMPTY();
-        o[program] = arr || [];
-        await putBlob(o);
-      } catch { /* best-effort */ }
-    },
-    async createCode(program, seedList) {
-      const init = EMPTY();
-      init[program] = seedList || [];
-      const id = await createBlob(init);
-      setCode(id);
-      return id;
+    // Record a single star toggle with a timestamp, then sync up (best-effort).
+    record(program, ticker, on) {
+      const map = loadMap(program);
+      map[ticker] = { on: !!on, t: now() };
+      saveMap(program, map);
+      pushProgram(program);
     },
 
-    // Add a "☁ 동기화" button to `container` and wire the setup dialog.
-    //   getList() -> current array of tickers
-    //   setList(arr) -> replace the local list + re-render
     mount(program, { container, getList, setList }) {
       if (!container) return;
       injectStyles();
+
+      // Upgrade/seed: fold any pre-existing local stars into the timestamp map
+      // so nothing is lost when moving to this model.
+      const map0 = loadMap(program);
+      let changed = false;
+      for (const t of (getList() || [])) if (!map0[t]) { map0[t] = { on: true, t: now() }; changed = true; }
+      if (changed) saveMap(program, map0);
+      setList(deriveList(loadMap(program)));   // display reflects the map
 
       const btn = document.createElement("button");
       btn.id = "suh-sync-btn";
@@ -127,32 +156,15 @@
       btn.addEventListener("click", openDialog);
       container.insertBefore(btn, container.firstChild);
 
-      // Loss-proof adopt: a NON-EMPTY cloud list wins (so adds/removes made on
-      // another device show up). An EMPTY or failed cloud read NEVER wipes local
-      // — instead, if we have local stars, we push them up to HEAL the cloud.
-      // This is the fix for "stars all disappeared": a transient empty read used
-      // to overwrite the local list with [].
-      const adopt = async (cloud) => {
-        if (Array.isArray(cloud) && cloud.length) { setList(cloud); return "adopted"; }
-        if (Array.isArray(cloud) && cloud.length === 0 && getList().length) {
-          await window.SUHSync.push(program, getList());   // heal empty cloud from local
-          return "healed";
-        }
-        return "kept";
-      };
-
-      // Runs on load and again whenever the tab regains focus/visibility, so a
-      // change made on another device shows up when you return — no manual
-      // refresh. Throttled so rapid tab-switching doesn't hammer the service.
+      const applyMerged = (map) => { if (map) setList(deriveList(map)); };
       let lastPull = 0;
       const autoPull = async (force) => {
         if (!getCode() || document.hidden) return;
-        const now = Date.now();
-        if (!force && now - lastPull < 3000) return;
-        lastPull = now;
-        await adopt(await window.SUHSync.pull(program));
+        const t = now(); if (!force && t - lastPull < 3000) return; lastPull = t;
+        applyMerged(await pullProgram(program));
+        pushProgram(program);   // heal cloud with any local-newer entries
       };
-      autoPull(true);
+      if (getCode()) autoPull(true);
       document.addEventListener("visibilitychange", () => { if (!document.hidden) autoPull(); });
       window.addEventListener("focus", () => autoPull());
 
@@ -163,8 +175,8 @@
         ov.innerHTML = `
           <div class="suh-sync-card" role="dialog" aria-modal="true">
             <h3>☁ 관심종목 동기화</h3>
-            <p>같은 <b>동기화 코드</b>를 여러 기기에 입력하면, 폰·PC 어디서 별표를 바꿔도
-               같은 목록이 보입니다. 베이스·평평 스크리너가 같은 코드를 공유합니다.</p>
+            <p>같은 <b>동기화 코드</b>를 여러 기기에 입력하면, 폰·PC 어디서 별표를 켜고 꺼도
+               같은 목록이 됩니다(종목별 최신 변경이 반영). 베이스·평평이 한 코드를 공유합니다.</p>
             ${connected ? `
               <p>현재 코드 (다른 기기에 이 코드를 입력하세요):</p>
               <div class="code" id="suh-sync-code"></div>
@@ -197,18 +209,19 @@
           });
           qs("#suh-sync-sync").addEventListener("click", async () => {
             msg("동기화 중…");
-            const r = await adopt(await window.SUHSync.pull(program));
-            if (r === "adopted") msg("최신 목록을 받아왔습니다.", true);
-            else if (r === "healed") msg("클라우드가 비어 있어 이 기기 목록으로 복구했습니다.", true);
-            else msg("변경 없음 (또는 읽기 실패) — 로컬 목록 유지.", true);
+            const merged = await pullProgram(program);
+            if (merged) { applyMerged(merged); await pushProgram(program); msg("동기화 완료 (양방향 병합).", true); }
+            else msg("읽기 실패 — 로컬 목록은 그대로 유지됩니다.");
           });
           qs("#suh-sync-disc").addEventListener("click", () => { setCode(""); refresh(); close(); });
         } else {
           qs("#suh-sync-new").addEventListener("click", async () => {
             msg("코드 생성 중…");
             try {
-              await window.SUHSync.createCode(program, getList());   // seed cloud with current stars
-              refresh(); close(); openDialog();                      // reopen in connected state
+              const id = await createBlob({});
+              setCode(id);
+              await pushProgram(program);      // seed cloud with current local map
+              refresh(); close(); openDialog();
             } catch (e) { msg(e.message || "생성 실패"); }
           });
           qs("#suh-sync-connect").addEventListener("click", async () => {
@@ -216,12 +229,10 @@
             if (!code) { msg("코드를 입력하세요."); return; }
             msg("연결 중…");
             setCode(code);
-            const cloud = await window.SUHSync.pull(program);
-            if (cloud == null) { setCode(""); msg("연결 실패 — 코드를 확인하세요."); return; }
-            // First link: merge local ∪ cloud so neither list is lost.
-            const union = Array.from(new Set([...(getList() || []), ...cloud]));
-            setList(union);
-            await window.SUHSync.push(program, union);
+            const merged = await pullProgram(program);
+            if (merged == null) { setCode(""); msg("연결 실패 — 코드를 확인하세요."); return; }
+            applyMerged(merged);
+            await pushProgram(program);
             refresh(); close();
           });
         }

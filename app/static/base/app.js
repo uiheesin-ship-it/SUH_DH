@@ -220,7 +220,7 @@ function render() {
 function toggleWatch(ticker) {
   if (WATCH.has(ticker)) WATCH.delete(ticker); else WATCH.add(ticker);
   localStorage.setItem(WATCH_KEY, JSON.stringify([...WATCH]));
-  if (window.SUHSync) SUHSync.push("base", [...WATCH]);   // best-effort cloud sync
+  if (window.SUHSync) SUHSync.record("base", ticker, WATCH.has(ticker));   // timestamped cloud sync
   render();
   if (currentTicker === ticker) {
     const cw = $("#chart-watch"); if (cw) cw.textContent = WATCH.has(ticker) ? "★" : "☆";
