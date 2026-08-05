@@ -41,8 +41,10 @@ function esc(s) {
 async function load() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const url = STATIC ? "../data/flat.json" : "/api/flat";
-    const res = await fetch(url, { cache: "no-store" });
+    // Static: read flat.json from the repo's raw copy (freshest committed),
+    // falling back to the deployed snapshot — see shared/data-source.js.
+    const res = STATIC ? await SUHData.fetch("flat.json", true)
+                       : await fetch("/api/flat", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);
@@ -53,7 +55,7 @@ async function load() {
     $("#demo-badge").classList.toggle("hidden", !data.demo);
     populateSectors();
     render();
-    const when = STATIC ? (BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근")
+    const when = STATIC ? (data.built ? new Date(data.built).toLocaleString("ko-KR") : "최근")
                         : new Date().toLocaleTimeString("ko-KR");
     const extra = data.insufficient ? ` · 데이터부족 ${data.insufficient}` : "";
     $("#status").textContent =

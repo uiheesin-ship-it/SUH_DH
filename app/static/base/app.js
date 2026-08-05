@@ -43,8 +43,11 @@ function esc(s) {
 async function load() {
   $("#status").textContent = "불러오는 중…";
   try {
-    const url = STATIC ? "../data/base.json" : "/api/base";
-    const res = await fetch(url, { cache: "no-store" });
+    // Static: read base.json from the repo's raw copy (freshest committed),
+    // falling back to the deployed snapshot — see shared/data-source.js. This
+    // decouples the data shown from Pages deploy timing.
+    const res = STATIC ? await SUHData.fetch("base.json", true)
+                       : await fetch("/api/base", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
       renderError(data.error || "데이터를 불러오지 못했습니다.", data.detail);
@@ -55,7 +58,9 @@ async function load() {
     $("#demo-badge").classList.toggle("hidden", !data.demo);
     populateSectors();
     render();
-    const when = STATIC ? (BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근")
+    // Show the DATA's own build time (not the baked site-deploy time), so the
+    // "갱신" stamp reflects the snapshot actually being displayed.
+    const when = STATIC ? (data.built ? new Date(data.built).toLocaleString("ko-KR") : "최근")
                         : new Date().toLocaleTimeString("ko-KR");
     $("#status").textContent =
       `${data.count}개 종목 (유니버스 ${data.universe_size}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
