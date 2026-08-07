@@ -46,23 +46,27 @@ def _avg_dollar_volume_20d(close, volume) -> float | None:
 
 
 def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
-                  sector_map: dict, spy_ret_3m: float | None) -> dict | None:
+                  sector_map: dict, spy_ret_3m: float | None) -> tuple[dict | None, str | None]:
+    """Return (record, None) on success, or (None, drop_reason) so run_scan can
+    report exactly why a candidate was dropped instead of it vanishing silently."""
     close = bars.get("close") or []
     high = bars.get("high") or []
     low = bars.get("low") or []
     volume = bars.get("volume") or []
     dates = bars.get("dates") or []
 
+    if not close:
+        return None, "no_bars"
     if len(close) < int(cfg["min_history_days"]):
-        return None
+        return None, f"history<{int(cfg['min_history_days'])}d({len(close)})"
     price = close[-1]
     if not price or price < float(cfg["min_price"]):
-        return None
+        return None, f"price<${cfg['min_price']}"
     if len(volume) and volume[-1] <= 0:
-        return None
+        return None, "last_volume<=0"
     adv20 = _avg_dollar_volume_20d(close, volume)
     if adv20 is not None and adv20 < float(cfg["min_avg_dollar_volume_20d"]):
-        return None
+        return None, f"dollar_vol<${int(float(cfg['min_avg_dollar_volume_20d'])/1e6)}M"
 
     # --- moving averages / structure ---
     sma50 = metrics.sma(close, 50)
@@ -167,7 +171,7 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "sector_action_score": sect.get("sector_action_score"),
         # short-term extras for the In-Base score (ret_5d/10d/21d, recent range, base position)
         **inbase.short_term_metrics(close, high, low, base),
-    }
+    }, None
 
 
 def run_scan(cfg: dict | None = None, limit: int | None = None,
@@ -192,15 +196,38 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
 
     records: list[dict] = []
     failures = 0
+    # Visibility into WHY candidates don't make the final list: every drop is
+    # attributed to a reason, so a missing ticker is explainable instead of
+    # vanishing silently. dropped = [{"ticker","reason"}...]; drop_reasons =
+    # {reason: count}.
+    dropped: list[dict] = []
+    drop_reasons: dict[str, int] = {}
+
+    def _drop(ticker: str, reason: str):
+        nonlocal failures
+        drop_reasons[reason] = drop_reasons.get(reason, 0) + 1
+        dropped.append({"ticker": ticker, "reason": reason})
+
     demo = os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
     for i, cand in enumerate(candidates):
         try:
             bars = data.fetch_bars(cand["ticker"])
-            rec = _build_record(cand, bars, benches, cfg, sector_map, spy_ret_3m)
-            if rec:
-                records.append(rec)
-        except Exception:
+        except Exception as e:
             failures += 1
+            _drop(cand["ticker"], f"fetch_error:{type(e).__name__}")
+            if not demo:
+                time.sleep(0.2)
+            continue
+        try:
+            rec, reason = _build_record(cand, bars, benches, cfg, sector_map, spy_ret_3m)
+        except Exception as e:
+            failures += 1
+            _drop(cand["ticker"], f"build_error:{type(e).__name__}")
+            rec, reason = None, None
+        if rec:
+            records.append(rec)
+        elif reason:
+            _drop(cand["ticker"], reason)
         if not demo:
             time.sleep(0.2)   # be gentle with the data source
         if progress and (i + 1) % 25 == 0:
@@ -226,6 +253,9 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         inbase.compute(rec, cfg)   # In-Base health score + base-type tag + vigor
 
     # Drop clearly sleepy low-beta / no-thrust names (In-Base vigor exclude).
+    for r in records:
+        if r.get("low_vigor"):
+            _drop(r["ticker"], "low_vigor(β<0.8+weak)")
     records = [r for r in records if not r.get("low_vigor")]
     records.sort(key=_sort_key, reverse=False)
 
@@ -234,6 +264,9 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         "count": len(records),
         "universe_size": len(candidates),
         "failures": failures,
+        "dropped_count": len(dropped),
+        "drop_reasons": drop_reasons,   # {reason: count}
+        "dropped": dropped,             # [{ticker, reason}] — searchable "왜 빠졌나"
         "demo": demo,
         "stocks": records,
     }

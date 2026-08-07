@@ -11,8 +11,15 @@ aborting the scan. A small demo universe keeps the offline build working.
 from __future__ import annotations
 
 import os
+import time
 
 from .. import cache
+
+# Retry the Finviz universe fetch: Finviz occasionally 403s / throttles bursty
+# datacenter callers and can return a partial or empty page, which would
+# silently shrink the candidate universe (names go missing for no visible
+# reason). A few backoff retries make the universe far more complete/stable.
+_UNIVERSE_RETRIES = int(os.environ.get("SUH_DH_BASE_UNIVERSE_RETRIES", "3"))
 
 UNIVERSE_TTL = float(os.environ.get("SUH_DH_BASE_UNIVERSE_TTL", "900"))
 
@@ -93,7 +100,18 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
             continue
     # Always keep the "New High"-agnostic base screen; no signal filter so we
     # can catch pre-breakout bases (price need not be at a new high yet).
-    df = fos.screener_view(verbose=0)
+    # Retry on failure/empty so a transient Finviz hiccup doesn't silently
+    # shrink the universe.
+    df = None
+    for attempt in range(max(1, _UNIVERSE_RETRIES)):
+        try:
+            df = fos.screener_view(verbose=0)
+        except Exception:
+            df = None
+        if df is not None and not df.empty:
+            break
+        if attempt < _UNIVERSE_RETRIES - 1:
+            time.sleep(2 * (attempt + 1))   # 2s, 4s, ...
     if df is None or df.empty:
         return []
 

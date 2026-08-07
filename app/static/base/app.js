@@ -62,8 +62,9 @@ async function load() {
     // "갱신" stamp reflects the snapshot actually being displayed.
     const when = STATIC ? (data.built ? new Date(data.built).toLocaleString("ko-KR") : "최근")
                         : new Date().toLocaleTimeString("ko-KR");
+    const dropTxt = data.dropped_count != null ? ` · 제외 ${data.dropped_count}` : "";
     $("#status").textContent =
-      `${data.count}개 종목 (유니버스 ${data.universe_size}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
+      `${data.count}개 종목 (유니버스 ${data.universe_size}${dropTxt}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
   } catch (e) {
     renderError("데이터를 불러오지 못했습니다", e.message);
   }
@@ -160,7 +161,21 @@ function render() {
   $("#count-badge").textContent = `${rows.length}종목`;
   const wc = $("#watch-count"); if (wc) wc.textContent = WATCH.size;
   if (!rows.length) {
-    $("#content").innerHTML = `<div class="loading">조건에 맞는 종목이 없습니다. 필터를 완화해 보세요.</div>`;
+    let extra = "";
+    const q = $("#f-search").value.trim().toUpperCase();
+    if (q && Array.isArray(META.dropped)) {
+      const drops = META.dropped.filter((d) => String(d.ticker).toUpperCase().includes(q));
+      const inResults = STOCKS.some((s) => String(s.ticker).toUpperCase().includes(q));
+      if (drops.length) {
+        extra = `<div class="drop-note">🔎 <b>${esc(q)}</b> 스캔 제외 사유: ` +
+          drops.map((d) => `<b>${esc(d.ticker)}</b> — ${esc(d.reason)}`).join(", ") +
+          `<br><small>(제외 사유는 정밀분석 단계에서 걸린 것 — 히스토리·거래대금·저비타 등)</small></div>`;
+      } else if (!inResults) {
+        extra = `<div class="drop-note">🔎 <b>${esc(q)}</b> 은(는) 결과·제외목록 어디에도 없음 → <b>1차 Finviz 유니버스에 미포함</b>` +
+          `<br><small>(주가>$1·거래량>50만주·시총≥$300M·정배열(50·200일선 위) 조건 미충족, 또는 그 시점 Finviz 응답에서 누락)</small></div>`;
+      }
+    }
+    $("#content").innerHTML = `<div class="loading">조건에 맞는 종목이 없습니다. 필터를 완화해 보세요.${extra}</div>`;
     return;
   }
   const head = COLS.map(([k, label, num]) => {

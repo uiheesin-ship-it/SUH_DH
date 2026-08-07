@@ -154,3 +154,12 @@ td.etf { color: var(--accent); }
   .d-grid { grid-template-columns: 1fr; }
 }
 .lowbeta { color: #fca5a5; }
+
+/* "왜 빠졌나" 안내 (검색 결과 없을 때 제외 사유 표시) */
+.drop-note {
+  margin-top: 14px; padding: 12px 14px; background: #172033;
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 13px; line-height: 1.6; text-align: left;
+  max-width: 640px; margin-left: auto; margin-right: auto;
+}
+.drop-note small { color: var(--muted); }
