@@ -10,7 +10,9 @@ universe:
   include_adr: true       # ADR 포함 여부
   # OHLCV 를 받아 정밀분석할 최대 후보 수. 상한을 넘으면 시총 구간 전체에서
   # 고르게 표본을 뽑아 대형만 남지 않게 함(초대형주 편향 방지).
-  max_candidates: 1500
+  # 주식수 거래량 필터를 뺐더니 유니버스가 커져서(고가 저거래주 포함), 표본추출로
+  # 종목이 다시 누락되지 않도록 상한을 넉넉히 잡음. (스캔 시간은 늘어남)
+  max_candidates: 3000
   # Finviz 1차필터(스크리너에서 미리 걸러 후보를 줄임).
   finviz_price_above_sma50: true
   finviz_price_above_sma200: true

@@ -75,9 +75,15 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     # Build the richest filter set we can; drop any option the installed
     # finvizfinance rejects (ValueError) and retry, so a version mismatch on one
     # option string never aborts the whole scan.
+    # NOTE: no share-count "Average Volume" filter here on purpose. Finviz's
+    # volume filter counts SHARES, which unfairly excludes higher-priced names
+    # (e.g. a $110 stock trading 200K shares = $22M/day is plenty liquid but
+    # fails "Over 500K shares"). Liquidity is judged instead by the in-code
+    # 20-day average DOLLAR-volume gate ($10M) in screen.py, which is the correct
+    # measure and doesn't penalize price. This is why strong high-priced names
+    # used to be missing from the base list.
     desired: list[tuple[str, str]] = [
         ("Price", "Over $1"),
-        ("Average Volume", "Over 500K"),
         ("Market Cap.", "Small (over $300mln)"),
         ("Industry", "Stocks only (ex-Funds)"),
     ]
