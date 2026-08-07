@@ -77,16 +77,17 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     uni = cfg["universe"]
     fos = Overview()
 
-    # Wide net: small-cap and up ($300M+), liquid, common stock only, priced
-    # over $1 (only to dodge sub-$1 penny-stock data noise — the real quality
-    # floor is market cap, not price). No SMA / new-high signal filter — flat
-    # bases exist below and above the moving averages. Any option string the
-    # installed finvizfinance rejects is dropped; the code-side min_market_cap /
-    # min_price gates below still enforce the same thresholds regardless.
+    # Wide net: small-cap and up ($300M+), common stock only, priced over $1
+    # (only to dodge sub-$1 penny-stock data noise — the real quality floor is
+    # market cap, not price). No SMA / new-high signal filter — flat bases exist
+    # below and above the moving averages. And NO share-count "Average Volume"
+    # filter: it unfairly excludes higher-priced-but-dollar-liquid names (a $110
+    # stock at 200K shares = $22M/day is plenty liquid but fails "Over 500K
+    # shares"). Liquidity is judged by the in-code 20-day dollar-volume gate
+    # ($10M) instead, which is price-neutral.
     desired: list[tuple[str, str]] = [
         ("Price", "Over $1"),
         ("Market Cap.", "Small (over $300mln)"),
-        ("Average Volume", "Over 500K"),
         ("Industry", "Stocks only (ex-Funds)"),
     ]
     if not uni.get("include_adr", True):

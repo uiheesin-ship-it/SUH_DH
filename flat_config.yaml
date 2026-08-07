@@ -13,7 +13,8 @@ universe:
   source: finviz
   include_reit: false     # REIT 제외(기본). true 로 바꾸면 포함
   include_adr: true       # ADR 포함 여부
-  max_candidates: 1500    # OHLCV 정밀분석 최대 후보 수(초과 시 시총 균등표본)
+  # 주식수 거래량 필터 제거로 유니버스가 커져서 상한을 올림(표본추출 누락 방지).
+  max_candidates: 3000    # OHLCV 정밀분석 최대 후보 수(초과 시 시총 균등표본)
 
 # 필터는 저가주 컷이 아니라 '시총'으로 품질을 거릅니다. 최저주가는 서브-$1
 # 페니주 데이터 오류만 막는 최소값($1)이고, 실제 종목 걸러내기는 시총이 담당.
