@@ -87,103 +87,120 @@
     "AVGO": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "TSM": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "ASML": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "MU": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "AMAT": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "ANET": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "VRT": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "AMZN": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "GOOGL": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "META": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "ORCL": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "CRM": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "NOW": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "PANW": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "CRWD": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "BAC": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "GS": {
       "collected": {
         "2026Q1": "collected",
-        "2025Q4": "collected"
+        "2025Q4": "collected",
+        "2025Q3": "collected"
       }
     },
     "V": {
@@ -526,7 +543,38 @@
       "skipped": 60,
       "budget_exhausted": true,
       "worklist_done": false
+    },
+    {
+      "run": "2026-08-07T19:45:40Z",
+      "requests_used": 20,
+      "collected": [
+        "NVDA_2025Q3",
+        "AVGO_2025Q3",
+        "TSM_2025Q3",
+        "ASML_2025Q3",
+        "MU_2025Q3",
+        "AMAT_2025Q3",
+        "ANET_2025Q3",
+        "VRT_2025Q3",
+        "MSFT_2025Q3",
+        "AMZN_2025Q3",
+        "GOOGL_2025Q3",
+        "META_2025Q3",
+        "ORCL_2025Q3",
+        "CRM_2025Q3",
+        "NOW_2025Q3",
+        "PANW_2025Q3",
+        "CRWD_2025Q3",
+        "JPM_2025Q3",
+        "BAC_2025Q3",
+        "GS_2025Q3"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 80,
+      "budget_exhausted": true,
+      "worklist_done": false
     }
   ],
-  "updated": "2026-08-07T00:36:55Z"
+  "updated": "2026-08-07T19:45:40Z"
 }
