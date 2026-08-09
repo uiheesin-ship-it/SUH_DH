@@ -88,119 +88,136 @@
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "TSM": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "ASML": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "MU": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "AMAT": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "ANET": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "VRT": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "AMZN": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "GOOGL": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "META": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "ORCL": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "CRM": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "NOW": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "PANW": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "CRWD": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "BAC": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "GS": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "V": {
@@ -626,7 +643,38 @@
       "skipped": 100,
       "budget_exhausted": true,
       "worklist_done": false
+    },
+    {
+      "run": "2026-08-09T19:26:27Z",
+      "requests_used": 20,
+      "collected": [
+        "NVDA_2025Q2",
+        "AVGO_2025Q2",
+        "TSM_2025Q2",
+        "ASML_2025Q2",
+        "MU_2025Q2",
+        "AMAT_2025Q2",
+        "ANET_2025Q2",
+        "VRT_2025Q2",
+        "MSFT_2025Q2",
+        "AMZN_2025Q2",
+        "GOOGL_2025Q2",
+        "META_2025Q2",
+        "ORCL_2025Q2",
+        "CRM_2025Q2",
+        "NOW_2025Q2",
+        "PANW_2025Q2",
+        "CRWD_2025Q2",
+        "JPM_2025Q2",
+        "BAC_2025Q2",
+        "GS_2025Q2"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 120,
+      "budget_exhausted": true,
+      "worklist_done": false
     }
   ],
-  "updated": "2026-08-08T19:22:37Z"
+  "updated": "2026-08-09T19:26:27Z"
 }
