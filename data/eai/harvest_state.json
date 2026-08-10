@@ -224,140 +224,160 @@
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "MA": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "AXP": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "COF": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "WMT": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "COST": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "HD": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "MCD": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "BKNG": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "CAT": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "ETN": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "GE": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "UPS": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "FDX": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "UNP": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "XOM": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "SLB": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "FCX": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "empty"
+        "2025Q3": "empty",
+        "2025Q2": "collected"
       }
     },
     "UNH": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     },
     "LLY": {
       "collected": {
         "2026Q1": "collected",
         "2025Q4": "collected",
-        "2025Q3": "collected"
+        "2025Q3": "collected",
+        "2025Q2": "collected"
       }
     }
   },
@@ -674,7 +694,38 @@
       "skipped": 120,
       "budget_exhausted": true,
       "worklist_done": false
+    },
+    {
+      "run": "2026-08-10T19:48:51Z",
+      "requests_used": 20,
+      "collected": [
+        "V_2025Q2",
+        "MA_2025Q2",
+        "AXP_2025Q2",
+        "COF_2025Q2",
+        "WMT_2025Q2",
+        "COST_2025Q2",
+        "HD_2025Q2",
+        "MCD_2025Q2",
+        "BKNG_2025Q2",
+        "CAT_2025Q2",
+        "ETN_2025Q2",
+        "GE_2025Q2",
+        "UPS_2025Q2",
+        "FDX_2025Q2",
+        "UNP_2025Q2",
+        "XOM_2025Q2",
+        "SLB_2025Q2",
+        "FCX_2025Q2",
+        "UNH_2025Q2",
+        "LLY_2025Q2"
+      ],
+      "empty": [],
+      "errors": [],
+      "skipped": 140,
+      "budget_exhausted": true,
+      "worklist_done": false
     }
   ],
-  "updated": "2026-08-09T19:26:27Z"
+  "updated": "2026-08-10T19:48:51Z"
 }
