@@ -44,7 +44,32 @@ def _all_stocks(dashboard: dict) -> list[dict]:
     return out
 
 
+def _fill_change_from_close(s: dict) -> None:
+    """전일대비 fallback: Finviz returns Change='-' (→ None) when the US market is
+    closed. Compute it from the last two daily closes instead so the column is
+    never blank. Uses the app's proven chart fetcher (cached)."""
+    if s.get("change_pct") is not None:
+        return
+    try:
+        ch = charts.get_chart(s["ticker"], "6mo")
+        closes = [c for c in (ch.get("close") or []) if c is not None]
+        if len(closes) >= 2 and closes[-2]:
+            s["change_pct"] = round((closes[-1] / closes[-2] - 1) * 100, 2)
+    except Exception:
+        pass
+
+
 def main() -> None:
+    from app.screener import highs_frozen
+
+    data_dir = ROOT / "data"
+    highs_path = data_dir / "highs.json"
+    # Freeze during the Korean day: keep the last committed (overnight-session)
+    # list instead of overwriting it with a closed-market snapshot.
+    if highs_frozen() and highs_path.exists():
+        print("US highs frozen (Korean daytime) — keeping committed data/highs.json")
+        return
+
     built = datetime.now(timezone.utc).isoformat(timespec="seconds")
     dashboard = screener.get_dashboard()
     dashboard["built"] = built
@@ -58,6 +83,7 @@ def main() -> None:
         except Exception as e:
             print(f"  reason {s['ticker']} failed: {e}")
             s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
+        _fill_change_from_close(s)   # 전일대비 fallback when Finviz gave '-'
         enriched += 1
         time.sleep(0.3)  # be gentle with the data source
 

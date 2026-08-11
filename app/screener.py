@@ -229,3 +229,31 @@ def get_dashboard() -> dict:
         "sectors": group_by_sector(rows),
         "demo": _demo(),
     }
+
+
+def highs_frozen(now_utc=None) -> bool:
+    """True during the Korean-daytime FREEZE window for the US 52-week highs.
+
+    The list only changes while the US market is open (Korean overnight). During
+    the Korean day the US market is closed all day, so a rescan would just
+    replace the morning's COMPLETE list with a near-empty pre-open snapshot. So
+    callers should NOT rescan when this returns True — reuse the last committed
+    data/highs.json instead.
+
+    Active (unfrozen) window: 12:30–22:00 UTC ≈ 21:30 KST (evening) → 07:00 KST
+    (after the US close has settled). A manual run (workflow_dispatch) or
+    SUH_DH_FORCE_HIGHS=1 always unfreezes. Tune the window via
+    SUH_DH_HIGHS_ACTIVE_START / _END (minutes past 00:00 UTC).
+    """
+    import os
+    from datetime import datetime, timezone
+
+    if os.environ.get("SUH_DH_FORCE_HIGHS", "") == "1":
+        return False
+    if os.environ.get("GITHUB_EVENT_NAME", "") == "workflow_dispatch":
+        return False
+    now = now_utc or datetime.now(timezone.utc)
+    minute = now.hour * 60 + now.minute
+    start = int(os.environ.get("SUH_DH_HIGHS_ACTIVE_START", str(12 * 60 + 30)))  # 12:30 UTC
+    end = int(os.environ.get("SUH_DH_HIGHS_ACTIVE_END", str(22 * 60)))           # 22:00 UTC
+    return not (start <= minute <= end)

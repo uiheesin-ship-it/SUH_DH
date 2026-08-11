@@ -94,14 +94,24 @@ def main() -> None:
     # redeploy. Per-ticker reasons + charts are still enriched at the END of the
     # build (they're slow and change slowly).
     try:
-        early = screener.get_dashboard()
-        early["built"] = built
-        write_json(SITE / "data" / "highs.json", early)
-        write_json(ROOT / "data" / "highs.json", early)
-        meta = {"built": built, "count": early.get("count", 0)}
-        write_json(SITE / "data" / "meta.json", meta)
-        write_json(ROOT / "data" / "meta.json", meta)
-        print(f"  early highs list published: {early.get('count', 0)} stocks.")
+        repo_highs = ROOT / "data" / "highs.json"
+        if screener.highs_frozen() and repo_highs.exists():
+            # Korean daytime: keep the committed overnight-session list; don't
+            # rescan (that would show the near-empty closed-market list).
+            shutil.copyfile(repo_highs, SITE / "data" / "highs.json")
+            repo_meta = ROOT / "data" / "meta.json"
+            if repo_meta.exists():
+                shutil.copyfile(repo_meta, SITE / "data" / "meta.json")
+            print("  US highs frozen (Korean daytime) — reusing committed highs.json")
+        else:
+            early = screener.get_dashboard()
+            early["built"] = built
+            write_json(SITE / "data" / "highs.json", early)
+            write_json(ROOT / "data" / "highs.json", early)
+            meta = {"built": built, "count": early.get("count", 0)}
+            write_json(SITE / "data" / "meta.json", meta)
+            write_json(ROOT / "data" / "meta.json", meta)
+            print(f"  early highs list published: {early.get('count', 0)} stocks.")
     except Exception as e:
         print(f"  early highs list failed: {e}")
 
@@ -488,8 +498,16 @@ def main() -> None:
     # (the slow part). The bare list was already published up front; this pass
     # replaces it with the reason/chart-enriched version.
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
-    dashboard = screener.get_dashboard()
-    dashboard["built"] = built
+    repo_highs = ROOT / "data" / "highs.json"
+    frozen = screener.highs_frozen() and repo_highs.exists()
+    if frozen:
+        # Korean daytime: reuse the committed overnight list (reasons/change
+        # already embedded); just (re)build its charts so clicking still works.
+        dashboard = json.loads(repo_highs.read_text(encoding="utf-8"))
+        print(f"  frozen (Korean daytime) — reusing committed list ({dashboard.get('count', 0)} stocks).")
+    else:
+        dashboard = screener.get_dashboard()
+        dashboard["built"] = built
     stocks = _all_stocks(dashboard)
     # Most important (largest) names first so we never run out of budget on them.
     stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
@@ -498,14 +516,20 @@ def main() -> None:
     fetched = 0
     for s in stocks[:LIMIT]:
         ticker = s["ticker"]
-        try:
-            s["reason"] = charts.get_reason(ticker)
-        except Exception as e:
-            print(f"  reason {ticker} failed: {e}")
-            s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
+        if not frozen:
+            try:
+                s["reason"] = charts.get_reason(ticker)
+            except Exception as e:
+                print(f"  reason {ticker} failed: {e}")
+                s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
         try:
             chart = charts.get_chart(ticker, "max")
             write_json(SITE / "data" / "chart" / f"{ticker}.json", chart)
+            # 전일대비 fallback from close when Finviz gave '-' (market closed).
+            if s.get("change_pct") is None:
+                closes = [c for c in (chart.get("close") or []) if c is not None]
+                if len(closes) >= 2 and closes[-2]:
+                    s["change_pct"] = round((closes[-1] / closes[-2] - 1) * 100, 2)
         except Exception as e:
             print(f"  chart {ticker} failed: {e}")
         fetched += 1
@@ -515,10 +539,11 @@ def main() -> None:
 
     # Stocks beyond the limit still appear in the list (without reason/chart).
     write_json(SITE / "data" / "highs.json", dashboard)
-    write_json(ROOT / "data" / "highs.json", dashboard)     # repo copy for raw fetch
-    meta = {"built": built, "count": dashboard["count"], "charts": fetched}
-    write_json(SITE / "data" / "meta.json", meta)
-    write_json(ROOT / "data" / "meta.json", meta)
+    if not frozen:
+        write_json(ROOT / "data" / "highs.json", dashboard)  # repo copy for raw fetch
+        meta = {"built": built, "count": dashboard["count"], "charts": fetched}
+        write_json(SITE / "data" / "meta.json", meta)
+        write_json(ROOT / "data" / "meta.json", meta)
     print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
 
 
