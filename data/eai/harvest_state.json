@@ -90,7 +90,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "TSM": {
@@ -99,7 +100,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "empty"
       }
     },
     "ASML": {
@@ -108,7 +110,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "empty"
       }
     },
     "MU": {
@@ -117,7 +120,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "AMAT": {
@@ -126,7 +130,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "ANET": {
@@ -135,7 +140,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "VRT": {
@@ -144,7 +150,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "AMZN": {
@@ -153,7 +160,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "GOOGL": {
@@ -162,7 +170,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "META": {
@@ -171,7 +180,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "ORCL": {
@@ -180,7 +190,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "CRM": {
@@ -189,7 +200,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "NOW": {
@@ -198,7 +210,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "PANW": {
@@ -207,7 +220,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "CRWD": {
@@ -216,7 +230,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "BAC": {
@@ -225,7 +240,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "GS": {
@@ -234,7 +250,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "V": {
@@ -824,7 +841,39 @@
       "skipped": 180,
       "budget_exhausted": true,
       "worklist_done": false
+    },
+    {
+      "run": "2026-08-13T19:52:30Z",
+      "requests_used": 20,
+      "collected": [
+        "NVDA_2026Q2",
+        "AVGO_2026Q2",
+        "MU_2026Q2",
+        "AMAT_2026Q2",
+        "ANET_2026Q2",
+        "VRT_2026Q2",
+        "MSFT_2026Q2",
+        "AMZN_2026Q2",
+        "GOOGL_2026Q2",
+        "META_2026Q2",
+        "ORCL_2026Q2",
+        "CRM_2026Q2",
+        "NOW_2026Q2",
+        "PANW_2026Q2",
+        "CRWD_2026Q2",
+        "JPM_2026Q2",
+        "BAC_2026Q2",
+        "GS_2026Q2"
+      ],
+      "empty": [
+        "TSM_2026Q2",
+        "ASML_2026Q2"
+      ],
+      "errors": [],
+      "skipped": 200,
+      "budget_exhausted": true,
+      "worklist_done": false
     }
   ],
-  "updated": "2026-08-12T19:57:30Z"
+  "updated": "2026-08-13T19:52:30Z"
 }
