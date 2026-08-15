@@ -411,7 +411,7 @@
         "2025Q3": "collected",
         "2025Q2": "collected",
         "2025Q1": "collected",
-        "2026Q2": "empty"
+        "2026Q2": "collected"
       }
     },
     "SLB": {
@@ -440,7 +440,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     },
     "LLY": {
@@ -449,7 +450,8 @@
         "2025Q4": "collected",
         "2025Q3": "collected",
         "2025Q2": "collected",
-        "2025Q1": "collected"
+        "2025Q1": "collected",
+        "2026Q2": "collected"
       }
     }
   },
@@ -923,7 +925,25 @@
       "skipped": 218,
       "budget_exhausted": true,
       "worklist_done": false
+    },
+    {
+      "run": "2026-08-15T19:15:48Z",
+      "requests_used": 6,
+      "collected": [
+        "XOM_2026Q2",
+        "UNH_2026Q2",
+        "LLY_2026Q2"
+      ],
+      "empty": [
+        "TSM_2026Q2",
+        "ASML_2026Q2",
+        "HD_2026Q2"
+      ],
+      "errors": [],
+      "skipped": 234,
+      "budget_exhausted": false,
+      "worklist_done": true
     }
   ],
-  "updated": "2026-08-14T19:42:44Z"
+  "updated": "2026-08-15T19:15:48Z"
 }
