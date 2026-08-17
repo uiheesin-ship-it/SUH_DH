@@ -1,0 +1,67 @@
+name: Collect DART supply contracts
+
+# Collects '단일판매ㆍ공급계약체결' disclosures (계약금액/계약상대방/계약기간) for the
+# given tickers from OpenDART, writes data/dart_contracts.json + .xlsx, uploads
+# them as a downloadable artifact, and commits the JSON. Run from the Actions tab.
+# Needs the repo secret DART_API_KEY (free key from https://opendart.fss.or.kr),
+# or paste one into the dart_key input at run time.
+on:
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "6-digit codes, comma-separated"
+        required: true
+        default: "420770,064290"
+      since:
+        description: "Only disclosures on/after this date (YYYYMMDD)"
+        required: true
+        default: "20260101"
+      dart_key:
+        description: "OpenDART API key (leave blank to use the DART_API_KEY secret)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install openpyxl
+      - name: Collect contracts from DART
+        env:
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+        run: |
+          python tools/dart_contracts.py "${{ github.event.inputs.tickers }}" "${{ github.event.inputs.since }}"
+          python tools/dart_contracts_xlsx.py
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-contracts
+          path: |
+            data/dart_contracts.json
+            data/dart_contracts.xlsx
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/dart_contracts.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/dart_contracts.json
+            git commit -m "data(dart): collect single-supply contract disclosures"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
