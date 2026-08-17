@@ -21,7 +21,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app import charts, earnings, kr, news, screener
+from app import charts, earnings, kr, news, qtable, screener
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site"
@@ -70,7 +70,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
+    for program in ("highs", "news", "earnings", "qtable", "kr", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -80,7 +80,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
+        for program in ("earnings", "qtable", "kr", "highs", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -211,6 +211,33 @@ def main() -> None:
     except Exception as e:
         print(f"  drift build failed: {e}")
         write_json(SITE / "data" / "drift" / "_index.json", {"tickers": []})
+
+    # Quarterly guidance/consensus/actual table (분기 실적표). Cheap per ticker
+    # (a few Yahoo calls) but there is no point building the whole watchlist —
+    # the guidance rows only fill for curated tickers, and any other ticker can
+    # still be fetched live through SUH_DH_API_BASE. So: every curated ticker
+    # plus a small default list (override with SUH_DH_QTABLE_TICKERS).
+    print("Building quarterly guidance tables ...")
+    try:
+        curated = qtable.curated_tickers()
+        default_qt = "AAPL,MSFT,NVDA,GOOGL,AMZN,META,AVGO,MU,AMD,TSM,PLTR,APP"
+        extra = [t.strip().upper() for t in
+                 os.environ.get("SUH_DH_QTABLE_TICKERS", default_qt).split(",") if t.strip()]
+        built_qt = []
+        for t in dict.fromkeys(curated + extra):
+            try:
+                table = qtable.build_table(t)
+                write_json(SITE / "data" / "qtable" / f"{t}.json", table)
+                built_qt.append(t)
+            except Exception as e:
+                print(f"  qtable {t} failed: {e}")
+            time.sleep(0.3)  # be gentle with Yahoo
+        write_json(SITE / "data" / "qtable" / "_index.json",
+                   {"tickers": built_qt, "curated": curated})
+        print(f"  {len(built_qt)} quarterly tables built ({len(curated)} curated).")
+    except Exception as e:
+        print(f"  qtable build failed: {e}")
+        write_json(SITE / "data" / "qtable" / "_index.json", {"tickers": [], "curated": []})
 
     # Base screener. The scan is HEAVY (2y OHLCV for the whole candidate
     # universe) and Yahoo throttling makes its runtime unpredictable, so we only

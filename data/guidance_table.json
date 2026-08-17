@@ -1,0 +1,128 @@
+{
+  "_schema": {
+    "description": "분기 실적표(app/qtable.py)의 큐레이션 레이어. 무료 API(야후)에 없는 값 — 회사 가이던스(과거·향후/연간·QoQ)와 과거 분기의 매출 컨센서스, 그리고 회사가 발표하는 non-GAAP 실적 — 을 손으로 채웁니다. 야후에서 자동 수집되는 값(실적 GAAP·EPS 컨센서스·향후 2개 분기 매출/EPS 컨센서스)은 여기 없으면 자동으로 채워지고, 여기 있으면 큐레이션 값이 우선합니다.",
+    "ticker_block": {
+      "meta.name": "회사명(표 제목에 표시).",
+      "meta.fy_end_month": "결산월(1~12). 예: 3월 결산이면 3. 열 이름의 회계연도/분기 계산 기준이며, 생략하면 야후 정보로 추정합니다.",
+      "meta.currency": "재무제표 통화(기본 USD).",
+      "meta.display_unit": "표시 단위 'M'(백만) | 'B'(십억) | 'auto'(기본: 매출 1만백만=100억 이상이면 십억).",
+      "meta.basis": "실적 기준 설명. 예: 'non-GAAP(회사 발표 기준)'.",
+      "meta.notes": "표 아래에 함께 보여줄 참고 문구 배열.",
+      "entries": "아래 entry 를 담은 배열."
+    },
+    "entry_fields": {
+      "kind": "quarter_guidance | annual_guidance | consensus | actual — 이 값이 어느 행 블록으로 갈지 결정합니다.",
+      "metric": "revenue | operating_income | ebitda | eps",
+      "for": "대상 기간. 분기는 'FY2026Q4'(또는 '2026 4Q'), 연간 가이던스는 'FY2027'.",
+      "given_at": "그 수치를 제시/발표한 분기. 예: 'FY2026Q3' 실적발표 때 제시한 4분기 가이던스라면 'FY2026Q3'.",
+      "low/high": "가이던스 밴드의 하단/상단. 둘 다 있으면 '130.3~135.3' 형태로 표시하고 중앙값을 value 로 씁니다.",
+      "value": "단일 수치(컨센서스·실적·중간값 가이던스).",
+      "text": "숫자 대신 넣을 문구. 예: '미제공', '연간 제공'.",
+      "unit": "값의 단위. 'M_USD'(기본) | 'B_USD' | 'USD'(EPS). 내부적으로 백만으로 정규화합니다.",
+      "sections": "배치할 행 블록을 직접 지정(선택). ['past_guidance'] | ['fwd_qoq'] | ['consensus'] | ['actual'] | ['fwd_annual'].",
+      "note": "메모(한국어 가능). 셀 툴팁으로 보입니다.",
+      "sources": "출처 URL 배열."
+    },
+    "placement": {
+      "quarter_guidance": "for 분기의 '과거 가이던스' + given_at 분기의 '향후 가이던스(QoQ)' 두 칸에 동시에 들어갑니다(한 사실 = 한 줄). 한쪽에만 넣으려면 sections 로 제한하세요.",
+      "annual_guidance": "given_at 분기의 '향후 가이던스(연간)'. 표시할 때 for 의 회계연도를 'FY27' 처럼 앞에 붙입니다.",
+      "consensus": "for 분기의 '컨센서스'.",
+      "actual": "for 분기의 '실적'."
+    }
+  },
+
+  "APPS": {
+    "meta": {
+      "name": "Digital Turbine",
+      "fy_end_month": 3,
+      "currency": "USD",
+      "display_unit": "M",
+      "basis": "회사 발표(non-GAAP) 기준 — 야후의 GAAP 수치 대신 큐레이션 값을 씁니다.",
+      "notes": [
+        "디지털터빈은 3월 결산이라 2026년 3월 마감 분기가 'FY26 4Q', 2026년 6월 마감 분기가 'FY27 1Q' 입니다.",
+        "FY27 1Q 발표부터 분기(QoQ) 가이던스 없이 연간 가이던스만 제시합니다."
+      ]
+    },
+    "entries": [
+      {
+        "kind": "quarter_guidance", "metric": "revenue",
+        "for": "FY2026Q4", "given_at": "FY2026Q3",
+        "low": 130.3, "high": 135.3, "unit": "M_USD",
+        "note": "FY26 3Q 발표 때 제시한 4분기 매출 가이던스."
+      },
+      {
+        "kind": "quarter_guidance", "metric": "ebitda",
+        "for": "FY2026Q4", "given_at": "FY2026Q3",
+        "low": 22.9, "high": 25.9, "unit": "M_USD",
+        "note": "FY26 3Q 발표 때 제시한 4분기 조정 EBITDA 가이던스."
+      },
+
+      { "kind": "consensus", "metric": "revenue", "for": "FY2026Q4", "value": 133.2, "unit": "M_USD" },
+      { "kind": "consensus", "metric": "eps", "for": "FY2026Q4", "value": 0.08, "unit": "USD" },
+
+      { "kind": "actual", "metric": "revenue", "for": "FY2026Q4", "value": 142.5, "unit": "M_USD" },
+      { "kind": "actual", "metric": "operating_income", "for": "FY2026Q4", "value": 10.5, "unit": "M_USD" },
+      { "kind": "actual", "metric": "ebitda", "for": "FY2026Q4", "value": 31.4, "unit": "M_USD" },
+      { "kind": "actual", "metric": "eps", "for": "FY2026Q4", "value": 0.16, "unit": "USD" },
+
+      {
+        "kind": "annual_guidance", "metric": "revenue",
+        "for": "FY2027", "given_at": "FY2026Q4",
+        "low": 630, "high": 650, "unit": "M_USD",
+        "note": "FY26 4Q 발표 때 제시한 FY27 연간 매출 가이던스."
+      },
+      {
+        "kind": "annual_guidance", "metric": "ebitda",
+        "for": "FY2027", "given_at": "FY2026Q4",
+        "low": 135, "high": 145, "unit": "M_USD",
+        "note": "FY26 4Q 발표 때 제시한 FY27 연간 조정 EBITDA 가이던스."
+      },
+      { "kind": "annual_guidance", "metric": "operating_income", "given_at": "FY2026Q4", "text": "미제공" },
+      { "kind": "annual_guidance", "metric": "eps", "given_at": "FY2026Q4", "text": "미제공" },
+
+      { "kind": "quarter_guidance", "metric": "revenue", "given_at": "FY2026Q4", "text": "미제공", "sections": ["fwd_qoq"] },
+      { "kind": "quarter_guidance", "metric": "operating_income", "given_at": "FY2026Q4", "text": "미제공", "sections": ["fwd_qoq"] },
+      { "kind": "quarter_guidance", "metric": "ebitda", "given_at": "FY2026Q4", "text": "미제공", "sections": ["fwd_qoq"] },
+      { "kind": "quarter_guidance", "metric": "eps", "given_at": "FY2026Q4", "text": "미제공", "sections": ["fwd_qoq"] },
+
+      {
+        "kind": "quarter_guidance", "metric": "revenue",
+        "for": "FY2027Q1", "text": "연간 제공", "sections": ["past_guidance"],
+        "note": "FY26 4Q 발표 때 분기 가이던스 대신 연간 가이던스만 제시."
+      },
+      {
+        "kind": "quarter_guidance", "metric": "ebitda",
+        "for": "FY2027Q1", "text": "연간 제공", "sections": ["past_guidance"],
+        "note": "FY26 4Q 발표 때 분기 가이던스 대신 연간 가이던스만 제시."
+      },
+
+      { "kind": "consensus", "metric": "revenue", "for": "FY2027Q1", "value": 150, "unit": "M_USD" },
+      { "kind": "consensus", "metric": "eps", "for": "FY2027Q1", "value": 0.14, "unit": "USD" },
+
+      { "kind": "actual", "metric": "revenue", "for": "FY2027Q1", "value": 166, "unit": "M_USD" },
+      { "kind": "actual", "metric": "operating_income", "for": "FY2027Q1", "value": 23.1, "unit": "M_USD" },
+      { "kind": "actual", "metric": "ebitda", "for": "FY2027Q1", "value": 42.5, "unit": "M_USD" },
+      { "kind": "actual", "metric": "eps", "for": "FY2027Q1", "value": 0.19, "unit": "USD" },
+
+      {
+        "kind": "annual_guidance", "metric": "revenue",
+        "for": "FY2027", "given_at": "FY2027Q1",
+        "low": 650, "high": 670, "unit": "M_USD",
+        "note": "FY27 1Q 발표 때 상향한 FY27 연간 매출 가이던스."
+      },
+      {
+        "kind": "annual_guidance", "metric": "ebitda",
+        "for": "FY2027", "given_at": "FY2027Q1",
+        "low": 145, "high": 155, "unit": "M_USD",
+        "note": "FY27 1Q 발표 때 상향한 FY27 연간 조정 EBITDA 가이던스."
+      },
+      { "kind": "annual_guidance", "metric": "operating_income", "given_at": "FY2027Q1", "text": "미제공" },
+      { "kind": "annual_guidance", "metric": "eps", "given_at": "FY2027Q1", "text": "미제공" },
+
+      { "kind": "quarter_guidance", "metric": "revenue", "given_at": "FY2027Q1", "text": "미제공", "sections": ["fwd_qoq"] },
+      { "kind": "quarter_guidance", "metric": "operating_income", "given_at": "FY2027Q1", "text": "미제공", "sections": ["fwd_qoq"] },
+      { "kind": "quarter_guidance", "metric": "ebitda", "given_at": "FY2027Q1", "text": "미제공", "sections": ["fwd_qoq"] },
+      { "kind": "quarter_guidance", "metric": "eps", "given_at": "FY2027Q1", "text": "미제공", "sections": ["fwd_qoq"] }
+    ]
+  }
+}

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, backlog, charts, earnings, kr, news, screener
+from . import __version__, backlog, charts, earnings, kr, news, qtable, screener
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
 
@@ -121,6 +121,28 @@ def registered_guidance_tickers():
     """Tickers that have curated guidance-vs-consensus data (for the side panel)."""
     return {"tickers": earnings.guidance_tickers(),
             "groups": earnings.guidance_groups()}
+
+
+# Declared before /api/qtable/{ticker} so "tickers" isn't read as a symbol.
+@app.get("/api/qtable/tickers")
+def quarter_table_tickers():
+    """가이던스 큐레이션이 입력된 종목(사이드 패널용)."""
+    return {"tickers": qtable.curated_tickers()}
+
+
+@app.get("/api/qtable/{ticker}")
+def quarter_table(ticker: str, past: int = qtable.PAST_QUARTERS,
+                  ahead: int = qtable.AHEAD_QUARTERS):
+    """분기 실적표: 과거 가이던스·컨센서스·실적·향후 가이던스(연간/QoQ)."""
+    past = max(1, min(past, 16))
+    ahead = max(0, min(ahead, 12))
+    try:
+        return qtable.get_table(ticker, past=past, ahead=ahead)
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"{ticker} 분기 실적표를 만들지 못했습니다.", "detail": str(e)},
+        )
 
 
 @app.get("/api/kr/drift/{ticker}")

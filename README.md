@@ -130,6 +130,7 @@ app/
   screener.py    Finviz "New High" 스크리닝 → 섹터/소섹터 그룹, 시총 정렬
   charts.py      Yahoo 과거 시세(차트) + 뉴스/실적(상승 이유)
   earnings.py    분기별 실적일 + EPS 컨센서스 판정 + 가이던스 vs 컨센 + 발표 전후 주가 드리프트
+  qtable.py      분기 실적표(과거 가이던스/컨센서스/실적/향후 가이던스) — 회계분기 계산 + 큐레이션 병합
   news.py        주요 외신 RSS 수집 → AI/데이터센터 뉴스 선별/중복제거 → 한국어 요약
   backlog.py     한국 수주잔고 대시보드(data/kr_backlog.json 로드 + 전분기/전년 증감 계산)
   dartdoc.py     OpenDART 문서 클라이언트 + 수주잔고 표 파서(순수 함수, 오프라인 테스트)
@@ -144,11 +145,14 @@ app/
     highs/       52주 신고가 프로그램(HTML/CSS/JS, 차트는 Plotly)
     news/        AI 투자 뉴스 프로그램(HTML/CSS/JS)
     earnings/    실적 발표 전후 주가 반응 프로그램(HTML/CSS/JS)
+    qtable/      분기 실적표 프로그램(HTML/CSS/JS)
 tools/
   guidance.py            가이던스 vs 컨센서스 큐레이션 도우미(add/consensus)
+  qtable.py              분기 실적표 CLI(표 출력·TSV/CSV/JSON 내보내기 + 큐레이션 add)
   kr_dart_backlog.py     DART에서 한국 수주잔고 수집 → data/kr_backlog.json (백필/증분)
 data/
   guidance.json          가이던스 vs 컨센서스 큐레이션 데이터(스키마 내장)
+  guidance_table.json    분기 실적표 큐레이션 데이터(가이던스·과거 컨센서스, 스키마 내장)
   kr_backlog.json        회사별 분기 수주잔고(DART, kr-backlog 워크플로가 갱신)
 ```
 
@@ -159,6 +163,7 @@ data/
 - `/news/` — AI 투자 뉴스 프로그램.
 - `/base/` — **베이스 스크리너** 프로그램 (아래 참고).
 - `/flat/` — **평평 스크리너** 프로그램 (아래 참고).
+- `/qtable/` — **분기 실적표** 프로그램 (아래 참고).
 
 ### 베이스 스크리너 프로그램 (`/base/`)
 
@@ -435,6 +440,76 @@ SUH_DH_DEMO=1 python3 -m uvicorn app.main:app --port 8000          # → /backlo
 > ```
 > 정적 사이트에서는 `data/guidance.json`에 있는 티커와 기본 워치리스트
 > (`SUH_DH_DRIFT_TICKERS`, 기본 `MU`)만 미리 빌드되며, 로컬 실행 시에는 아무 티커나 조회됩니다.
+
+### 분기 실적표 프로그램 (`/qtable/`)
+
+`/qtable/` — **티커 하나를 입력하면** 최근 발표 분기를 기준으로 **이전 6개 분기 +
+향후 4개 분기**(총 10열) 표를 자동으로 만들어 줍니다. 행은
+
+| 행 블록 | 뜻 | 출처 |
+| --- | --- | --- |
+| 과거 가이던스 | 그 분기를 앞두고 회사가 제시했던 가이던스 | 큐레이션 |
+| 컨센서스 | 발표 직전 애널리스트 컨센서스 | EPS·향후 2개 분기 매출은 Yahoo 자동, 나머지는 큐레이션 |
+| 실적 | 실제 발표치 | Yahoo 자동(GAAP) — 큐레이션이 있으면 그 값(non-GAAP) 우선 |
+| 향후 가이던스(연간) | 그 분기 발표 때 제시한 **연간(FY)** 가이던스 | 큐레이션 |
+| 향후 가이던스(QoQ) | 그 분기 발표 때 제시한 **차분기** 가이던스 | 큐레이션 |
+
+이고, 각 블록마다 **매출 · 영업이익 · EBITDA · EPS** 네 줄입니다.
+
+- **열 이름은 회사의 회계연도 기준**입니다. 예를 들어 3월 결산인 디지털터빈(APPS)은
+  2026년 3월 마감 분기가 `2026 4Q`, 2026년 6월 마감 분기가 `2027 1Q` 입니다. 결산월은
+  Yahoo 정보에서 자동 추정하고, 큐레이션의 `meta.fy_end_month` 로 고정할 수 있습니다.
+- **자동으로 채워지는 것**: 분기 손익계산서(매출·영업이익·EBITDA·EPS. EBITDA 행이
+  없으면 영업이익+감가상각으로 역산), `get_earnings_dates()` 의 **EPS 컨센서스**,
+  그리고 **향후 2개 분기**의 매출/EPS 컨센서스(`0q`/`+1q` 추정치).
+- **무료 API에 없어 큐레이션이 필요한 것**: 회사 가이던스 전부(과거·향후·연간·QoQ)와
+  과거 분기의 **매출 컨센서스**. `data/guidance_table.json` 에 출처와 함께 적습니다.
+  같은 칸에 자동값과 큐레이션이 겹치면 **큐레이션이 이깁니다**(회사 발표 non-GAAP 기준).
+- **실적 색**: 컨센서스 대비 상회는 빨강, 하회는 파랑. 셀에 마우스를 올리면 밴드·출처·메모가 뜹니다.
+- **엑셀로 가져가기**: 상단 **📋 복사**(탭 구분 — 엑셀에 Ctrl+V 하면 표 그대로) 또는
+  **⬇ CSV**.
+
+**실행**
+
+```bash
+# 웹으로 (라이브 백엔드)
+python3 -m uvicorn app.main:app --port 8000   # → http://127.0.0.1:8000/qtable/#APPS
+
+# 터미널에서 바로
+python3 tools/qtable.py APPS                  # 표 출력
+python3 tools/qtable.py APPS --tsv            # 엑셀 붙여넣기용(탭 구분)
+python3 tools/qtable.py APPS --csv apps.csv   # 파일로 저장
+python3 tools/qtable.py APPS --past 8 --ahead 2   # 열 개수 조정
+
+# API
+curl 'http://127.0.0.1:8000/api/qtable/APPS' | python3 -m json.tool
+```
+
+**가이던스 입력(`tools/qtable.py add`)** — 발표 자료/보도자료의 숫자를 한 줄씩 넣습니다.
+분기 가이던스는 `--for`(대상 분기)와 `--given-at`(제시한 분기)을 함께 주면 **과거
+가이던스**와 **향후 가이던스(QoQ)** 두 칸이 한 번에 채워집니다.
+
+```bash
+# FY26 3Q 발표 때 제시한 4분기 매출 가이던스 130.3~135.3
+python3 tools/qtable.py add APPS --kind quarter_guidance --metric revenue \
+    --for FY2026Q4 --given-at FY2026Q3 --low 130.3 --high 135.3 \
+    --source https://ir.digitalturbine.com/... --note "3Q 발표 자료"
+
+# FY26 4Q 발표 때 제시한 FY27 연간 EBITDA 가이던스
+python3 tools/qtable.py add APPS --kind annual_guidance --metric ebitda \
+    --for FY2027 --given-at FY2026Q4 --low 135 --high 145
+
+# 숫자 대신 문구만("미제공" / "연간 제공")
+python3 tools/qtable.py add APPS --kind quarter_guidance --metric eps \
+    --given-at FY2027Q1 --text 미제공 --sections fwd_qoq
+
+python3 tools/qtable.py list        # 큐레이션된 종목 보기
+```
+
+> 네트워크가 막힌 환경(웹 샌드박스 등)에서는 `SUH_DH_DEMO=1` 을 앞에 붙이면 Yahoo 호출
+> 없이 큐레이션 값만으로 표를 그립니다. 정적 사이트(GitHub Pages)에는 큐레이션된 종목 +
+> `SUH_DH_QTABLE_TICKERS` 기본 목록이 미리 빌드되고, 그 외 티커는 `SUH_DH_API_BASE`
+> 백엔드가 연결돼 있으면 라이브로 조회됩니다.
 
 ### 텔레그램 채널로 자동 전송
 

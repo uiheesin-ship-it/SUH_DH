@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>분기 실적표 (가이던스·컨센서스·실적) · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🧾 분기 실적표</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <input id="ticker-input" list="ticker-list" placeholder="티커 (예: APPS)" autocomplete="off" />
+      <datalist id="ticker-list"></datalist>
+      <button id="load-btn">조회</button>
+      <button id="copy-btn" class="ghost" title="엑셀에 붙여넣을 수 있게 표 전체를 탭 구분으로 복사">📋 복사</button>
+      <button id="csv-btn" class="ghost" title="CSV 파일로 저장">⬇ CSV</button>
+      <span id="status" class="status"></span>
+    </div>
+  </header>
+
+  <main id="content">
+    <div class="loading">티커를 입력하고 <b>조회</b>를 누르세요.
+      최근 발표 분기를 기준으로 <b>이전 6개 분기 + 향후 4개 분기</b> 표를 만듭니다.</div>
+  </main>
+
+  <button id="reg-toggle" class="reg-toggle" title="가이던스 등록 종목">📋 등록 종목</button>
+  <aside class="side-panel" id="registered-panel" aria-hidden="true">
+    <div class="reg-head">
+      <h2>가이던스 등록 종목</h2>
+      <button id="reg-close" class="reg-close" title="닫기">✕</button>
+    </div>
+    <p class="reg-hint">가이던스·컨센서스가 큐레이션된 종목입니다. 클릭하면 조회돼요.
+      등록되지 않은 종목도 조회되지만 <b>실적·EPS 컨센서스만</b> 채워집니다.</p>
+    <div id="registered-list" class="reg-list"><div class="reg-empty">불러오는 중…</div></div>
+  </aside>
+
+  <footer class="footer">
+    행은 <b>과거 가이던스 / 컨센서스 / 실적 / 향후 가이던스(연간) / 향후 가이던스(QoQ)</b>,
+    각각 매출·영업이익·EBITDA·EPS 입니다. 열은 회사의 <b>회계연도 기준</b> 분기예요
+    (예: 3월 결산인 디지털터빈은 2026년 3월 마감 분기가 <b>2026 4Q</b>).
+    <b>실적</b>과 <b>EPS 컨센서스</b>, 향후 2개 분기의 매출/EPS 컨센서스는
+    Yahoo Finance(무료)에서 자동으로 채우고, 무료 API에 없는
+    <b>회사 가이던스</b>와 과거 분기 <b>매출 컨센서스</b>는 큐레이션
+    (<code>data/guidance_table.json</code>, <code>tools/qtable.py add</code>) 값입니다.
+    회사가 발표하는 non-GAAP 수치와 야후의 GAAP 수치는 다를 수 있어, 큐레이션 값이 항상 우선합니다.
+    셀에 마우스를 올리면 출처·메모가 보입니다.
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
