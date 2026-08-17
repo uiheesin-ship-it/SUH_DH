@@ -168,6 +168,17 @@ def parse_fields(txt: str) -> dict:
     if mp:
         out["pct_of_sales"] = float(mp.group(1))
 
+    # 계약 품목 (장비 종류) — the "판매ㆍ공급계약 내용" cell describes the item.
+    mi = re.search(r"공급\s*계약\s*내용\s*[:|]?\s*([^|]{2,80})", txt)
+    if not mi:
+        mi = re.search(r"계약\s*내용\s*[:|]?\s*([^|]{2,80})", txt)
+    if mi:
+        item = mi.group(1).strip(" :|-")
+        item = re.split(r"(계약내역|계약금액|계약상대|판매ㆍ공급지역|판매·공급지역"
+                        r"|주요|계약\(수주\)|최근)", item)[0].strip()
+        if len(item) >= 2 and item not in ("-", "–"):
+            out["item"] = item[:80]
+
     # 계약상대방 — capture the cell value after the label up to the next separator.
     mc = re.search(r"계약상대(?:방|자)\s*[:|]?\s*([^|]{1,60})", txt)
     if mc:
