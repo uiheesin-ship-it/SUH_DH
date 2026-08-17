@@ -1,0 +1,434 @@
+{
+  "_since": "20260101",
+  "_generated_end": "20260817",
+  "tickers": {
+    "420770": {
+      "corp_code": "00765569",
+      "count": 13,
+      "contracts": [
+        {
+          "rcept_no": "20260811900329",
+          "rcept_dt": "20260811",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 11133584000,
+          "counterparty": "중국 반도체 기판 제조회사",
+          "period_start": "2026-08-10",
+          "period_end": "2027-04-20",
+          "contract_date": "2026-08-10",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811900329"
+        },
+        {
+          "rcept_no": "20260730900247",
+          "rcept_dt": "20260730",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 29986202480,
+          "counterparty": "일본 반도체 기판 제조회사",
+          "period_start": "2026-07-29",
+          "period_end": "2028-01-01",
+          "contract_date": "2026-07-29",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730900247"
+        },
+        {
+          "rcept_no": "20260729900255",
+          "rcept_dt": "20260729",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 6462414000,
+          "counterparty": "중국 반도체 기판 제조회사",
+          "period_start": "2026-07-28",
+          "period_end": "2027-02-28",
+          "contract_date": "2026-07-28",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729900255"
+        },
+        {
+          "rcept_no": "20260724900446",
+          "rcept_dt": "20260724",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 22276104000,
+          "counterparty": "대만 반도체 기판 제조회사",
+          "period_start": "2026-07-24",
+          "period_end": "2027-02-28",
+          "contract_date": "2026-07-24",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724900446"
+        },
+        {
+          "rcept_no": "20260707900298",
+          "rcept_dt": "20260707",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 9961500000,
+          "counterparty": "한국 반도체 기판 제조회사",
+          "period_start": "2026-07-06",
+          "period_end": "2027-01-31",
+          "contract_date": "2026-07-06",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707900298"
+        },
+        {
+          "rcept_no": "20260706900449",
+          "rcept_dt": "20260706",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 15132171600,
+          "counterparty": "중국 반도체 기판 제조회사",
+          "period_start": "2026-07-06",
+          "period_end": "2027-03-15",
+          "contract_date": "2026-07-06",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706900449"
+        },
+        {
+          "rcept_no": "20260615900536",
+          "rcept_dt": "20260615",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 7252308000,
+          "counterparty": "중국 반도체 기판 제조회사",
+          "period_start": "2026-06-15",
+          "period_end": "2027-01-10",
+          "contract_date": "2026-06-15",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260615900536"
+        },
+        {
+          "rcept_no": "20260604900614",
+          "rcept_dt": "20260604",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 9466300000,
+          "counterparty": "일본 반도체 기판 제조회사",
+          "period_start": "2026-06-02",
+          "period_end": "2027-05-31",
+          "contract_date": "2026-06-02",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260604900614"
+        },
+        {
+          "rcept_no": "20260424900333",
+          "rcept_dt": "20260424",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 9035000000,
+          "counterparty": "한국 반도체 기판 제조회사",
+          "period_start": "2026-04-24",
+          "period_end": "2026-10-30",
+          "contract_date": "2026-04-24",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260424900333"
+        },
+        {
+          "rcept_no": "20260424900330",
+          "rcept_dt": "20260424",
+          "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+          "amount_won": 3821693400,
+          "counterparty": "일본 반도체 기판 제조회사",
+          "period_start": "2025-11-14",
+          "period_end": "2026-04-24",
+          "contract_date": "2025-11-14",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260424900330"
+        },
+        {
+          "rcept_no": "20260303900146",
+          "rcept_dt": "20260303",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 10911670000,
+          "counterparty": "대만 반도체 기판 제조회사",
+          "period_start": "2026-02-27",
+          "period_end": "2026-12-03",
+          "contract_date": "2026-02-27",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260303900146"
+        },
+        {
+          "rcept_no": "20260213901224",
+          "rcept_dt": "20260213",
+          "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+          "amount_won": 2776004460,
+          "counterparty": "일본 반도체 기판 제조회사",
+          "period_start": "2025-04-22",
+          "period_end": "2027-02-28",
+          "contract_date": "2025-04-22",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213901224"
+        },
+        {
+          "rcept_no": "20260211900010",
+          "rcept_dt": "20260211",
+          "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+          "amount_won": 2776004460,
+          "counterparty": "일본 반도체 기판 제조회사",
+          "period_start": "2025-04-22",
+          "period_end": "2026-02-28",
+          "contract_date": "2025-04-22",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260211900010"
+        }
+      ]
+    },
+    "064290": {
+      "corp_code": "00479787",
+      "count": 5,
+      "contracts": [
+        {
+          "rcept_no": "20260702900638",
+          "rcept_dt": "20260702",
+          "report_nm": "단일판매ㆍ공급계약체결(자율공시)",
+          "amount_won": 8531684000,
+          "counterparty": "takewin International Ltd",
+          "period_start": "2026-07-01",
+          "period_end": "2027-12-31",
+          "contract_date": "2026-07-01",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260702900638"
+        },
+        {
+          "rcept_no": "20260702900516",
+          "rcept_dt": "20260702",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 21796402538,
+          "counterparty": "해외 반도체 관련 기업",
+          "period_start": "2026-07-01",
+          "period_end": "2027-05-14",
+          "contract_date": "2026-07-01",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260702900516"
+        },
+        {
+          "rcept_no": "20260626900604",
+          "rcept_dt": "20260626",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 14029296000,
+          "counterparty": "ALKAID TECH LTD",
+          "period_start": "2026-06-25",
+          "period_end": "2028-03-01",
+          "contract_date": "2026-06-25",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626900604"
+        },
+        {
+          "rcept_no": "20260626900596",
+          "rcept_dt": "20260626",
+          "report_nm": "단일판매ㆍ공급계약체결(자율공시)",
+          "amount_won": 7157709900,
+          "counterparty": "takewin International Ltd",
+          "period_start": "2026-06-24",
+          "period_end": "2027-05-15",
+          "contract_date": "2026-06-25",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626900596"
+        },
+        {
+          "rcept_no": "20260304900261",
+          "rcept_dt": "20260304",
+          "report_nm": "단일판매ㆍ공급계약체결",
+          "amount_won": 9632969400,
+          "counterparty": "takewin International Ltd",
+          "period_start": "2026-03-03",
+          "period_end": "2027-08-30",
+          "contract_date": "2026-03-03",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260304900261"
+        }
+      ]
+    }
+  },
+  "rows": [
+    {
+      "ticker": "420770",
+      "rcept_no": "20260811900329",
+      "rcept_dt": "20260811",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 11133584000,
+      "counterparty": "중국 반도체 기판 제조회사",
+      "period_start": "2026-08-10",
+      "period_end": "2027-04-20",
+      "contract_date": "2026-08-10",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260811900329"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260730900247",
+      "rcept_dt": "20260730",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 29986202480,
+      "counterparty": "일본 반도체 기판 제조회사",
+      "period_start": "2026-07-29",
+      "period_end": "2028-01-01",
+      "contract_date": "2026-07-29",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730900247"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260729900255",
+      "rcept_dt": "20260729",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 6462414000,
+      "counterparty": "중국 반도체 기판 제조회사",
+      "period_start": "2026-07-28",
+      "period_end": "2027-02-28",
+      "contract_date": "2026-07-28",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260729900255"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260724900446",
+      "rcept_dt": "20260724",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 22276104000,
+      "counterparty": "대만 반도체 기판 제조회사",
+      "period_start": "2026-07-24",
+      "period_end": "2027-02-28",
+      "contract_date": "2026-07-24",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260724900446"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260707900298",
+      "rcept_dt": "20260707",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 9961500000,
+      "counterparty": "한국 반도체 기판 제조회사",
+      "period_start": "2026-07-06",
+      "period_end": "2027-01-31",
+      "contract_date": "2026-07-06",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707900298"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260706900449",
+      "rcept_dt": "20260706",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 15132171600,
+      "counterparty": "중국 반도체 기판 제조회사",
+      "period_start": "2026-07-06",
+      "period_end": "2027-03-15",
+      "contract_date": "2026-07-06",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260706900449"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260615900536",
+      "rcept_dt": "20260615",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 7252308000,
+      "counterparty": "중국 반도체 기판 제조회사",
+      "period_start": "2026-06-15",
+      "period_end": "2027-01-10",
+      "contract_date": "2026-06-15",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260615900536"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260604900614",
+      "rcept_dt": "20260604",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 9466300000,
+      "counterparty": "일본 반도체 기판 제조회사",
+      "period_start": "2026-06-02",
+      "period_end": "2027-05-31",
+      "contract_date": "2026-06-02",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260604900614"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260424900333",
+      "rcept_dt": "20260424",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 9035000000,
+      "counterparty": "한국 반도체 기판 제조회사",
+      "period_start": "2026-04-24",
+      "period_end": "2026-10-30",
+      "contract_date": "2026-04-24",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260424900333"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260424900330",
+      "rcept_dt": "20260424",
+      "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+      "amount_won": 3821693400,
+      "counterparty": "일본 반도체 기판 제조회사",
+      "period_start": "2025-11-14",
+      "period_end": "2026-04-24",
+      "contract_date": "2025-11-14",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260424900330"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260303900146",
+      "rcept_dt": "20260303",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 10911670000,
+      "counterparty": "대만 반도체 기판 제조회사",
+      "period_start": "2026-02-27",
+      "period_end": "2026-12-03",
+      "contract_date": "2026-02-27",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260303900146"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260213901224",
+      "rcept_dt": "20260213",
+      "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+      "amount_won": 2776004460,
+      "counterparty": "일본 반도체 기판 제조회사",
+      "period_start": "2025-04-22",
+      "period_end": "2027-02-28",
+      "contract_date": "2025-04-22",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260213901224"
+    },
+    {
+      "ticker": "420770",
+      "rcept_no": "20260211900010",
+      "rcept_dt": "20260211",
+      "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+      "amount_won": 2776004460,
+      "counterparty": "일본 반도체 기판 제조회사",
+      "period_start": "2025-04-22",
+      "period_end": "2026-02-28",
+      "contract_date": "2025-04-22",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260211900010"
+    },
+    {
+      "ticker": "064290",
+      "rcept_no": "20260702900638",
+      "rcept_dt": "20260702",
+      "report_nm": "단일판매ㆍ공급계약체결(자율공시)",
+      "amount_won": 8531684000,
+      "counterparty": "takewin International Ltd",
+      "period_start": "2026-07-01",
+      "period_end": "2027-12-31",
+      "contract_date": "2026-07-01",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260702900638"
+    },
+    {
+      "ticker": "064290",
+      "rcept_no": "20260702900516",
+      "rcept_dt": "20260702",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 21796402538,
+      "counterparty": "해외 반도체 관련 기업",
+      "period_start": "2026-07-01",
+      "period_end": "2027-05-14",
+      "contract_date": "2026-07-01",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260702900516"
+    },
+    {
+      "ticker": "064290",
+      "rcept_no": "20260626900604",
+      "rcept_dt": "20260626",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 14029296000,
+      "counterparty": "ALKAID TECH LTD",
+      "period_start": "2026-06-25",
+      "period_end": "2028-03-01",
+      "contract_date": "2026-06-25",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626900604"
+    },
+    {
+      "ticker": "064290",
+      "rcept_no": "20260626900596",
+      "rcept_dt": "20260626",
+      "report_nm": "단일판매ㆍ공급계약체결(자율공시)",
+      "amount_won": 7157709900,
+      "counterparty": "takewin International Ltd",
+      "period_start": "2026-06-24",
+      "period_end": "2027-05-15",
+      "contract_date": "2026-06-25",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260626900596"
+    },
+    {
+      "ticker": "064290",
+      "rcept_no": "20260304900261",
+      "rcept_dt": "20260304",
+      "report_nm": "단일판매ㆍ공급계약체결",
+      "amount_won": 9632969400,
+      "counterparty": "takewin International Ltd",
+      "period_start": "2026-03-03",
+      "period_end": "2027-08-30",
+      "contract_date": "2026-03-03",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260304900261"
+    }
+  ]
+}
