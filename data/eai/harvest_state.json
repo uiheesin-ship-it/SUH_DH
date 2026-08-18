@@ -971,7 +971,21 @@
       "skipped": 237,
       "budget_exhausted": false,
       "worklist_done": true
+    },
+    {
+      "run": "2026-08-18T19:21:56Z",
+      "requests_used": 3,
+      "collected": [],
+      "empty": [
+        "TSM_2026Q2",
+        "ASML_2026Q2",
+        "HD_2026Q2"
+      ],
+      "errors": [],
+      "skipped": 237,
+      "budget_exhausted": false,
+      "worklist_done": true
     }
   ],
-  "updated": "2026-08-17T19:21:20Z"
+  "updated": "2026-08-18T19:21:56Z"
 }
