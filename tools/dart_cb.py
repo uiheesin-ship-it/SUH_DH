@@ -108,31 +108,36 @@ def _num(s: str | None):
         return None
 
 
+# One row of the 전환청구권행사 summary table:
+#   회차 | 발행당시 권면총액 | KRW… | 신고일 현재 미전환사채 잔액 | KRW… | 전환가액 | 전환가능 주식수
+_ROW = re.compile(
+    r"(\d{1,2})\s*\|\s*([\d,]{4,})\s*\|\s*KRW[^|]*\|\s*([\d,]+)\s*\|\s*KRW[^|]*"
+    r"\|\s*([\d,]+)\s*\|\s*([\d,]+)")
+
+
 def parse_conversion(txt: str) -> dict:
-    """Parse a 전환청구권행사 filing for 회차 / 주식수 / 전환가 / 미전환 잔액."""
-    out: dict[str, object] = {}
-    m = re.search(r"회\s*차\s*[:|]?\s*(\d+)", txt)
-    if m:
-        out["round"] = int(m.group(1))
-    m = re.search(r"전환청구\s*주식\s*수[^0-9]{0,12}" + _N, txt)
-    if m:
-        out["converted_shares"] = _num(m.group(1))
-    m = re.search(r"전환가\s*액[^0-9]{0,12}" + _N, txt)
-    if m:
-        out["conv_price"] = _num(m.group(1))
-    # 전환 후 미전환 사채 권면(전자등록)총액
-    m = re.search(r"미전환\s*사채[^0-9]{0,30}" + _N, txt)
-    if m:
-        out["unconverted_face"] = _num(m.group(1))
-    m = re.search(r"전환청구\s*금액[^0-9]{0,12}" + _N, txt)
-    if m:
-        out["converted_amount"] = _num(m.group(1))
-    # snippet for verification
-    idx = txt.find("미전환")
-    if idx < 0:
-        idx = txt.find("전환청구")
-    if idx >= 0:
-        out["raw_snippet"] = txt[max(0, idx - 40):idx + 200]
+    """Parse a 전환청구권행사 filing's table into per-회차 rows.
+
+    Returns {"rounds": [{round, issued_face, unconverted_face, conv_price,
+    convertible_shares}]}. The disclosure itself reports 전환가능 주식수, so no
+    division is needed.
+    """
+    rows = []
+    for m in _ROW.finditer(txt):
+        rows.append({
+            "round": int(m.group(1)),
+            "issued_face": _num(m.group(2)),
+            "unconverted_face": _num(m.group(3)),
+            "conv_price": _num(m.group(4)),
+            "convertible_shares": _num(m.group(5)),
+        })
+    out: dict[str, object] = {"rounds": rows}
+    if not rows:  # keep a snippet when the table shape didn't match
+        idx = txt.find("미전환")
+        if idx < 0:
+            idx = txt.find("전환청구")
+        if idx >= 0:
+            out["raw_snippet"] = txt[max(0, idx - 40):idx + 400]
     return out
 
 
@@ -183,21 +188,43 @@ def main() -> None:
     issuances = cb_issuances(corp, since, end)
     convs = conversion_events(corp, since, end)
 
-    # latest 미전환 권면총액 per round (newest event wins)
-    latest_unconv: dict[int, dict] = {}
+    # latest table row per round (newest 전환청구권행사 filing wins)
+    latest: dict[int, dict] = {}
     for e in sorted(convs, key=lambda x: x.get("rcept_dt", "")):
-        r = e.get("round")
-        if r is not None and e.get("unconverted_face") is not None:
-            latest_unconv[r] = {"unconverted_face": e["unconverted_face"],
-                                "as_of": e.get("rcept_dt"),
-                                "conv_price": e.get("conv_price")}
+        for row in e.get("rounds", []):
+            r = row.get("round")
+            if r is not None:
+                latest[r] = {**row, "as_of": e.get("rcept_dt")}
+
+    # rounds that never had a conversion filing → full 발행총액 still outstanding
+    for iss in issuances:
+        tm = iss.get("bd_tm")
+        if not (isinstance(tm, str) and tm.isdigit()):
+            continue
+        r = int(tm)
+        if r not in latest:
+            latest[r] = {
+                "round": r,
+                "issued_face": _num(iss.get("bd_fta")),
+                "unconverted_face": _num(iss.get("bd_fta")),
+                "conv_price": _num(iss.get("cv_prc")),
+                "convertible_shares": _num(iss.get("cvisstk_cnt")),
+                "as_of": "발행분(전환청구 이력 없음)",
+            }
+
+    remaining = sorted(latest.values(), key=lambda x: x["round"])
+    tot_face = sum(x["unconverted_face"] or 0 for x in remaining)
+    tot_shares = sum(x["convertible_shares"] or 0 for x in remaining)
 
     result = {
         "ticker": ticker, "corp_code": corp, "_since": since, "_end": end,
+        "total_unconverted_face": tot_face,
+        "total_convertible_shares": tot_shares,
+        "remaining_by_round": remaining,
         "issuances": issuances,
         "conversions": sorted(convs, key=lambda x: x.get("rcept_dt", ""), reverse=True),
-        "latest_unconverted_by_round": latest_unconv,
     }
+    print(f"  미전환 합계: {tot_face:,}원 / 전환가능 {tot_shares:,}주")
     OUT.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"{ticker}: 발행결정 {len(issuances)}건, 전환청구권행사 {len(convs)}건 → {OUT}")
 
