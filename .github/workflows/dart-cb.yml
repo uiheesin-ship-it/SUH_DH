@@ -1,0 +1,60 @@
+name: Collect DART convertible bonds
+
+# Collects a ticker's 전환사채(CB) 발행결정 + 전환청구권행사 이력 from OpenDART and
+# writes data/dart_cb.json (issuances + conversions + latest 미전환 by 회차), so the
+# remaining unconverted balance can be computed. Run from the Actions tab.
+# Needs the repo secret DART_API_KEY (or paste one into dart_key at run time).
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "6-digit code"
+        required: true
+        default: "127120"
+      since:
+        description: "Look back from this date (YYYYMMDD)"
+        required: true
+        default: "20220101"
+      dart_key:
+        description: "OpenDART API key (blank = use DART_API_KEY secret)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Collect CBs from DART
+        env:
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+        run: python tools/dart_cb.py "${{ github.event.inputs.ticker }}" "${{ github.event.inputs.since }}"
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-cb
+          path: data/dart_cb.json
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/dart_cb.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/dart_cb.json
+            git commit -m "data(dart): collect convertible-bond disclosures"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
