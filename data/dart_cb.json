@@ -3,6 +3,90 @@
   "corp_code": "00642541",
   "_since": "20220101",
   "_end": "20260819",
+  "total_unconverted_face": 67596227000,
+  "total_convertible_shares": 5873143,
+  "remaining_by_round": [
+    {
+      "round": 9,
+      "issued_face": 8000000000,
+      "unconverted_face": 1816586000,
+      "conv_price": 2637,
+      "convertible_shares": 688883,
+      "as_of": "20260323"
+    },
+    {
+      "round": 10,
+      "issued_face": 2000000000,
+      "unconverted_face": 0,
+      "conv_price": 3130,
+      "convertible_shares": 0,
+      "as_of": "20250924"
+    },
+    {
+      "round": 11,
+      "issued_face": 1000000000,
+      "unconverted_face": 449641000,
+      "conv_price": 2270,
+      "convertible_shares": 198079,
+      "as_of": "20260105"
+    },
+    {
+      "round": 12,
+      "issued_face": 6000000000,
+      "unconverted_face": 4530000000,
+      "conv_price": 3681,
+      "convertible_shares": 1230643,
+      "as_of": "20260119"
+    },
+    {
+      "round": 13,
+      "issued_face": 3000000000,
+      "unconverted_face": 1700000000,
+      "conv_price": 4170,
+      "convertible_shares": 407673,
+      "as_of": "20260119"
+    },
+    {
+      "round": 14,
+      "issued_face": 10100000000,
+      "unconverted_face": 10100000000,
+      "conv_price": 13249,
+      "convertible_shares": 1509547,
+      "as_of": "발행분(전환청구 이력 없음)"
+    },
+    {
+      "round": 15,
+      "issued_face": 7000000000,
+      "unconverted_face": 7000000000,
+      "conv_price": 15346,
+      "convertible_shares": 456144,
+      "as_of": "발행분(전환청구 이력 없음)"
+    },
+    {
+      "round": 16,
+      "issued_face": 12000000000,
+      "unconverted_face": 12000000000,
+      "conv_price": 22232,
+      "convertible_shares": 539762,
+      "as_of": "발행분(전환청구 이력 없음)"
+    },
+    {
+      "round": 17,
+      "issued_face": 25000000000,
+      "unconverted_face": 25000000000,
+      "conv_price": 35612,
+      "convertible_shares": 702010,
+      "as_of": "발행분(전환청구 이력 없음)"
+    },
+    {
+      "round": 18,
+      "issued_face": 5000000000,
+      "unconverted_face": 5000000000,
+      "conv_price": 35612,
+      "convertible_shares": 140402,
+      "as_of": "발행분(전환청구 이력 없음)"
+    }
+  ],
   "issuances": [
     {
       "rcept_no": "20250902000288",
@@ -490,52 +574,148 @@
       "rcept_no": "20260323901419",
       "rcept_dt": "20260323",
       "report_nm": "전환청구권행사              (제9회차)",
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 9 | 8,000,000,000 | KRW : South-Korean Won | 1,816,586,000 | KRW : South-Korean Won | 2,637 | 688,883 |"
+      "rounds": [
+        {
+          "round": 9,
+          "issued_face": 8000000000,
+          "unconverted_face": 1816586000,
+          "conv_price": 2637,
+          "convertible_shares": 688883
+        }
+      ]
     },
     {
       "rcept_no": "20260119900663",
       "rcept_dt": "20260119",
       "report_nm": "전환청구권행사              (제12회차,제13회차)",
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 12 | 6,000,000,000 | KRW : South-Korean Won | 4,530,000,000 | KRW : South-Korean Won | 3,681 | 1,230,643 | 13 | 3,000,000,000 | KRW : South-Korean Won | 1,700,00"
+      "rounds": [
+        {
+          "round": 12,
+          "issued_face": 6000000000,
+          "unconverted_face": 4530000000,
+          "conv_price": 3681,
+          "convertible_shares": 1230643
+        },
+        {
+          "round": 13,
+          "issued_face": 3000000000,
+          "unconverted_face": 1700000000,
+          "conv_price": 4170,
+          "convertible_shares": 407673
+        }
+      ]
     },
     {
       "rcept_no": "20260105900598",
       "rcept_dt": "20260105",
       "report_nm": "전환청구권행사              (제11회차, 제12회차)",
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 11 | 1,000,000,000 | KRW : South-Korean Won | 449,641,000 | KRW : South-Korean Won | 2,270 | 198,079 | 12 | 7,000,000,000 | KRW : South-Korean Won | 4,770,000,00"
+      "rounds": [
+        {
+          "round": 11,
+          "issued_face": 1000000000,
+          "unconverted_face": 449641000,
+          "conv_price": 2270,
+          "convertible_shares": 198079
+        },
+        {
+          "round": 12,
+          "issued_face": 7000000000,
+          "unconverted_face": 4770000000,
+          "conv_price": 3681,
+          "convertible_shares": 1295843
+        }
+      ]
     },
     {
       "rcept_no": "20250924900320",
       "rcept_dt": "20250924",
       "report_nm": "전환청구권행사              (제9회차, 제10회차)",
-      "conv_price": 10,
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 9 | 8,000,000,000 | KRW : South-Korean Won | 2,856,586,000 | KRW : South-Korean Won | 2,661 | 1,073,500 | 10 | 2,000,000,000 | KRW : South-Korean Won | 0 | KRW :"
+      "rounds": [
+        {
+          "round": 9,
+          "issued_face": 8000000000,
+          "unconverted_face": 2856586000,
+          "conv_price": 2661,
+          "convertible_shares": 1073500
+        },
+        {
+          "round": 10,
+          "issued_face": 2000000000,
+          "unconverted_face": 0,
+          "conv_price": 3130,
+          "convertible_shares": 0
+        }
+      ]
     },
     {
       "rcept_no": "20250822900357",
       "rcept_dt": "20250822",
       "report_nm": "전환청구권행사              (제9회차)",
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 9 | 8,000,000,000 | KRW : South-Korean Won | 3,486,586,000 | KRW : South-Korean Won | 2,661 | 1,310,254 |"
+      "rounds": [
+        {
+          "round": 9,
+          "issued_face": 8000000000,
+          "unconverted_face": 3486586000,
+          "conv_price": 2661,
+          "convertible_shares": 1310254
+        }
+      ]
     },
     {
       "rcept_no": "20250814902143",
       "rcept_dt": "20250814",
       "report_nm": "전환청구권행사              (제9회차, 제11회차)",
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 9 | 8,000,000,000 | KRW : South-Korean Won | 4,564,010,000 | KRW : South-Korean Won | 2,661 | 1,715,148 | 11 | 1,000,000,000 | KRW : South-Korean Won | 649,641,0"
+      "rounds": [
+        {
+          "round": 9,
+          "issued_face": 8000000000,
+          "unconverted_face": 4564010000,
+          "conv_price": 2661,
+          "convertible_shares": 1715148
+        },
+        {
+          "round": 11,
+          "issued_face": 1000000000,
+          "unconverted_face": 649641000,
+          "conv_price": 2282,
+          "convertible_shares": 284680
+        }
+      ]
     },
     {
       "rcept_no": "20250730900411",
       "rcept_dt": "20250730",
       "report_nm": "전환청구권행사              (제9회차, 제11회차)",
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 9 | 8,000,000,000 | KRW : South-Korean Won | 6,200,000,000 | KRW : South-Korean Won | 2,668 | 2,323,838 | 11 | 1,000,000,000 | KRW : South-Korean Won | 691,177,0"
+      "rounds": [
+        {
+          "round": 9,
+          "issued_face": 8000000000,
+          "unconverted_face": 6200000000,
+          "conv_price": 2668,
+          "convertible_shares": 2323838
+        },
+        {
+          "round": 11,
+          "issued_face": 1000000000,
+          "unconverted_face": 691177000,
+          "conv_price": 2288,
+          "convertible_shares": 302087
+        }
+      ]
     },
     {
       "rcept_no": "20250214901225",
       "rcept_dt": "20250214",
       "report_nm": "전환청구권행사              (제10회차)",
-      "conv_price": 10,
-      "raw_snippet": "회차 | 발행당시 사채의 권면(전자등록)총액(통화단위) | 신고일 현재 미전환사채 잔액 (통화단위) | 전환가액(원) | 전환가능 주식수 | 10 | 2,000,000,000 | KRW : South-Korean Won | 500,000,000 | KRW : South-Korean Won | 3,186 | 156,936 |"
+      "rounds": [
+        {
+          "round": 10,
+          "issued_face": 2000000000,
+          "unconverted_face": 500000000,
+          "conv_price": 3186,
+          "convertible_shares": 156936
+        }
+      ]
     }
-  ],
-  "latest_unconverted_by_round": {}
+  ]
 }
