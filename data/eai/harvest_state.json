@@ -101,7 +101,7 @@
         "2025Q3": "collected",
         "2025Q2": "collected",
         "2025Q1": "collected",
-        "2026Q2": "empty"
+        "2026Q2": "collected"
       }
     },
     "ASML": {
@@ -111,7 +111,7 @@
         "2025Q3": "collected",
         "2025Q2": "collected",
         "2025Q1": "collected",
-        "2026Q2": "empty"
+        "2026Q2": "collected"
       }
     },
     "MU": {
@@ -985,7 +985,22 @@
       "skipped": 237,
       "budget_exhausted": false,
       "worklist_done": true
+    },
+    {
+      "run": "2026-08-19T19:19:14Z",
+      "requests_used": 3,
+      "collected": [
+        "TSM_2026Q2",
+        "ASML_2026Q2"
+      ],
+      "empty": [
+        "HD_2026Q2"
+      ],
+      "errors": [],
+      "skipped": 237,
+      "budget_exhausted": false,
+      "worklist_done": true
     }
   ],
-  "updated": "2026-08-18T19:21:56Z"
+  "updated": "2026-08-19T19:19:14Z"
 }
