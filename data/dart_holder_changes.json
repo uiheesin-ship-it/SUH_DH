@@ -1,0 +1,12 @@
+{
+  "ticker": "085620",
+  "corp_code": "00112332",
+  "_since": "20260101",
+  "_end": "20260820",
+  "name_filter": "미래에셋자산운용",
+  "method_filter": "장내",
+  "filings": [],
+  "matched_buys": [],
+  "matched_total_qty": 0,
+  "all_rows": []
+}
