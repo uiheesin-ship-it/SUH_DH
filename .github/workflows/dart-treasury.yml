@@ -1,0 +1,60 @@
+name: Collect DART treasury-stock decisions
+
+# Pulls a company's 자기주식 취득 결정 (직접취득 + 신탁계약체결) from OpenDART's
+# structured 주요사항보고 endpoints, year by year, and writes
+# data/dart_treasury.json. Run from the Actions tab.
+# Needs the repo secret DART_API_KEY (or paste one into dart_key at run time).
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "6-digit code"
+        required: true
+        default: "005930"
+      from_year:
+        description: "Start year"
+        required: true
+        default: "2018"
+      dart_key:
+        description: "OpenDART API key (blank = use DART_API_KEY secret)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Collect treasury decisions from DART
+        env:
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+        run: python tools/dart_treasury.py "${{ github.event.inputs.ticker }}" "${{ github.event.inputs.from_year }}"
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-treasury
+          path: data/dart_treasury.json
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/dart_treasury.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/dart_treasury.json
+            git commit -m "data(dart): collect treasury-stock acquisition decisions"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
