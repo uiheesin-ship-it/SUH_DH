@@ -140,10 +140,11 @@ def main() -> None:
     if not corp:
         raise SystemExit(f"{ticker}: corp_code not found.")
 
+    # No pblntf_ty filter — enumerate every filing and match by report name.
     filings: list[dict] = []
-    for page in range(1, 11):
+    for page in range(1, 21):
         url = (f"{BASE}/list.json?crtfc_key={KEY}&corp_code={corp}"
-               f"&bgn_de={since}&end_de={end}&pblntf_ty=D"
+               f"&bgn_de={since}&end_de={end}"
                f"&page_no={page}&page_count=100")
         try:
             js = json.loads(_get(url))
@@ -152,12 +153,14 @@ def main() -> None:
         if js.get("status") == "013":
             break
         if js.get("status") != "000":
+            print(f"  list status {js.get('status')}: {js.get('message')}")
             break
         for it in js.get("list", []):
-            if "소유주식변동" in (it.get("report_nm") or ""):
+            nm = it.get("report_nm") or ""
+            if ("소유주식변동" in nm) or ("최대주주등소유" in nm):
                 filings.append({"rcept_no": (it.get("rcept_no") or "").strip(),
                                 "rcept_dt": (it.get("rcept_dt") or "").strip(),
-                                "report_nm": (it.get("report_nm") or "").strip()})
+                                "report_nm": nm.strip()})
         if js.get("page_no", 1) >= js.get("total_page", 1):
             break
         time.sleep(0.1)
