@@ -1,0 +1,68 @@
+name: Collect DART holder changes
+
+# Pulls a ticker's 최대주주등소유주식변동신고서 (지분공시) from OpenDART and parses the
+# detail table, then filters to a holder + method (e.g. 미래에셋자산운용 / 장내매수)
+# and sums the quantity. Writes data/dart_holder_changes.json. Run from Actions.
+# Needs the repo secret DART_API_KEY (or paste one into dart_key at run time).
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "6-digit code"
+        required: true
+        default: "085620"
+      since:
+        description: "From date (YYYYMMDD)"
+        required: true
+        default: "20260101"
+      holder:
+        description: "Holder name filter"
+        required: true
+        default: "미래에셋자산운용"
+      method:
+        description: "Method filter (substring)"
+        required: true
+        default: "장내"
+      dart_key:
+        description: "OpenDART API key (blank = use DART_API_KEY secret)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Collect holder changes from DART
+        env:
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+        run: python tools/dart_holder_changes.py "${{ github.event.inputs.ticker }}" "${{ github.event.inputs.since }}" "${{ github.event.inputs.holder }}" "${{ github.event.inputs.method }}"
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-holder-changes
+          path: data/dart_holder_changes.json
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/dart_holder_changes.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/dart_holder_changes.json
+            git commit -m "data(dart): collect 최대주주 소유주식변동"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
