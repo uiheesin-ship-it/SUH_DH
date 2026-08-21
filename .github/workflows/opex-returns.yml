@@ -1,0 +1,49 @@
+name: OpEx return windows
+
+# Computes US monthly options-expiration (3rd Friday) return windows for
+# Nasdaq-100 / S&P 500 / PHLX Semiconductor from Stooq daily data and writes
+# data/opex_returns.json. Run from the Actions tab. No secret needed.
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "How many recent expirations"
+        required: true
+        default: "6"
+
+permissions:
+  contents: write
+
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compute OpEx returns
+        run: python tools/opex_returns.py "${{ github.event.inputs.count }}"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opex-returns
+          path: data/opex_returns.json
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/opex_returns.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/opex_returns.json
+            git commit -m "data: compute OpEx return windows"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
