@@ -1,0 +1,21 @@
+{
+  "_generated": "2026-08-21",
+  "n": 6,
+  "indices": {
+    "나스닥100": {
+      "symbol": "^ndq",
+      "count": 0,
+      "rows": []
+    },
+    "S&P500": {
+      "symbol": "^spx",
+      "count": 0,
+      "rows": []
+    },
+    "필라델피아반도체": {
+      "symbol": "^sox",
+      "count": 0,
+      "rows": []
+    }
+  }
+}
