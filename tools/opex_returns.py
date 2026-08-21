@@ -14,44 +14,51 @@ Run where stooq.com is reachable (GitHub Actions; the sandbox blocks it).
 
 from __future__ import annotations
 
-import io
 import json
 import sys
 import time
+import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "opex_returns.json"
-SYMBOLS = {"나스닥100": "^ndq", "S&P500": "^spx", "필라델피아반도체": "^sox"}
+# Yahoo Finance index symbols.
+SYMBOLS = {"나스닥100": "^NDX", "S&P500": "^GSPC", "필라델피아반도체": "^SOX"}
 
 
 def _get(url: str, timeout: int = 30, retries: int = 3) -> str:
     last = None
     for i in range(retries):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 suh-dh"})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return r.read().decode("utf-8", "ignore")
-        except Exception as e:
-            last = e
-            time.sleep(2 * (i + 1))
+        for host in ("query1", "query2"):
+            try:
+                u = url.replace("query1", host)
+                req = urllib.request.Request(u, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                  "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                  "Chrome/124.0 Safari/537.36"})
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    return r.read().decode("utf-8", "ignore")
+            except Exception as e:
+                last = e
+        time.sleep(2 * (i + 1))
     raise last
 
 
 def fetch_closes(sym: str) -> list[tuple[str, float]]:
-    """[(YYYY-MM-DD, close)] ascending, from Stooq daily CSV."""
-    url = f"https://stooq.com/q/d/l/?s={sym.replace('^', '%5E')}&i=d"
-    txt = _get(url)
+    """[(YYYY-MM-DD, close)] ascending, from the Yahoo chart API."""
+    url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+           f"{urllib.parse.quote(sym)}?range=2y&interval=1d")
+    js = json.loads(_get(url))
+    res = js["chart"]["result"][0]
+    ts = res["timestamp"]
+    closes = res["indicators"]["quote"][0]["close"]
     rows: list[tuple[str, float]] = []
-    for line in txt.splitlines()[1:]:
-        p = line.split(",")
-        if len(p) < 5:
+    for t, c in zip(ts, closes):
+        if c is None:
             continue
-        try:
-            rows.append((p[0], float(p[4])))
-        except ValueError:
-            continue
+        d = datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d")
+        rows.append((d, float(c)))
     rows.sort()
     return rows
 
