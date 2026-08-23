@@ -1,0 +1,48 @@
+name: Fetch FRED rates
+
+# Pulls nominal / TIPS-real / breakeven / term-premium series from FRED and
+# writes data/fred_rates.json. Run from the Actions tab. No secret needed.
+on:
+  workflow_dispatch:
+    inputs:
+      cosd:
+        description: "Start date (YYYY-MM-DD)"
+        required: true
+        default: "2026-07-15"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fetch FRED rates
+        run: python tools/fred_rates.py "${{ github.event.inputs.cosd }}"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fred-rates
+          path: data/fred_rates.json
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/fred_rates.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/fred_rates.json
+            git commit -m "data: fetch FRED rate series"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
