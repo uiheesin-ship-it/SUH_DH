@@ -113,6 +113,7 @@ function filtered() {
     if (watchOnly && !WATCH.has(s.ticker)) return false;
     if (q && !(String(s.ticker).toUpperCase().includes(q) ||
               String(s.company_name || "").toUpperCase().includes(q))) return false;
+    if (!passColFilters(s)) return false;   // Excel-style per-column filters
     return true;
   });
 
@@ -128,6 +129,127 @@ function filtered() {
 }
 
 function sortVal(s, key) { return s[key]; }
+
+// ---------- Excel-style per-column filters ----------
+// Each filterable column is either "num" (≥/≤ range, entered in the DISPLAYED
+// unit — stored = entered/scale) or "cat" (checklist of the values present).
+const COL_FILTER = {
+  flatness_score:    { type: "num", scale: 1, unit: "점" },
+  flatness_grade:    { type: "cat", label: (v) => v },
+  base_category:     { type: "cat", label: (v) => CAT_SHORT[v] || v },
+  base_status:       { type: "cat", label: (v) => STATUS_SHORT[v] || v },
+  base_days:         { type: "cat", label: (v) => v + "d", numericSort: true },
+  close_band:        { type: "num", scale: 100, unit: "%" },
+  base_drift:        { type: "num", scale: 100, unit: "%" },
+  containment_ratio: { type: "num", scale: 100, unit: "%" },
+  current_position:  { type: "num", scale: 100, unit: "%" },
+  historical_activity_pass: { type: "cat", label: (v) => (v ? "통과" : "미달") },
+  current_price:     { type: "num", scale: 1, unit: "$" },
+  market_cap:        { type: "num", scale: 1e-9, unit: "B" },
+  rs_percentile:     { type: "num", scale: 1, unit: "" },
+  beta:              { type: "num", scale: 1, unit: "" },
+  sector:            { type: "cat", label: (v) => v },
+};
+let colFilters = {};   // key -> {min,max} (num) or {allowed:[...]} (cat)
+
+function colFilterActive(key) {
+  const f = colFilters[key], meta = COL_FILTER[key];
+  if (!f || !meta) return false;
+  return meta.type === "num" ? (f.min != null || f.max != null)
+                             : !!(f.allowed && f.allowed.length);
+}
+function anyColFilter() { return Object.keys(colFilters).some(colFilterActive); }
+
+function catValue(s, key) { return key === "historical_activity_pass" ? !!s[key] : s[key]; }
+
+function passColFilters(s) {
+  for (const key in colFilters) {
+    const meta = COL_FILTER[key];
+    if (!meta || !colFilterActive(key)) continue;
+    const f = colFilters[key];
+    if (meta.type === "num") {
+      const sc = meta.scale || 1, v = s[key];
+      if (f.min != null && !(v != null && v >= f.min / sc)) return false;
+      if (f.max != null && !(v != null && v <= f.max / sc)) return false;
+    } else {
+      const v = catValue(s, key);
+      if (!f.allowed.some((a) => String(a) === String(v))) return false;
+    }
+  }
+  return true;
+}
+
+function colDistinct(key) {
+  const meta = COL_FILTER[key], set = new Set();
+  STOCKS.forEach((s) => {
+    const v = catValue(s, key);
+    if (v !== null && v !== undefined && v !== "") set.add(v);
+  });
+  const arr = [...set];
+  arr.sort(meta.numericSort ? (a, b) => a - b : undefined);
+  return arr;
+}
+
+let colPopEl = null;
+function closeColPop() {
+  if (colPopEl) { colPopEl.remove(); colPopEl = null; document.removeEventListener("mousedown", onColPopDown, true); }
+}
+function onColPopDown(e) {
+  if (colPopEl && !colPopEl.contains(e.target) && !e.target.classList.contains("col-filter")) closeColPop();
+}
+function openColFilter(key, anchor) {
+  closeColPop();
+  const meta = COL_FILTER[key];
+  if (!meta) return;
+  const f = colFilters[key] = colFilters[key] || (meta.type === "num" ? { min: null, max: null } : { allowed: [] });
+  const label = (COLS.find((c) => c[0] === key) || [])[1] || key;
+  const pop = document.createElement("div");
+  pop.className = "colpop";
+  let inner = `<div class="colpop-h">${esc(label)} 필터</div>`;
+  if (meta.type === "num") {
+    const u = meta.unit || "";
+    inner += `<div class="colpop-row"><span>≥</span><input type="number" id="cp-min" value="${f.min ?? ""}" placeholder="min"><span>${esc(u)}</span></div>
+              <div class="colpop-row"><span>≤</span><input type="number" id="cp-max" value="${f.max ?? ""}" placeholder="max"><span>${esc(u)}</span></div>`;
+  } else {
+    const allowed = new Set((f.allowed || []).map(String));
+    const anySel = allowed.size > 0;
+    inner += `<div class="colpop-actions"><button id="cp-all">전체</button><button id="cp-none">해제</button></div><div class="colpop-list">` +
+      colDistinct(key).map((v) => {
+        const disp = meta.label ? meta.label(v) : String(v);
+        const checked = !anySel || allowed.has(String(v));
+        return `<label><input type="checkbox" class="cp-chk" value="${esc(String(v))}" ${checked ? "checked" : ""}> ${esc(disp)}</label>`;
+      }).join("") + `</div>`;
+  }
+  inner += `<div class="colpop-foot"><button id="cp-clear">이 열 해제</button><button id="cp-clearall">전체 해제</button></div>`;
+  pop.innerHTML = inner;
+  document.body.appendChild(pop);
+  colPopEl = pop;
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = (r.bottom + 4) + "px";
+
+  if (meta.type === "num") {
+    const upd = () => {
+      const mn = pop.querySelector("#cp-min").value, mx = pop.querySelector("#cp-max").value;
+      f.min = mn === "" ? null : +mn; f.max = mx === "" ? null : +mx; render();
+    };
+    pop.querySelector("#cp-min").addEventListener("input", upd);
+    pop.querySelector("#cp-max").addEventListener("input", upd);
+  } else {
+    const chks = () => [...pop.querySelectorAll(".cp-chk")];
+    const updCat = () => {
+      const all = chks(), checked = all.filter((c) => c.checked).map((c) => c.value);
+      f.allowed = (checked.length === all.length || checked.length === 0) ? [] : checked;
+      render();
+    };
+    pop.querySelectorAll(".cp-chk").forEach((c) => c.addEventListener("change", updCat));
+    pop.querySelector("#cp-all").addEventListener("click", () => { chks().forEach((c) => c.checked = true); updCat(); });
+    pop.querySelector("#cp-none").addEventListener("click", () => { chks().forEach((c) => c.checked = false); updCat(); });
+  }
+  pop.querySelector("#cp-clear").addEventListener("click", () => { delete colFilters[key]; closeColPop(); render(); });
+  pop.querySelector("#cp-clearall").addEventListener("click", () => { colFilters = {}; closeColPop(); render(); });
+  setTimeout(() => document.addEventListener("mousedown", onColPopDown, true), 0);
+}
 
 // ---------- render table ----------
 const GRADE_CLS = { "Very Flat": "g-prime", "Flat": "g-high",
@@ -170,7 +292,9 @@ function render() {
   }
   const head = COLS.map(([k, label, num]) => {
     const arrow = sortKey === k ? (sortDir === -1 ? " ▾" : " ▴") : "";
-    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}</th>`;
+    const fic = COL_FILTER[k]
+      ? `<span class="col-filter${colFilterActive(k) ? " on" : ""}" data-fkey="${esc(k)}" title="열 필터">⏷</span>` : "";
+    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}${fic}</th>`;
   }).join("");
 
   const body = rows.map((s) => {
@@ -214,6 +338,8 @@ function render() {
     }));
   document.querySelectorAll("button.star").forEach((b) =>
     b.addEventListener("click", (e) => { e.stopPropagation(); toggleWatch(b.dataset.star); }));
+  document.querySelectorAll(".col-filter").forEach((el) =>
+    el.addEventListener("click", (e) => { e.stopPropagation(); openColFilter(el.dataset.fkey, el); }));
   if (currentTicker) {
     document.querySelectorAll(`tr[data-ticker="${CSS.escape(currentTicker)}"]`)
       .forEach((r) => r.classList.add("active"));

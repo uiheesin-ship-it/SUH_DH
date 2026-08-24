@@ -184,3 +184,24 @@ td.etf { color: var(--accent); }
   .count-badge { margin-left: auto; }
 }
 .lowbeta { color: #fca5a5; }
+
+/* Excel-style per-column filters */
+.col-filter { cursor: pointer; margin-left: 4px; color: #64748b; font-size: 9px;
+  user-select: none; vertical-align: middle; }
+.col-filter:hover { color: var(--accent); }
+.col-filter.on { color: var(--accent); font-weight: 700; }
+.colpop { position: fixed; z-index: 9998; background: #0f172a; border: 1px solid #334155;
+  border-radius: 8px; padding: 10px; font-size: 12px; box-shadow: 0 6px 22px rgba(0,0,0,.55);
+  min-width: 180px; max-width: 240px; }
+.colpop-h { font-weight: 600; margin-bottom: 8px; color: var(--accent); }
+.colpop-row { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+.colpop-row input { width: 84px; background: #1e293b; color: var(--text);
+  border: 1px solid #334155; border-radius: 5px; padding: 4px 6px; font-size: 12px; }
+.colpop-actions { display: flex; gap: 6px; margin-bottom: 6px; }
+.colpop-list { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 3px; }
+.colpop-list label { display: flex; gap: 6px; align-items: center; color: var(--text);
+  white-space: nowrap; cursor: pointer; }
+.colpop-foot { display: flex; gap: 6px; margin-top: 9px; border-top: 1px solid #334155; padding-top: 8px; }
+.colpop button { background: #1e293b; color: var(--text); border: 1px solid #334155;
+  border-radius: 5px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
+.colpop button:hover { border-color: var(--accent); }
