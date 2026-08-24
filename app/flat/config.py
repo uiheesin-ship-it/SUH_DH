@@ -30,6 +30,11 @@ DEFAULTS: dict[str, Any] = {
     "min_price": 1.0,
     "min_market_cap": 300_000_000,   # small-cap and up
     "min_avg_dollar_volume_20d": 10_000_000,
+    # Exclude "dead/deal-pinned" bases: if the base's average |daily return| is
+    # below this (0.5%), the price is essentially frozen (merger-arb locked at
+    # the deal price, or delisting-frozen) — scores perfect on flatness but is
+    # dead money. Set 0 to disable.
+    "min_base_daily_vol": 0.005,
     # Need base(≤120) + prior activity(≤252) for a clean, look-ahead-free split.
     "min_history_days": 180,
     # --- base status band (spec §6) ---

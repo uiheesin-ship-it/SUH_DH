@@ -142,6 +142,17 @@ def daily_returns(closes: Sequence[float]) -> np.ndarray:
     return r[np.isfinite(r)]
 
 
+def mean_abs_daily_return(closes: Sequence[float]) -> float | None:
+    """Average |close-to-close return| inside the window — how much the price
+    actually moves day to day. Near-zero (e.g. <0.4%) means the stock is
+    essentially pinned/dead — typical of a merger-arb price locked at the deal
+    value — as opposed to a normal quiet consolidation that still wiggles ~1-2%."""
+    r = daily_returns(closes)
+    if r.size == 0:
+        return None
+    return float(np.mean(np.abs(r)))
+
+
 def outlier_days(closes: Sequence[float], thresh: float = 0.08) -> int:
     """Count of days whose |close-to-close return| >= thresh (default 8%)."""
     r = daily_returns(closes)

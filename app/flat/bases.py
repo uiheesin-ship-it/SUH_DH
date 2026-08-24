@@ -49,6 +49,7 @@ def evaluate_period(closes, highs, lows, n: int, current_close: float,
     center = metrics.center_shift(win_c)
     out_ratio = metrics.outlier_ratio(win_c)
     out_days = metrics.outlier_days(win_c)
+    daily_vol = metrics.mean_abs_daily_return(win_c)   # avg |daily return| in base
     raw_range = metrics.raw_high_low_range(win_h, win_l, win_c)
     q10 = metrics.quantile(win_c, 0.10)
     q90 = metrics.quantile(win_c, 0.90)
@@ -69,6 +70,13 @@ def evaluate_period(closes, highs, lows, n: int, current_close: float,
         _ge(contain, th["containment"]) and _le(center, th["center_shift"]) and
         _le(out_ratio, th["outlier_ratio"])
     )
+
+    # "Dead / deal-pinned" guard: a base whose average daily move is essentially
+    # zero isn't a real consolidation — it's a merger-arb price locked at the
+    # deal value (or a delisting-frozen name). Those score ~perfect on flatness
+    # but are dead money, so they don't count as a valid flat base.
+    min_dv = float(cfg.get("min_base_daily_vol", 0.0) or 0.0)
+    too_dead = bool(min_dv > 0 and daily_vol is not None and daily_vol < min_dv)
 
     # Status band optionally ignores the most recent few days so a fresh 1-3 day
     # poke through the band doesn't rewrite the base boundaries (spec §6).
@@ -91,6 +99,8 @@ def evaluate_period(closes, highs, lows, n: int, current_close: float,
         "center_shift": _r(center, 4),
         "outlier_days": out_days,
         "outlier_ratio": _r(out_ratio, 4),
+        "base_daily_vol": _r(daily_vol, 5),
+        "too_dead": too_dead,
         "current_position": _r(cur_pos, 4),
         "base_low_q10": _r(q10, 4),
         "base_high_q90": _r(q90, 4),
@@ -110,7 +120,10 @@ def select_bases(closes, highs, lows, current_close, cfg: dict) -> list[dict]:
         ev = evaluate_period(closes, highs, lows, n, current_close, cfg)
         if ev is not None:
             out.append(ev)
-    qualifying = [e for e in out if e["base_pass"]]
+    # A period qualifies only if it passes the flatness thresholds AND isn't
+    # dead/deal-pinned (near-zero daily movement). Excluding dead periods here
+    # means a stock pinned across all its windows drops out entirely.
+    qualifying = [e for e in out if e["base_pass"] and not e.get("too_dead")]
     qualifying.sort(key=lambda e: e["flatness_score"], reverse=True)
     return qualifying
 

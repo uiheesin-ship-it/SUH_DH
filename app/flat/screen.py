@@ -140,6 +140,7 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         "center_shift": best["center_shift"],
         "outlier_days": best["outlier_days"],
         "outlier_ratio": best["outlier_ratio"],
+        "base_daily_vol": best.get("base_daily_vol"),
         "current_position": best["current_position"],
         "base_low_q10": best["base_low_q10"],
         "base_high_q90": best["base_high_q90"],

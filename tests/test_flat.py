@@ -116,6 +116,16 @@ def test_select_bases_finds_flat_window():
     assert top["base_status"] == "Active Flat Base"
 
 
+def test_dead_pinned_base_excluded():
+    # A merger-arb / deal-pinned base (near-zero daily movement) scores ~perfect
+    # on flatness but is dead money — it must NOT qualify as a flat base.
+    dead = [100.0 * (1 + 0.001 * math.sin(i)) for i in range(300)]
+    h = [c * 1.0005 for c in dead]
+    l = [c * 0.9995 for c in dead]
+    assert bases.select_bases(dead, h, l, dead[-1], CFG) == []
+    assert metrics.mean_abs_daily_return(dead[-60:]) < CFG["min_base_daily_vol"]
+
+
 def test_base_status_transitions():
     assert bases.base_status(100, 95, 105, CFG) == "Active Flat Base"
     assert bases.base_status(120, 95, 105, CFG) == "Exited Upward"

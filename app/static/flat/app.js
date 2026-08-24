@@ -238,6 +238,7 @@ const GLOSSARY = {
   "Containment": "종가가 중앙값 ±7.5% 안에 있던 거래일 비율. 높을수록 중심에 밀집.",
   "Center Shift": "후반부 종가중앙값 / 전반부 종가중앙값 − 1의 절대값. 밴드가 좁아도 중심이 계속 움직이면 평평으로 안 봄.",
   "Outlier Ratio": "일간 종가수익률 |값|이 8%↑인 날의 비율. 하루이틀은 허용, 반복되는 급등락은 제외.",
+  "일간변동": "베이스 구간의 평균 일간 |수익률|. 0.5% 미만이면 '정지/딜 고정'(M&A 딜 가격에 붙어 거의 안 움직임)으로 보고 결과에서 제외. 정상적인 조용한 횡보는 보통 1~2%.",
   "Current Position": "현재가가 베이스 밴드(Q10~Q90) 중 어디인지. 0%=하단, 100%=상단. 점수엔 미포함.",
   "Base Status": "Active(밴드 유지) / Exited↑(상단 +3% 초과 이탈) / Exited↓(하단 −3% 미만 이탈).",
   "Base Category": "이전 추세 태그(점수 무관). Continuation=베이스 직전 +20%↑ 상승 / Turnaround=−20%↓ 하락 / Neutral=그 사이.",
@@ -289,6 +290,7 @@ function detailPanel(s) {
         ${row("Containment", fmtPct(s.containment_ratio, 0))}
         ${row("Center Shift", fmtPct(s.center_shift, 1))}
         ${row("Outlier Ratio", `${fmtPct(s.outlier_ratio, 1)} (${s.outlier_days ?? 0}일)`)}
+        ${row("일간변동", s.base_daily_vol == null ? "-" : (s.base_daily_vol * 100).toFixed(2) + "%")}
         ${row("Current Position", s.current_position == null ? "-" : (s.current_position * 100).toFixed(0) + "%")}
       </div>
       <div class="d-card"><h4>상태 / 유형</h4>
