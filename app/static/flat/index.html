@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>평평 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -28,43 +28,7 @@
       <input type="range" id="f-score" min="0" max="100" step="5" value="65" />
       <span id="f-score-val">65</span>
     </label>
-    <label>유형(Category)
-      <select id="f-category">
-        <option value="">전체</option>
-        <option value="Continuation Flat Base">Continuation(상승후)</option>
-        <option value="Neutral Flat Base">Neutral(중립)</option>
-        <option value="Turnaround Flat Base">Turnaround(하락후)</option>
-      </select>
-    </label>
-    <label>상태(Status)
-      <select id="f-status">
-        <option value="Active Flat Base">Active(유지중)</option>
-        <option value="">전체</option>
-        <option value="Exited Upward">Exited Up(상단이탈)</option>
-        <option value="Exited Downward">Exited Down(하단이탈)</option>
-      </select>
-    </label>
-    <label>과거활동성
-      <select id="f-activity">
-        <option value="pass">통과만</option>
-        <option value="">전체</option>
-        <option value="fail">미달만</option>
-      </select>
-    </label>
-    <label>기간(일)
-      <input type="number" id="f-mindays" class="tiny" min="20" max="120" step="10" placeholder="min" />
-      –
-      <input type="number" id="f-maxdays" class="tiny" min="20" max="120" step="10" placeholder="max" />
-    </label>
-    <label>최대 Close Band
-      <input type="number" id="f-maxband" class="tiny" min="0" max="0.5" step="0.01" placeholder="%" />
-    </label>
-    <label>최소 Containment
-      <input type="number" id="f-mincontain" class="tiny" min="0" max="1" step="0.05" placeholder="0.8" />
-    </label>
-    <label>섹터
-      <select id="f-sector"><option value="">전체</option></select>
-    </label>
+    <span class="hint-col">유형·상태·기간·CloseBand·밀집도·섹터 등은 각 열 머리글의 ⏷ 를 눌러 필터하세요</span>
     <label class="chk">저변동성 포함
       <input type="checkbox" id="f-chronic" />
     </label>
@@ -125,6 +89,6 @@
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
   <script src="../shared/sync.js?v=3"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

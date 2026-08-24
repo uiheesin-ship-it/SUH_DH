@@ -49,6 +49,7 @@ button:hover { border-color: var(--accent); }
 }
 .filters label.chk { gap: 4px; }
 .count-badge { margin-left: auto; color: var(--accent); font-weight: 600; }
+.filters .hint-col { color: #64748b; font-size: 11px; font-style: italic; }
 
 /* watchlist star + button state */
 button.star {
@@ -70,11 +71,15 @@ table.screen th, table.screen td { padding: 6px 8px; border-bottom: 1px solid va
 table.screen th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--muted); font-weight: 600; }
 table.screen th.sortable { cursor: pointer; user-select: none; }
 table.screen th.sortable:hover { color: var(--accent); }
+/* Shrink every column to its content so 티커/Flatness/등급 don't get big empty
+   gaps; the last column (섹터) absorbs the remaining width. */
+table.screen th, table.screen td { width: 1px; }
+table.screen th:last-child, table.screen td:last-child { width: auto; }
 table.screen td.num, table.screen th.num { text-align: right; font-variant-numeric: tabular-nums; }
 table.screen tbody tr:hover { background: var(--panel-2); }
 table.screen tr.active { background: #1d3a52; }
 .tk .ticker-link { background: none; border: none; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 0; }
-.tk .company { color: var(--muted); font-size: 11px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.tk .company { color: var(--muted); font-size: 11px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 td.score b { font-size: 14px; }
 td.notes { white-space: normal; color: var(--muted); font-size: 11px; max-width: 260px; }
 td.etf { color: var(--accent); }

@@ -53,7 +53,6 @@ async function load() {
     STOCKS = data.stocks || [];
     META = data;
     $("#demo-badge").classList.toggle("hidden", !data.demo);
-    populateSectors();
     render();
     const when = STATIC ? (data.built ? new Date(data.built).toLocaleString("ko-KR") : "최근")
                         : new Date().toLocaleTimeString("ko-KR");
@@ -71,26 +70,9 @@ function renderError(msg, detail) {
   $("#status").textContent = "오류";
 }
 
-function populateSectors() {
-  const secs = [...new Set(STOCKS.map((s) => s.sector).filter(Boolean))].sort();
-  const sel = $("#f-sector");
-  const cur = sel.value;
-  sel.innerHTML = `<option value="">전체</option>` +
-    secs.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
-  sel.value = cur;
-}
-
 // ---------- filtering + sorting ----------
 function filtered() {
   const minScore = +$("#f-score").value;
-  const category = $("#f-category").value;
-  const status = $("#f-status").value;
-  const activity = $("#f-activity").value;
-  const minDays = $("#f-mindays").value ? +$("#f-mindays").value : null;
-  const maxDays = $("#f-maxdays").value ? +$("#f-maxdays").value : null;
-  const maxBand = $("#f-maxband").value ? +$("#f-maxband").value : null;
-  const minContain = $("#f-mincontain").value ? +$("#f-mincontain").value : null;
-  const sector = $("#f-sector").value;
   const inclChronic = $("#f-chronic").checked;
   const inclReit = $("#f-reit").checked;
   const inclUnaccepted = $("#f-unaccepted").checked;
@@ -99,15 +81,6 @@ function filtered() {
 
   let rows = STOCKS.filter((s) => {
     if ((s.flatness_score ?? 0) < minScore) return false;
-    if (category && s.base_category !== category) return false;
-    if (status && s.base_status !== status) return false;
-    if (activity === "pass" && !s.historical_activity_pass) return false;
-    if (activity === "fail" && s.historical_activity_pass) return false;
-    if (minDays != null && (s.base_days ?? 0) < minDays) return false;
-    if (maxDays != null && (s.base_days ?? 999) > maxDays) return false;
-    if (maxBand != null && (s.close_band ?? 9) > maxBand) return false;
-    if (minContain != null && (s.containment_ratio ?? 0) < minContain) return false;
-    if (sector && s.sector !== sector) return false;
     if (!inclChronic && s.chronically_low_vol) return false;
     if (!inclReit && s.is_reit) return false;
     if (!inclUnaccepted && s.accepted === false) return false;
@@ -764,9 +737,9 @@ $("#chart-close").addEventListener("click", closeChart);
 $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-category", "f-status", "f-activity", "f-sector", "f-chronic", "f-reit", "f-unaccepted", "f-setup"].forEach((id) =>
+["f-chronic", "f-reit", "f-unaccepted", "f-setup"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
-["f-mindays", "f-maxdays", "f-maxband", "f-mincontain", "f-search"].forEach((id) =>
+["f-search"].forEach((id) =>
   $("#" + id).addEventListener("input", render));
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });
 
