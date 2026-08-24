@@ -108,6 +108,25 @@ DEFAULTS: dict[str, Any] = {
     "grades": {"very_flat": 85, "flat": 75, "moderate": 65},
     # how many runner-up base periods to keep per ticker (spec §17)
     "top_candidates": 3,
+    # --- moving-average / trend "Setup" (SEPARATE from the Flatness Score) ---
+    # Grades whether a tight base sits in the right context: riding rising MAs
+    # near highs (continuation) or reclaiming its MAs off a bottom (turnaround).
+    # Never feeds the Flatness Score; surfaced as its own column/filter/rank.
+    "setup": {
+        "slope_lookback_fast": 20,   # SMA50 slope measured over N bars
+        "slope_lookback_slow": 40,   # SMA150/200 slope over N bars
+        "slope_fast_full": 0.06,     # 6% rise / 20d = full trend credit
+        "slope_slow_full": 0.08,     # 8% rise / 40d = full trend credit
+        "reclaim_min_gap": 0.05,     # turnaround: must have dipped >=5% below 200d
+        "support_extend_bands": 1.5,  # MA up to 1.5 base-band-widths below the base low still counts as support
+        "near_high_span": 0.25,      # near-high bonus fades out 25% below 52w high
+        "cont_max_off_high": 0.15,   # continuation must be within 15% of 52w high
+        "min_setup_score": 55,       # setup_pass threshold
+        "weights": {                 # component weights (sum ≈ 1.0)
+            "trend": 0.32, "structure": 0.24, "support": 0.24,
+            "breakout": 0.12, "near_high": 0.08,
+        },
+    },
 }
 
 

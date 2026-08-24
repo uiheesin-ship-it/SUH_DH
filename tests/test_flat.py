@@ -8,7 +8,7 @@ import math
 
 import numpy as np
 
-from app.flat import activity, bases, metrics, scoring, screen, trend_tag
+from app.flat import activity, bases, metrics, scoring, screen, setup, trend_tag
 from app.flat.config import load, thresholds_for
 
 
@@ -124,6 +124,53 @@ def test_dead_pinned_base_excluded():
     l = [c * 0.9995 for c in dead]
     assert bases.select_bases(dead, h, l, dead[-1], CFG) == []
     assert metrics.mean_abs_daily_return(dead[-60:]) < CFG["min_base_daily_vol"]
+
+
+def _setup_of(closes, n_base=50):
+    c = list(closes)
+    start = len(c) - n_base
+    base = c[start:]
+    lo = float(np.quantile(base, 0.10))
+    hi = float(np.quantile(base, 0.90))
+    band = hi - lo
+    pos = (c[-1] - lo) / band if band > 0 else 0.5
+    return setup.compute_setup(c, start, lo, hi, c[-1], pos, CFG)
+
+
+def test_setup_continuation_passes_and_is_display_only():
+    # Strong uptrend + tight base near highs riding rising MAs (AMD/에코프로/NTRA).
+    up = [80.0 * (1.006 ** i) for i in range(300)]
+    base = [up[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(50)]
+    r = _setup_of(up + base)
+    assert r["setup_archetype"] == "추세지속"
+    assert r["setup_pass"] is True
+    assert r["setup_score"] > 55
+    # Setup must never leak into the Flatness Score inputs.
+    assert "setup_score" not in scoring.flatness_score(
+        0.02, 0.005, 0.98, 0.005, 0.0, thresholds_for(60, CFG), CFG)
+
+
+def test_setup_turnaround_reclaim_passes():
+    # Decline -> long bottoming base while the long MAs catch down -> reclaim (IBIT).
+    down = [66.0 * (0.9955 ** i) for i in range(150)]
+    flat = [34.0 * (1 + 0.06 * math.sin(i / 4.0)) for i in range(110)]
+    reclaim = [flat[-1] * (1.012 ** i) for i in range(14)]
+    r = _setup_of(down + flat + reclaim)
+    assert r["setup_archetype"] == "바닥반전"
+    assert r["reclaimed_sma200"] or r["reclaimed_sma150"]
+    assert r["setup_pass"] is True
+
+
+def test_setup_trendless_base_fails():
+    # Up, then a big decline, then a partial recovery that stalls well below the
+    # 52-week high with tangled/flat MAs (ARQT) — flat but NOT a setup.
+    s1 = [20.0 * (1.01 ** i) for i in range(80)]
+    s2 = [s1[-1] * (0.985 ** i) for i in range(90)]
+    s3 = [s2[-1] * (1.012 ** i) for i in range(80)]
+    base = [s3[-1] * (1 + 0.045 * math.sin(i / 3.0)) for i in range(50)]
+    r = _setup_of(s1 + s2 + s3 + base)
+    assert r["setup_archetype"] == "약함"
+    assert r["setup_pass"] is False
 
 
 def test_base_status_transitions():

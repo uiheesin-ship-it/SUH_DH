@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>평평 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -74,6 +74,9 @@
     <label class="chk">미달 후보 포함
       <input type="checkbox" id="f-unaccepted" title="카테고리별 추가기준(§8) 미충족 후보도 표시" />
     </label>
+    <label class="chk" title="이동평균/추세 셋업 통과(추세지속·바닥반전)만 표시. AMD·에코프로·IBIT·NTRA 같은 모양.">셋업 통과만
+      <input type="checkbox" id="f-setup" />
+    </label>
     <label class="search">검색
       <input type="text" id="f-search" placeholder="티커/종목명" />
     </label>
@@ -122,6 +125,6 @@
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
   <script src="../shared/sync.js?v=3"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

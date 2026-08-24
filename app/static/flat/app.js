@@ -94,6 +94,7 @@ function filtered() {
   const inclChronic = $("#f-chronic").checked;
   const inclReit = $("#f-reit").checked;
   const inclUnaccepted = $("#f-unaccepted").checked;
+  const setupOnly = $("#f-setup").checked;
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
@@ -110,6 +111,7 @@ function filtered() {
     if (!inclChronic && s.chronically_low_vol) return false;
     if (!inclReit && s.is_reit) return false;
     if (!inclUnaccepted && s.accepted === false) return false;
+    if (setupOnly && !s.setup_pass) return false;
     if (watchOnly && !WATCH.has(s.ticker)) return false;
     if (q && !(String(s.ticker).toUpperCase().includes(q) ||
               String(s.company_name || "").toUpperCase().includes(q))) return false;
@@ -135,6 +137,9 @@ function sortVal(s, key) { return s[key]; }
 // unit — stored = entered/scale) or "cat" (checklist of the values present).
 const COL_FILTER = {
   flatness_score:    { type: "num", scale: 1, unit: "점" },
+  composite_score:   { type: "num", scale: 1, unit: "점" },
+  setup_score:       { type: "num", scale: 1, unit: "점" },
+  setup_archetype:   { type: "cat", label: (v) => v },
   flatness_grade:    { type: "cat", label: (v) => v },
   base_category:     { type: "cat", label: (v) => CAT_SHORT[v] || v },
   base_status:       { type: "cat", label: (v) => STATUS_SHORT[v] || v },
@@ -262,10 +267,15 @@ const STATUS_CLS = { "Active Flat Base": "p-ready", "Exited Upward": "p-extended
                      "Exited Downward": "p-broken", "Unknown": "" };
 const STATUS_SHORT = { "Active Flat Base": "Active", "Exited Upward": "Exited↑",
                        "Exited Downward": "Exited↓", "Unknown": "-" };
+// Moving-average / trend Setup archetype (separate from the Flatness Score).
+const SETUP_CLS = { "추세지속": "bt-tight", "바닥반전": "bt-flat", "약함": "g-low" };
 
 const COLS = [
   ["ticker", "티커", false],
   ["flatness_score", "Flatness", true],
+  ["composite_score", "종합", true],
+  ["setup_score", "셋업", true],
+  ["setup_archetype", "셋업유형", false],
   ["flatness_grade", "등급", false],
   ["base_category", "유형", false],
   ["base_status", "상태", false],
@@ -309,6 +319,9 @@ function render() {
         <div class="company">${esc(s.company_name || "")}${s.is_reit ? ' <span class="badge bt-base">REIT</span>' : ""}${s.accepted === false ? ' <span class="ext-mark" title="' + esc(s.exclude_reason || "기준 미달") + '">미달</span>' : ""}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.flatness_score, 0)}</b></td>
+      <td class="num"><b>${fmtNum(s.composite_score, 0)}</b></td>
+      <td class="num${s.setup_pass ? "" : " lowbeta"}">${fmtNum(s.setup_score, 0)}${s.setup_pass ? " ✓" : ""}</td>
+      <td>${s.setup_archetype ? `<span class="badge ${SETUP_CLS[s.setup_archetype] || ""}">${esc(s.setup_archetype)}</span>` : "-"}</td>
       <td><span class="badge ${g}">${esc(s.flatness_grade || "-")}</span></td>
       <td>${s.base_category ? `<span class="badge ${cat}">${esc(CAT_SHORT[s.base_category] || s.base_category)}</span>` : "-"}</td>
       <td><span class="badge ${st}">${esc(STATUS_SHORT[s.base_status] || s.base_status || "-")}</span></td>
@@ -373,6 +386,9 @@ const GLOSSARY = {
   "Base Distinctness": "이전 252일 CloseBand / 현재 베이스 CloseBand. 과거가 지금보다 얼마나 넓었는지. 1.5↑면 베이스가 뚜렷.",
   "만성 저변동성": "이전252일밴드<20% + 최대20일수익<12% + 최대60일수익<12% + Distinctness<1.3 을 모두 만족하는 원래 안 움직이는 종목. 기본 제외.",
   "미달": "카테고리별 추가기준(§8) 미충족. Continuation은 20일·70점, Neutral/Turnaround는 40일·80점·밀집85%·드리프트5%·중심5%·활동성통과 필요.",
+  "셋업(추세/이평선)": "평평도와 완전히 별개인 '자리' 점수(0~100). 평평한 베이스가 상승 이동평균선을 타고 고점 부근에 있으면 '추세지속'(AMD·에코프로·NTRA), 바닥에서 이평선을 회복하면 '바닥반전'(IBIT). 추세 없이 중간에 뜬 평평 베이스(ARQT류)는 '약함'으로 걸러짐. 구성: 이평상승(32)+정배열/회복(24)+이평지지(24)+돌파위치(12)+고점근접(8).",
+  "셋업유형": "추세지속=상승 150일선 위 + 52주 고점 15% 이내 / 바닥반전=150·200일선 아래로 이탈 후 회복 + 50일선 위 상향 / 약함=둘 다 아님. '셋업 통과만' 필터는 추세지속·바닥반전만 남김.",
+  "종합점수": "평평도 점수 × 0.5 + 셋업 점수 × 0.5. '평평하면서도 좋은 자리'를 한 번에 정렬하려는 참고 지표. 열 머리글을 눌러 이걸로 정렬 가능.",
   "RS%": "스캔 유니버스 내 12개월 수익률 백분위(참고용, 점수 무관).",
   "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타(참고용, 평탄도 점수엔 미포함). <1이면 시장보다 덜 움직이는 저변동, >1이면 더 크게 움직임. 0.8 미만은 강조 표시.",
 };
@@ -426,6 +442,16 @@ function detailPanel(s) {
         ${row("이전 60일 / 120일", `${fmtPct(s.prior_60d_return)} / ${fmtPct(s.prior_120d_return)}`)}
         ${row("대표 이전수익률", fmtPct(s.representative_prior_return))}
         ${row("미달", s.accepted === false ? `✗ ${esc(s.exclude_reason || "")}` : "✓ 통과")}
+      </div>
+      <div class="d-card"><h4>${term("셋업(추세/이평선)")} (점수 무관)</h4>
+        ${row("셋업 점수 / 통과", `${fmtNum(s.setup_score, 0)} ${s.setup_pass ? "✓ 통과" : "✗"}`)}
+        ${row("셋업유형", esc(s.setup_archetype || "-"))}
+        ${row("종합점수", `${fmtNum(s.composite_score, 0)} (평평×0.5 + 셋업×0.5)`)}
+        ${row("SMA 50 / 150 / 200", `${fmtPrice(s.sma50)} / ${fmtPrice(s.sma150)} / ${fmtPrice(s.sma200)}`)}
+        ${row("이평 기울기 50/150/200", `${fmtPct(s.sma50_slope, 1)} / ${fmtPct(s.sma150_slope, 1)} / ${fmtPct(s.sma200_slope, 1)}`)}
+        ${row("가격 vs 50/150/200", `${yesno(s.above_sma50)}/${yesno(s.above_sma150)}/${yesno(s.above_sma200)}`)}
+        ${row("정배열 / 200일 회복", `${yesno(s.ma_aligned)} / ${yesno(s.reclaimed_sma200)}`)}
+        ${row("52주 고점 / 저점 대비", `${fmtPct(s.dist_52w_high, 0)} / ${fmtPct(s.dist_52w_low, 0)}`)}
       </div>
       <div class="d-card"><h4>과거활동성 (점수 무관)</h4>
         ${row("과거활동성(Historical Activity)", `${yesno(s.historical_activity_pass)}${s.historical_activity_insufficient ? " (데이터부족)" : ""}`)}
@@ -688,6 +714,10 @@ const EXPORT_COLS = [
   "close_band", "raw_high_low_range", "base_drift", "containment_ratio",
   "center_shift", "outlier_days", "outlier_ratio", "current_position",
   "flatness_score", "flatness_grade",
+  "composite_score", "setup_score", "setup_pass", "setup_archetype",
+  "sma50", "sma150", "sma200", "sma50_slope", "sma150_slope", "sma200_slope",
+  "above_sma50", "above_sma150", "above_sma200", "ma_aligned",
+  "reclaimed_sma200", "dist_52w_high", "dist_52w_low",
   "prior_60d_return", "prior_120d_return", "representative_prior_return",
   "prior_120_close_band", "prior_252_close_band",
   "max_abs_20d_return", "max_abs_60d_return", "base_distinctness",
@@ -734,7 +764,7 @@ $("#chart-close").addEventListener("click", closeChart);
 $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-category", "f-status", "f-activity", "f-sector", "f-chronic", "f-reit", "f-unaccepted"].forEach((id) =>
+["f-category", "f-status", "f-activity", "f-sector", "f-chronic", "f-reit", "f-unaccepted", "f-setup"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
 ["f-mindays", "f-maxdays", "f-maxband", "f-mincontain", "f-search"].forEach((id) =>
   $("#" + id).addEventListener("input", render));

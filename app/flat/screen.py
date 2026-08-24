@@ -26,7 +26,7 @@ import numpy as np
 
 from ..base import data as basedata
 from ..base import metrics as bmetrics
-from . import activity, bases, trend_tag
+from . import activity, bases, setup as setup_mod, trend_tag
 from .config import load as load_config
 
 
@@ -118,6 +118,17 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
     # sector / RS%). A flat base can be low- or high-beta; we just surface it.
     beta_val = bmetrics.beta(close, spy["close"]) if spy and spy.get("close") else None
 
+    # Moving-average / trend "Setup" context — a SEPARATE dimension from the
+    # Flatness Score (§1). Grades whether the tight base rides rising MAs near
+    # highs (continuation) or reclaims its MAs off a bottom (turnaround), so a
+    # flat-but-trendless base can be filtered out / ranked below real setups.
+    setup = setup_mod.compute_setup(
+        close, start, best.get("base_low_q10"), best.get("base_high_q90"),
+        price, best.get("current_position"), cfg)
+    flat_s = best["flatness_score"] or 0
+    setup_s = setup.get("setup_score")
+    composite = round(0.5 * flat_s + 0.5 * setup_s, 1) if setup_s is not None else flat_s
+
     rec = {
         "ticker": cand["ticker"],
         "company_name": cand.get("company"),
@@ -171,6 +182,9 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         "base_status": best["base_status"],
         "accepted": accepted_flag,
         "exclude_reason": ", ".join(reasons) if reasons else None,
+        # --- moving-average / trend Setup (SEPARATE from flatness score) ---
+        **setup,
+        "composite_score": composite,
         # --- display-only extras (NOT in flatness score) ---
         "ret_12m": ret_12m,
         "beta": beta_val,        # vs SPY (252d) — display only
