@@ -121,10 +121,15 @@ DEFAULTS: dict[str, Any] = {
         "support_extend_bands": 1.5,  # MA up to 1.5 base-band-widths below the base low still counts as support
         "near_high_span": 0.25,      # near-high bonus fades out 25% below 52w high
         "cont_max_off_high": 0.15,   # continuation must be within 15% of 52w high
+        # Anti-"already broke out" guard: we want the base BEFORE it goes.
+        "max_extension": 0.03,       # continuation: >3% above the base top = extended -> fails
+        "max_extension_turn": 0.12,  # turnaround reclaims rise off the base -> looser gate
+        "extension_zero": 0.08,      # readiness score fades to 0 by 8% above the base top
+        "extension_zero_turn": 0.20, # turnaround: readiness fades slower (reclaim rises off base)
         "min_setup_score": 55,       # setup_pass threshold
         "weights": {                 # component weights (sum ≈ 1.0)
-            "trend": 0.32, "structure": 0.24, "support": 0.24,
-            "breakout": 0.12, "near_high": 0.08,
+            "trend": 0.30, "structure": 0.22, "support": 0.22,
+            "readiness": 0.18, "near_high": 0.08,
         },
     },
 }

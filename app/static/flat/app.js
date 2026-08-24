@@ -241,7 +241,8 @@ const STATUS_CLS = { "Active Flat Base": "p-ready", "Exited Upward": "p-extended
 const STATUS_SHORT = { "Active Flat Base": "Active", "Exited Upward": "Exited↑",
                        "Exited Downward": "Exited↓", "Unknown": "-" };
 // Moving-average / trend Setup archetype (separate from the Flatness Score).
-const SETUP_CLS = { "추세지속": "bt-tight", "바닥반전": "bt-flat", "약함": "g-low" };
+const SETUP_CLS = { "추세지속": "bt-tight", "바닥반전": "bt-flat",
+                    "돌파연장": "p-extended", "약함": "g-low" };
 
 const COLS = [
   ["ticker", "티커", false],
@@ -359,8 +360,9 @@ const GLOSSARY = {
   "Base Distinctness": "이전 252일 CloseBand / 현재 베이스 CloseBand. 과거가 지금보다 얼마나 넓었는지. 1.5↑면 베이스가 뚜렷.",
   "만성 저변동성": "이전252일밴드<20% + 최대20일수익<12% + 최대60일수익<12% + Distinctness<1.3 을 모두 만족하는 원래 안 움직이는 종목. 기본 제외.",
   "미달": "카테고리별 추가기준(§8) 미충족. Continuation은 20일·70점, Neutral/Turnaround는 40일·80점·밀집85%·드리프트5%·중심5%·활동성통과 필요.",
-  "셋업(추세/이평선)": "평평도와 완전히 별개인 '자리' 점수(0~100). 평평한 베이스가 상승 이동평균선을 타고 고점 부근에 있으면 '추세지속'(AMD·에코프로·NTRA), 바닥에서 이평선을 회복하면 '바닥반전'(IBIT). 추세 없이 중간에 뜬 평평 베이스(ARQT류)는 '약함'으로 걸러짐. 구성: 이평상승(32)+정배열/회복(24)+이평지지(24)+돌파위치(12)+고점근접(8).",
-  "셋업유형": "추세지속=상승 150일선 위 + 52주 고점 15% 이내 / 바닥반전=150·200일선 아래로 이탈 후 회복 + 50일선 위 상향 / 약함=둘 다 아님. '셋업 통과만' 필터는 추세지속·바닥반전만 남김.",
+  "셋업(추세/이평선)": "평평도와 완전히 별개인 '자리' 점수(0~100). 평평한 베이스가 상승 이동평균선을 타고 고점 부근에 있으면 '추세지속'(AMD·에코프로·NTRA), 바닥에서 이평선을 회복하면 '바닥반전'(IBIT). 추세 없이 중간에 뜬 평평 베이스(ARQT류)는 '약함'. 이미 베이스 위로 돌파해 뻗은 종목은 '돌파연장'으로 감점·제외(돌파 前을 잡는 게 목적). 구성: 이평상승(30)+정배열/회복(22)+이평지지(22)+준비도(18)+고점근접(8).",
+  "셋업유형": "추세지속=상승 150일선 위 + 52주 고점 15% 이내 / 바닥반전=150·200일선 아래로 이탈 후 회복 + 50일선 위 상향 / 돌파연장=이미 베이스 상단 +3% 초과로 돌파해 뻗음(통과 제외) / 약함=아무것도 아님. '셋업 통과만' 필터는 추세지속·바닥반전(아직 안 뻗은 것)만 남김.",
+  "베이스 상단 대비": "현재가 ÷ 베이스 상단(Q90) − 1. 0% 부근 = 베이스 상단서 조이는 중(이상적). +3% 초과 = 이미 돌파해 뻗음(돌파연장 → 셋업 통과 제외). 준비도(readiness) 점수는 +8%에서 0이 됨.",
   "종합점수": "평평도 점수 × 0.5 + 셋업 점수 × 0.5. '평평하면서도 좋은 자리'를 한 번에 정렬하려는 참고 지표. 열 머리글을 눌러 이걸로 정렬 가능.",
   "RS%": "스캔 유니버스 내 12개월 수익률 백분위(참고용, 점수 무관).",
   "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타(참고용, 평탄도 점수엔 미포함). <1이면 시장보다 덜 움직이는 저변동, >1이면 더 크게 움직임. 0.8 미만은 강조 표시.",
@@ -424,6 +426,7 @@ function detailPanel(s) {
         ${row("이평 기울기 50/150/200", `${fmtPct(s.sma50_slope, 1)} / ${fmtPct(s.sma150_slope, 1)} / ${fmtPct(s.sma200_slope, 1)}`)}
         ${row("가격 vs 50/150/200", `${yesno(s.above_sma50)}/${yesno(s.above_sma150)}/${yesno(s.above_sma200)}`)}
         ${row("정배열 / 200일 회복", `${yesno(s.ma_aligned)} / ${yesno(s.reclaimed_sma200)}`)}
+        ${row("베이스 상단 대비", `${fmtPct(s.above_base, 1)}${s.extended ? " ⚠ 돌파연장" : ""}`)}
         ${row("52주 고점 / 저점 대비", `${fmtPct(s.dist_52w_high, 0)} / ${fmtPct(s.dist_52w_low, 0)}`)}
       </div>
       <div class="d-card"><h4>과거활동성 (점수 무관)</h4>
@@ -690,7 +693,7 @@ const EXPORT_COLS = [
   "composite_score", "setup_score", "setup_pass", "setup_archetype",
   "sma50", "sma150", "sma200", "sma50_slope", "sma150_slope", "sma200_slope",
   "above_sma50", "above_sma150", "above_sma200", "ma_aligned",
-  "reclaimed_sma200", "dist_52w_high", "dist_52w_low",
+  "reclaimed_sma200", "above_base", "extended", "dist_52w_high", "dist_52w_low",
   "prior_60d_return", "prior_120d_return", "representative_prior_return",
   "prior_120_close_band", "prior_252_close_band",
   "max_abs_20d_return", "max_abs_60d_return", "base_distinctness",

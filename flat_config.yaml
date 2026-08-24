@@ -127,10 +127,15 @@ setup:
   support_extend_bands: 1.5    # 이평선이 베이스 저점보다 밴드폭의 1.5배까지 아래여도 지지 인정
   near_high_span: 0.25         # 52주 고점 대비 25% 아래에서 근접 보너스 소멸
   cont_max_off_high: 0.15      # 추세지속은 52주 고점 15% 이내여야 인정
+  # '이미 돌파해 뻗은' 종목 배제 — 우리는 돌파 '전'의 베이스를 잡고 싶음.
+  max_extension: 0.03          # 추세지속: 베이스 상단(Q90) 대비 +3% 초과면 '돌파연장'→통과 제외
+  max_extension_turn: 0.12     # 바닥반전은 베이스서 올라오는 게 정상 → 더 느슨한 기준
+  extension_zero: 0.08         # 베이스 상단 +8% 지점에서 준비도(readiness) 점수 0
+  extension_zero_turn: 0.20    # 바닥반전은 준비도 감소가 완만(베이스서 올라오므로)
   min_setup_score: 55          # 셋업 통과(setup_pass) 기준 점수
   weights:                     # 구성요소 가중치(합 ≈ 1.0)
-    trend: 0.32                # 이평선 상승(50·150)
-    structure: 0.24            # 정배열 또는 회복
-    support: 0.24              # 베이스가 이평선을 타는지
-    breakout: 0.12             # 베이스 상단(돌파 준비) 위치
+    trend: 0.30                # 이평선 상승(50·150)
+    structure: 0.22            # 정배열 또는 회복
+    support: 0.22              # 베이스가 이평선을 타는지
+    readiness: 0.18            # 베이스 상단서 조이는지(돌파해 뻗으면 감점)
     near_high: 0.08            # 52주 고점 근접 보너스

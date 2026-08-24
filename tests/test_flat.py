@@ -161,6 +161,26 @@ def test_setup_turnaround_reclaim_passes():
     assert r["setup_pass"] is True
 
 
+def test_setup_already_broken_out_is_demoted():
+    # A base that has ALREADY broken out and extended well above the base top is
+    # a finished move — it must NOT score high or pass (we want it BEFORE it goes).
+    up = [80.0 * (1.006 ** i) for i in range(300)]
+    base = [up[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(44)]
+    breakout = [up[-1] * 1.03 * (1.02 ** k) for k in range(1, 7)]   # runs ~+10% above base
+    r = _setup_of(up + base + breakout)
+    assert r["extended"] is True
+    assert r["above_base"] > 0.03
+    assert r["setup_pass"] is False
+    assert r["setup_archetype"] == "돌파연장"
+    # A coiled-at-top base (same trend, price still at the base top) DOES pass.
+    coiled = [up[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(46)] + \
+             [up[-1] * 1.028, up[-1] * 1.029, up[-1] * 1.028, up[-1] * 1.027]
+    rc = _setup_of(up + coiled)
+    assert rc["extended"] is False
+    assert rc["setup_pass"] is True
+    assert rc["setup_score"] > r["setup_score"]
+
+
 def test_setup_trendless_base_fails():
     # Up, then a big decline, then a partial recovery that stalls well below the
     # 52-week high with tangled/flat MAs (ARQT) — flat but NOT a setup.

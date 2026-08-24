@@ -66,6 +66,7 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
         "above_sma50": None, "above_sma150": None, "above_sma200": None,
         "ma_aligned": None, "reclaimed_sma200": None, "reclaimed_sma150": None,
         "dist_52w_high": None, "dist_52w_low": None,
+        "above_base": None, "extended": False,
         "setup_score": None, "setup_pass": False, "setup_archetype": "약함",
     }
     if c.size < 60 or not current_close:
@@ -122,6 +123,14 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
     reclaimed_150 = _reclaimed(s150, sma150, above150)
     reclaimed_any = reclaimed or reclaimed_150
 
+    # Archetype flags (needed early so the readiness/extension logic can treat a
+    # turnaround reclaim — which rises off its base — more leniently than a
+    # continuation breakout, which is "late" the moment it leaves the base top).
+    continuation = bool((sl150 or 0) > 0 and above150
+                        and (dist_high is not None and dist_high >= -float(scfg.get("cont_max_off_high", 0.20))))
+    turnaround = bool(reclaimed_any and above50 and (sl50 or 0) >= 0)
+    is_turn = bool(turnaround and not continuation)
+
     # ---- component scores (0..1) --------------------------------------------
     # 1) Trend: rising 50 & 150 day averages.
     fast_full = float(scfg.get("slope_fast_full", 0.06))   # 6% / 20d = full credit
@@ -156,29 +165,39 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
         return _clamp01((rel + ext + 1.0) / 1.0)            # far below -> fades out
     support = max(_support(sma50), _support(sma150))
 
-    # 4) Breakout readiness: sitting in the UPPER part of the base (coiled to
-    #    break), not slumped at the bottom (ARQT: current_position ≈ -0.19).
+    # 4) Readiness: we want a base that is COILED at the top and about to break —
+    #    NOT one that has already broken out and extended (that move is over, too
+    #    late to act). So reward being high in the base band, but fade the credit
+    #    as the price runs above the base top. `above_base` = how far the current
+    #    price sits above the base top (Q90).
     pos = current_position if current_position is not None else 0.5
-    breakout = _clamp01((pos - 0.2) / 0.7)
+    coil = _clamp01((pos - 0.35) / 0.6)          # upper-base coiling: 0 at pos<=.35, 1 at >=.95
+    above_base = (current_close / base_high - 1.0) if base_high else None
+    # readiness -> 0 once this far above the base top; a turnaround reclaim rises
+    # off its base, so it fades more slowly than a continuation breakout.
+    ext_zero = float(scfg.get("extension_zero_turn", 0.20)) if is_turn \
+        else float(scfg.get("extension_zero", 0.08))
+    if above_base is None or above_base <= 0.01:
+        ext_factor = 1.0
+    else:
+        ext_factor = _clamp01((ext_zero - above_base) / ext_zero)
+    readiness = coil * ext_factor
 
     # 5) Near-highs bonus (continuation quality); folded into trend/structure.
     near_high = _clamp01(1.0 + (dist_high or -1.0) / float(scfg.get("near_high_span", 0.25)))
 
     w = scfg.get("weights", {}) or {}
-    w_trend = float(w.get("trend", 0.32))
-    w_struct = float(w.get("structure", 0.24))
-    w_support = float(w.get("support", 0.24))
-    w_breakout = float(w.get("breakout", 0.12))
+    w_trend = float(w.get("trend", 0.30))
+    w_struct = float(w.get("structure", 0.22))
+    w_support = float(w.get("support", 0.22))
+    w_ready = float(w.get("readiness", w.get("breakout", 0.18)))
     w_high = float(w.get("near_high", 0.08))
     raw = (w_trend * trend + w_struct * structure + w_support * support
-           + w_breakout * breakout + w_high * near_high)
+           + w_ready * readiness + w_high * near_high)
     setup_score = round(100.0 * raw, 1)
 
-    # Archetype + pass. Continuation: rising slow MA + above it + near highs.
-    # Turnaround: reclaimed the 200-day with the 50-day turning up.
-    continuation = bool((sl150 or 0) > 0 and above150
-                        and (dist_high is not None and dist_high >= -float(scfg.get("cont_max_off_high", 0.20))))
-    turnaround = bool(reclaimed_any and above50 and (sl50 or 0) >= 0)
+    # Archetype from the flags computed above. Continuation: rising slow MA +
+    # above it + near highs. Turnaround: reclaimed a long MA with the 50 rising.
     if continuation:
         archetype = "추세지속"
     elif turnaround:
@@ -186,10 +205,26 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
     else:
         archetype = "약함"
 
+    # Extended = the price has already run above the base top by more than the
+    # allowed tolerance. That breakout is done — we do NOT want it to score high
+    # or pass the filter (the whole point is to catch the base BEFORE it goes).
+    # A continuation breakout above the top is "late" almost immediately (tight
+    # gate); a turnaround reclaim, by contrast, necessarily rises off its bottom
+    # base, so it gets a looser gate before it too counts as extended.
+    max_ext = float(scfg.get("max_extension", 0.03))
+    max_ext_turn = float(scfg.get("max_extension_turn", 0.12))
+    limit = max_ext_turn if (turnaround and not continuation) else max_ext
+    extended = bool(above_base is not None and above_base > limit)
+    if extended:
+        archetype = "돌파연장"   # already broken out / extended — surfaced but not a fresh setup
+
     pass_score = float(scfg.get("min_setup_score", 55))
-    setup_pass = bool((continuation or turnaround) and setup_score >= pass_score)
+    setup_pass = bool((continuation or turnaround) and setup_score >= pass_score
+                      and not extended)
 
     return {
+        "above_base": round(above_base, 4) if above_base is not None else None,
+        "extended": extended,
         "sma50": round(sma50, 4) if sma50 is not None else None,
         "sma150": round(sma150, 4) if sma150 is not None else None,
         "sma200": round(sma200, 4) if sma200 is not None else None,
