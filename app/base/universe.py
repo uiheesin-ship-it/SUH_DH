@@ -62,7 +62,7 @@ def _looks_like_fund(company: str | None, industry: str | None) -> bool:
     return any(w in text for w in _EXCLUDE_WORDS)
 
 
-def _fetch_finviz(cfg: dict) -> list[dict]:
+def _fetch_finviz(cfg: dict, ipo_pass: bool = False) -> list[dict]:
     from finvizfinance.screener.overview import Overview
 
     from ..screener import _clean_tickers, _prime_finviz
@@ -87,10 +87,18 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
         ("Market Cap.", "Small (over $300mln)"),
         ("Industry", "Stocks only (ex-Funds)"),
     ]
-    if uni.get("finviz_price_above_sma200"):
-        desired.append(("200-Day Simple Moving Average", "Price above SMA200"))
-    if uni.get("finviz_price_above_sma50"):
+    if ipo_pass:
+        # Recent-IPO pass: DON'T require SMA200 (young stocks don't have one) —
+        # that filter is exactly what shut IPOs out. Keep "above SMA50" so we
+        # still catch uptrending post-IPO bases, and restrict to recent listings.
+        ipo_date = str((cfg.get("ipo") or {}).get("finviz_ipo_date", "In the last year"))
+        desired.append(("IPO Date", ipo_date))
         desired.append(("50-Day Simple Moving Average", "Price above SMA50"))
+    else:
+        if uni.get("finviz_price_above_sma200"):
+            desired.append(("200-Day Simple Moving Average", "Price above SMA200"))
+        if uni.get("finviz_price_above_sma50"):
+            desired.append(("50-Day Simple Moving Average", "Price above SMA50"))
     if not uni.get("include_adr", True):
         desired.append(("Country", "USA"))
 
@@ -140,6 +148,7 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
             "market_cap": _to_float(r.get("Market Cap")),
             "price": _to_float(r.get("Price")),
             "country": r.get("Country"),
+            "from_ipo_pass": bool(ipo_pass),
         })
     return rows
 
@@ -158,6 +167,20 @@ def get_candidates(cfg: dict) -> list[dict]:
 
     rows = cache.get_or_set("base_universe", UNIVERSE_TTL, producer,
                             cache_when=lambda r: bool(r))
+
+    # Second pass: recent IPOs (no SMA200 requirement). Merge, keeping the first
+    # occurrence of each ticker so an established name isn't relabeled as IPO.
+    if (cfg.get("ipo") or {}).get("enabled"):
+        def ipo_producer():
+            try:
+                return _fetch_finviz(cfg, ipo_pass=True)
+            except Exception:
+                return []
+        ipo_rows = cache.get_or_set("base_universe_ipo", UNIVERSE_TTL, ipo_producer,
+                                    cache_when=lambda r: bool(r))
+        seen = {r["ticker"] for r in rows}
+        extra = [r for r in ipo_rows if r["ticker"] not in seen]
+        rows = list(rows) + extra
 
     uni = cfg["universe"]
     include_adr = uni.get("include_adr", True)

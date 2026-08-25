@@ -26,6 +26,18 @@ min_market_cap: 300000000
 min_avg_dollar_volume_20d: 10000000
 min_history_days: 200
 
+# --- 신규 상장주(IPO) 모드 -------------------------------------------
+# 상장 1년 미만 종목은 150/200일선이 없어 Minervini 템플릿·200일 히스토리
+# 게이트·Finviz "200일선 위" 필터에 전부 막혀 아예 안 잡혔습니다. IPO 모드는
+# 별도 Finviz 조회(최근 상장, 200일선 요구 없음)로 유니버스에 넣고, 히스토리
+# 게이트를 낮추고, "있는 이평선"으로 추세를 판정합니다. 베이스·VCP·거래량
+# 품질 기준은 그대로 적용됩니다.
+ipo:
+  enabled: true
+  min_history_days: 40           # 최소 40거래일(약 2개월)이면 후보로 허용
+  short_history_threshold: 200   # 이 미만이면 단기 히스토리(IPO 적응) 모드
+  finviz_ipo_date: "In the last year"   # 최근 상장 종목만 별도 조회
+
 # --- 벤치마크 / 섹터 ETF --------------------------------------------
 benchmarks: [SPY, QQQ, IWM]
 

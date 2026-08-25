@@ -92,10 +92,12 @@ function filtered() {
   const pivot = $("#f-pivot").value;
   const alert = $("#f-alert").value;
   const sector = $("#f-sector").value;
+  const ipoOnly = $("#f-ipo") ? $("#f-ipo").checked : false;
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
     if (watchOnly && !WATCH.has(s.ticker)) return false;
+    if (ipoOnly && !s.is_ipo) return false;
     if ((s.total_score ?? 0) < minScore) return false;
     if (grade && s.setup_grade !== grade) return false;
     if (pivot && (s.pivot?.pivot_status) !== pivot) return false;
@@ -103,6 +105,7 @@ function filtered() {
     if (sector && s.sector !== sector) return false;
     if (q && !(String(s.ticker).toUpperCase().includes(q) ||
               String(s.company_name || "").toUpperCase().includes(q))) return false;
+    if (!passColFilters(s)) return false;   // Excel-style per-column filters
     return true;
   });
 
@@ -137,6 +140,133 @@ const PIVOT_CLS = { ready: "p-ready", broken_out: "p-broken", watch: "p-watch",
 const IB_CLS = { prime: "ib-prime", high: "ib-high", watch: "ib-watch", low: "ib-low" };
 const BASETYPE = { flat: ["평평", "bt-flat"], tight: ["타이트", "bt-tight"],
                    abc: ["ABC", "bt-abc"], base: ["베이스", "bt-base"], none: ["-", ""] };
+
+// ---------- Excel-style per-column filters (like the flat screener) ----------
+// A value entered in a numeric filter is in the column's DISPLAYED units, so it
+// is divided by `scale` before comparing to the stored value (e.g. 시총 2 => 2e9,
+// pivot거리 5 => 0.05). Categorical columns show a checklist of distinct values.
+const COL_FILTER = {
+  total_score:       { type: "num", scale: 1, unit: "점" },
+  inbase_score:      { type: "num", scale: 1, unit: "점" },
+  beta:              { type: "num", scale: 1, unit: "" },
+  base_type:         { type: "cat", label: (v) => (BASETYPE[v] || [v])[0] },
+  setup_grade:       { type: "cat", label: (v) => v },
+  alert_type:        { type: "cat", label: (v) => v },
+  current_price:     { type: "num", scale: 1, unit: "$" },
+  market_cap:        { type: "num", scale: 1e-9, unit: "B" },
+  rs_percentile:     { type: "num", scale: 1, unit: "" },
+  distance_to_pivot: { type: "num", scale: 100, unit: "%" },
+  pivot_status:      { type: "cat", label: (v) => v },
+  base_depth:        { type: "num", scale: 100, unit: "%" },
+  sector_etf:        { type: "cat", label: (v) => v },
+};
+let colFilters = {};   // key -> {min,max} (num) or {allowed:[...]} (cat)
+
+// Column value used by BOTH filtering and the checklist — mirrors sortVal so
+// nested fields (pivot / base) filter on the same number the table shows.
+function colValue(s, key) {
+  switch (key) {
+    case "distance_to_pivot": return s.pivot?.distance_to_pivot;
+    case "base_depth": return s.base?.base_depth;
+    case "pivot_status": return s.pivot?.pivot_status;
+    default: return s[key];
+  }
+}
+
+function colFilterActive(key) {
+  const f = colFilters[key], meta = COL_FILTER[key];
+  if (!f || !meta) return false;
+  return meta.type === "num" ? (f.min != null || f.max != null)
+                             : !!(f.allowed && f.allowed.length);
+}
+
+function passColFilters(s) {
+  for (const key in colFilters) {
+    const meta = COL_FILTER[key];
+    if (!meta || !colFilterActive(key)) continue;
+    const f = colFilters[key], v = colValue(s, key);
+    if (meta.type === "num") {
+      const sc = meta.scale || 1;
+      if (f.min != null && !(v != null && v >= f.min / sc)) return false;
+      if (f.max != null && !(v != null && v <= f.max / sc)) return false;
+    } else if (!f.allowed.some((a) => String(a) === String(v))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function colDistinct(key) {
+  const meta = COL_FILTER[key], set = new Set();
+  STOCKS.forEach((s) => {
+    const v = colValue(s, key);
+    if (v !== null && v !== undefined && v !== "") set.add(v);
+  });
+  const arr = [...set];
+  arr.sort(meta.numericSort ? (a, b) => a - b : undefined);
+  return arr;
+}
+
+let colPopEl = null;
+function closeColPop() {
+  if (colPopEl) { colPopEl.remove(); colPopEl = null; document.removeEventListener("mousedown", onColPopDown, true); }
+}
+function onColPopDown(e) {
+  if (colPopEl && !colPopEl.contains(e.target) && !e.target.classList.contains("col-filter")) closeColPop();
+}
+function openColFilter(key, anchor) {
+  closeColPop();
+  const meta = COL_FILTER[key];
+  if (!meta) return;
+  const f = colFilters[key] = colFilters[key] || (meta.type === "num" ? { min: null, max: null } : { allowed: [] });
+  const label = (COLS.find((c) => c[0] === key) || [])[1] || key;
+  const pop = document.createElement("div");
+  pop.className = "colpop";
+  let inner = `<div class="colpop-h">${esc(label)} 필터</div>`;
+  if (meta.type === "num") {
+    const u = meta.unit || "";
+    inner += `<div class="colpop-row"><span>≥</span><input type="number" id="cp-min" value="${f.min ?? ""}" placeholder="min"><span>${esc(u)}</span></div>
+              <div class="colpop-row"><span>≤</span><input type="number" id="cp-max" value="${f.max ?? ""}" placeholder="max"><span>${esc(u)}</span></div>`;
+  } else {
+    const allowed = new Set((f.allowed || []).map(String));
+    const anySel = allowed.size > 0;
+    inner += `<div class="colpop-actions"><button id="cp-all">전체</button><button id="cp-none">해제</button></div><div class="colpop-list">` +
+      colDistinct(key).map((v) => {
+        const disp = meta.label ? meta.label(v) : String(v);
+        const checked = !anySel || allowed.has(String(v));
+        return `<label><input type="checkbox" class="cp-chk" value="${esc(String(v))}" ${checked ? "checked" : ""}> ${esc(disp)}</label>`;
+      }).join("") + `</div>`;
+  }
+  inner += `<div class="colpop-foot"><button id="cp-clear">이 열 해제</button><button id="cp-clearall">전체 해제</button></div>`;
+  pop.innerHTML = inner;
+  document.body.appendChild(pop);
+  colPopEl = pop;
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = (r.bottom + 4) + "px";
+
+  if (meta.type === "num") {
+    const upd = () => {
+      const mn = pop.querySelector("#cp-min").value, mx = pop.querySelector("#cp-max").value;
+      f.min = mn === "" ? null : +mn; f.max = mx === "" ? null : +mx; render();
+    };
+    pop.querySelector("#cp-min").addEventListener("input", upd);
+    pop.querySelector("#cp-max").addEventListener("input", upd);
+  } else {
+    const chks = () => [...pop.querySelectorAll(".cp-chk")];
+    const updCat = () => {
+      const all = chks(), checked = all.filter((c) => c.checked).map((c) => c.value);
+      f.allowed = (checked.length === all.length || checked.length === 0) ? [] : checked;
+      render();
+    };
+    pop.querySelectorAll(".cp-chk").forEach((c) => c.addEventListener("change", updCat));
+    pop.querySelector("#cp-all").addEventListener("click", () => { chks().forEach((c) => c.checked = true); updCat(); });
+    pop.querySelector("#cp-none").addEventListener("click", () => { chks().forEach((c) => c.checked = false); updCat(); });
+  }
+  pop.querySelector("#cp-clear").addEventListener("click", () => { delete colFilters[key]; closeColPop(); render(); });
+  pop.querySelector("#cp-clearall").addEventListener("click", () => { colFilters = {}; closeColPop(); render(); });
+  setTimeout(() => document.addEventListener("mousedown", onColPopDown, true), 0);
+}
 
 const COLS = [
   ["ticker", "티커", false],
@@ -180,7 +310,9 @@ function render() {
   }
   const head = COLS.map(([k, label, num]) => {
     const arrow = sortKey === k ? (sortDir === -1 ? " ▾" : " ▴") : "";
-    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}</th>`;
+    const fic = COL_FILTER[k]
+      ? `<span class="col-filter${colFilterActive(k) ? " on" : ""}" data-fkey="${esc(k)}" title="열 필터">⏷</span>` : "";
+    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}${fic}</th>`;
   }).join("");
 
   const body = rows.map((s) => {
@@ -192,7 +324,7 @@ function render() {
       <td class="tk">
         <button class="star" data-star="${esc(s.ticker)}" title="관심종목">${WATCH.has(s.ticker) ? "★" : "☆"}</button>
         <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
-        <div class="company">${esc(s.company_name || "")}</div>
+        <div class="company">${esc(s.company_name || "")}${s.is_ipo ? ` <span class="badge bt-abc" title="신규 상장(히스토리 ${s.history_days ?? "?"}일) — 이평선 조건은 적응 모드로 판정">신규상장</span>` : ""}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
       <td class="num score"><b class="${IB_CLS[s.inbase_grade] || "ib-low"}">${fmtNum(s.inbase_score, 0)}</b>${s.extended ? ` <span class="ext-mark" title="이미 분출: ${esc((s.extension_flags || []).join(", "))}">분출</span>` : ""}</td>
@@ -225,6 +357,8 @@ function render() {
     }));
   document.querySelectorAll("button.star").forEach((b) =>
     b.addEventListener("click", (e) => { e.stopPropagation(); toggleWatch(b.dataset.star); }));
+  document.querySelectorAll(".col-filter").forEach((el) =>
+    el.addEventListener("click", (e) => { e.stopPropagation(); openColFilter(el.dataset.fkey, el); }));
   if (currentTicker) {
     document.querySelectorAll(`tr[data-ticker="${CSS.escape(currentTicker)}"]`)
       .forEach((r) => r.classList.add("active"));
@@ -328,7 +462,8 @@ function detailPanel(s) {
   return `
     <div class="d-grid">
       <div class="d-card"><h4>추세 (Minervini)</h4>
-        ${row("Trend Template", `${yesno(s.trend_template_pass)} (${s.trend?.pass_count ?? "-"}/${s.trend?.total ?? 10})`)}
+        ${s.is_ipo ? row("신규상장", `✔ 히스토리 ${s.history_days ?? "?"}일 — 이평선 적응 모드(있는 이평선으로 판정)`) : ""}
+        ${row("Trend Template", `${yesno(s.trend_template_pass)} (${s.trend?.pass_count ?? "-"}/${s.trend?.total ?? 10})${s.trend?.ipo_adapted ? " · 적응" : ""}`)}
         ${row("RS 백분위", fmtNum(s.rs_percentile, 0))}
         ${row("RS vs SPY 3M", fmtPct(s.rs_vs_spy_3m))}
         ${row("RS vs QQQ 3M", fmtPct(s.rs_vs_qqq_3m))}
@@ -582,6 +717,7 @@ function rescaleY(ev) {
 function exportCsv() {
   const rows = filtered();
   const cols = ["ticker", "company_name", "sector", "industry", "sector_etf",
+    "is_ipo", "history_days",
     "current_price", "market_cap", "avg_dollar_volume_20d", "total_score", "setup_grade",
     "trend_template_pass", "rs_percentile", "rs_vs_spy_3m", "rs_vs_qqq_3m",
     "base_start_date", "base_length_days", "base_depth", "pivot_price", "distance_to_pivot",
@@ -620,7 +756,7 @@ $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWat
 $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-grade", "f-pivot", "f-alert", "f-sector"].forEach((id) =>
+["f-grade", "f-pivot", "f-alert", "f-sector", "f-ipo"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
 $("#f-search").addEventListener("input", render);
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });

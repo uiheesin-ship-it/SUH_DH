@@ -32,6 +32,19 @@ DEFAULTS: dict[str, Any] = {
     "min_market_cap": 300_000_000,
     "min_avg_dollar_volume_20d": 10_000_000,
     "min_history_days": 200,
+    # Newly-listed stocks (IPOs) can't compute a 150/200-day average, so the
+    # standard Minervini template + the 200-day history gate + Finviz's
+    # "price above SMA200" universe filter shut them out entirely — even though
+    # the first post-IPO base is often the most explosive setup. IPO mode adds a
+    # separate Finviz pass (recent IPOs, no SMA200 requirement), lowers the
+    # history gate, and evaluates an adapted trend template on the MAs that DO
+    # exist. Base/VCP/volume quality is still judged normally.
+    "ipo": {
+        "enabled": True,
+        "min_history_days": 40,          # accept a recent IPO with >= 40 bars
+        "short_history_threshold": 200,  # < this => short-history / IPO-adapted mode
+        "finviz_ipo_date": "In the last year",
+    },
     "benchmarks": ["SPY", "QQQ", "IWM"],
     "base": {
         "min_length_days": 20,

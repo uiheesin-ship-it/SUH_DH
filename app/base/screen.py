@@ -57,8 +57,15 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
 
     if not close:
         return None, "no_bars"
-    if len(close) < int(cfg["min_history_days"]):
-        return None, f"history<{int(cfg['min_history_days'])}d({len(close)})"
+    ipo_cfg = cfg.get("ipo") or {}
+    ipo_enabled = bool(ipo_cfg.get("enabled"))
+    # IPO mode lowers the hard history gate (a recent listing can't have 200
+    # bars). Names with fewer than short_history_threshold bars are evaluated in
+    # the adapted "short-history" trend-template mode below.
+    min_hist = int(ipo_cfg.get("min_history_days", 40)) if ipo_enabled else int(cfg["min_history_days"])
+    if len(close) < min_hist:
+        return None, f"history<{min_hist}d({len(close)})"
+    short_history = bool(ipo_enabled and len(close) < int(ipo_cfg.get("short_history_threshold", 200)))
     price = close[-1]
     if not price or price < float(cfg["min_price"]):
         return None, f"price<${cfg['min_price']}"
@@ -74,6 +81,8 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     sma200 = metrics.sma(close, 200)
     sma200_series = metrics.sma_series(close, 200)
     sma200_20 = metrics.value_n_days_ago(sma200_series, 20)
+    sma50_series = metrics.sma_series(close, 50)
+    sma50_20 = metrics.value_n_days_ago(sma50_series, 20)
     high52 = metrics.high_52w(high)
     low52 = metrics.low_52w(low)
 
@@ -150,7 +159,11 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         # structure levels (for the chart overlay)
         "sma50": sma50, "sma150": sma150, "sma200": sma200,
         "sma200_20d_ago": sma200_20,
+        "sma50_20d_ago": sma50_20,
         "high_52w": high52, "low_52w": low52,
+        # recent listing / IPO: short history, evaluated with the adapted template
+        "is_ipo": short_history,
+        "history_days": len(close),
         # returns
         "ret_3m": ret_3m, "ret_6m": ret_6m, "ret_12m": ret_12m,
         # prior uptrend
@@ -243,6 +256,8 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
             rec["current_price"], rec["sma50"], rec["sma150"], rec["sma200"],
             rec.get("sma200_20d_ago"),
             rec["high_52w"], rec["low_52w"], rec["rs_percentile"],
+            sma50_20d_ago=rec.get("sma50_20d_ago"),
+            short_history=bool(rec.get("is_ipo")),
             min_rs_percentile=tt_cfg["min_rs_percentile"],
             min_vs_low=tt_cfg["min_price_vs_52w_low"],
             min_vs_high=tt_cfg["min_price_vs_52w_high"],

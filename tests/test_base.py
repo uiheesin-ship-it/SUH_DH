@@ -83,6 +83,25 @@ def test_trend_template_handles_none():
     assert 0 <= out["pass_count"] < 10
 
 
+def test_trend_template_ipo_adapted_passes_without_long_mas():
+    # A newly-listed leader: above a rising 50-day, up off its listing low, near
+    # its high, strong RS — but NO 150/200-day average yet. The adapted template
+    # must let it pass instead of structurally failing it for being young.
+    out = metrics.trend_template(
+        price=50, sma50=46, sma150=None, sma200=None, sma200_20d_ago=None,
+        high52=52, low52=30, rs_percentile=88,
+        sma50_20d_ago=43, short_history=True)
+    assert out["ipo_adapted"] is True
+    assert out["total"] == 5          # no 150/200 conditions in the adapted set
+    assert out["trend_template_pass"] is True
+    # A falling 50-day fails the adapted template (not a healthy young uptrend).
+    weak = metrics.trend_template(
+        price=50, sma50=52, sma150=None, sma200=None, sma200_20d_ago=None,
+        high52=70, low52=48, rs_percentile=40,
+        sma50_20d_ago=55, short_history=True)
+    assert weak["trend_template_pass"] is False
+
+
 # --------------------------------------------------------------------------- #
 # base detection
 # --------------------------------------------------------------------------- #

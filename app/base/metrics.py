@@ -178,18 +178,48 @@ def trend_template(
     low52: float | None,
     rs_percentile: float | None,
     *,
+    sma50_20d_ago: float | None = None,
+    short_history: bool = False,
     min_rs_percentile: float = 80,
     min_vs_low: float = 1.30,
     min_vs_high: float = 0.75,
 ) -> dict:
-    """Evaluate the 8+2 Minervini trend-template conditions.
+    """Evaluate the Minervini trend-template conditions.
 
     Any condition whose inputs are NaN/None counts as False (not a crash), per
     the "NaN -> 0점" rule. Returns per-condition booleans, the pass count, and
     the overall boolean (all conditions true).
+
+    ``short_history`` (a newly-listed / IPO name without a 150/200-day average)
+    switches to an ADAPTED template evaluated on the moving averages that DO
+    exist: above a rising 50-day, above the longest available longer MA, up off
+    the (since-listing) low, near the high, and strong RS. Conditions that need
+    the missing 150/200-day averages are simply not part of the adapted set, so
+    a young leader isn't structurally failed for being young.
     """
     def ok(cond) -> bool:
         return bool(cond) if cond is not None else False
+
+    if short_history:
+        conds = {
+            "price_above_sma50": ok(sma50 is not None and price > sma50),
+            "sma50_rising": ok(sma50 is not None and sma50_20d_ago is not None and sma50 > sma50_20d_ago),
+            "above_52w_low": ok(low52 is not None and price >= low52 * min_vs_low),
+            "near_52w_high": ok(high52 is not None and price >= high52 * min_vs_high),
+            "rs_percentile_ok": ok(rs_percentile is not None and rs_percentile >= min_rs_percentile),
+        }
+        # If a 150-day average happens to exist (120-199 bars), use it too.
+        if sma150 is not None:
+            conds["price_above_sma150"] = ok(price > sma150)
+            conds["sma50_above_sma150"] = ok(sma50 is not None and sma50 > sma150)
+        passed = sum(1 for v in conds.values() if v)
+        return {
+            "conditions": conds,
+            "pass_count": passed,
+            "total": len(conds),
+            "trend_template_pass": passed == len(conds),
+            "ipo_adapted": True,
+        }
 
     conds = {
         "price_above_sma150": ok(sma150 is not None and price > sma150),
@@ -209,4 +239,5 @@ def trend_template(
         "pass_count": passed,
         "total": len(conds),
         "trend_template_pass": passed == len(conds),
+        "ipo_adapted": False,
     }

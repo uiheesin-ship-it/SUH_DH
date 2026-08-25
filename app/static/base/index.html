@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>베이스 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -57,9 +57,13 @@
     <label>섹터
       <select id="f-sector"><option value="">전체</option></select>
     </label>
+    <label class="chk" title="최근 상장(히스토리 200일 미만) 종목만. 이평선 조건은 적응 모드로 판정됩니다.">신규상장만
+      <input type="checkbox" id="f-ipo" />
+    </label>
     <label class="search">검색
       <input type="text" id="f-search" placeholder="티커/종목명" />
     </label>
+    <span class="hint-col">각 열 머리글의 ⏷ 로 값 선택·범위 지정</span>
     <span id="count-badge" class="count-badge"></span>
   </div>
 
@@ -105,6 +109,6 @@
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
   <script src="../shared/sync.js?v=3"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
