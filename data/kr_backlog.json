@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-08-24T14:36:49+00:00",
+    "updated": "2026-08-25T14:38:45+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4601,7 +4601,13 @@
       "20260821000661",
       "20260821000672",
       "20260824000174",
-      "20260824000339"
+      "20260824000339",
+      "20260825000157",
+      "20260825000158",
+      "20260825000373",
+      "20260825000387",
+      "20260825000423",
+      "20260825000446"
     ]
   },
   "companies": {
@@ -31586,6 +31592,54 @@
         }
       ],
       "industry": "기계제조"
+    },
+    "900310": {
+      "stock_code": "900310",
+      "corp_code": "01236286",
+      "name": "컬러레이",
+      "market": "KOSDAQ",
+      "sector": "기타 금융업",
+      "quarters": [
+        {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-08-25",
+          "rcept_no": "20260825000446",
+          "report_nm": "반기보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260825000446",
+          "backlog_krw": 17388650,
+          "backlog_raw": "17,388,650",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔액"
+        }
+      ],
+      "industry": "화장품용 진주광택안료"
+    },
+    "079550": {
+      "stock_code": "079550",
+      "corp_code": "00503668",
+      "name": "LIG디펜스앤에어로스페이스",
+      "market": "KOSPI",
+      "sector": "무기 및 총포탄 제조업",
+      "quarters": [
+        {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-08-25",
+          "rcept_no": "20260825000158",
+          "report_nm": "[기재정정]반기보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260825000158",
+          "backlog_krw": 245781,
+          "backlog_raw": "245,781",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔액"
+        }
+      ],
+      "industry": "정밀유도무기 등"
     }
   }
 }
