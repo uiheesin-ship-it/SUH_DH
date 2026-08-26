@@ -23,7 +23,7 @@ universe:
 # 조건은 유지되므로 이 스크리너는 여전히 '상승추세 건전 베이스'만 봅니다.
 min_price: 1
 min_market_cap: 300000000
-min_avg_dollar_volume_20d: 10000000
+min_avg_dollar_volume_20d: 6000000
 min_history_days: 200
 
 # --- 신규 상장주(IPO) 모드 -------------------------------------------

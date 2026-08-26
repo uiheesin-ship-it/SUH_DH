@@ -30,7 +30,7 @@ DEFAULTS: dict[str, Any] = {
     # Finviz filters still keep this to uptrending "healthy base" names.
     "min_price": 1,
     "min_market_cap": 300_000_000,
-    "min_avg_dollar_volume_20d": 10_000_000,
+    "min_avg_dollar_volume_20d": 6_000_000,
     "min_history_days": 200,
     # Newly-listed stocks (IPOs) can't compute a 150/200-day average, so the
     # standard Minervini template + the 200-day history gate + Finviz's
