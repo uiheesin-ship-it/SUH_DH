@@ -125,6 +125,10 @@ def _fetch_finviz(cfg: dict, etf_pass: bool = False) -> list[dict]:
             applied = trial
         except Exception:
             continue
+    # Safety: abort the ETF pass if the ETF industry filter was rejected, so we
+    # never return regular stocks mislabeled as is_etf=True.
+    if etf_pass and applied.get("Industry") != "Exchange Traded Fund":
+        return []
 
     df = fos.screener_view(verbose=0)
     if df is None or df.empty:

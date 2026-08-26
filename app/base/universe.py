@@ -148,6 +148,11 @@ def _fetch_finviz(cfg: dict, ipo_pass: bool = False, etf_pass: bool = False) -> 
         except Exception:
             # This particular filter option isn't recognized — skip it.
             continue
+    # Safety: if the ETF industry filter didn't apply (option string rejected by
+    # this finvizfinance version), abort the ETF pass rather than returning
+    # regular stocks that would be mislabeled is_etf=True.
+    if etf_pass and applied.get("Industry") != "Exchange Traded Fund":
+        return []
     # Always keep the "New High"-agnostic base screen; no signal filter so we
     # can catch pre-breakout bases (price need not be at a new high yet).
     # Retry on failure/empty so a transient Finviz hiccup doesn't silently
