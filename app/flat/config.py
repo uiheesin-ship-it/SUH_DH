@@ -25,6 +25,8 @@ DEFAULTS: dict[str, Any] = {
         "include_adr": True,
         "include_etf": True,       # add a tagged ETF pass (leveraged/inverse excluded)
         "max_candidates": 3000,    # raised: no share-vol filter -> bigger universe
+        "max_etf_candidates": 700, # SEPARATE budget for ETFs so they're additive
+                                   # (don't squeeze stocks out of max_candidates)
     },
     # Quality floor is market cap, not price. min_price is only a sub-$1
     # penny-stock data-noise guard; min_market_cap does the real filtering.

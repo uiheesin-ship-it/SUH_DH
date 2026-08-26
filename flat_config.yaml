@@ -14,6 +14,7 @@ universe:
   include_reit: false     # REIT 제외(기본). true 로 바꾸면 포함
   include_adr: true       # ADR 포함 여부
   include_etf: true       # ETF 포함(별도 조회, 레버리지·인버스는 제외). false 로 끄기
+  max_etf_candidates: 700  # ETF 전용 후보 상한(주식 수를 밀어내지 않도록 분리)
   # 주식수 거래량 필터 제거로 유니버스가 커져서 상한을 올림(표본추출 누락 방지).
   max_candidates: 3000    # OHLCV 정밀분석 최대 후보 수(초과 시 시총 균등표본)
 

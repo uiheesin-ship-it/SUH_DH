@@ -262,15 +262,20 @@ def get_candidates(cfg: dict) -> list[dict]:
         filtered.append(r)
 
     # Do NOT simply keep the biggest N — that drops every mid/small-cap leader,
-    # which is exactly where Minervini bases usually form. Sort by market cap
-    # only for a stable tiering, then, if more names qualify than the budget,
-    # sample EVENLY across the whole cap range so large/mid/small stay
-    # represented (instead of an all-mega-cap list).
-    filtered.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
+    # which is exactly where Minervini bases usually form. Sample EVENLY across
+    # the whole cap range so large/mid/small stay represented. Stocks and ETFs
+    # get SEPARATE budgets so adding ETFs doesn't push stocks out of the cap.
+    def _sample(lst: list, n: int) -> list:
+        lst.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
+        if 0 < n < len(lst):
+            step = len(lst) / n
+            return [lst[int(i * step)] for i in range(n)]
+        return lst
+
     cap = int(uni.get("max_candidates", 1500))
     if os.environ.get("SUH_DH_BASE_LIMIT"):
         cap = int(os.environ["SUH_DH_BASE_LIMIT"])
-    if 0 < cap < len(filtered):
-        step = len(filtered) / cap
-        filtered = [filtered[int(i * step)] for i in range(cap)]
-    return filtered
+    etf_cap = int(uni.get("max_etf_candidates", 700))
+    stocks = [r for r in filtered if not r.get("is_etf")]
+    etfs = [r for r in filtered if r.get("is_etf")]
+    return _sample(stocks, cap) + _sample(etfs, etf_cap)
