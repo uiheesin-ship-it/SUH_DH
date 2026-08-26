@@ -135,6 +135,20 @@ DEFAULTS: dict[str, Any] = {
             "readiness": 0.18, "near_high": 0.08,
         },
     },
+    # --- base-position type (1 조정 / 2 바닥 / 3 평평) — vs the 200-day MA ---
+    "position": {
+        "run_up_window": 252,        # look back ~1y before the base for the advance
+        "min_pre_window": 60,        # need this much pre-base history to judge type 1
+        "run_up_min": 0.40,          # 조정: prior trough->peak advance >= 40% (explosive)
+        "correction_min": {          # 조정: pullback from that high, by base length
+            "short": 0.15, "mid": 0.20, "long": 0.25,
+        },
+        "dip_tolerance_days": 3,     # base may dip below the 200 this many days & still count "above"
+        "above_frac_min": 0.6,       # ... and at least this fraction of base days above 200
+        "below_frac_max": 0.4,       # 바닥: at most this fraction above 200 (i.e. mostly below)
+        "decel_slope_floor": -0.02,  # 바닥: 50-day slope not steeper than this (decline decelerated)
+        "low_early_frac": 0.7,       # 바닥: base low made within the first 70% (no fresh lows late)
+    },
 }
 
 

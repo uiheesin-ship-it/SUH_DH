@@ -49,6 +49,80 @@ def _clamp01(x: float) -> float:
     return 0.0 if x < 0 else (1.0 if x > 1 else x)
 
 
+def _position_type(c, base_start_idx, base_low, base_high, sma200, sl200,
+                   sl50, s200, pcfg: dict) -> dict:
+    """Classify the base by its position vs the 200-day MA (see caller comment).
+    Returns {position_type: "조정"|"바닥"|"평평", above_200_frac, prior_run_up,
+    base_correction}."""
+    out = {"position_type": "평평", "above_200_frac": None,
+           "prior_run_up": None, "base_correction": None}
+    n = c.size - base_start_idx
+    if n < 10 or not (0 <= base_start_idx < c.size):
+        return out
+    base_c = c[base_start_idx:]
+    base_median = float(np.median(base_c))
+    base_s200 = s200[base_start_idx:s200.size]
+    m = min(base_c.size, base_s200.size)
+    if m <= 0:
+        return out
+    ok = np.isfinite(base_s200[:m])
+    if not ok.any():
+        return out                       # no 200-day over the base -> can't place it
+    bc, bs = base_c[:m][ok], base_s200[:m][ok]
+    below = int((bc < bs).sum())
+    above_frac = round(1.0 - below / bc.size, 3)
+    out["above_200_frac"] = above_frac
+
+    # Prior explosive advance (trough -> peak) in the window before the base.
+    win = int(pcfg.get("run_up_window", 252))
+    pre = c[max(0, base_start_idx - win):base_start_idx]
+    run_up = None
+    pre_high = None
+    if pre.size >= int(pcfg.get("min_pre_window", 60)):
+        hi_idx = int(np.argmax(pre))
+        pre_high = float(pre[hi_idx])
+        trough = float(np.min(pre[:hi_idx + 1])) if hi_idx > 0 else float(pre[0])
+        if trough > 0:
+            run_up = round(pre_high / trough - 1.0, 4)
+    out["prior_run_up"] = run_up
+
+    # Correction from that pre-base high down into the base.
+    correction = round((pre_high - base_median) / pre_high, 4) if pre_high and pre_high > 0 else None
+    out["base_correction"] = correction
+
+    # Correction floor scales with base length (short bases need less).
+    cm = pcfg.get("correction_min", {}) or {}
+    if n <= 40:
+        corr_min = float(cm.get("short", 0.15))
+    elif n <= 80:
+        corr_min = float(cm.get("mid", 0.20))
+    else:
+        corr_min = float(cm.get("long", 0.25))
+
+    tol_days = int(pcfg.get("dip_tolerance_days", 3))
+    mostly_above = below <= max(tol_days, int(round(n * 0.1))) and above_frac >= float(pcfg.get("above_frac_min", 0.6))
+    mostly_below = above_frac <= float(pcfg.get("below_frac_max", 0.4))
+
+    is_type1 = bool(mostly_above and (sl200 or 0) > 0
+                    and run_up is not None and run_up >= float(pcfg.get("run_up_min", 0.40))
+                    and correction is not None and correction >= corr_min)
+
+    # Bottom (type 2): mostly below the 200-day, and NOT making fresh lows late in
+    # the base. A falling knife is never a flat base to begin with (flatness
+    # excludes it); the flat base itself IS the deceleration. The one thing left
+    # to screen out is a stair-step-DOWN (each leg lower) — so require the back of
+    # the base to hold the front's low rather than undercut it.
+    seg = max(3, n // 3)
+    early_low = float(np.min(base_c[:seg]))
+    recent_low = float(np.min(base_c[-seg:]))
+    eps = float(pcfg.get("new_low_tolerance", 0.03))
+    no_new_lows = bool(early_low > 0 and recent_low >= early_low * (1.0 - eps))
+    is_type2 = bool(mostly_below and no_new_lows)
+
+    out["position_type"] = "조정" if is_type1 else ("바닥" if is_type2 else "평평")
+    return out
+
+
 def compute_setup(closes, base_start_idx: int, base_low: float | None,
                   base_high: float | None, current_close: float,
                   current_position: float | None, cfg: dict) -> dict:
@@ -67,6 +141,8 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
         "ma_aligned": None, "reclaimed_sma200": None, "reclaimed_sma150": None,
         "dist_52w_high": None, "dist_52w_low": None,
         "above_base": None, "extended": False,
+        "position_type": "평평", "position_above_200_frac": None,
+        "prior_run_up": None, "base_correction": None,
         "setup_score": None, "setup_pass": False, "setup_archetype": "약함",
     }
     if c.size < 60 or not current_close:
@@ -222,7 +298,22 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
     setup_pass = bool((continuation or turnaround) and setup_score >= pass_score
                       and not extended)
 
+    # --- Base-position type (§ user spec): where the base sits vs the 200-day ---
+    # 1 조정 (pullback): base mostly ABOVE a RISING 200-day, after an explosive
+    #   advance (≥run_up_min) that then corrected (≥correction_min, scaled by base
+    #   length). Brief 2-3 day dips below the 200 are tolerated.
+    # 2 바닥 (bottom): base mostly BELOW the 200-day, with the decline decelerated
+    #   and no fresh lows late in the base (so a still-falling knife is excluded).
+    # 3 평평 (flat): everything else (shallow/none correction, flat 200, etc).
+    pcfg = cfg.get("position", {}) or {}
+    ptype = _position_type(c, base_start_idx, base_low, base_high, sma200, sl200,
+                           sl50, s200, pcfg)
+
     return {
+        "position_type": ptype["position_type"],
+        "position_above_200_frac": ptype["above_200_frac"],
+        "prior_run_up": ptype["prior_run_up"],
+        "base_correction": ptype["base_correction"],
         "above_base": round(above_base, 4) if above_base is not None else None,
         "extended": extended,
         "sma50": round(sma50, 4) if sma50 is not None else None,

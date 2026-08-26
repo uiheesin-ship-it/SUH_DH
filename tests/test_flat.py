@@ -181,6 +181,31 @@ def test_setup_already_broken_out_is_demoted():
     assert rc["setup_score"] > r["setup_score"]
 
 
+def test_position_type_pullback_bottom_flat():
+    # ① 조정: explosive run-up (≥40%) then a ~25% correction, base above a rising 200.
+    run = [50.0 * (1.006 ** i) for i in range(200)]
+    peak = run[-1]
+    corr = [peak * (1 - 0.25 * (i / 15.0)) for i in range(15)]
+    base = [corr[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(50)]
+    assert _setup_of(run + corr + base)["position_type"] == "조정"
+
+    # ② 바닥: steep decline into a flat bottom that holds (no fresh lows late).
+    dn = [80.0 * (0.992 ** i) for i in range(160)]
+    base = [dn[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(50)]
+    assert _setup_of(dn + base)["position_type"] == "바닥"
+
+    # a stair-step DOWN (fresh lows in the back of the base) is NOT 바닥 (knife guard)
+    dn = [80.0 * (0.992 ** i) for i in range(150)]
+    step = ([dn[-1] * (1 + 0.02 * math.sin(i / 3.0)) for i in range(25)]
+            + [dn[-1] * 0.9 * (1 + 0.02 * math.sin(i / 3.0)) for i in range(25)])
+    assert _setup_of(dn + step)["position_type"] != "바닥"
+
+    # ③ 평평: a gentle rise that stalls flat with no real correction (CNOB-like).
+    rise = [26.0 * (1.0015 ** i) for i in range(200)]
+    base = [rise[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(50)]
+    assert _setup_of(rise + base)["position_type"] == "평평"
+
+
 def test_setup_trendless_base_fails():
     # Up, then a big decline, then a partial recovery that stalls well below the
     # 52-week high with tangled/flat MAs (ARQT) — flat but NOT a setup.

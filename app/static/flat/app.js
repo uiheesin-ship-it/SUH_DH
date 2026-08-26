@@ -118,6 +118,7 @@ const COL_FILTER = {
   setup_score:       { type: "num", scale: 1, unit: "점" },
   setup_archetype:   { type: "cat", label: (v) => v },
   flatness_grade:    { type: "cat", label: (v) => v },
+  position_type:     { type: "cat", label: (v) => v },
   base_category:     { type: "cat", label: (v) => CAT_SHORT[v] || v },
   base_status:       { type: "cat", label: (v) => STATUS_SHORT[v] || v },
   base_days:         { type: "cat", label: (v) => v + "d", numericSort: true },
@@ -238,6 +239,8 @@ const GRADE_CLS = { "Very Flat": "g-prime", "Flat": "g-high",
                     "Moderately Flat": "g-watch", "Not Flat": "g-low" };
 const CAT_CLS = { "Continuation Flat Base": "bt-flat", "Neutral Flat Base": "bt-base",
                   "Turnaround Flat Base": "bt-tight" };
+// Base-position type (200-day MA based): ①조정 pullback / ②바닥 bottom / ③평평 flat.
+const POSITION_CLS = { "조정": "bt-flat", "바닥": "bt-tight", "평평": "g-low" };
 const CAT_SHORT = { "Continuation Flat Base": "Continuation", "Neutral Flat Base": "Neutral",
                     "Turnaround Flat Base": "Turnaround" };
 const STATUS_CLS = { "Active Flat Base": "p-ready", "Exited Upward": "p-extended",
@@ -255,7 +258,7 @@ const COLS = [
   ["setup_score", "셋업", true],
   ["setup_archetype", "셋업유형", false],
   ["flatness_grade", "등급", false],
-  ["base_category", "유형", false],
+  ["position_type", "유형", false],
   ["base_status", "상태", false],
   ["base_days", "기간", true],
   ["close_band", "CloseBand", true],
@@ -301,7 +304,7 @@ function render() {
       <td class="num${s.setup_pass ? "" : " lowbeta"}">${fmtNum(s.setup_score, 0)}${s.setup_pass ? " ✓" : ""}</td>
       <td>${s.setup_archetype ? `<span class="badge ${SETUP_CLS[s.setup_archetype] || ""}">${esc(s.setup_archetype)}</span>` : "-"}</td>
       <td><span class="badge ${g}">${esc(s.flatness_grade || "-")}</span></td>
-      <td>${s.base_category ? `<span class="badge ${cat}">${esc(CAT_SHORT[s.base_category] || s.base_category)}</span>` : "-"}</td>
+      <td>${s.position_type ? `<span class="badge ${POSITION_CLS[s.position_type] || ""}">${esc(s.position_type)}</span>` : "-"}</td>
       <td><span class="badge ${st}">${esc(STATUS_SHORT[s.base_status] || s.base_status || "-")}</span></td>
       <td class="num">${s.base_days ?? "-"}d</td>
       <td class="num">${fmtPct(s.close_band, 1)}</td>
@@ -364,6 +367,8 @@ const GLOSSARY = {
   "Base Distinctness": "이전 252일 CloseBand / 현재 베이스 CloseBand. 과거가 지금보다 얼마나 넓었는지. 1.5↑면 베이스가 뚜렷.",
   "만성 저변동성": "이전252일밴드<20% + 최대20일수익<12% + 최대60일수익<12% + Distinctness<1.3 을 모두 만족하는 원래 안 움직이는 종목. 기본 제외.",
   "미달": "카테고리별 추가기준(§8) 미충족. Continuation은 20일·70점, Neutral/Turnaround는 40일·80점·밀집85%·드리프트5%·중심5%·활동성통과 필요.",
+  "유형(위치)": "베이스가 200일선 어디에 있나로 분류. ①조정=200일선 위(2~3일 이탈 허용)+200 상승+직전 저점→고점 40%↑ 폭등 후 조정(길이별 15/20/25%). ②바닥=200일선 아래+후반 신저가 없음(칼날 배제). ③평평=나머지(조정 얕음·상승 없음, 제일 많음). 유형 열의 ⏷로 골라볼 수 있음.",
+  "직전상승 / 조정": "직전상승=베이스 직전 1년 내 저점→고점 상승폭(폭발력). 조정=그 고점 대비 베이스 중앙값이 눌린 폭. ①조정 유형은 상승 40%↑ + 조정 15~25%↑ 필요.",
   "셋업(추세/이평선)": "평평도와 완전히 별개인 '자리' 점수(0~100). 평평한 베이스가 상승 이동평균선을 타고 고점 부근에 있으면 '추세지속'(AMD·에코프로·NTRA), 바닥에서 이평선을 회복하면 '바닥반전'(IBIT). 추세 없이 중간에 뜬 평평 베이스(ARQT류)는 '약함'. 이미 베이스 위로 돌파해 뻗은 종목은 '돌파연장'으로 감점·제외(돌파 前을 잡는 게 목적). 구성: 이평상승(30)+정배열/회복(22)+이평지지(22)+준비도(18)+고점근접(8).",
   "셋업유형": "추세지속=상승 150일선 위 + 52주 고점 15% 이내 / 바닥반전=150·200일선 아래로 이탈 후 회복 + 50일선 위 상향 / 돌파연장=이미 베이스 상단 +3% 초과로 돌파해 뻗음(통과 제외) / 약함=아무것도 아님. '셋업 통과만' 필터는 추세지속·바닥반전(아직 안 뻗은 것)만 남김.",
   "베이스 상단 대비": "현재가 ÷ 베이스 상단(Q90) − 1. 0% 부근 = 베이스 상단서 조이는 중(이상적). +3% 초과 = 이미 돌파해 뻗음(돌파연장 → 셋업 통과 제외). 준비도(readiness) 점수는 +8%에서 0이 됨.",
@@ -416,6 +421,8 @@ function detailPanel(s) {
       </div>
       <div class="d-card"><h4>상태 / 유형</h4>
         ${row("Base Status", esc(s.base_status || "-"))}
+        ${row("유형(위치)", `${esc(s.position_type || "-")} · 200위 ${s.position_above_200_frac == null ? "-" : Math.round(s.position_above_200_frac * 100) + "%"}`)}
+        ${row("직전상승 / 조정", `${fmtPct(s.prior_run_up)} / ${fmtPct(s.base_correction)}`)}
         ${row("Base Category", esc(s.base_category || "-"))}
         ${row("밴드 Q10 / 중앙 / Q90", `${fmtPrice(s.base_low_q10)} / ${fmtPrice(s.base_median)} / ${fmtPrice(s.base_high_q90)}`)}
         ${row("이전 60일 / 120일", `${fmtPct(s.prior_60d_return)} / ${fmtPct(s.prior_120d_return)}`)}
@@ -702,6 +709,7 @@ const EXPORT_COLS = [
   "prior_120_close_band", "prior_252_close_band",
   "max_abs_20d_return", "max_abs_60d_return", "base_distinctness",
   "historical_activity_pass", "chronically_low_vol",
+  "position_type", "position_above_200_frac", "prior_run_up", "base_correction",
   "base_category", "base_status", "is_reit", "rs_percentile", "beta", "exclude_reason",
 ];
 
