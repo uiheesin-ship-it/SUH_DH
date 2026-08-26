@@ -40,6 +40,8 @@ def _avg_dollar_volume_20d(close, volume) -> float | None:
 
 
 def _security_type(cand: dict) -> str:
+    if cand.get("is_etf"):
+        return "ETF"
     if cand.get("is_reit"):
         return "REIT"
     if (cand.get("country") or "USA") != "USA":
@@ -136,6 +138,7 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         "sector": cand.get("sector"),
         "industry": cand.get("industry"),
         "is_reit": bool(cand.get("is_reit")),
+        "is_etf": bool(cand.get("is_etf")),
         "current_price": round(price, 4),
         "market_cap": cand.get("market_cap"),
         "avg_dollar_volume_20d": round(adv20, 0) if adv20 is not None else None,

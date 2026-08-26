@@ -23,6 +23,7 @@ DEFAULTS: dict[str, Any] = {
         "source": "finviz",
         "include_reit": False,     # REIT excluded by default
         "include_adr": True,
+        "include_etf": True,       # add a tagged ETF pass (leveraged/inverse excluded)
         "max_candidates": 3000,    # raised: no share-vol filter -> bigger universe
     },
     # Quality floor is market cap, not price. min_price is only a sub-$1

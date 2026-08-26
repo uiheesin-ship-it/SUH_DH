@@ -14,6 +14,7 @@ min_avg_dollar_volume_20d, max_candidates.
 from __future__ import annotations
 
 import os
+import re
 
 from .. import cache
 
@@ -23,6 +24,27 @@ UNIVERSE_TTL = float(os.environ.get("SUH_DH_FLAT_UNIVERSE_TTL", "900"))
 _EXCLUDE_WORDS = ("etf", "etn", "exchange traded", "closed-end", "closed end",
                   "preferred", "warrant", " unit", "acquisition corp", "spac",
                   "blank check")
+# On the ETF pass we keep ETFs but still drop non-ETF fund wrappers.
+_ETF_EXCLUDE_WORDS = ("etn", "closed-end", "closed end", "preferred", "warrant",
+                      " unit", "acquisition corp", "spac", "blank check")
+# Leveraged / inverse products (daily-rebalanced, chart decays) — excluded.
+_LEVERAGED_WORDS = ("leveraged", "ultrapro", "ultra", "inverse", " bull", " bear",
+                    "-1x", "-2x", "-3x")
+_LEVERAGED_MULT = re.compile(r"(?<![a-z0-9])\d(?:\.\d+)?x(?![a-z])")  # 2x, 3x, 1.5x
+# "Short" = inverse for an equity/index fund, but short-DURATION for fixed income.
+_FIXED_INCOME_WORDS = ("bond", "treasury", "duration", "term", "maturity",
+                       "municipal", "govt", "government", "credit", "corporate", "yield")
+
+
+def _is_leveraged(company: str | None, ticker: str | None = None) -> bool:
+    text = f" {(company or '').lower()} "
+    if any(w in text for w in _LEVERAGED_WORDS):
+        return True
+    if _LEVERAGED_MULT.search(text):
+        return True
+    if " short " in text and not any(w in text for w in _FIXED_INCOME_WORDS):
+        return True
+    return False
 
 DEMO_UNIVERSE = [
     {"ticker": "FLATA", "company": "Flatline Alpha", "sector": "Technology",
@@ -67,7 +89,7 @@ def _looks_like_reit(company: str | None, industry: str | None) -> bool:
     return ind.startswith("reit") or "reit" in ind or "reit" in comp
 
 
-def _fetch_finviz(cfg: dict) -> list[dict]:
+def _fetch_finviz(cfg: dict, etf_pass: bool = False) -> list[dict]:
     from finvizfinance.screener.overview import Overview
 
     from ..screener import _clean_tickers, _prime_finviz
@@ -88,7 +110,8 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     desired: list[tuple[str, str]] = [
         ("Price", "Over $1"),
         ("Market Cap.", "Small (over $300mln)"),
-        ("Industry", "Stocks only (ex-Funds)"),
+        # ETF pass pulls funds; the stock pass keeps excluding them.
+        ("Industry", "Exchange Traded Fund" if etf_pass else "Stocks only (ex-Funds)"),
     ]
     if not uni.get("include_adr", True):
         desired.append(("Country", "USA"))
@@ -114,11 +137,19 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     for (_, r), ticker in zip(df.iterrows(), tickers):
         company = r.get("Company")
         industry = r.get("Industry")
-        if _looks_like_fund(company, industry):
-            continue
-        is_reit = _looks_like_reit(company, industry)
-        if is_reit and not include_reit:
-            continue
+        if etf_pass:
+            if _is_leveraged(company, ticker):
+                continue
+            text = f"{company or ''} {industry or ''}".lower()
+            if any(w in text for w in _ETF_EXCLUDE_WORDS):
+                continue
+            is_reit = False
+        else:
+            if _looks_like_fund(company, industry):
+                continue
+            is_reit = _looks_like_reit(company, industry)
+            if is_reit and not include_reit:
+                continue
         rows.append({
             "ticker": ticker,
             "company": company,
@@ -128,6 +159,7 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
             "price": _to_float(r.get("Price")),
             "country": r.get("Country"),
             "is_reit": is_reit,
+            "is_etf": bool(etf_pass),
         })
     return rows
 
@@ -148,6 +180,18 @@ def get_candidates(cfg: dict) -> list[dict]:
 
     rows = cache.get_or_set("flat_universe", UNIVERSE_TTL, producer,
                             cache_when=lambda r: bool(r))
+
+    # ETF pass (leveraged/inverse excluded), merged + tagged is_etf.
+    if (cfg.get("universe") or {}).get("include_etf"):
+        def etf_producer():
+            try:
+                return _fetch_finviz(cfg, etf_pass=True)
+            except Exception:
+                return []
+        etf_rows = cache.get_or_set("flat_universe_etf", UNIVERSE_TTL, etf_producer,
+                                    cache_when=lambda r: bool(r))
+        seen = {r["ticker"] for r in rows}
+        rows = list(rows) + [r for r in etf_rows if r["ticker"] not in seen]
 
     uni = cfg["universe"]
     include_adr = uni.get("include_adr", True)

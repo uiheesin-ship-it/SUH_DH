@@ -77,6 +77,7 @@ function filtered() {
   const inclReit = $("#f-reit").checked;
   const inclUnaccepted = $("#f-unaccepted").checked;
   const setupOnly = $("#f-setup").checked;
+  const etfMode = $("#f-etf") ? $("#f-etf").value : "";
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
@@ -84,6 +85,8 @@ function filtered() {
     if (!inclChronic && s.chronically_low_vol) return false;
     if (!inclReit && s.is_reit) return false;
     if (!inclUnaccepted && s.accepted === false) return false;
+    if (etfMode === "only" && !s.is_etf) return false;
+    if (etfMode === "exclude" && s.is_etf) return false;
     if (setupOnly && !s.setup_pass) return false;
     if (watchOnly && !WATCH.has(s.ticker)) return false;
     if (q && !(String(s.ticker).toUpperCase().includes(q) ||
@@ -290,7 +293,7 @@ function render() {
       <td class="tk">
         <button class="star" data-star="${esc(s.ticker)}" title="관심종목">${star}</button>
         <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
-        <div class="company">${esc(s.company_name || "")}${s.is_reit ? ' <span class="badge bt-base">REIT</span>' : ""}${s.accepted === false ? ' <span class="ext-mark" title="' + esc(s.exclude_reason || "기준 미달") + '">미달</span>' : ""}</div>
+        <div class="company">${esc(s.company_name || "")}${s.is_etf ? ' <span class="badge bt-flat">ETF</span>' : ""}${s.is_reit ? ' <span class="badge bt-base">REIT</span>' : ""}${s.accepted === false ? ' <span class="ext-mark" title="' + esc(s.exclude_reason || "기준 미달") + '">미달</span>' : ""}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.flatness_score, 0)}</b></td>
       <td class="num"><b>${fmtNum(s.composite_score, 0)}</b></td>
@@ -740,7 +743,7 @@ $("#chart-close").addEventListener("click", closeChart);
 $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-chronic", "f-reit", "f-unaccepted", "f-setup"].forEach((id) =>
+["f-chronic", "f-reit", "f-unaccepted", "f-setup", "f-etf"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
 ["f-search"].forEach((id) =>
   $("#" + id).addEventListener("input", render));

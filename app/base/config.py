@@ -24,6 +24,7 @@ DEFAULTS: dict[str, Any] = {
         "max_candidates": 3000,   # raised: no share-vol filter -> bigger universe
         "finviz_price_above_sma50": True,
         "finviz_price_above_sma200": True,
+        "include_etf": True,      # add a tagged ETF pass (leveraged/inverse excluded)
     },
     # Quality floor is market cap, not price (matches the flat screener). The
     # $1 min_price is only a sub-$1 penny-stock data-noise guard; the above-SMA

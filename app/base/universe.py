@@ -23,10 +23,38 @@ _UNIVERSE_RETRIES = int(os.environ.get("SUH_DH_BASE_UNIVERSE_RETRIES", "3"))
 
 UNIVERSE_TTL = float(os.environ.get("SUH_DH_BASE_UNIVERSE_TTL", "900"))
 
+import re
+
 # Words in an industry/company name that mark a non-common-stock we exclude even
 # if a data source misclassifies it.
 _EXCLUDE_WORDS = ("etf", "etn", "exchange traded", "closed-end", "closed end",
                   "preferred", "warrant", " unit", "trust - ")
+# On the ETF pass we WANT ETFs, so "etf"/"exchange traded" are allowed — but we
+# still drop ETNs, closed-end funds, preferreds, warrants and units (not clean
+# ETFs). Leveraged/inverse products are dropped separately by _is_leveraged.
+_ETF_EXCLUDE_WORDS = ("etn", "closed-end", "closed end", "preferred", "warrant", " unit")
+# Leveraged / inverse ETFs (2x/3x/-1x, Ultra, Direxion Bull/Bear, ProShares
+# Short, inverse): daily-rebalanced derivatives whose long-term chart decays, so
+# a "base" on them is meaningless. Matched on the fund name.
+_LEVERAGED_WORDS = ("leveraged", "ultrapro", "ultra", "inverse", " bull", " bear",
+                    "-1x", "-2x", "-3x")
+_LEVERAGED_MULT = re.compile(r"(?<![a-z0-9])\d(?:\.\d+)?x(?![a-z])")  # 2x, 3x, 1.5x
+# "Short" means INVERSE for an equity/index fund (ProShares Short QQQ) but
+# short-DURATION for fixed income (iShares Short Treasury Bond) — only the former
+# is a leveraged/inverse product we exclude.
+_FIXED_INCOME_WORDS = ("bond", "treasury", "duration", "term", "maturity",
+                       "municipal", "govt", "government", "credit", "corporate", "yield")
+
+
+def _is_leveraged(company: str | None, ticker: str | None = None) -> bool:
+    text = f" {(company or '').lower()} "
+    if any(w in text for w in _LEVERAGED_WORDS):
+        return True
+    if _LEVERAGED_MULT.search(text):
+        return True
+    if " short " in text and not any(w in text for w in _FIXED_INCOME_WORDS):
+        return True   # inverse equity/index fund (not a short-duration bond fund)
+    return False
 
 # Tiny offline universe for SUH_DH_DEMO=1 (names only; bars are synthetic).
 DEMO_UNIVERSE = [
@@ -62,7 +90,7 @@ def _looks_like_fund(company: str | None, industry: str | None) -> bool:
     return any(w in text for w in _EXCLUDE_WORDS)
 
 
-def _fetch_finviz(cfg: dict, ipo_pass: bool = False) -> list[dict]:
+def _fetch_finviz(cfg: dict, ipo_pass: bool = False, etf_pass: bool = False) -> list[dict]:
     from finvizfinance.screener.overview import Overview
 
     from ..screener import _clean_tickers, _prime_finviz
@@ -85,9 +113,17 @@ def _fetch_finviz(cfg: dict, ipo_pass: bool = False) -> list[dict]:
     desired: list[tuple[str, str]] = [
         ("Price", "Over $1"),
         ("Market Cap.", "Small (over $300mln)"),
-        ("Industry", "Stocks only (ex-Funds)"),
+        # ETF pass swaps the "Stocks only" industry for the ETF industry so we
+        # deliberately pull funds; the stock passes keep excluding them.
+        ("Industry", "Exchange Traded Fund" if etf_pass else "Stocks only (ex-Funds)"),
     ]
-    if ipo_pass:
+    if etf_pass:
+        # ETFs held to the same healthy-uptrend bar as stocks (above 50/200-day).
+        if uni.get("finviz_price_above_sma200"):
+            desired.append(("200-Day Simple Moving Average", "Price above SMA200"))
+        if uni.get("finviz_price_above_sma50"):
+            desired.append(("50-Day Simple Moving Average", "Price above SMA50"))
+    elif ipo_pass:
         # Recent-IPO pass: DON'T require SMA200 (young stocks don't have one) —
         # that filter is exactly what shut IPOs out. Keep "above SMA50" so we
         # still catch uptrending post-IPO bases, and restrict to recent listings.
@@ -138,7 +174,14 @@ def _fetch_finviz(cfg: dict, ipo_pass: bool = False) -> list[dict]:
     for (_, r), ticker in zip(df.iterrows(), tickers):
         company = r.get("Company")
         industry = r.get("Industry")
-        if _looks_like_fund(company, industry):
+        if etf_pass:
+            # Keep ETFs, but drop leveraged/inverse and non-ETF fund wrappers.
+            if _is_leveraged(company, ticker):
+                continue
+            text = f"{company or ''} {industry or ''}".lower()
+            if any(w in text for w in _ETF_EXCLUDE_WORDS):
+                continue
+        elif _looks_like_fund(company, industry):
             continue
         rows.append({
             "ticker": ticker,
@@ -149,6 +192,7 @@ def _fetch_finviz(cfg: dict, ipo_pass: bool = False) -> list[dict]:
             "price": _to_float(r.get("Price")),
             "country": r.get("Country"),
             "from_ipo_pass": bool(ipo_pass),
+            "is_etf": bool(etf_pass),
         })
     return rows
 
@@ -181,6 +225,19 @@ def get_candidates(cfg: dict) -> list[dict]:
         seen = {r["ticker"] for r in rows}
         extra = [r for r in ipo_rows if r["ticker"] not in seen]
         rows = list(rows) + extra
+
+    # Third pass: ETFs (leveraged/inverse excluded). Merged + tagged is_etf so
+    # the UI can show all / ETF-only / ETF-excluded.
+    if (cfg.get("universe") or {}).get("include_etf"):
+        def etf_producer():
+            try:
+                return _fetch_finviz(cfg, etf_pass=True)
+            except Exception:
+                return []
+        etf_rows = cache.get_or_set("base_universe_etf", UNIVERSE_TTL, etf_producer,
+                                    cache_when=lambda r: bool(r))
+        seen = {r["ticker"] for r in rows}
+        rows = list(rows) + [r for r in etf_rows if r["ticker"] not in seen]
 
     uni = cfg["universe"]
     include_adr = uni.get("include_adr", True)

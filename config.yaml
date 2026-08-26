@@ -8,6 +8,7 @@
 universe:
   source: finviz          # finviz(권장) | index
   include_adr: true       # ADR 포함 여부
+  include_etf: true       # ETF 포함(별도 조회, 레버리지·인버스는 제외). false 로 끄기
   # OHLCV 를 받아 정밀분석할 최대 후보 수. 상한을 넘으면 시총 구간 전체에서
   # 고르게 표본을 뽑아 대형만 남지 않게 함(초대형주 편향 방지).
   # 주식수 거래량 필터를 뺐더니 유니버스가 커져서(고가 저거래주 포함), 표본추출로

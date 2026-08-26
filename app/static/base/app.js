@@ -93,11 +93,14 @@ function filtered() {
   const alert = $("#f-alert").value;
   const sector = $("#f-sector").value;
   const ipoOnly = $("#f-ipo") ? $("#f-ipo").checked : false;
+  const etfMode = $("#f-etf") ? $("#f-etf").value : "";
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
     if (watchOnly && !WATCH.has(s.ticker)) return false;
     if (ipoOnly && !s.is_ipo) return false;
+    if (etfMode === "only" && !s.is_etf) return false;
+    if (etfMode === "exclude" && s.is_etf) return false;
     if ((s.total_score ?? 0) < minScore) return false;
     if (grade && s.setup_grade !== grade) return false;
     if (pivot && (s.pivot?.pivot_status) !== pivot) return false;
@@ -324,7 +327,7 @@ function render() {
       <td class="tk">
         <button class="star" data-star="${esc(s.ticker)}" title="관심종목">${WATCH.has(s.ticker) ? "★" : "☆"}</button>
         <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
-        <div class="company">${esc(s.company_name || "")}${s.is_ipo ? ` <span class="badge bt-abc" title="신규 상장(히스토리 ${s.history_days ?? "?"}일) — 이평선 조건은 적응 모드로 판정">신규상장</span>` : ""}</div>
+        <div class="company">${esc(s.company_name || "")}${s.is_etf ? ' <span class="badge bt-flat">ETF</span>' : ""}${s.is_ipo ? ` <span class="badge bt-abc" title="신규 상장(히스토리 ${s.history_days ?? "?"}일) — 이평선 조건은 적응 모드로 판정">신규상장</span>` : ""}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
       <td class="num score"><b class="${IB_CLS[s.inbase_grade] || "ib-low"}">${fmtNum(s.inbase_score, 0)}</b>${s.extended ? ` <span class="ext-mark" title="이미 분출: ${esc((s.extension_flags || []).join(", "))}">분출</span>` : ""}</td>
@@ -756,7 +759,7 @@ $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWat
 $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-grade", "f-pivot", "f-alert", "f-sector", "f-ipo"].forEach((id) =>
+["f-grade", "f-pivot", "f-alert", "f-sector", "f-ipo", "f-etf"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
 $("#f-search").addEventListener("input", render);
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });

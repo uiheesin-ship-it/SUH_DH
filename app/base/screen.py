@@ -144,7 +144,10 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
             rs_vs_qqq_3m = round(ret_3m - qqq3, 4)
 
     # --- sector action ---
-    etf = sector.resolve_etf(cand["ticker"], cand.get("sector"), sector_map)
+    # The stock-vs-sector-ETF comparison is meaningless for an ETF itself, so
+    # skip the mapping for ETFs (sector_action then returns a neutral 0.5).
+    is_etf = bool(cand.get("is_etf"))
+    etf = None if is_etf else sector.resolve_etf(cand["ticker"], cand.get("sector"), sector_map)
     etf_bars = benches.get(etf) if etf else None
     sect = sector.sector_action(ret_3m, etf, etf_bars, spy_ret_3m, cfg)
 
@@ -164,6 +167,7 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         # recent listing / IPO: short history, evaluated with the adapted template
         "is_ipo": short_history,
         "history_days": len(close),
+        "is_etf": is_etf,
         # returns
         "ret_3m": ret_3m, "ret_6m": ret_6m, "ret_12m": ret_12m,
         # prior uptrend
