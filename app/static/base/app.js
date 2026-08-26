@@ -326,8 +326,8 @@ function render() {
     return `<tr data-ticker="${esc(s.ticker)}">
       <td class="tk">
         <button class="star" data-star="${esc(s.ticker)}" title="관심종목">${WATCH.has(s.ticker) ? "★" : "☆"}</button>
-        <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
-        <div class="company">${esc(s.company_name || "")}${s.is_etf ? ' <span class="badge bt-flat">ETF</span>' : ""}${s.is_ipo ? ` <span class="badge bt-abc" title="신규 상장(히스토리 ${s.history_days ?? "?"}일) — 이평선 조건은 적응 모드로 판정">신규상장</span>` : ""}</div>
+        <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>${s.is_etf ? ' <span class="badge bt-flat">ETF</span>' : ""}${s.is_ipo ? ` <span class="badge bt-abc" title="신규 상장(히스토리 ${s.history_days ?? "?"}일) — 이평선 조건은 적응 모드로 판정">신규상장</span>` : ""}
+        <div class="company">${esc(s.company_name || "")}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
       <td class="num score"><b class="${IB_CLS[s.inbase_grade] || "ib-low"}">${fmtNum(s.inbase_score, 0)}</b>${s.extended ? ` <span class="ext-mark" title="이미 분출: ${esc((s.extension_flags || []).join(", "))}">분출</span>` : ""}</td>

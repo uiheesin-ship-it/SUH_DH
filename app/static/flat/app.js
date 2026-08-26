@@ -292,8 +292,8 @@ function render() {
     return `<tr data-ticker="${esc(s.ticker)}">
       <td class="tk">
         <button class="star" data-star="${esc(s.ticker)}" title="관심종목">${star}</button>
-        <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>
-        <div class="company">${esc(s.company_name || "")}${s.is_etf ? ' <span class="badge bt-flat">ETF</span>' : ""}${s.is_reit ? ' <span class="badge bt-base">REIT</span>' : ""}${s.accepted === false ? ' <span class="ext-mark" title="' + esc(s.exclude_reason || "기준 미달") + '">미달</span>' : ""}</div>
+        <button class="ticker-link" onclick="openChart('${esc(s.ticker)}')">${esc(s.ticker)}</button>${s.is_etf ? ' <span class="badge bt-flat">ETF</span>' : ""}${s.is_reit ? ' <span class="badge bt-base">REIT</span>' : ""}${s.accepted === false ? ' <span class="ext-mark" title="' + esc(s.exclude_reason || "기준 미달") + '">미달</span>' : ""}
+        <div class="company">${esc(s.company_name || "")}</div>
       </td>
       <td class="num score"><b>${fmtNum(s.flatness_score, 0)}</b></td>
       <td class="num"><b>${fmtNum(s.composite_score, 0)}</b></td>
