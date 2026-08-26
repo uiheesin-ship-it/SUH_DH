@@ -93,14 +93,15 @@ function filtered() {
   const alert = $("#f-alert").value;
   const sector = $("#f-sector").value;
   const ipoOnly = $("#f-ipo") ? $("#f-ipo").checked : false;
-  const etfMode = $("#f-etf") ? $("#f-etf").value : "";
+  const etfOnly = $("#f-etf-only") ? $("#f-etf-only").checked : false;
+  const etfEx = $("#f-etf-ex") ? $("#f-etf-ex").checked : false;
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
     if (watchOnly && !WATCH.has(s.ticker)) return false;
     if (ipoOnly && !s.is_ipo) return false;
-    if (etfMode === "only" && !s.is_etf) return false;
-    if (etfMode === "exclude" && s.is_etf) return false;
+    if (etfOnly && !s.is_etf) return false;
+    if (etfEx && !etfOnly && s.is_etf) return false;
     if ((s.total_score ?? 0) < minScore) return false;
     if (grade && s.setup_grade !== grade) return false;
     if (pivot && (s.pivot?.pivot_status) !== pivot) return false;
@@ -759,7 +760,7 @@ $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWat
 $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-grade", "f-pivot", "f-alert", "f-sector", "f-ipo", "f-etf"].forEach((id) =>
+["f-grade", "f-pivot", "f-alert", "f-sector", "f-ipo", "f-etf-only", "f-etf-ex"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
 $("#f-search").addEventListener("input", render);
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });

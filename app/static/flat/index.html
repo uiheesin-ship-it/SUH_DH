@@ -41,12 +41,11 @@
     <label class="chk" title="이동평균/추세 셋업 통과(추세지속·바닥반전)만 표시. AMD·에코프로·IBIT·NTRA 같은 모양.">셋업 통과만
       <input type="checkbox" id="f-setup" />
     </label>
-    <label>종목종류
-      <select id="f-etf">
-        <option value="">전부</option>
-        <option value="only">ETF만</option>
-        <option value="exclude">ETF제외</option>
-      </select>
+    <label class="chk" title="ETF만 보기">ETF만
+      <input type="checkbox" id="f-etf-only" />
+    </label>
+    <label class="chk" title="ETF 숨기기(주식만)">ETF제외
+      <input type="checkbox" id="f-etf-ex" />
     </label>
     <label class="search">검색
       <input type="text" id="f-search" placeholder="티커/종목명" />
@@ -96,6 +95,6 @@
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
   <script src="../shared/sync.js?v=3"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

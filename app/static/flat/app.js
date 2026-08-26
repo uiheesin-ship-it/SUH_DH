@@ -77,7 +77,8 @@ function filtered() {
   const inclReit = $("#f-reit").checked;
   const inclUnaccepted = $("#f-unaccepted").checked;
   const setupOnly = $("#f-setup").checked;
-  const etfMode = $("#f-etf") ? $("#f-etf").value : "";
+  const etfOnly = $("#f-etf-only") ? $("#f-etf-only").checked : false;
+  const etfEx = $("#f-etf-ex") ? $("#f-etf-ex").checked : false;
   const q = $("#f-search").value.trim().toUpperCase();
 
   let rows = STOCKS.filter((s) => {
@@ -85,8 +86,8 @@ function filtered() {
     if (!inclChronic && s.chronically_low_vol) return false;
     if (!inclReit && s.is_reit) return false;
     if (!inclUnaccepted && s.accepted === false) return false;
-    if (etfMode === "only" && !s.is_etf) return false;
-    if (etfMode === "exclude" && s.is_etf) return false;
+    if (etfOnly && !s.is_etf) return false;
+    if (etfEx && !etfOnly && s.is_etf) return false;
     if (setupOnly && !s.setup_pass) return false;
     if (watchOnly && !WATCH.has(s.ticker)) return false;
     if (q && !(String(s.ticker).toUpperCase().includes(q) ||
@@ -743,7 +744,7 @@ $("#chart-close").addEventListener("click", closeChart);
 $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
 window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("chart-area"); });
-["f-chronic", "f-reit", "f-unaccepted", "f-setup", "f-etf"].forEach((id) =>
+["f-chronic", "f-reit", "f-unaccepted", "f-setup", "f-etf-only", "f-etf-ex"].forEach((id) =>
   $("#" + id).addEventListener("change", render));
 ["f-search"].forEach((id) =>
   $("#" + id).addEventListener("input", render));
