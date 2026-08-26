@@ -29,7 +29,7 @@ DEFAULTS: dict[str, Any] = {
     # penny-stock data-noise guard; min_market_cap does the real filtering.
     "min_price": 1.0,
     "min_market_cap": 300_000_000,   # small-cap and up
-    "min_avg_dollar_volume_20d": 10_000_000,
+    "min_avg_dollar_volume_20d": 6_000_000,
     # Exclude "dead/deal-pinned" bases: if the base's average |daily return| is
     # below this (0.5%), the price is essentially frozen (merger-arb locked at
     # the deal price, or delisting-frozen) — scores perfect on flatness but is
