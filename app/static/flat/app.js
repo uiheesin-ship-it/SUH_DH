@@ -116,7 +116,6 @@ const COL_FILTER = {
   flatness_score:    { type: "num", scale: 1, unit: "점" },
   composite_score:   { type: "num", scale: 1, unit: "점" },
   setup_score:       { type: "num", scale: 1, unit: "점" },
-  setup_archetype:   { type: "cat", label: (v) => v },
   flatness_grade:    { type: "cat", label: (v) => v },
   position_type:     { type: "cat", label: (v) => v },
   base_category:     { type: "cat", label: (v) => CAT_SHORT[v] || v },
@@ -247,16 +246,11 @@ const STATUS_CLS = { "Active Flat Base": "p-ready", "Exited Upward": "p-extended
                      "Exited Downward": "p-broken", "Unknown": "" };
 const STATUS_SHORT = { "Active Flat Base": "Active", "Exited Upward": "Exited↑",
                        "Exited Downward": "Exited↓", "Unknown": "-" };
-// Moving-average / trend Setup archetype (separate from the Flatness Score).
-const SETUP_CLS = { "추세지속": "bt-tight", "바닥반전": "bt-flat",
-                    "돌파연장": "p-extended", "약함": "g-low" };
-
 const COLS = [
   ["ticker", "티커", false],
   ["flatness_score", "Flatness", true],
   ["composite_score", "종합", true],
   ["setup_score", "셋업", true],
-  ["setup_archetype", "셋업유형", false],
   ["flatness_grade", "등급", false],
   ["position_type", "유형", false],
   ["base_status", "상태", false],
@@ -302,7 +296,6 @@ function render() {
       <td class="num score"><b>${fmtNum(s.flatness_score, 0)}</b></td>
       <td class="num"><b>${fmtNum(s.composite_score, 0)}</b></td>
       <td class="num${s.setup_pass ? "" : " lowbeta"}">${fmtNum(s.setup_score, 0)}${s.setup_pass ? " ✓" : ""}</td>
-      <td>${s.setup_archetype ? `<span class="badge ${SETUP_CLS[s.setup_archetype] || ""}">${esc(s.setup_archetype)}</span>` : "-"}</td>
       <td><span class="badge ${g}">${esc(s.flatness_grade || "-")}</span></td>
       <td>${s.position_type ? `<span class="badge ${POSITION_CLS[s.position_type] || ""}">${esc(s.position_type)}</span>` : "-"}</td>
       <td><span class="badge ${st}">${esc(STATUS_SHORT[s.base_status] || s.base_status || "-")}</span></td>
@@ -369,9 +362,8 @@ const GLOSSARY = {
   "미달": "카테고리별 추가기준(§8) 미충족. Continuation은 20일·70점, Neutral/Turnaround는 40일·80점·밀집85%·드리프트5%·중심5%·활동성통과 필요.",
   "유형(위치)": "베이스가 200일선 어디에 있나로 분류. ①조정=200일선 위(2~3일 이탈 허용)+200 상승+직전 저점→고점 40%↑ 폭등 후 조정(길이별 15/20/25%). ②바닥=200일선 아래+후반 신저가 없음(칼날 배제). ③평평=나머지(조정 얕음·상승 없음, 제일 많음). 유형 열의 ⏷로 골라볼 수 있음.",
   "직전상승 / 조정": "직전상승=베이스 직전 1년 내 저점→고점 상승폭(폭발력). 조정=그 고점 대비 베이스 중앙값이 눌린 폭. ①조정 유형은 상승 40%↑ + 조정 15~25%↑ 필요.",
-  "셋업(추세/이평선)": "평평도와 완전히 별개인 '자리' 점수(0~100). 평평한 베이스가 상승 이동평균선을 타고 고점 부근에 있으면 '추세지속'(AMD·에코프로·NTRA), 바닥에서 이평선을 회복하면 '바닥반전'(IBIT). 추세 없이 중간에 뜬 평평 베이스(ARQT류)는 '약함'. 이미 베이스 위로 돌파해 뻗은 종목은 '돌파연장'으로 감점·제외(돌파 前을 잡는 게 목적). 구성: 이평상승(30)+정배열/회복(22)+이평지지(22)+준비도(18)+고점근접(8).",
-  "셋업유형": "추세지속=상승 150일선 위 + 52주 고점 15% 이내 / 바닥반전=150·200일선 아래로 이탈 후 회복 + 50일선 위 상향 / 돌파연장=이미 베이스 상단 +3% 초과로 돌파해 뻗음(통과 제외) / 약함=아무것도 아님. '셋업 통과만' 필터는 추세지속·바닥반전(아직 안 뻗은 것)만 남김.",
-  "베이스 상단 대비": "현재가 ÷ 베이스 상단(Q90) − 1. 0% 부근 = 베이스 상단서 조이는 중(이상적). +3% 초과 = 이미 돌파해 뻗음(돌파연장 → 셋업 통과 제외). 준비도(readiness) 점수는 +8%에서 0이 됨.",
+  "셋업(추세/이평선)": "평평도와 완전히 별개인 '자리 품질' 점수(0~100). 유형(조정/바닥) 안에서 얼마나 좋은 자리인지 순위용. 구성: 이평상승(30)+정배열/회복(22)+이평지지(22)+준비도(18)+고점근접(8). 방향(추세지속/바닥반전) 구분은 이제 '유형' 열이 담당하고, 셋업은 순수 품질만 잼. 갓 눌린 조정 베이스는 고점서 멀어 점수가 낮게 나오지만(그래서 통과 여부는 점수와 무관), 회복이 진행될수록 점수가 오름. '셋업 통과만' 필터 = 유형이 조정·바닥이고 아직 돌파(연장) 안 한 것.",
+  "베이스 상단 대비": "현재가 ÷ 베이스 상단(Q90) − 1. 0% 부근 = 베이스 상단서 조이는 중(이상적). 조정은 +3%, 바닥은 +12% 초과면 '이미 돌파해 뻗음' → 셋업 통과 제외. 준비도(readiness) 점수도 이때 감소.",
   "종합점수": "평평도 점수 × 0.5 + 셋업 점수 × 0.5. '평평하면서도 좋은 자리'를 한 번에 정렬하려는 참고 지표. 열 머리글을 눌러 이걸로 정렬 가능.",
   "RS%": "스캔 유니버스 내 12개월 수익률 백분위(참고용, 점수 무관).",
   "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타(참고용, 평탄도 점수엔 미포함). <1이면 시장보다 덜 움직이는 저변동, >1이면 더 크게 움직임. 0.8 미만은 강조 표시.",
@@ -431,7 +423,6 @@ function detailPanel(s) {
       </div>
       <div class="d-card"><h4>${term("셋업(추세/이평선)")} (점수 무관)</h4>
         ${row("셋업 점수 / 통과", `${fmtNum(s.setup_score, 0)} ${s.setup_pass ? "✓ 통과" : "✗"}`)}
-        ${row("셋업유형", esc(s.setup_archetype || "-"))}
         ${row("종합점수", `${fmtNum(s.composite_score, 0)} (평평×0.5 + 셋업×0.5)`)}
         ${row("SMA 50 / 150 / 200", `${fmtPrice(s.sma50)} / ${fmtPrice(s.sma150)} / ${fmtPrice(s.sma200)}`)}
         ${row("이평 기울기 50/150/200", `${fmtPct(s.sma50_slope, 1)} / ${fmtPct(s.sma150_slope, 1)} / ${fmtPct(s.sma200_slope, 1)}`)}
@@ -701,7 +692,7 @@ const EXPORT_COLS = [
   "close_band", "raw_high_low_range", "base_drift", "containment_ratio",
   "center_shift", "outlier_days", "outlier_ratio", "current_position",
   "flatness_score", "flatness_grade",
-  "composite_score", "setup_score", "setup_pass", "setup_archetype",
+  "composite_score", "setup_score", "setup_pass",
   "sma50", "sma150", "sma200", "sma50_slope", "sma150_slope", "sma200_slope",
   "above_sma50", "above_sma150", "above_sma200", "ma_aligned",
   "reclaimed_sma200", "above_base", "extended", "dist_52w_high", "dist_52w_low",

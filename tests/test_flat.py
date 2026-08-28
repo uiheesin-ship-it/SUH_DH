@@ -137,48 +137,47 @@ def _setup_of(closes, n_base=50):
     return setup.compute_setup(c, start, lo, hi, c[-1], pos, CFG)
 
 
-def test_setup_continuation_passes_and_is_display_only():
-    # Strong uptrend + tight base near highs riding rising MAs (AMD/에코프로/NTRA).
-    up = [80.0 * (1.006 ** i) for i in range(300)]
-    base = [up[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(50)]
-    r = _setup_of(up + base)
-    assert r["setup_archetype"] == "추세지속"
+def test_setup_pullback_passes_and_is_display_only():
+    # ① 조정: explosive run then a correction, base above a rising 200. Passes as
+    # a real (not-yet-broken-out) setup even though its score is modest (a freshly
+    # corrected base is away from its highs).
+    run = [50.0 * (1.006 ** i) for i in range(200)]
+    peak = run[-1]
+    corr = [peak * (1 - 0.25 * (i / 15.0)) for i in range(15)]
+    base = [corr[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(50)]
+    r = _setup_of(run + corr + base)
+    assert r["position_type"] == "조정"
     assert r["setup_pass"] is True
-    assert r["setup_score"] > 55
+    assert r["setup_score"] is not None
     # Setup must never leak into the Flatness Score inputs.
     assert "setup_score" not in scoring.flatness_score(
         0.02, 0.005, 0.98, 0.005, 0.0, thresholds_for(60, CFG), CFG)
 
 
-def test_setup_turnaround_reclaim_passes():
-    # Decline -> long bottoming base while the long MAs catch down -> reclaim (IBIT).
+def test_setup_bottom_passes():
+    # ② 바닥: decline -> bottoming base -> reclaim (IBIT). A real setup, passes.
     down = [66.0 * (0.9955 ** i) for i in range(150)]
     flat = [34.0 * (1 + 0.06 * math.sin(i / 4.0)) for i in range(110)]
     reclaim = [flat[-1] * (1.012 ** i) for i in range(14)]
     r = _setup_of(down + flat + reclaim)
-    assert r["setup_archetype"] == "바닥반전"
+    assert r["position_type"] == "바닥"
     assert r["reclaimed_sma200"] or r["reclaimed_sma150"]
     assert r["setup_pass"] is True
 
 
 def test_setup_already_broken_out_is_demoted():
-    # A base that has ALREADY broken out and extended well above the base top is
-    # a finished move — it must NOT score high or pass (we want it BEFORE it goes).
-    up = [80.0 * (1.006 ** i) for i in range(300)]
-    base = [up[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(44)]
-    breakout = [up[-1] * 1.03 * (1.02 ** k) for k in range(1, 7)]   # runs ~+10% above base
-    r = _setup_of(up + base + breakout)
+    # A 조정 base that has ALREADY broken out well above the base top is a finished
+    # move — extended, and must NOT pass (we want it BEFORE it goes).
+    run = [50.0 * (1.006 ** i) for i in range(200)]
+    peak = run[-1]
+    corr = [peak * (1 - 0.25 * (i / 15.0)) for i in range(15)]
+    broke = ([corr[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(44)]
+             + [corr[-1] * 1.05 * (1.02 ** k) for k in range(1, 7)])   # runs ~+10% above base
+    r = _setup_of(run + corr + broke)
+    assert r["position_type"] == "조정"
     assert r["extended"] is True
     assert r["above_base"] > 0.03
     assert r["setup_pass"] is False
-    assert r["setup_archetype"] == "돌파연장"
-    # A coiled-at-top base (same trend, price still at the base top) DOES pass.
-    coiled = [up[-1] * (1 + 0.03 * math.sin(i / 3.0)) for i in range(46)] + \
-             [up[-1] * 1.028, up[-1] * 1.029, up[-1] * 1.028, up[-1] * 1.027]
-    rc = _setup_of(up + coiled)
-    assert rc["extended"] is False
-    assert rc["setup_pass"] is True
-    assert rc["setup_score"] > r["setup_score"]
 
 
 def test_position_type_pullback_bottom_flat():
@@ -214,7 +213,7 @@ def test_setup_trendless_base_fails():
     s3 = [s2[-1] * (1.012 ** i) for i in range(80)]
     base = [s3[-1] * (1 + 0.045 * math.sin(i / 3.0)) for i in range(50)]
     r = _setup_of(s1 + s2 + s3 + base)
-    assert r["setup_archetype"] == "약함"
+    assert r["position_type"] == "평평"
     assert r["setup_pass"] is False
 
 

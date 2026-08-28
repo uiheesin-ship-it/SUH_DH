@@ -129,7 +129,8 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
     """Grade the trend / moving-average context around a flat base.
 
     Returns a dict of display fields plus `setup_score` (0-100), `setup_pass`
-    (bool) and `setup_archetype` ("추세지속" / "바닥반전" / "약함").
+    (bool). The base's CATEGORY is `position_type` (조정 / 바닥 / 평평); this
+    setup score is a direction-agnostic QUALITY grade within that category.
     """
     scfg = cfg.get("setup", {}) or {}
     c = np.asarray(closes, dtype=float)
@@ -143,7 +144,7 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
         "above_base": None, "extended": False,
         "position_type": "평평", "position_above_200_frac": None,
         "prior_run_up": None, "base_correction": None,
-        "setup_score": None, "setup_pass": False, "setup_archetype": "약함",
+        "setup_score": None, "setup_pass": False,
     }
     if c.size < 60 or not current_close:
         return blank
@@ -199,15 +200,18 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
     reclaimed_150 = _reclaimed(s150, sma150, above150)
     reclaimed_any = reclaimed or reclaimed_150
 
-    # Archetype flags (needed early so the readiness/extension logic can treat a
-    # turnaround reclaim — which rises off its base — more leniently than a
-    # continuation breakout, which is "late" the moment it leaves the base top).
-    continuation = bool((sl150 or 0) > 0 and above150
-                        and (dist_high is not None and dist_high >= -float(scfg.get("cont_max_off_high", 0.20))))
-    turnaround = bool(reclaimed_any and above50 and (sl50 or 0) >= 0)
-    is_turn = bool(turnaround and not continuation)
+    # Base-position type (조정 / 바닥 / 평평) — THE category (vs the 200-day MA).
+    # Computed up-front so the setup-quality gating below can key off it instead
+    # of a separate archetype: a 바닥 (bottom) base rises off its lows, so it gets
+    # a looser "extended" gate than a 조정 (pullback), which is late the moment it
+    # leaves the base top.
+    pcfg = cfg.get("position", {}) or {}
+    ptype = _position_type(c, base_start_idx, base_low, base_high, sma200, sl200,
+                           sl50, s200, pcfg)
+    position_type = ptype["position_type"]
+    is_bottom = position_type == "바닥"
 
-    # ---- component scores (0..1) --------------------------------------------
+    # ---- component scores (0..1) — a direction-agnostic QUALITY score ---------
     # 1) Trend: rising 50 & 150 day averages.
     fast_full = float(scfg.get("slope_fast_full", 0.06))   # 6% / 20d = full credit
     slow_full = float(scfg.get("slope_slow_full", 0.08))   # 8% / 40d = full credit
@@ -249,9 +253,9 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
     pos = current_position if current_position is not None else 0.5
     coil = _clamp01((pos - 0.35) / 0.6)          # upper-base coiling: 0 at pos<=.35, 1 at >=.95
     above_base = (current_close / base_high - 1.0) if base_high else None
-    # readiness -> 0 once this far above the base top; a turnaround reclaim rises
-    # off its base, so it fades more slowly than a continuation breakout.
-    ext_zero = float(scfg.get("extension_zero_turn", 0.20)) if is_turn \
+    # readiness -> 0 once this far above the base top; a 바닥 base rises off its
+    # lows, so it fades more slowly than a 조정 pullback near its highs.
+    ext_zero = float(scfg.get("extension_zero_turn", 0.20)) if is_bottom \
         else float(scfg.get("extension_zero", 0.08))
     if above_base is None or above_base <= 0.01:
         ext_factor = 1.0
@@ -272,45 +276,25 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
            + w_ready * readiness + w_high * near_high)
     setup_score = round(100.0 * raw, 1)
 
-    # Archetype from the flags computed above. Continuation: rising slow MA +
-    # above it + near highs. Turnaround: reclaimed a long MA with the 50 rising.
-    if continuation:
-        archetype = "추세지속"
-    elif turnaround:
-        archetype = "바닥반전"
-    else:
-        archetype = "약함"
-
     # Extended = the price has already run above the base top by more than the
     # allowed tolerance. That breakout is done — we do NOT want it to score high
     # or pass the filter (the whole point is to catch the base BEFORE it goes).
-    # A continuation breakout above the top is "late" almost immediately (tight
-    # gate); a turnaround reclaim, by contrast, necessarily rises off its bottom
-    # base, so it gets a looser gate before it too counts as extended.
+    # 조정 near its highs is "late" almost immediately (tight gate); a 바닥 base
+    # rises off its bottom, so it gets a looser gate before it counts as extended.
     max_ext = float(scfg.get("max_extension", 0.03))
     max_ext_turn = float(scfg.get("max_extension_turn", 0.12))
-    limit = max_ext_turn if (turnaround and not continuation) else max_ext
+    limit = max_ext_turn if is_bottom else max_ext
     extended = bool(above_base is not None and above_base > limit)
-    if extended:
-        archetype = "돌파연장"   # already broken out / extended — surfaced but not a fresh setup
 
-    pass_score = float(scfg.get("min_setup_score", 55))
-    setup_pass = bool((continuation or turnaround) and setup_score >= pass_score
-                      and not extended)
-
-    # --- Base-position type (§ user spec): where the base sits vs the 200-day ---
-    # 1 조정 (pullback): base mostly ABOVE a RISING 200-day, after an explosive
-    #   advance (≥run_up_min) that then corrected (≥correction_min, scaled by base
-    #   length). Brief 2-3 day dips below the 200 are tolerated.
-    # 2 바닥 (bottom): base mostly BELOW the 200-day, with the decline decelerated
-    #   and no fresh lows late in the base (so a still-falling knife is excluded).
-    # 3 평평 (flat): everything else (shallow/none correction, flat 200, etc).
-    pcfg = cfg.get("position", {}) or {}
-    ptype = _position_type(c, base_start_idx, base_low, base_high, sma200, sl200,
-                           sl50, s200, pcfg)
+    # 셋업 통과 = a real setup type (조정 또는 바닥) that has NOT yet broken out.
+    # No score floor: a freshly-corrected 조정 base is away from its highs with
+    # disrupted MAs, so it scores low — but it's exactly what we want to catch.
+    # The setup_score only RANKS quality within a type; passing is about type +
+    # not-extended. (min_setup_score kept in config for optional callers.)
+    setup_pass = bool(position_type in ("조정", "바닥") and not extended)
 
     return {
-        "position_type": ptype["position_type"],
+        "position_type": position_type,
         "position_above_200_frac": ptype["above_200_frac"],
         "prior_run_up": ptype["prior_run_up"],
         "base_correction": ptype["base_correction"],
@@ -328,5 +312,4 @@ def compute_setup(closes, base_start_idx: int, base_low: float | None,
         "dist_52w_high": round(dist_high, 4) if dist_high is not None else None,
         "dist_52w_low": round(dist_low, 4) if dist_low is not None else None,
         "setup_score": setup_score, "setup_pass": setup_pass,
-        "setup_archetype": archetype,
     }
