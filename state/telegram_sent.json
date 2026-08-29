@@ -1,10 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/technology/ai/articles/alphabet-pursues-debut-australian-dollar-134727636.html",
-"https://www.datacenterdynamics.com/en/news/new-south-wales-to-require-new-data-centers-run-40-on-wind-energy-under-new-framework/",
-"https://www.datacenterdynamics.com/en/news/nvidia-confirms-it-will-back-425gw-of-openai-capacity-at-ports-pike-mega-data-center/",
-"https://www.investors.com/research/nvidia-nvda-stock-august-2026-earnings/?src=A00220&yptr=yahoo",
-"https://www.datacenterdynamics.com/en/news/google-rumored-to-have-partnered-with-amd-on-tpu-v10-as-shipments-of-current-generations-revised-down-report/",
 "https://finance.yahoo.com/markets/stocks/articles/billionaire-stanley-druckenmiller-brad-gerstner-144900858.html",
 "https://www.investors.com/news/tungsten-shortage-almonty-stock-buyback/?src=A00220&yptr=yahoo",
 "https://www.investors.com/news/spacex-stock-elon-musk-nvidia-alphabet-google-peter-thiel/?src=A00220&yptr=yahoo",
@@ -499,7 +494,12 @@
 "https://www.datacenterdynamics.com/en/news/uk-green-party-calls-for-nationwide-data-center-moratorium/",
 "https://finance.yahoo.com/technology/ai/articles/okta-ai-boom-just-created-161700485.html",
 "https://www.datacenterdynamics.com/en/news/trump-admin-considers-more-semiconductor-tariffs-and-possibly-data-center-servers/",
-"https://www.bloomberg.com/news/articles/2026-08-28/nvidia-backed-lambda-inks-1-billion-private-debt-for-chip-deal"
+"https://www.bloomberg.com/news/articles/2026-08-28/nvidia-backed-lambda-inks-1-billion-private-debt-for-chip-deal",
+"https://finance.yahoo.com/technology/ai/articles/nvidia-nvda-data-center-strategy-001348841.html",
+"https://finance.yahoo.com/technology/articles/nvidia-nvda-excluded-china-data-032951004.html",
+"https://www.cnbc.com/2026/08/28/what-we-learned-from-warshs-jackson-hole-speech-and-ge-vernovas-cfo-to-retire.html",
+"https://www.bloomberg.com/news/articles/2026-08-29/australian-minister-denies-softer-stance-on-data-center-power",
+"https://www.datacenterdynamics.com/en/marketwatch/the-fiber-connectivity-challenge-behind-ai-at-scale/"
 ],
-"updated": "2026-08-29T01:32:39+00:00"
+"updated": "2026-08-29T08:44:48+00:00"
 }
