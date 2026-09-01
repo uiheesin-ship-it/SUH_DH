@@ -153,7 +153,7 @@ const COL_FILTER = {
   total_score:       { type: "num", scale: 1, unit: "점" },
   inbase_score:      { type: "num", scale: 1, unit: "점" },
   beta:              { type: "num", scale: 1, unit: "" },
-  base_type:         { type: "cat", label: (v) => (BASETYPE[v] || [v])[0] },
+  adr_pct:           { type: "num", scale: 1, unit: "%" },
   setup_grade:       { type: "cat", label: (v) => v },
   alert_type:        { type: "cat", label: (v) => v },
   current_price:     { type: "num", scale: 1, unit: "$" },
@@ -277,7 +277,7 @@ const COLS = [
   ["total_score", "점수", true],
   ["inbase_score", "In-Base", true],
   ["beta", "β", true],
-  ["base_type", "유형", false],
+  ["adr_pct", "ADR%", true],
   ["setup_grade", "등급", false],
   ["alert_type", "알림", false],
   ["current_price", "가격", true],
@@ -333,7 +333,7 @@ function render() {
       <td class="num score"><b>${fmtNum(s.total_score, 0)}</b></td>
       <td class="num score"><b class="${IB_CLS[s.inbase_grade] || "ib-low"}">${fmtNum(s.inbase_score, 0)}</b>${s.extended ? ` <span class="ext-mark" title="이미 분출: ${esc((s.extension_flags || []).join(", "))}">분출</span>` : ""}</td>
       <td class="num${s.beta != null && s.beta < 0.8 ? " lowbeta" : ""}">${fmtNum(s.beta, 2)}</td>
-      <td>${(() => { const [t, c] = BASETYPE[s.base_type] || BASETYPE.none; return t === "-" ? "-" : `<span class="badge ${c}">${t}</span>`; })()}</td>
+      <td class="num${s.adr_pct != null && s.adr_pct < 2 ? " lowbeta" : ""}">${s.adr_pct == null ? "-" : fmtNum(s.adr_pct, 1) + "%"}</td>
       <td><span class="badge ${g}">${esc(s.setup_grade || "-")}</span></td>
       <td>${s.alert_type && s.alert_type !== "none"
             ? `<span class="badge ${a}">${esc(s.alert_type)}</span>` : "-"}</td>
@@ -420,10 +420,10 @@ const GLOSSARY = {
   "섹터 3M / 종목-섹터": "섹터 ETF의 3개월 수익률 / (종목 3개월 − 섹터 3개월). 종목이 섹터보다 강하면 뒤 값이 양수.",
   "섹터 점수": "섹터 강세 종합(0~1). 종목>섹터>시장 구조이고 섹터가 추세 위·신고가 근처면 높음.",
   // In-Base
-  "In-Base 점수": "종합점수와 별개로 '아직 조용히 베이스 중(분출 전)'인 정도(0~100). 안-뻗음(30)+타이트(25)+거래량마름(15)+지지선(15)+구조(15)에 저베타 페널티(vigor)를 곱함. 분출·저베타 종목은 낮게 나옴.",
-  "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타. <1이면 시장보다 덜 움직이는 저변동. AES 같은 방어주는 낮음.",
-  "베타 / 추력(vigor)": "vigor = 베타(0.6) + 추력(0.4). 추력 = 12개월 상승·52주 저점 대비 상승. 낮으면 '잠자는 방어주'로 보고 In-Base를 깎고, β<0.8 이면서 추력도 약하면 목록에서 제외.",
-  "베이스 유형": "평평(길고 얕은 횡보) · 타이트(짧고 매우 좁은 수축) · ABC(깊은 조정 후 저점 절상하며 지지선 반등) · 베이스(일반).",
+  "In-Base 점수": "종합점수와 별개로 '아직 조용히 베이스 중(분출 전)'인 정도(0~100). 안-뻗음(30)+타이트(25)+거래량마름(15)+지지선(15)+구조(15)에 잠자는-종목 페널티(vigor)를 곱함. 분출·저변동 종목은 낮게 나옴.",
+  "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타. <1이면 시장보다 덜 움직이는 저변동. 표시용 참고값(점수 계산에는 ADR% 사용).",
+  "ADR%": "평균 일간 변동폭(20일): 100 × 평균(고가/저가 − 1). 하루에 실제로 얼마나 움직이는지. 방어주는 1~2%, 활발한 모멘텀주는 4~8%. 베타 대용으로 vigor에 사용.",
+  "ADR% / 추력(vigor)": "vigor = ADR%(0.6) + 추력(0.4). ADR%가 베타 대용(4%↑ 만점·2%↓ 0점). 추력 = 12개월 상승·52주 저점 대비 상승. 낮으면 '잠자는 종목'으로 보고 In-Base를 깎고, ADR%<2% 이면서 추력도 약하면 목록에서 제외.",
   "분출 여부": "감점은 '베이스 이탈'만 봅니다: 피봇 돌파·과열 / 베이스 상단 이탈(현재가 > 베이스 고점 ×1.03) 이면 감점. 베이스 안에서의 급등은 오히려 초기 진입 기회로 보고 감점하지 않습니다. (베이스가 없어 위치를 못 재는 종목만 5일 +10%↑ / 10일 +12%↑ / 50일선 ×1.12 초과를 안전망으로 감점.)",
   "단기 5일/10일": "최근 5거래일·10거래일 수익률. 베이스 안이면 급등이어도 감점 안 함(초기 진입).",
   "최근10일 변동폭": "최근 10일 (고가−저가)/현재가. 작을수록 타이트하게 눌려 있음.",
@@ -500,10 +500,9 @@ function detailPanel(s) {
         ${row("섹터 3M / 종목-섹터", `${fmtPct(s.sector_return_3m)} / ${fmtPct(s.sector_detail?.stock_vs_sector_3m)}`)}
         ${row("섹터 점수", fmtNum(s.sector_action_score))}
       </div>
-      <div class="d-card"><h4>In-Base 건전도 (분출 전 · 유형)</h4>
+      <div class="d-card"><h4>In-Base 건전도 (분출 전)</h4>
         ${row("In-Base 점수", `${fmtNum(s.inbase_score, 0)} (${esc(s.inbase_grade || "-")})`)}
-        ${row("베타 / 추력(vigor)", `β ${fmtNum(s.beta, 2)} · vigor ${fmtNum(s.vigor, 2)}`)}
-        ${row("베이스 유형", (BASETYPE[s.base_type] || BASETYPE.none)[0])}
+        ${row("ADR% / 추력(vigor)", `ADR ${s.adr_pct == null ? "-" : fmtNum(s.adr_pct, 1) + "%"} · β ${fmtNum(s.beta, 2)} · vigor ${fmtNum(s.vigor, 2)}`)}
         ${row("분출 여부", `${s.extended ? "✗ 분출" : "✓ 베이스 중"}${(s.extension_flags || []).length ? " · " + esc(s.extension_flags.join(", ")) : ""}`)}
         ${row("단기 5일/10일", `${fmtPct(s.ret_5d)} / ${fmtPct(s.ret_10d)}`)}
         ${row("최근10일 변동폭", fmtPct(s.recent_range_10, 1))}
@@ -722,7 +721,8 @@ function exportCsv() {
   const rows = filtered();
   const cols = ["ticker", "company_name", "sector", "industry", "sector_etf",
     "is_ipo", "history_days",
-    "current_price", "market_cap", "avg_dollar_volume_20d", "total_score", "setup_grade",
+    "current_price", "market_cap", "avg_dollar_volume_20d", "total_score", "inbase_score", "setup_grade",
+    "beta", "adr_pct",
     "trend_template_pass", "rs_percentile", "rs_vs_spy_3m", "rs_vs_qqq_3m",
     "base_start_date", "base_length_days", "base_depth", "pivot_price", "distance_to_pivot",
     "pivot_status", "atr_contraction_ratio", "volume_dry_up_ratio", "high_volume_down_days_20d",

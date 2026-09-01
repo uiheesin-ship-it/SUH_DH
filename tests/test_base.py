@@ -352,17 +352,29 @@ def test_mean_abs_daily_return_dead_vs_alive():
     assert dv_alive is not None and dv_alive > 0.005
 
 
-def test_inbase_vigor_penalizes_low_beta():
-    def rec(beta, r12):
-        return {"beta": beta, "ret_12m": r12, "current_price": 105, "low_52w": 100,
+def test_adr_pct():
+    from app.base import metrics as bm
+    # ~5% daily range every day -> ADR% ≈ 5
+    high = [105.0] * 20
+    low = [100.0] * 20
+    adr = bm.adr_pct(high, low, 20)
+    assert adr is not None and 4.5 < adr < 5.5
+    assert bm.adr_pct([], [], 20) is None
+
+
+def test_inbase_vigor_penalizes_low_adr():
+    # vigor now uses ADR% (beta substitute); beta is kept only for display.
+    def rec(adr, r12):
+        return {"adr_pct": adr, "beta": 1.0, "ret_12m": r12,
+                "current_price": 105, "low_52w": 100,
                 "pivot": {}, "vcp": {}, "volatility": {}, "volume": {},
                 "recent_range_10": 0.06, "sma50": 100, "sma150": 96, "sma200": 92,
                 "sma200_20d_ago": 90, "sma50_position_pass": True, "base_position": 0.5,
                 "ret_5d": 0.0, "ret_10d": 0.0,
                 "base": {"base_detected": True, "base_depth": 0.12, "base_length_days": 40,
                          "base_depth_grade": "excellent", "higher_low": True}}
-    sleepy = rec(0.6, 0.05); inbase.compute(sleepy, CFG)     # low beta + weak thrust
-    leader = rec(1.4, 0.9); inbase.compute(leader, CFG)      # high beta + strong thrust
+    sleepy = rec(1.5, 0.05); inbase.compute(sleepy, CFG)     # low ADR% + weak thrust
+    leader = rec(6.0, 0.9); inbase.compute(leader, CFG)      # high ADR% + strong thrust
     assert sleepy["low_vigor"] is True                       # excluded
     assert leader["low_vigor"] is False
     assert sleepy["inbase_score"] < leader["inbase_score"]   # and scored lower

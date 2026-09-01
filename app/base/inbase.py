@@ -213,21 +213,24 @@ def _base_type(rec: dict, bt: dict) -> str:
 
 
 def _vigor(rec: dict, ic: dict) -> tuple[float, float, bool]:
-    """Beta + thrust 'vigor' — separates a coiling leader from a sleepy defensive
+    """ADR% + thrust 'vigor' — separates a coiling leader from a sleepy defensive
     name. Returns (In-Base multiplier, vigor 0..1, low_vigor exclude flag).
 
-    A low-beta utility (AES) or a name with no prior advance scores low here even
+    ADR% (average daily range) is the beta substitute: it measures how much the
+    stock actually travels each day, which is what we want for explosiveness. A
+    low-ADR utility (AES) or a name with no prior advance scores low here even
     though it's quiet/tight, so its In-Base is knocked down; a clearly sleepy one
-    (low beta AND no thrust) is flagged for exclusion.
+    (low ADR% AND no thrust) is flagged for exclusion. beta is still kept on the
+    record for display.
     """
-    beta = rec.get("beta")
+    adr = rec.get("adr_pct")
     r12 = rec.get("ret_12m")
     price, low52 = rec.get("current_price"), rec.get("low_52w")
     from_low = (price / low52 - 1) if (low52 and price) else None
 
-    lo, hi = float(ic["beta_floor"]), float(ic["beta_low"])
-    bf = 1.0 if beta is None else (_clamp((beta - lo) / (hi - lo)) if hi > lo
-                                   else (1.0 if beta >= hi else 0.0))
+    lo, hi = float(ic["adr_floor"]), float(ic["adr_high"])
+    bf = 1.0 if adr is None else (_clamp((adr - lo) / (hi - lo)) if hi > lo
+                                  else (1.0 if adr >= hi else 0.0))
     cands = []
     if r12 is not None:
         cands.append(r12 / float(ic["thrust_min_ret_12m"]))
@@ -238,8 +241,8 @@ def _vigor(rec: dict, ic: dict) -> tuple[float, float, bool]:
     vigor = 0.6 * bf + 0.4 * tf
     vmin = float(ic["vigor_min"])
     mult = vmin + (1 - vmin) * vigor
-    low_vigor = bool(ic.get("exclude_low_vigor", True) and beta is not None
-                     and beta < float(ic["min_beta"]) and tf < 0.5)
+    low_vigor = bool(ic.get("exclude_low_vigor", True) and adr is not None
+                     and adr < float(ic["min_adr"]) and tf < 0.5)
     return mult, round(vigor, 3), low_vigor
 
 

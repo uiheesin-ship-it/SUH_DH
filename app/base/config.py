@@ -122,10 +122,12 @@ DEFAULTS: dict[str, Any] = {
         "min_len": 20,
         "extended_cutoff": 0.5,  # not_extended < 0.5 이면 extended=True
         "grades": {"prime": 80, "high": 65, "watch": 50},
-        # 저베타/잠자는 종목 페널티(vigor = 베타 0.6 + 추력 0.4).
-        "beta_low": 1.0,          # β ≥ 1.0 → 감점 없음
-        "beta_floor": 0.8,        # β ≤ 0.8 → 베타 요인 0 (엄격)
-        "min_beta": 0.8,          # β < 0.8 이고 추력도 약하면 목록에서 제외
+        # 잠자는 종목 페널티(vigor = ADR% 0.6 + 추력 0.4). ADR%(평균 일간 변동폭)를
+        # 베타 대용으로 사용 — 실제로 하루에 얼마나 움직이는지가 폭발력의 척도.
+        # (beta 는 표시용으로만 남기고 vigor 계산에는 쓰지 않음)
+        "adr_high": 4.0,          # ADR% ≥ 4% → 감점 없음(활발)
+        "adr_floor": 2.0,         # ADR% ≤ 2% → 변동성 요인 0(잠자는)
+        "min_adr": 2.0,           # ADR% < 2% 이고 추력도 약하면 목록에서 제외
         "thrust_min_ret_12m": 0.30,   # 12개월 +30% 미만이면 추력 약함
         "thrust_min_from_low": 0.50,  # 52주 저점 대비 +50% 미만이면 추력 약함
         "vigor_min": 0.5,         # In-Base × [0.5 .. 1.0] 감점 폭

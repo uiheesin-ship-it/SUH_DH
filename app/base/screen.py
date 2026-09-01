@@ -189,8 +189,10 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "rs_line_spy_near_high": rs_spy_near, "rs_line_qqq_near_high": rs_qqq_near,
         # 50d line
         "distance_to_sma50": dist_sma50, "sma50_position_pass": sma50_pass,
-        # beta (vs SPY) — used by the In-Base vigor penalty
+        # beta (vs SPY) — kept for display; the In-Base vigor haircut now uses ADR%
         "beta": beta_val,
+        # ADR% (avg daily range, 20d) — beta substitute for the vigor haircut
+        "adr_pct": metrics.adr_pct(high, low, 20),
         # nested detail
         "base": base, "pivot": pivot, "vcp": vcp, "volatility": volat,
         "volume": vol, "sector_detail": sect,
@@ -287,10 +289,10 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         scoring.compute_scores(rec, cfg)
         inbase.compute(rec, cfg)   # In-Base health score + base-type tag + vigor
 
-    # Drop clearly sleepy low-beta / no-thrust names (In-Base vigor exclude).
+    # Drop clearly sleepy low-ADR% / no-thrust names (In-Base vigor exclude).
     for r in records:
         if r.get("low_vigor"):
-            _drop(r["ticker"], "low_vigor(β<0.8+weak)")
+            _drop(r["ticker"], "low_vigor(ADR<2%+weak)")
     records = [r for r in records if not r.get("low_vigor")]
     records.sort(key=_sort_key, reverse=False)
 

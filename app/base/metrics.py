@@ -68,6 +68,26 @@ def pct_return(closes: Sequence[float], lookback: int) -> float | None:
     return now / then - 1.0
 
 
+def adr_pct(high: Sequence[float], low: Sequence[float], n: int = 20) -> float | None:
+    """Average Daily Range %, a raw 'how much does this actually move' gauge
+    (Qullamaggie): 100 × mean(high/low − 1) over the last ``n`` days. A sleepy
+    defensive name sits ~1-2%, a lively momentum name ~4-8%. Used as a beta
+    substitute for the vigor haircut — beta measures correlation to the market,
+    ADR% measures actual daily travel, which is what we want for explosiveness."""
+    h = np.asarray(high[-n:], dtype=float)
+    l = np.asarray(low[-n:], dtype=float)
+    m = min(h.size, l.size)
+    if m == 0:
+        return None
+    h, l = h[-m:], l[-m:]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r = np.where(l > 0, h / l - 1.0, np.nan)
+    r = r[np.isfinite(r)]
+    if r.size == 0:
+        return None
+    return round(float(np.mean(r)) * 100.0, 3)
+
+
 def mean_abs_daily_return(closes: Sequence[float]) -> float | None:
     """Average |close-to-close return| inside the window — how much the price
     actually moves day to day. Near-zero (e.g. <0.4%) means the stock is
