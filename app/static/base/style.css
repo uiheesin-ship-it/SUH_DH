@@ -65,6 +65,10 @@ button:hover { border-color: var(--accent); }
 .logic-tbl th, .logic-tbl td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; }
 .logic-tbl th { background: var(--panel-2); color: var(--muted); font-weight: 600; }
 .logic-tbl td:nth-child(2) { text-align: center; font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; white-space: nowrap; }
+/* text variant: 2nd column is prose (조건/기준), not a score — left-align, wrap, normal color */
+.logic-tbl.text td:nth-child(2) { text-align: left; color: inherit; font-weight: 400; white-space: normal; }
+.logic-tbl.text td:first-child { white-space: nowrap; color: var(--accent); }
+.modal-body h4.logic-sub { font-size: 12.5px; color: var(--text); margin: 12px 0 4px; font-weight: 600; }
 
 /* Excel-style per-column filters (same as the flat screener) */
 .col-filter { cursor: pointer; margin-left: 4px; color: #64748b; font-size: 9px;

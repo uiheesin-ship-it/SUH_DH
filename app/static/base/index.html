@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>베이스 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -125,6 +125,41 @@
       <div class="modal-body">
         <p class="modal-note">1차 Finviz 유동성·추세 필터로 후보를 추린 뒤, 종목별로 아래 항목을 계산합니다.
           모든 임계값은 <code>config.yaml</code>에서 조정 가능. 투자 추천이 아닙니다.</p>
+
+        <h3>유니버스 · 제외 기준</h3>
+        <p>상단 "<b>N개 종목 (유니버스 A · 제외 B)</b>"의 의미 — <b>유니버스 A</b> = 정밀분석 대상 후보,
+        <b>제외 B</b> = 후보엔 들었지만 정밀분석에서 탈락, <b>N = A − B</b> = 최종 통과(여기에 화면 필터를 더 걸면 줄어듦).
+        숫자는 마지막 전체 스캔(매일 12:00·22:00 UTC) 기준.</p>
+
+        <h4 class="logic-sub">① 유니버스 — Finviz 1차 필터 (3개 패스 합침)</h4>
+        <table class="logic-tbl text">
+          <thead><tr><th>패스</th><th>조건</th></tr></thead>
+          <tbody>
+            <tr><td><b>일반주</b></td>
+              <td>주가 &gt; $1 · 시총 ≥ $300M(Small↑) · 산업="Stocks only(펀드 제외)" · <b>50일선 위 + 200일선 위</b>(정배열)</td></tr>
+            <tr><td><b>신규상장<br>(IPO)</b></td>
+              <td>위와 동일하되 <b>200일선 조건 제외</b>(신규주는 200일선이 없어 IPO가 다 걸러졌었음) · 최근 1년 내 상장 · 50일선 위</td></tr>
+            <tr><td><b>ETF</b></td>
+              <td>산업="ETF" · 50/200일선 위 · <b>레버리지·인버스·ETN·CEF·우선주·워런트 제외</b>(2x·3x·Ultra·Bull·Bear·Short 등)</td></tr>
+          </tbody>
+        </table>
+        <p>이후 시총/주가 재확인 → <b>시총 구간별 균등 샘플링</b>(대형주만 남기지 않고 중소형 리더까지 골고루) → 주식 최대 3000 + ETF 최대 700.
+        <br><i>Finviz 거래량(주식수) 필터는 일부러 미사용 — 고가주가 불리해짐. 유동성은 아래 거래대금($)으로 판단.</i></p>
+
+        <h4 class="logic-sub">② 제외 — 정밀분석 단계 탈락 사유</h4>
+        <table class="logic-tbl text">
+          <thead><tr><th>사유</th><th>기준</th></tr></thead>
+          <tbody>
+            <tr><td><b>히스토리 부족</b></td><td>일반 <b>200거래일</b> 미만 (IPO는 <b>40일</b> 미만) — 2년치 데이터 필요</td></tr>
+            <tr><td><b>거래대금 부족</b></td><td>최근 20일 평균 거래대금 <b>&lt; $600만</b></td></tr>
+            <tr><td><b>주가 / 거래량</b></td><td>주가 &lt; $1, 또는 마지막 거래량 0</td></tr>
+            <tr><td><b>dead_pinned</b></td><td>베이스 구간 일간변동 <b>&lt; 0.5%</b> (M&amp;A 딜가격 고정 등 죽은 종목)</td></tr>
+            <tr><td><b>low_vigor</b></td><td><b>ADR% &lt; 2% + 추력 약함</b> (잠자는 저변동주)</td></tr>
+            <tr><td><b>데이터 오류</b></td><td>Yahoo/Stooq fetch·분석 오류</td></tr>
+          </tbody>
+        </table>
+        <p>💡 <b>어떤 종목이 왜 빠졌는지</b>: 검색창에 티커를 치면 결과에 없을 때 "🔎 XXX 스캔 제외 사유: …"로 정확한 사유를 보여줍니다.
+        (유니버스에도 없으면 "1차 Finviz 유니버스 미포함"으로 표시.)</p>
 
         <h3>총점 (점수) = 6개 항목 가중합 (합계 100)</h3>
         <p>각 항목을 <b>0~1 값</b>으로 만든 뒤 배점을 곱해 더합니다.</p>
