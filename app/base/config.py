@@ -111,10 +111,12 @@ DEFAULTS: dict[str, Any] = {
     "inbase": {
         "weights": {"not_extended": 30, "tightness": 25, "volume": 15,
                     "support": 15, "structure": 15},
-        "max_ret_5d": 0.10,      # 최근 5일 +10% 초과 → 분출(감점)
-        "surge_ret_5d": 0.15,    # 5일 +15%↑ = 진짜 분출. 이 미만의 포켓피벗은 감점 면제
-        "pocket_pivot_lookback": 10,  # 포켓피벗 판정: 직전 N일 하락일 거래량 기준
-        "max_ret_10d": 0.12,     # 최근 10일 +12% 초과 → 분출(엄격)
+        # extension 감점은 '베이스 이탈'만: 아래 max_ret_5d/10d/sma50_stretch 는
+        # 베이스가 없어 위치를 못 재는 종목의 안전망으로만 쓰인다(baseposition None).
+        "base_exit_frac": 1.03,  # 현재가가 베이스 고점의 이 배수를 넘으면 상단 이탈(감점)
+        "max_ret_5d": 0.10,      # (안전망) 베이스 없을 때 최근 5일 +10% 초과 → 감점
+        "pocket_pivot_lookback": 10,  # 포켓피벗 판정: 직전 N일 하락일 거래량 기준(정보 표시용)
+        "max_ret_10d": 0.12,     # (안전망) 베이스 없을 때 최근 10일 +12% 초과 → 감점
         "sma50_stretch": 1.12,   # 현재가 > 50일선 × 1.12 → 위로 뻗음(엄격)
         "tight_range": 0.08,     # 최근 10일 고저폭/가 ≤ 8% → 타이트
         "min_len": 20,

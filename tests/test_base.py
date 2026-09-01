@@ -317,30 +317,29 @@ def test_short_term_metrics_includes_pocket_pivot():
     assert m["pocket_pivot"] is True
 
 
-def test_pocket_pivot_not_penalized_but_surge_is():
-    def rec(pp, r5):
+def test_in_base_surge_not_penalized_only_base_exit_is():
+    def rec(bpos, status="watch"):
         return {
             "current_price": 105, "sma50": 100, "sma150": 96, "sma200": 92,
             "sma200_20d_ago": 90, "sma50_position_pass": True,
-            "ret_5d": r5, "ret_10d": 0.05, "base_position": 0.80,
-            "pocket_pivot": pp,
-            "pivot": {"pivot_status": "watch"}, "vcp": {"vcp_score": 0.6},
+            "ret_5d": 0.20, "ret_10d": 0.28, "base_position": bpos,
+            "pivot": {"pivot_status": status}, "vcp": {"vcp_score": 0.6},
             "volatility": {}, "volume": {},
             "base": {"base_detected": True, "base_depth": 0.12, "base_length_days": 40,
                      "base_depth_grade": "excellent", "higher_low": True},
         }
-    # clean pocket pivot, +12% in 5d (over max_ret_5d 0.10 but under surge 0.15)
-    ne_pp, flags_pp = inbase._not_extended(rec(True, 0.12), CFG["inbase"])
-    ne_no, flags_no = inbase._not_extended(rec(False, 0.12), CFG["inbase"])
-    assert ne_pp > ne_no                       # pocket pivot exempted from penalty
-    assert "포켓피벗" in flags_pp
-    assert not any(f.startswith("5일") for f in flags_pp)
-    assert any(f.startswith("5일") for f in flags_no)
-    # a genuine surge to the top of the base is flagged even for a pocket pivot
-    surge = rec(True, 0.20); surge["base_position"] = 0.95
-    ne_s, flags_s = inbase._not_extended(surge, CFG["inbase"])
-    assert "베이스 상단 분출" in flags_s
-    assert ne_s < ne_pp
+    # big multi-day surge but still INSIDE the base -> not penalized (early entry)
+    ne_in, flags_in = inbase._not_extended(rec(0.85), CFG["inbase"])
+    assert ne_in == 1.0
+    assert flags_in == []
+    # same surge but price has pushed above the base top -> penalized
+    ne_out, flags_out = inbase._not_extended(rec(1.15), CFG["inbase"])
+    assert ne_out < ne_in
+    assert any("이탈" in f for f in flags_out)
+    # a clean pivot breakout is 'left the base' regardless of position
+    ne_bo, flags_bo = inbase._not_extended(rec(0.90, "broken_out"), CFG["inbase"])
+    assert ne_bo < 1.0
+    assert any("이탈" in f for f in flags_bo)
 
 
 def test_mean_abs_daily_return_dead_vs_alive():

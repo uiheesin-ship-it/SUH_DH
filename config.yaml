@@ -135,10 +135,11 @@ inbase:
     volume: 15         # 거래량 마름
     support: 15        # 상승 지지선 위·정배열
     structure: 15      # 베이스 길이·깊이·higher low
-  max_ret_5d: 0.10
-  surge_ret_5d: 0.15         # 5일 +15%↑ = 진짜 분출. 이 미만의 포켓피벗은 감점 면제
-  pocket_pivot_lookback: 10  # 포켓피벗 판정: 직전 N일 하락일 거래량 기준
-  max_ret_10d: 0.12
+  # extension 감점은 '베이스 이탈'만. 베이스 안에서의 분출은 감점하지 않는다(초기 진입).
+  base_exit_frac: 1.03       # 현재가 > 베이스 고점 × 1.03 이면 상단 이탈로 감점
+  max_ret_5d: 0.10           # (안전망) 베이스 없을 때만: 최근 5일 +10% 초과 → 감점
+  pocket_pivot_lookback: 10  # 포켓피벗 판정: 직전 N일 하락일 거래량 기준(정보 표시용)
+  max_ret_10d: 0.12          # (안전망) 베이스 없을 때만: 최근 10일 +12% 초과 → 감점
   sma50_stretch: 1.12
   tight_range: 0.08
   min_len: 20

@@ -92,31 +92,32 @@ def _not_extended(rec: dict, ic: dict) -> tuple[float, list[str]]:
     r5, r10 = rec.get("ret_5d"), rec.get("ret_10d")
     status = (rec.get("pivot") or {}).get("pivot_status")
     bpos = rec.get("base_position")
-    pp = bool(rec.get("pocket_pivot"))
-    surge5 = float(ic.get("surge_ret_5d", 0.15))
+    exit_frac = float(ic.get("base_exit_frac", 1.03))
 
-    if sma50 and price and price / sma50 > float(ic["sma50_stretch"]):
-        ne -= 0.5
-        flags.append(f"50일선 +{round((price / sma50 - 1) * 100)}%")
-    if r10 is not None and r10 > float(ic["max_ret_10d"]):
-        ne -= 0.4
-        flags.append(f"10일 +{round(r10 * 100)}%")
-    # 5일 급등 감점 — 단, 거래량 실린 '깨끗한 포켓피벗'(하루 상승)이고 진짜 분출
-    # 수준(surge_ret_5d)까지는 아니면 감점하지 않는다. 포켓피벗은 건강한 매집일.
-    if r5 is not None and r5 > float(ic["max_ret_5d"]):
-        if pp and r5 < surge5:
-            flags.append("포켓피벗")   # informational, no penalty
-        else:
-            ne -= 0.3
-            flags.append(f"5일 +{round(r5 * 100)}%")
+    # Extension = LEAVING the base to the upside. A surge that is still contained
+    # inside the base is fine — often the best early entry — so it is NOT
+    # penalized. Only breaking out / pushing above the base top counts.
     if status in ("broken_out", "extended"):
         ne -= 0.6
-        flags.append("피봇 돌파/과열")
-    # 베이스 상단에서의 '분출' — 상단(≥0.92)에 5일 급등(surge_ret_5d↑)으로 치고
-    # 올라온 경우만 분출로 보고 감점. 하루짜리 포켓피벗은 여기에 해당하지 않는다.
-    if bpos is not None and bpos > 0.92 and (r5 or 0) >= surge5:
-        ne -= 0.3
-        flags.append("베이스 상단 분출")
+        flags.append("피봇 돌파(베이스 이탈)")
+    if bpos is not None and bpos > exit_frac:
+        over = bpos - exit_frac
+        ne -= _clamp(over * 4.0, 0.0, 0.6)   # further above the top → larger
+        flags.append(f"베이스 상단 이탈 (+{round((bpos - 1) * 100)}%)")
+
+    # Safety net for names WITHOUT a measurable base (no base_high → base_position
+    # is None): fall back to raw stretch/momentum so a vertical, non-basing name
+    # can't score as 'quietly basing'.
+    if bpos is None:
+        if sma50 and price and price / sma50 > float(ic["sma50_stretch"]):
+            ne -= 0.5
+            flags.append(f"50일선 +{round((price / sma50 - 1) * 100)}%")
+        if r10 is not None and r10 > float(ic["max_ret_10d"]):
+            ne -= 0.4
+            flags.append(f"10일 +{round(r10 * 100)}%")
+        if r5 is not None and r5 > float(ic["max_ret_5d"]):
+            ne -= 0.3
+            flags.append(f"5일 +{round(r5 * 100)}%")
     return _clamp(ne), flags
 
 
