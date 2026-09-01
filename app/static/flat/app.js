@@ -749,6 +749,16 @@ window.addEventListener("resize", () => { if (chartData) Plotly.Plots.resize("ch
   $("#" + id).addEventListener("input", render));
 $("#f-score").addEventListener("input", () => { $("#f-score-val").textContent = $("#f-score").value; render(); });
 
+// saved screening presets (top-bar filters + Excel column filters)
+if (window.SUHPresets) {
+  SUHPresets.mount("flat", {
+    container: $("#preset-bar"),
+    getColFilters: () => JSON.parse(JSON.stringify(colFilters)),
+    setColFilters: (c) => { colFilters = c || {}; },
+    onApply: () => { $("#f-score-val").textContent = $("#f-score").value; render(); },
+  });
+}
+
 window.openChart = openChart;
 
 // ---------- cross-device watchlist sync (☁ button) ----------

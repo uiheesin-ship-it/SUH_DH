@@ -205,3 +205,18 @@ td.etf { color: var(--accent); }
   max-width: 640px; margin-left: auto; margin-right: auto;
 }
 .drop-note small { color: var(--muted); }
+
+/* saved screening presets bar */
+.preset-bar { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 16px; background: #141d2e; border-bottom: 1px solid var(--border); font-size: 12px; }
+.preset-bar .preset-label { color: var(--muted); font-weight: 600; margin-right: 2px; }
+.preset-bar .preset-empty { color: #64748b; font-style: italic; }
+.preset-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2);
+  color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 3px 6px 3px 10px;
+  cursor: pointer; font-size: 12px; }
+.preset-chip:hover { border-color: var(--accent); color: var(--accent); }
+.preset-chip .preset-del { color: var(--muted); font-weight: 700; padding: 0 3px; border-radius: 999px; }
+.preset-chip .preset-del:hover { color: #fca5a5; background: rgba(0,0,0,.3); }
+.preset-add { background: none; color: var(--accent); border: 1px dashed var(--border);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+.preset-add:hover { border-color: var(--accent); }
