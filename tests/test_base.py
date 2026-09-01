@@ -296,6 +296,63 @@ def test_base_type_tags():
         CFG["base_type"]) == "abc"
 
 
+def test_pocket_pivot_detection():
+    # up day whose volume beats every prior down-day volume -> pocket pivot
+    close = [100, 99, 100, 99, 101]           # last bar is an up day
+    volume = [100, 300, 100, 400, 500]        # today's 500 > prior down-day vols (300,400)
+    assert inbase._pocket_pivot(close, volume, 10) is True
+    # same prices but today's volume below a prior down-day's volume -> not
+    assert inbase._pocket_pivot(close, [100, 300, 100, 900, 500], 10) is False
+    # a down day today is never a pocket pivot
+    assert inbase._pocket_pivot([100, 101, 99], [100, 100, 900], 10) is False
+
+
+def test_short_term_metrics_includes_pocket_pivot():
+    close = [100.0] * 20 + [99.0, 101.0]      # up day today
+    high = [c * 1.01 for c in close]
+    low = [c * 0.99 for c in close]
+    volume = [100.0] * 21 + [500.0]           # heavy up-volume today
+    base = {"base_high": 111.0, "base_low": 95.0}
+    m = inbase.short_term_metrics(close, high, low, base, volume=volume)
+    assert m["pocket_pivot"] is True
+
+
+def test_pocket_pivot_not_penalized_but_surge_is():
+    def rec(pp, r5):
+        return {
+            "current_price": 105, "sma50": 100, "sma150": 96, "sma200": 92,
+            "sma200_20d_ago": 90, "sma50_position_pass": True,
+            "ret_5d": r5, "ret_10d": 0.05, "base_position": 0.80,
+            "pocket_pivot": pp,
+            "pivot": {"pivot_status": "watch"}, "vcp": {"vcp_score": 0.6},
+            "volatility": {}, "volume": {},
+            "base": {"base_detected": True, "base_depth": 0.12, "base_length_days": 40,
+                     "base_depth_grade": "excellent", "higher_low": True},
+        }
+    # clean pocket pivot, +12% in 5d (over max_ret_5d 0.10 but under surge 0.15)
+    ne_pp, flags_pp = inbase._not_extended(rec(True, 0.12), CFG["inbase"])
+    ne_no, flags_no = inbase._not_extended(rec(False, 0.12), CFG["inbase"])
+    assert ne_pp > ne_no                       # pocket pivot exempted from penalty
+    assert "포켓피벗" in flags_pp
+    assert not any(f.startswith("5일") for f in flags_pp)
+    assert any(f.startswith("5일") for f in flags_no)
+    # a genuine surge to the top of the base is flagged even for a pocket pivot
+    surge = rec(True, 0.20); surge["base_position"] = 0.95
+    ne_s, flags_s = inbase._not_extended(surge, CFG["inbase"])
+    assert "베이스 상단 분출" in flags_s
+    assert ne_s < ne_pp
+
+
+def test_mean_abs_daily_return_dead_vs_alive():
+    from app.base import metrics as bm
+    dead = [50.0] * 30                          # pinned quote (M&A) -> ~0 movement
+    alive = [100.0 * (1.015 ** i if i % 2 else 0.99 ** i) for i in range(30)]
+    dv_dead = bm.mean_abs_daily_return(dead)
+    dv_alive = bm.mean_abs_daily_return(alive)
+    assert dv_dead is not None and dv_dead < 0.005
+    assert dv_alive is not None and dv_alive > 0.005
+
+
 def test_inbase_vigor_penalizes_low_beta():
     def rec(beta, r12):
         return {"beta": beta, "ret_12m": r12, "current_price": 105, "low_52w": 100,

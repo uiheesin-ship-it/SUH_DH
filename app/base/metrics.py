@@ -68,6 +68,23 @@ def pct_return(closes: Sequence[float], lookback: int) -> float | None:
     return now / then - 1.0
 
 
+def mean_abs_daily_return(closes: Sequence[float]) -> float | None:
+    """Average |close-to-close return| inside the window — how much the price
+    actually moves day to day. Near-zero (e.g. <0.4%) means the stock is
+    essentially pinned/dead — typical of a merger-arb price locked at the deal
+    value — as opposed to a normal quiet consolidation that still wiggles ~1-2%."""
+    c = np.asarray(closes, dtype=float)
+    if c.size < 2:
+        return None
+    prev, cur = c[:-1], c[1:]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r = np.where(prev != 0, cur / prev - 1.0, np.nan)
+    r = r[np.isfinite(r)]
+    if r.size == 0:
+        return None
+    return float(np.mean(np.abs(r)))
+
+
 def true_range(high: Sequence[float], low: Sequence[float], close: Sequence[float]) -> np.ndarray:
     """Wilder true range series (first element uses high-low)."""
     h = np.asarray(high, dtype=float)

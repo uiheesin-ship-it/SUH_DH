@@ -101,6 +101,18 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     dr_pct = _daily_range_pct(high, low, close)
 
     base = detect.detect_base(high, low, close, dates, cfg)
+
+    # Drop dead / deal-pinned names: if the base window's average |daily return|
+    # is essentially flat, the price is pinned (e.g. M&A quote at the deal value)
+    # — not a tradable consolidation. Mirrors the flat screener's dead-base gate.
+    min_dv = float(cfg.get("min_base_daily_vol", 0.0) or 0.0)
+    if min_dv > 0 and base.get("base_detected"):
+        L = base.get("base_length_days") or 0
+        win_c = close[-int(L):] if L else close
+        base_dv = metrics.mean_abs_daily_return(win_c)
+        if base_dv is not None and base_dv < min_dv:
+            return None, "dead_pinned(base_vol<0.5%)"
+
     vol = detect.volume_dry_up(close, volume, base, cfg)
     vol50 = vol["avg_volume_50d"]
     pivot = detect.pivot_analysis(price, base, high, close, volume, vol50, cfg)
@@ -186,8 +198,12 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "sector_etf": sect.get("sector_etf"),
         "sector_return_3m": sect.get("sector_return_3m"),
         "sector_action_score": sect.get("sector_action_score"),
-        # short-term extras for the In-Base score (ret_5d/10d/21d, recent range, base position)
-        **inbase.short_term_metrics(close, high, low, base),
+        # short-term extras for the In-Base score (ret_5d/10d/21d, recent range,
+        # base position, volume-confirmed pocket pivot)
+        **inbase.short_term_metrics(
+            close, high, low, base, volume=volume,
+            pp_lookback=int((cfg.get("inbase") or {}).get("pocket_pivot_lookback", 10)),
+        ),
     }, None
 
 

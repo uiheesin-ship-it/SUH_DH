@@ -34,6 +34,11 @@ DEFAULTS: dict[str, Any] = {
     "min_market_cap": 300_000_000,
     "min_avg_dollar_volume_20d": 6_000_000,
     "min_history_days": 200,
+    # Exclude "dead/deal-pinned" bases: if the base window's average |daily
+    # return| is below this, the price barely moves (e.g. a merger-arb quote
+    # locked at the deal value) — a non-tradable pin, not a real consolidation.
+    # Set 0 to disable. Mirrors the flat screener's dead-base filter.
+    "min_base_daily_vol": 0.005,
     # Newly-listed stocks (IPOs) can't compute a 150/200-day average, so the
     # standard Minervini template + the 200-day history gate + Finviz's
     # "price above SMA200" universe filter shut them out entirely — even though
@@ -107,6 +112,8 @@ DEFAULTS: dict[str, Any] = {
         "weights": {"not_extended": 30, "tightness": 25, "volume": 15,
                     "support": 15, "structure": 15},
         "max_ret_5d": 0.10,      # 최근 5일 +10% 초과 → 분출(감점)
+        "surge_ret_5d": 0.15,    # 5일 +15%↑ = 진짜 분출. 이 미만의 포켓피벗은 감점 면제
+        "pocket_pivot_lookback": 10,  # 포켓피벗 판정: 직전 N일 하락일 거래량 기준
         "max_ret_10d": 0.12,     # 최근 10일 +12% 초과 → 분출(엄격)
         "sma50_stretch": 1.12,   # 현재가 > 50일선 × 1.12 → 위로 뻗음(엄격)
         "tight_range": 0.08,     # 최근 10일 고저폭/가 ≤ 8% → 타이트

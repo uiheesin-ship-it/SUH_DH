@@ -38,7 +38,31 @@ def _range_pct(high, low, n, price):
     return round((hi - lo) / price, 4)
 
 
-def short_term_metrics(close, high, low, base: dict) -> dict:
+def _pocket_pivot(close, volume, lookback: int = 10) -> bool:
+    """Classic pocket pivot: today is an UP day whose volume exceeds the highest
+    DOWN-day volume of the prior ``lookback`` days. A healthy, quiet accumulation
+    day inside a base — not a 'surge', so it should NOT be penalized on its own."""
+    if not close or not volume or len(close) < 2 or len(volume) < 2:
+        return False
+    if len(volume) != len(close):
+        return False
+    if close[-1] <= close[-2]:
+        return False   # must be an up day
+    n = min(int(lookback), len(close) - 1)
+    down_vols = []
+    for i in range(1, n + 1):
+        idx = -1 - i           # prior bar
+        if idx - 1 < -len(close):
+            break
+        if close[idx] < close[idx - 1] and volume[idx] > 0:
+            down_vols.append(volume[idx])
+    if not down_vols:
+        return volume[-1] > 0   # up on volume with no recent down days
+    return volume[-1] > max(down_vols)
+
+
+def short_term_metrics(close, high, low, base: dict, volume=None,
+                       pp_lookback: int = 10) -> dict:
     """Bar-level extras the In-Base score needs (merged onto the record)."""
     price = close[-1] if close else None
     bh, bl = base.get("base_high"), base.get("base_low")
@@ -52,6 +76,7 @@ def short_term_metrics(close, high, low, base: dict) -> dict:
         "recent_range_10": _range_pct(high, low, 10, price),
         "recent_range_15": _range_pct(high, low, 15, price),
         "base_position": base_pos,   # 0 = at base low, 1 = at base high
+        "pocket_pivot": _pocket_pivot(close, volume or [], pp_lookback),
     }
 
 
@@ -67,6 +92,8 @@ def _not_extended(rec: dict, ic: dict) -> tuple[float, list[str]]:
     r5, r10 = rec.get("ret_5d"), rec.get("ret_10d")
     status = (rec.get("pivot") or {}).get("pivot_status")
     bpos = rec.get("base_position")
+    pp = bool(rec.get("pocket_pivot"))
+    surge5 = float(ic.get("surge_ret_5d", 0.15))
 
     if sma50 and price and price / sma50 > float(ic["sma50_stretch"]):
         ne -= 0.5
@@ -74,15 +101,22 @@ def _not_extended(rec: dict, ic: dict) -> tuple[float, list[str]]:
     if r10 is not None and r10 > float(ic["max_ret_10d"]):
         ne -= 0.4
         flags.append(f"10일 +{round(r10 * 100)}%")
+    # 5일 급등 감점 — 단, 거래량 실린 '깨끗한 포켓피벗'(하루 상승)이고 진짜 분출
+    # 수준(surge_ret_5d)까지는 아니면 감점하지 않는다. 포켓피벗은 건강한 매집일.
     if r5 is not None and r5 > float(ic["max_ret_5d"]):
-        ne -= 0.3
-        flags.append(f"5일 +{round(r5 * 100)}%")
+        if pp and r5 < surge5:
+            flags.append("포켓피벗")   # informational, no penalty
+        else:
+            ne -= 0.3
+            flags.append(f"5일 +{round(r5 * 100)}%")
     if status in ("broken_out", "extended"):
         ne -= 0.6
         flags.append("피봇 돌파/과열")
-    if bpos is not None and bpos > 0.92 and (r10 or 0) > 0.08:
+    # 베이스 상단에서의 '분출' — 상단(≥0.92)에 5일 급등(surge_ret_5d↑)으로 치고
+    # 올라온 경우만 분출로 보고 감점. 하루짜리 포켓피벗은 여기에 해당하지 않는다.
+    if bpos is not None and bpos > 0.92 and (r5 or 0) >= surge5:
         ne -= 0.3
-        flags.append("베이스 상단 급등")
+        flags.append("베이스 상단 분출")
     return _clamp(ne), flags
 
 
