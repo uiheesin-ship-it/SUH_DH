@@ -716,6 +716,31 @@ function rescaleY(ev) {
   });
 })();
 
+// ---------- Finviz charts view ----------
+// Open the currently-filtered tickers in Finviz's Charts view (v=210), which
+// shows a paginated grid of daily candlestick charts — much lighter than
+// rendering dozens/hundreds of Plotly charts in-app. ETFs/ADRs work there too.
+function openFinvizCharts() {
+  const rows = filtered();
+  // Finviz charts view is for stocks/ETFs; keep the on-screen order.
+  const tickers = rows.map((s) => String(s.ticker).trim().toUpperCase())
+                      .filter(Boolean);
+  if (!tickers.length) {
+    alert("표시된 종목이 없습니다. 필터를 완화한 뒤 다시 눌러 주세요.");
+    return;
+  }
+  // Cap the ticker list so the URL doesn't get rejected for length. Finviz
+  // paginates 20 charts/page, so even the cap is plenty to scroll through.
+  const CAP = 500;
+  let list = tickers;
+  if (list.length > CAP) {
+    if (!confirm(`표시된 종목이 ${list.length}개입니다. Finviz 링크 길이 제한으로 상위 ${CAP}개만 엽니다. 계속할까요?`)) return;
+    list = list.slice(0, CAP);
+  }
+  const url = "https://finviz.com/screener.ashx?v=210&t=" + encodeURIComponent(list.join(","));
+  window.open(url, "_blank", "noopener");
+}
+
 // ---------- CSV export ----------
 function exportCsv() {
   const rows = filtered();
@@ -766,6 +791,7 @@ function exportCsv() {
 })();
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
+$("#finviz-btn").addEventListener("click", openFinvizCharts);
 $("#watch-btn").addEventListener("click", () => { watchOnly = !watchOnly; $("#watch-btn").classList.toggle("on", watchOnly); render(); });
 $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 $("#chart-close").addEventListener("click", closeChart);
