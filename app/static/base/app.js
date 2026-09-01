@@ -753,6 +753,17 @@ function exportCsv() {
 }
 
 // ---------- events ----------
+// score-logic modal
+(function () {
+  const modal = $("#logic-modal");
+  if (!modal) return;
+  const openM = () => modal.classList.remove("hidden");
+  const closeM = () => modal.classList.add("hidden");
+  $("#logic-btn").addEventListener("click", openM);
+  $("#logic-close").addEventListener("click", closeM);
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeM(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeM(); });
+})();
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
 $("#watch-btn").addEventListener("click", () => { watchOnly = !watchOnly; $("#watch-btn").classList.toggle("on", watchOnly); render(); });

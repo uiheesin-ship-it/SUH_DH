@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>베이스 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -12,6 +12,7 @@
     <div class="title">
       <a href="../" class="home-link" title="대시보드 홈">⌂</a>
       <h1>🧭 베이스 스크리너</h1>
+      <button id="logic-btn" class="logic-btn" title="점수(총점·In-Base) 산정 로직 보기">📊 점수 로직</button>
       <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
     </div>
     <div class="controls">
@@ -112,9 +113,76 @@
     </aside>
   </div>
 
+  <div id="logic-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2>베이스 스크리너 점수 로직</h2>
+        <button id="logic-close" class="close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-note">1차 Finviz 유동성·추세 필터로 후보를 추린 뒤, 종목별로 아래 항목을 계산합니다.
+          모든 임계값은 <code>config.yaml</code>에서 조정 가능. 투자 추천이 아닙니다.</p>
+
+        <h3>총점 (점수) = 6개 항목 가중합 (합계 100)</h3>
+        <p>각 항목을 <b>0~1 값</b>으로 만든 뒤 배점을 곱해 더합니다.</p>
+        <table class="logic-tbl">
+          <thead><tr><th>항목</th><th>배점</th><th>계산 (0~1 → ×배점)</th></tr></thead>
+          <tbody>
+            <tr><td><b>추세</b><br>Trend</td><td>25</td>
+              <td>Minervini 추세템플릿 <b>통과개수 ÷ 10</b> × 25.<br>
+              10개 조건: 주가&gt;150일선 · 주가&gt;200일선 · 150&gt;200 · 200일선 상승 · 50&gt;150 · 50&gt;200 · 주가&gt;50일선 · 52주저점×1.30 이상 · 52주고점×0.75 이상 · RS백분위 ≥ 80.
+              <br><i>신규상장(히스토리&lt;200일)은 있는 이평선으로 적응 판정.</i></td></tr>
+            <tr><td><b>RS</b><br>상대강도</td><td>20</td>
+              <td>clamp(0.7×<b>핵심</b> + 0.3×<b>보너스</b>) × 20<br>
+              핵심: RS백분위 90+ → 1.0 / 80+ → 0.6+0.4×(RS−80)/10 / 그 미만 → 0.6×(RS/80)<br>
+              보너스: RS라인 SPY 신고가 +0.34 · QQQ 신고가 +0.33 · 3개월 초과수익(SPY&amp;QQQ 둘다) +0.33</td></tr>
+            <tr><td><b>베이스</b><br>Base</td><td>25</td>
+              <td>clamp(합) × 25 —<br>
+              베이스 감지 +0.20 · 깊이등급 우수 +0.25/양호 +0.18/주의 +0.10 ·
+              피봇 돌파완료 +0.20 <i>또는</i> 피봇 ±5% 이내 +0.25 <i>또는</i> 10% 이내 +0.15 ·
+              50일선 위치 적정(0.95~1.15×) +0.15 · Higher-Low +0.10 · 베이스 길이 20~120일 +0.05</td></tr>
+            <tr><td><b>VCP</b><br>변동성축소</td><td>15</td>
+              <td>clamp(합) × 15 —<br>
+              변동성 축소 우수 +0.50 <i>또는</i> 통과 +0.35 · VCP 3단축소 점수 ×0.35 · 최근 ATR 압축 +0.15</td></tr>
+            <tr><td><b>거래량</b><br>Volume</td><td>10</td>
+              <td>clamp(합) × 10 —<br>
+              거래량 마름 우수 +0.50 <i>또는</i> 통과 +0.35 · 베이스 거래량 감소 +0.20 ·
+              최근20일 대량하락일 &lt;2 +0.20 · 매집강도 +0.10×((AD+1)/2)</td></tr>
+            <tr><td><b>섹터</b><br>Sector</td><td>5</td>
+              <td>섹터ETF 강도(0.5 기본, 섹터ETF가 신고가 부근이고 강하면 상승) × 5.
+              <br><i>ETF 종목은 중립 0.5.</i></td></tr>
+          </tbody>
+        </table>
+
+        <h3>등급 / 알림</h3>
+        <p><b>등급</b>: 총점 <b>Prime ≥ 85</b> / <b>High ≥ 75</b> / <b>Watch ≥ 65</b> / 그 미만 Low.<br>
+        <b>알림</b>: <b>breakout</b>(돌파 신호+고득점) · <b>ready</b>(돌파 임박: 피봇 ±5%+거래량마름+변동성축소+RS라인 신고가) ·
+        <b>extended</b>(피봇 +5% 초과 또는 50일선 ×1.20 초과 = 과열) · none.</p>
+
+        <h3>In-Base (별도 점수, 0~100)</h3>
+        <p>총점은 추세·RS가 커서 <b>이미 뻗은 종목</b>이 위로 옵니다. In-Base는 반대로 <b>아직 조용히 베이스 중(분출 전)</b>인지를 잽니다 (총점과 독립).</p>
+        <table class="logic-tbl">
+          <thead><tr><th>항목</th><th>배점</th></tr></thead>
+          <tbody>
+            <tr><td>안 뻗음 (단기 급등 역점수, 엄격)</td><td>30</td></tr>
+            <tr><td>타이트 / 변동성 축소</td><td>25</td></tr>
+            <tr><td>거래량 마름</td><td>15</td></tr>
+            <tr><td>상승 지지선 위 · 정배열</td><td>15</td></tr>
+            <tr><td>베이스 구조 (길이·깊이·Higher-Low)</td><td>15</td></tr>
+          </tbody>
+        </table>
+        <p>이미 분출한 종목(5일 +10% / 10일 +12% / 50일선 ×1.12 초과 / 피봇 붕괴 / 베이스 상단 급등)은 낮게 나옵니다.
+        또 <b>β&lt;0.8 이면서 추력 약한(잠자는 저변동) 종목</b>은 In-Base가 감점되고, 심하면 목록에서 제외됩니다.</p>
+
+        <h3>유형 (베이스 타입 태그)</h3>
+        <p><b>ABC</b>(깊은 조정 후 반등) · <b>평평</b>(40일↑ 얕은 횡보) · <b>타이트</b>(얕고 최근 매우 조임) · <b>베이스</b>(그 외). 점수와 무관한 분류 태그.</p>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
   <script src="../shared/sync.js?v=3"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
