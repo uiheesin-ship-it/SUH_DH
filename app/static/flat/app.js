@@ -734,6 +734,27 @@ const EXPORT_COLS = [
   "beta", "exclude_reason",
 ];
 
+// ---------- Finviz charts view ----------
+// Open the currently-filtered tickers in Finviz's Charts view (v=210), a
+// paginated grid of daily candlesticks — much lighter than rendering dozens/
+// hundreds of Plotly charts in-app. ETFs/ADRs work there too.
+function openFinvizCharts() {
+  const rows = filtered();
+  const tickers = rows.map((s) => String(s.ticker).trim().toUpperCase()).filter(Boolean);
+  if (!tickers.length) {
+    alert("표시된 종목이 없습니다. 필터를 완화한 뒤 다시 눌러 주세요.");
+    return;
+  }
+  const CAP = 500;
+  let list = tickers;
+  if (list.length > CAP) {
+    if (!confirm(`표시된 종목이 ${list.length}개입니다. Finviz 링크 길이 제한으로 상위 ${CAP}개만 엽니다. 계속할까요?`)) return;
+    list = list.slice(0, CAP);
+  }
+  const url = "https://finviz.com/screener.ashx?v=210&t=" + encodeURIComponent(list.join(","));
+  window.open(url, "_blank", "noopener");
+}
+
 function exportCsv() {
   const rows = filtered();
   const q = (v) => v == null ? "" : `"${String(v).replace(/"/g, '""')}"`;
@@ -767,6 +788,7 @@ function downloadBlob(content, mime, ext) {
 // ---------- events ----------
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
+if ($("#finviz-btn")) $("#finviz-btn").addEventListener("click", openFinvizCharts);
 function syncRsBtn() { const b = $("#rs-btn"); if (b) b.textContent = rsCollapsed ? "RS 상세 ▸" : "RS 상세 ▾"; }
 if ($("#rs-btn")) $("#rs-btn").addEventListener("click", () => {
   rsCollapsed = !rsCollapsed;
