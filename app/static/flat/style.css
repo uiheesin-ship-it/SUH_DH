@@ -228,3 +228,23 @@ td.etf { color: var(--accent); }
 .preset-add { background: none; color: var(--accent); border: 1px dashed var(--border);
   border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
 .preset-add:hover { border-color: var(--accent); }
+
+/* --- 점수 로직 modal (mirrors base screener) --- */
+.logic-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 12px; margin-left: 4px; }
+.logic-btn:hover { border-color: var(--accent); color: var(--accent); }
+.modal-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.6);
+  display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow: auto; }
+.modal-box { background: #0f172a; border: 1px solid var(--border); border-radius: 12px;
+  max-width: 820px; width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.modal-head { display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: #0f172a; }
+.modal-head h2 { margin: 0; font-size: 16px; color: var(--accent); }
+.modal-body { padding: 8px 18px 22px; font-size: 13px; line-height: 1.6; }
+.modal-body h3 { font-size: 14px; color: var(--accent); margin: 18px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.modal-body .modal-note { color: var(--muted); font-size: 12px; }
+.modal-body code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.logic-tbl { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.logic-tbl th, .logic-tbl td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; }
+.logic-tbl th { background: var(--panel-2); color: var(--muted); font-weight: 600; }
+.logic-tbl.text td:first-child { white-space: nowrap; color: var(--accent); }

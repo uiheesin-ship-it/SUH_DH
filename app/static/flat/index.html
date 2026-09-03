@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>평평 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -12,6 +12,7 @@
     <div class="title">
       <a href="../" class="home-link" title="대시보드 홈">⌂</a>
       <h1>🟰 평평 스크리너</h1>
+      <button id="logic-btn" class="logic-btn" title="각 열(Flatness·종합·셋업·등급·유형·상태) 산정 로직 보기">📊 점수 로직</button>
       <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
     </div>
     <div class="controls">
@@ -96,10 +97,77 @@
     </aside>
   </div>
 
+  <div id="logic-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2>평평 스크리너 열 산정 로직</h2>
+        <button id="logic-close" class="close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-note">각 열이 무엇을, 어떤 기준으로 재는지 정리했습니다. 모든 임계값은 <code>config.yaml</code>에서 조정 가능. 투자 추천이 아닙니다.</p>
+
+        <h3>Flatness (평평도 점수, 0~100)</h3>
+        <p>오직 <b>현재 베이스가 얼마나 평평한지</b>만 재는 점수. 거래량·RS·이평선·섹터·펀더멘털은 <b>절대 포함하지 않음.</b></p>
+        <table class="logic-tbl">
+          <thead><tr><th>구성</th><th>배점</th></tr></thead>
+          <tbody>
+            <tr><td>Close Band (종가 밴드 폭이 좁을수록↑)</td><td>35</td></tr>
+            <tr><td>회귀 기울기 (수평에 가까울수록↑)</td><td>25</td></tr>
+            <tr><td>밀집도 (밴드 안에 얼마나 모여 있나)</td><td>20</td></tr>
+            <tr><td>전·후반 안정 (중심 이동이 작을수록↑)</td><td>10</td></tr>
+            <tr><td>이상치 (급등락 일수가 적을수록↑)</td><td>10</td></tr>
+          </tbody>
+        </table>
+
+        <h3>등급 (Flatness 등급)</h3>
+        <p>Flatness 점수 구간으로 매김: <b>Very Flat ≥ 85</b> · <b>Flat ≥ 75</b> · <b>Moderately Flat ≥ 65</b> · 그 미만 Not Flat.</p>
+
+        <h3>셋업 (추세/이평선 자리 품질, 0~100)</h3>
+        <p>평평도와 <b>완전히 별개</b>인 '자리 품질' 점수. 유형(조정/바닥) 안에서 <b>얼마나 좋은 자리인지 순위용.</b></p>
+        <table class="logic-tbl">
+          <thead><tr><th>구성</th><th>배점</th></tr></thead>
+          <tbody>
+            <tr><td>이평선 상승</td><td>30</td></tr>
+            <tr><td>정배열 / 회복</td><td>22</td></tr>
+            <tr><td>이평선 지지</td><td>22</td></tr>
+            <tr><td>준비도 (코일드·비과열)</td><td>18</td></tr>
+            <tr><td>고점 근접</td><td>8</td></tr>
+          </tbody>
+        </table>
+        <p>방향(추세지속/바닥반전) 구분은 '유형' 열이 담당하고, 셋업은 순수 품질만 잽니다. 갓 눌린 조정 베이스는 고점서 멀어 점수가 낮게 나오지만(그래서 <b>통과 여부는 점수와 무관</b>), 회복될수록 점수가 오릅니다. '셋업 통과만' 필터 = 유형이 조정·바닥이고 아직 돌파(연장) 안 한 것.</p>
+
+        <h3>종합</h3>
+        <p><b>평평도 × 0.5 + 셋업 × 0.5.</b> '평평하면서도 좋은 자리'를 한 번에 정렬하려는 참고 지표. 열 머리글을 눌러 이걸로 정렬 가능.</p>
+
+        <h3>유형 (200일선 위치 분류)</h3>
+        <table class="logic-tbl text">
+          <thead><tr><th>유형</th><th>기준</th></tr></thead>
+          <tbody>
+            <tr><td><b>조정</b></td><td>200일선 <b>위</b>(형성 중 2~3일 이탈 허용) + 200일선 상승 + 직전 <b>저점→고점 40%↑ 폭등</b> 후 조정(베이스 길이별 15/20/25%↑)</td></tr>
+            <tr><td><b>바닥</b></td><td>200일선 <b>아래</b> + 후반에 <b>신저가 없음</b>(떨어지는 칼날 배제)</td></tr>
+            <tr><td><b>평평</b></td><td>나머지 (조정 얕음·직전 상승 없음). 실제로 가장 많이 나옴</td></tr>
+          </tbody>
+        </table>
+
+        <h3>상태 (베이스 진행 상태)</h3>
+        <table class="logic-tbl text">
+          <thead><tr><th>상태</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><b>Active</b></td><td>현재 진행 중인 평평 베이스 (아직 상·하단 이탈 안 함)</td></tr>
+            <tr><td><b>Exited↑</b></td><td>베이스 상단을 위로 이탈 (돌파)</td></tr>
+            <tr><td><b>Exited↓</b></td><td>베이스 하단을 아래로 이탈</td></tr>
+          </tbody>
+        </table>
+
+        <p class="modal-note">참고: β·ADR%·RS%·RS(기간별)는 모두 <b>표시용 참고값</b>이며 Flatness 점수에는 들어가지 않습니다.</p>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
   <script src="../shared/sync.js?v=3"></script>
   <script src="../shared/presets.js?v=1"></script>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

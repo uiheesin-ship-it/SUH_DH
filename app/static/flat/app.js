@@ -142,6 +142,7 @@ const COL_FILTER = {
   rs_pct_6m:         { type: "num", scale: 1, unit: "" },
   rs_pct_12m:        { type: "num", scale: 1, unit: "" },
   beta:              { type: "num", scale: 1, unit: "" },
+  adr_pct:           { type: "num", scale: 1, unit: "%" },
   sector:            { type: "cat", label: (v) => v },
 };
 let colFilters = {};   // key -> {min,max} (num) or {allowed:[...]} (cat)
@@ -281,6 +282,7 @@ const COLS = [
   ["rs_pct_6m", "RS 6개월", true],
   ["rs_pct_12m", "RS 12개월", true],
   ["beta", "β", true],
+  ["adr_pct", "ADR%", true],
   ["sector", "섹터", false],
 ];
 
@@ -332,6 +334,7 @@ function render() {
       <td class="num col-rs">${fmtNum(s.rs_pct_6m, 0)}</td>
       <td class="num col-rs">${fmtNum(s.rs_pct_12m, 0)}</td>
       <td class="num${s.beta != null && s.beta < 0.8 ? " lowbeta" : ""}">${fmtNum(s.beta, 2)}</td>
+      <td class="num${s.adr_pct != null && s.adr_pct < 2 ? " lowbeta" : ""}">${s.adr_pct == null ? "-" : fmtNum(s.adr_pct, 1) + "%"}</td>
       <td class="etf">${esc(s.sector || "-")}</td>
     </tr>`;
   }).join("");
@@ -395,6 +398,7 @@ const GLOSSARY = {
   "RS 6개월": "최근 6개월(126거래일) 수익률의 유니버스 내 백분위(0~100).",
   "RS 12개월": "최근 12개월(252거래일) 수익률의 유니버스 내 백분위(0~100). RS%와 동일.",
   "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타(참고용, 평탄도 점수엔 미포함). <1이면 시장보다 덜 움직이는 저변동, >1이면 더 크게 움직임. 0.8 미만은 강조 표시.",
+  "ADR%": "평균 일간 변동폭(20일): 100 × 평균(고가/저가 − 1). 하루에 실제로 얼마나 움직이는지(참고용). 방어주 1~2%, 활발한 모멘텀주 4~8%. 2% 미만은 강조 표시.",
 };
 function term(label) {
   const tip = GLOSSARY[label];
@@ -731,7 +735,7 @@ const EXPORT_COLS = [
   "position_type", "position_above_200_frac", "prior_run_up", "base_correction",
   "base_category", "base_status", "is_reit", "rs_percentile",
   "rs_pct_2w", "rs_pct_1m", "rs_pct_3m", "rs_pct_6m", "rs_pct_12m",
-  "beta", "exclude_reason",
+  "beta", "adr_pct", "exclude_reason",
 ];
 
 // ---------- Finviz charts view ----------
@@ -789,6 +793,17 @@ function downloadBlob(content, mime, ext) {
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
 if ($("#finviz-btn")) $("#finviz-btn").addEventListener("click", openFinvizCharts);
+// 점수 로직 모달
+(function () {
+  const modal = $("#logic-modal");
+  if (!modal) return;
+  const openM = () => modal.classList.remove("hidden");
+  const closeM = () => modal.classList.add("hidden");
+  if ($("#logic-btn")) $("#logic-btn").addEventListener("click", openM);
+  if ($("#logic-close")) $("#logic-close").addEventListener("click", closeM);
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeM(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeM(); });
+})();
 function syncRsBtn() { const b = $("#rs-btn"); if (b) b.textContent = rsCollapsed ? "RS 상세 ▸" : "RS 상세 ▾"; }
 if ($("#rs-btn")) $("#rs-btn").addEventListener("click", () => {
   rsCollapsed = !rsCollapsed;

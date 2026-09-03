@@ -196,6 +196,7 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         "ret_2w": ret_2w, "ret_1m": ret_1m, "ret_3m": ret_3m,
         "ret_6m": ret_6m, "ret_12m": ret_12m,
         "beta": beta_val,        # vs SPY (252d) — display only
+        "adr_pct": bmetrics.adr_pct(high, low, 20),  # avg daily range %, display only
         "rs_percentile": None,   # filled after the loop (= 12m percentile)
         # per-period RS percentiles (filled after the loop)
         "rs_pct_2w": None, "rs_pct_1m": None, "rs_pct_3m": None,
