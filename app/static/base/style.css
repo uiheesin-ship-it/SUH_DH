@@ -105,6 +105,10 @@ table.screen th.sortable { cursor: pointer; user-select: none; }
 table.screen th.sortable:hover { color: var(--accent); }
 table.screen td.num, table.screen th.num { text-align: right; font-variant-numeric: tabular-nums; }
 table.screen tbody tr:hover { background: var(--panel-2); }
+/* RS 상세 열(2주·1개월·3개월·6개월·12개월) 접기 — 'RS 상세 ▸' 버튼으로 토글 */
+table.screen.rs-collapsed .col-rs { display: none; }
+/* subtle tint so the RS-detail group reads as one block when expanded */
+table.screen th.col-rs { color: var(--accent); }
 table.screen tr.active { background: #1d3a52; }
 .tk .ticker-link { background: none; border: none; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 0; }
 .tk .company { color: var(--muted); font-size: 11px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }

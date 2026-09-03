@@ -86,6 +86,8 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     high52 = metrics.high_52w(high)
     low52 = metrics.low_52w(low)
 
+    ret_2w = metrics.pct_return(close, metrics.TRADING_DAYS_2W)
+    ret_1m = metrics.pct_return(close, metrics.TRADING_DAYS_1M)
     ret_3m = metrics.pct_return(close, metrics.TRADING_DAYS_3M)
     ret_6m = metrics.pct_return(close, metrics.TRADING_DAYS_6M)
     ret_12m = metrics.pct_return(close, metrics.TRADING_DAYS_12M)
@@ -181,6 +183,7 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "history_days": len(close),
         "is_etf": is_etf,
         # returns
+        "ret_2w": ret_2w, "ret_1m": ret_1m,
         "ret_3m": ret_3m, "ret_6m": ret_6m, "ret_12m": ret_12m,
         # prior uptrend
         "prior_uptrend_return": prior_ret, "prior_uptrend_pass": prior_pass,

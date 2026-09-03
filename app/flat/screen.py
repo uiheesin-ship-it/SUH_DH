@@ -115,6 +115,10 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         "accepted": m["accepted"],
     } for b, m in enriched[:top_n]]
 
+    ret_2w = bmetrics.pct_return(close, bmetrics.TRADING_DAYS_2W)
+    ret_1m = bmetrics.pct_return(close, bmetrics.TRADING_DAYS_1M)
+    ret_3m = bmetrics.pct_return(close, bmetrics.TRADING_DAYS_3M)
+    ret_6m = bmetrics.pct_return(close, bmetrics.TRADING_DAYS_6M)
     ret_12m = bmetrics.pct_return(close, bmetrics.TRADING_DAYS_12M)
     # Beta vs SPY — DISPLAY ONLY, never enters the Flatness Score (same policy as
     # sector / RS%). A flat base can be low- or high-beta; we just surface it.
@@ -189,9 +193,13 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         **setup,
         "composite_score": composite,
         # --- display-only extras (NOT in flatness score) ---
-        "ret_12m": ret_12m,
+        "ret_2w": ret_2w, "ret_1m": ret_1m, "ret_3m": ret_3m,
+        "ret_6m": ret_6m, "ret_12m": ret_12m,
         "beta": beta_val,        # vs SPY (252d) — display only
-        "rs_percentile": None,   # filled after the loop
+        "rs_percentile": None,   # filled after the loop (= 12m percentile)
+        # per-period RS percentiles (filled after the loop)
+        "rs_pct_2w": None, "rs_pct_1m": None, "rs_pct_3m": None,
+        "rs_pct_6m": None, "rs_pct_12m": None,
         "candidate_periods": candidates_view,
         # chart series key
         "yahoo": cand["ticker"],
@@ -200,16 +208,26 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
 
 
 def _assign_rs(records: list[dict]) -> None:
-    """12-month return percentile across the surviving universe (display only)."""
-    vals = [(r, r.get("ret_12m")) for r in records if r.get("ret_12m") is not None]
-    n = len(vals)
-    if n <= 1:
-        for r in records:
-            r["rs_percentile"] = 50 if r.get("ret_12m") is not None else None
-        return
-    ordered = sorted(vals, key=lambda t: t[1])
-    for rank, (r, _v) in enumerate(ordered):
-        r["rs_percentile"] = round(100.0 * rank / (n - 1))
+    """Per-period return percentiles across the surviving universe (display only):
+    2주/1개월/3개월/6개월/12개월. rs_percentile stays = the 12-month percentile
+    (its long-standing meaning, used by filters/sorts elsewhere)."""
+    def _rank_pct(ret_key: str, pct_key: str) -> None:
+        vals = [(r, r.get(ret_key)) for r in records if r.get(ret_key) is not None]
+        n = len(vals)
+        if n <= 1:
+            for r in records:
+                r[pct_key] = 50 if r.get(ret_key) is not None else None
+            return
+        for rank, (r, _v) in enumerate(sorted(vals, key=lambda t: t[1])):
+            r[pct_key] = round(100.0 * rank / (n - 1))
+
+    _rank_pct("ret_2w", "rs_pct_2w")
+    _rank_pct("ret_1m", "rs_pct_1m")
+    _rank_pct("ret_3m", "rs_pct_3m")
+    _rank_pct("ret_6m", "rs_pct_6m")
+    _rank_pct("ret_12m", "rs_pct_12m")
+    for r in records:
+        r["rs_percentile"] = r.get("rs_pct_12m")
 
 
 def run_scan(cfg: dict | None = None, limit: int | None = None,

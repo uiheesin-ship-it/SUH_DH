@@ -18,6 +18,10 @@ let currentRec = null;
 let chartData = null;
 let suppressRelayout = false;
 let watchOnly = false;
+// RS 상세 열(2주/1개월/3개월/6개월/12개월) 접기 상태 (기기별 저장)
+const RS_COLS = new Set(["rs_pct_2w", "rs_pct_1m", "rs_pct_3m", "rs_pct_6m", "rs_pct_12m"]);
+let rsCollapsed = false;
+try { rsCollapsed = localStorage.getItem("suh_flat_rs_collapsed") === "1"; } catch (e) {}
 const WATCH_KEY = "suh_flat_watch";
 let WATCH = new Set(JSON.parse(localStorage.getItem(WATCH_KEY) || "[]"));
 
@@ -132,6 +136,11 @@ const COL_FILTER = {
   current_price:     { type: "num", scale: 1, unit: "$" },
   market_cap:        { type: "num", scale: 1e-9, unit: "B" },
   rs_percentile:     { type: "num", scale: 1, unit: "" },
+  rs_pct_2w:         { type: "num", scale: 1, unit: "" },
+  rs_pct_1m:         { type: "num", scale: 1, unit: "" },
+  rs_pct_3m:         { type: "num", scale: 1, unit: "" },
+  rs_pct_6m:         { type: "num", scale: 1, unit: "" },
+  rs_pct_12m:        { type: "num", scale: 1, unit: "" },
   beta:              { type: "num", scale: 1, unit: "" },
   sector:            { type: "cat", label: (v) => v },
 };
@@ -266,6 +275,11 @@ const COLS = [
   ["current_price", "가격", true],
   ["market_cap", "시총", true],
   ["rs_percentile", "RS%", true],
+  ["rs_pct_2w", "RS 2주", true],
+  ["rs_pct_1m", "RS 1개월", true],
+  ["rs_pct_3m", "RS 3개월", true],
+  ["rs_pct_6m", "RS 6개월", true],
+  ["rs_pct_12m", "RS 12개월", true],
   ["beta", "β", true],
   ["sector", "섹터", false],
 ];
@@ -282,7 +296,8 @@ function render() {
     const arrow = sortKey === k ? (sortDir === -1 ? " ▾" : " ▴") : "";
     const fic = COL_FILTER[k]
       ? `<span class="col-filter${colFilterActive(k) ? " on" : ""}" data-fkey="${esc(k)}" title="열 필터">⏷</span>` : "";
-    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}${fic}</th>`;
+    const rsc = RS_COLS.has(k) ? " col-rs" : "";
+    return `<th class="${num ? "num" : ""}${rsc} sortable" data-key="${k}">${label}${arrow}${fic}</th>`;
   }).join("");
 
   const body = rows.map((s) => {
@@ -311,12 +326,17 @@ function render() {
       <td class="num">${fmtPrice(s.current_price)}</td>
       <td class="num">${fmtCap(s.market_cap)}</td>
       <td class="num">${fmtNum(s.rs_percentile, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_2w, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_1m, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_3m, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_6m, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_12m, 0)}</td>
       <td class="num${s.beta != null && s.beta < 0.8 ? " lowbeta" : ""}">${fmtNum(s.beta, 2)}</td>
       <td class="etf">${esc(s.sector || "-")}</td>
     </tr>`;
   }).join("");
 
-  $("#content").innerHTML = `<table class="screen">
+  $("#content").innerHTML = `<table class="screen${rsCollapsed ? " rs-collapsed" : ""}">
     <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 
   document.querySelectorAll("th.sortable").forEach((th) =>
@@ -369,6 +389,11 @@ const GLOSSARY = {
   "베이스 상단 대비": "현재가 ÷ 베이스 상단(Q90) − 1. 0% 부근 = 베이스 상단서 조이는 중(이상적). 조정은 +3%, 바닥은 +12% 초과면 '이미 돌파해 뻗음' → 셋업 통과 제외. 준비도(readiness) 점수도 이때 감소.",
   "종합점수": "평평도 점수 × 0.5 + 셋업 점수 × 0.5. '평평하면서도 좋은 자리'를 한 번에 정렬하려는 참고 지표. 열 머리글을 눌러 이걸로 정렬 가능.",
   "RS%": "스캔 유니버스 내 12개월 수익률 백분위(참고용, 점수 무관).",
+  "RS 2주": "최근 2주(10거래일) 수익률의 유니버스 내 백분위(0~100). 'RS 상세' 버튼으로 접기 가능.",
+  "RS 1개월": "최근 1개월(21거래일) 수익률의 유니버스 내 백분위(0~100).",
+  "RS 3개월": "최근 3개월(63거래일) 수익률의 유니버스 내 백분위(0~100).",
+  "RS 6개월": "최근 6개월(126거래일) 수익률의 유니버스 내 백분위(0~100).",
+  "RS 12개월": "최근 12개월(252거래일) 수익률의 유니버스 내 백분위(0~100). RS%와 동일.",
   "β": "최근 1년 일간수익률의 시장(SPY) 대비 베타(참고용, 평탄도 점수엔 미포함). <1이면 시장보다 덜 움직이는 저변동, >1이면 더 크게 움직임. 0.8 미만은 강조 표시.",
 };
 function term(label) {
@@ -704,7 +729,9 @@ const EXPORT_COLS = [
   "max_abs_20d_return", "max_abs_60d_return", "base_distinctness",
   "historical_activity_pass", "chronically_low_vol",
   "position_type", "position_above_200_frac", "prior_run_up", "base_correction",
-  "base_category", "base_status", "is_reit", "rs_percentile", "beta", "exclude_reason",
+  "base_category", "base_status", "is_reit", "rs_percentile",
+  "rs_pct_2w", "rs_pct_1m", "rs_pct_3m", "rs_pct_6m", "rs_pct_12m",
+  "beta", "exclude_reason",
 ];
 
 function exportCsv() {
@@ -740,6 +767,14 @@ function downloadBlob(content, mime, ext) {
 // ---------- events ----------
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
+function syncRsBtn() { const b = $("#rs-btn"); if (b) b.textContent = rsCollapsed ? "RS 상세 ▸" : "RS 상세 ▾"; }
+if ($("#rs-btn")) $("#rs-btn").addEventListener("click", () => {
+  rsCollapsed = !rsCollapsed;
+  try { localStorage.setItem("suh_flat_rs_collapsed", rsCollapsed ? "1" : "0"); } catch (e) {}
+  syncRsBtn();
+  render();
+});
+syncRsBtn();
 $("#xls-btn").addEventListener("click", exportXls);
 $("#watch-btn").addEventListener("click", () => { watchOnly = !watchOnly; $("#watch-btn").classList.toggle("on", watchOnly); render(); });
 $("#chart-close").addEventListener("click", closeChart);

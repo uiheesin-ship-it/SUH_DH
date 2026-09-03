@@ -20,6 +20,10 @@ let currentRec = null;
 let chartData = null;
 let suppressRelayout = false;
 let watchOnly = false;
+// RS 상세 열(2주/1개월/3개월/6개월/12개월) 접기 상태 (기기별 저장)
+const RS_COLS = new Set(["rs_pct_2w", "rs_pct_1m", "rs_pct_3m", "rs_pct_6m", "rs_pct_12m"]);
+let rsCollapsed = false;
+try { rsCollapsed = localStorage.getItem("suh_base_rs_collapsed") === "1"; } catch (e) {}
 const WATCH_KEY = "suh_base_watch";
 let WATCH = new Set(JSON.parse(localStorage.getItem(WATCH_KEY) || "[]"));
 
@@ -159,6 +163,11 @@ const COL_FILTER = {
   current_price:     { type: "num", scale: 1, unit: "$" },
   market_cap:        { type: "num", scale: 1e-9, unit: "B" },
   rs_percentile:     { type: "num", scale: 1, unit: "" },
+  rs_pct_2w:         { type: "num", scale: 1, unit: "" },
+  rs_pct_1m:         { type: "num", scale: 1, unit: "" },
+  rs_pct_3m:         { type: "num", scale: 1, unit: "" },
+  rs_pct_6m:         { type: "num", scale: 1, unit: "" },
+  rs_pct_12m:        { type: "num", scale: 1, unit: "" },
   distance_to_pivot: { type: "num", scale: 100, unit: "%" },
   pivot_status:      { type: "cat", label: (v) => v },
   base_depth:        { type: "num", scale: 100, unit: "%" },
@@ -283,6 +292,11 @@ const COLS = [
   ["current_price", "가격", true],
   ["market_cap", "시총", true],
   ["rs_percentile", "RS%", true],
+  ["rs_pct_2w", "RS 2주", true],
+  ["rs_pct_1m", "RS 1개월", true],
+  ["rs_pct_3m", "RS 3개월", true],
+  ["rs_pct_6m", "RS 6개월", true],
+  ["rs_pct_12m", "RS 12개월", true],
   ["distance_to_pivot", "pivot거리", true],
   ["pivot_status", "pivot", false],
   ["base_depth", "베이스", true],
@@ -316,7 +330,8 @@ function render() {
     const arrow = sortKey === k ? (sortDir === -1 ? " ▾" : " ▴") : "";
     const fic = COL_FILTER[k]
       ? `<span class="col-filter${colFilterActive(k) ? " on" : ""}" data-fkey="${esc(k)}" title="열 필터">⏷</span>` : "";
-    return `<th class="${num ? "num" : ""} sortable" data-key="${k}">${label}${arrow}${fic}</th>`;
+    const rsc = RS_COLS.has(k) ? " col-rs" : "";
+    return `<th class="${num ? "num" : ""}${rsc} sortable" data-key="${k}">${label}${arrow}${fic}</th>`;
   }).join("");
 
   const body = rows.map((s) => {
@@ -340,6 +355,11 @@ function render() {
       <td class="num">${fmtPrice(s.current_price)}</td>
       <td class="num">${fmtCap(s.market_cap)}</td>
       <td class="num">${fmtNum(s.rs_percentile, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_2w, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_1m, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_3m, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_6m, 0)}</td>
+      <td class="num col-rs">${fmtNum(s.rs_pct_12m, 0)}</td>
       <td class="num">${dist == null ? "-" : (dist * 100).toFixed(1) + "%"}</td>
       <td><span class="badge ${p}">${esc(s.pivot?.pivot_status || "-")}</span></td>
       <td class="num">${s.base?.base_depth == null ? "-"
@@ -349,7 +369,7 @@ function render() {
     </tr>`;
   }).join("");
 
-  $("#content").innerHTML = `<table class="screen">
+  $("#content").innerHTML = `<table class="screen${rsCollapsed ? " rs-collapsed" : ""}">
     <thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 
   document.querySelectorAll("th.sortable").forEach((th) =>
@@ -392,6 +412,11 @@ const GLOSSARY = {
   // detail — trend
   "Trend Template": "Mark Minervini의 추세 조건 10가지. 가격이 150·200일선 위, 50>150>200 정배열, 200일선 상승, 52주 저점 대비 +30%↑·고점 대비 -25%↓, RS 백분위 80↑ 등. (충족 개수/전체)",
   "RS 백분위": "스캔한 유니버스 내 상대강도 순위(0~100). 90이면 상위 10%. 3/6/12개월 수익률을 합성해 계산.",
+  "RS 2주": "최근 2주(10거래일) 수익률의 유니버스 내 백분위(0~100). 'RS 상세' 버튼으로 접기 가능.",
+  "RS 1개월": "최근 1개월(21거래일) 수익률의 유니버스 내 백분위(0~100).",
+  "RS 3개월": "최근 3개월(63거래일) 수익률의 유니버스 내 백분위(0~100).",
+  "RS 6개월": "최근 6개월(126거래일) 수익률의 유니버스 내 백분위(0~100).",
+  "RS 12개월": "최근 12개월(252거래일) 수익률의 유니버스 내 백분위(0~100). RS% 백분위와 동일 기준.",
   "RS vs SPY 3M": "최근 3개월 이 종목 수익률 − S&P500(SPY) 수익률. 양수면 시장을 이긴 것.",
   "RS vs QQQ 3M": "최근 3개월 이 종목 수익률 − 나스닥100(QQQ) 수익률. 양수면 기술주 지수보다 강함.",
   "RS라인 SPY 신고가": "RS 라인(종목가격 ÷ SPY)이 최근 1년 최고치 근처(98%↑)인지. 가격이 아직 신고가가 아니어도 상대강도가 먼저 신고가를 내면 긍정적.",
@@ -748,7 +773,9 @@ function exportCsv() {
     "is_ipo", "history_days",
     "current_price", "market_cap", "avg_dollar_volume_20d", "total_score", "inbase_score", "setup_grade",
     "beta", "adr_pct",
-    "trend_template_pass", "rs_percentile", "rs_vs_spy_3m", "rs_vs_qqq_3m",
+    "trend_template_pass", "rs_percentile",
+    "rs_pct_2w", "rs_pct_1m", "rs_pct_3m", "rs_pct_6m", "rs_pct_12m",
+    "rs_vs_spy_3m", "rs_vs_qqq_3m",
     "base_start_date", "base_length_days", "base_depth", "pivot_price", "distance_to_pivot",
     "pivot_status", "atr_contraction_ratio", "volume_dry_up_ratio", "high_volume_down_days_20d",
     "sector_action_score", "alert_type", "notes"];
@@ -792,6 +819,14 @@ function exportCsv() {
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
 $("#finviz-btn").addEventListener("click", openFinvizCharts);
+function syncRsBtn() { const b = $("#rs-btn"); if (b) b.textContent = rsCollapsed ? "RS 상세 ▸" : "RS 상세 ▾"; }
+$("#rs-btn").addEventListener("click", () => {
+  rsCollapsed = !rsCollapsed;
+  try { localStorage.setItem("suh_base_rs_collapsed", rsCollapsed ? "1" : "0"); } catch (e) {}
+  syncRsBtn();
+  render();
+});
+syncRsBtn();
 $("#watch-btn").addEventListener("click", () => { watchOnly = !watchOnly; $("#watch-btn").classList.toggle("on", watchOnly); render(); });
 $("#chart-watch").addEventListener("click", () => { if (currentTicker) toggleWatch(currentTicker); });
 $("#chart-close").addEventListener("click", closeChart);

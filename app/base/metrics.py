@@ -13,6 +13,8 @@ from typing import Sequence
 
 import numpy as np
 
+TRADING_DAYS_2W = 10
+TRADING_DAYS_1M = 21
 TRADING_DAYS_3M = 63
 TRADING_DAYS_6M = 126
 TRADING_DAYS_12M = 252

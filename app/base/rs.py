@@ -37,11 +37,15 @@ def assign_rs(records: list[dict], cfg: dict) -> None:
     Mutates in place.
     """
     w = cfg["rs_composite"]
+    p2w = _percentiles([r.get("ret_2w") for r in records])
+    p1m = _percentiles([r.get("ret_1m") for r in records])
     p3 = _percentiles([r.get("ret_3m") for r in records])
     p6 = _percentiles([r.get("ret_6m") for r in records])
     p12 = _percentiles([r.get("ret_12m") for r in records])
 
     for i, r in enumerate(records):
+        r["rs_pct_2w"] = p2w[i]
+        r["rs_pct_1m"] = p1m[i]
         r["rs_pct_3m"] = p3[i]
         r["rs_pct_6m"] = p6[i]
         r["rs_pct_12m"] = p12[i]

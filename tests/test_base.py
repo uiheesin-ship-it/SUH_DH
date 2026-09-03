@@ -183,6 +183,22 @@ def test_assign_rs_percentiles():
     assert records[1]["rs_composite"] is not None
 
 
+def test_assign_rs_per_period_keys():
+    records = [
+        {"ret_2w": 0.3, "ret_1m": 0.3, "ret_3m": 0.3, "ret_6m": 0.3, "ret_12m": 0.3},
+        {"ret_2w": 0.0, "ret_1m": 0.0, "ret_3m": 0.0, "ret_6m": 0.0, "ret_12m": 0.0},
+        {"ret_2w": -0.1, "ret_1m": -0.1, "ret_3m": -0.1, "ret_6m": -0.1, "ret_12m": -0.1},
+    ]
+    rs.assign_rs(records, CFG)
+    for k in ("rs_pct_2w", "rs_pct_1m", "rs_pct_3m", "rs_pct_6m", "rs_pct_12m"):
+        assert records[0][k] == 100.0 and records[2][k] == 0.0
+
+
+def test_adr_and_return_windows_defined():
+    from app.base import metrics as bm
+    assert bm.TRADING_DAYS_2W == 10 and bm.TRADING_DAYS_1M == 21
+
+
 def test_scoring_total_and_grade():
     rec = {
         "trend": {"pass_count": 10, "total": 10},
