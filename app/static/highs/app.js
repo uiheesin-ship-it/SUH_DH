@@ -483,6 +483,23 @@ function rescaleY(ev) {
 })();
 
 // ---------- events ----------
+// Open the CURRENTLY EXPANDED sector(s)' tickers in Finviz's Charts view (v=210),
+// so you can eyeball many charts on one page. Reads live from the DOM at click
+// time, so it always reflects whichever sectors are open right now.
+function openFinvizCharts() {
+  const tickers = [];
+  document.querySelectorAll("#content .sector:not(.collapsed) tr[data-ticker]").forEach((tr) => {
+    const t = tr.getAttribute("data-ticker");
+    if (t && !tickers.includes(t)) tickers.push(t);
+  });
+  if (!tickers.length) {
+    alert("펼친 섹터가 없습니다. 보고 싶은 섹터를 펼친 뒤 눌러주세요.");
+    return;
+  }
+  const url = "https://finviz.com/screener.ashx?v=210&t=" + tickers.map(encodeURIComponent).join(",");
+  window.open(url, "_blank", "noopener");
+}
+$("#finviz-charts-btn").addEventListener("click", openFinvizCharts);
 $("#refresh-btn").addEventListener("click", () => loadDashboard(true));
 $("#chart-close").addEventListener("click", closeChart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChart(); });
