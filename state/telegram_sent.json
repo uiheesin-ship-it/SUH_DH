@@ -1,11 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/markets/stocks/articles/google-reportedly-working-amd-tpu-191215799.html",
-"https://www.bloomberg.com/news/videos/2026-08-21/itg-cfo-we-re-the-picks-shovels-of-the-ai-boom-video",
-"https://finance.yahoo.com/markets/stocks/articles/trane-technologies-plc-tt-eaton-225548421.html",
-"https://www.datacenterdynamics.com/en/marketwatch/powering-data-centers-is-no-longer-a-simple-matter-of-supply-and-demand/",
-"https://www.bloomberg.com/news/videos/2026-08-22/the-ai-spending-spree-comes-with-a-catch-video",
-"https://finance.yahoo.com/technology/ai/articles/prediction-artificial-intelligence-ai-semiconductor-122500157.html",
 "https://finance.yahoo.com/markets/stocks/articles/tempus-ai-stock-buy-75-122525373.html",
 "https://finance.yahoo.com/markets/stocks/articles/tempus-ai-director-sold-stock-123900245.html",
 "https://www.datacenterdynamics.com/en/news/ignis-and-acciona-join-forces-to-build-a-data-center-in-segovia/",
@@ -499,7 +493,13 @@
 "https://finance.yahoo.com/technology/ai/articles/palantir-billionaire-peter-thiel-buys-090400805.html",
 "https://www.datacenterdynamics.com/en/marketwatch/planning-power-and-cooling-for-high-density-ai/",
 "https://www.bloomberg.com/news/articles/2026-09-05/nvidia-partner-hon-hai-s-sales-climb-52-with-ai-server-momentum",
-"https://www.datacenterdynamics.com/en/opinions/the-role-of-manufacturing-in-tomorrows-data-center-buildouts/"
+"https://www.datacenterdynamics.com/en/opinions/the-role-of-manufacturing-in-tomorrows-data-center-buildouts/",
+"https://www.bloomberg.com/news/articles/2026-09-05/tcs-plans-one-gigawatt-capacity-data-center-in-southern-india",
+"https://www.cnbc.com/2026/09/05/fervo-energys-enhanced-geothermal-project-aims-to-power-data-center-boom.html",
+"https://www.cnbc.com/2026/09/05/abel-two-ways-berkshire-hopes-in-cash-in-on-ai.html",
+"https://www.investors.com/news/bloom-energy-illumina-everpure-rise-sp-500-index-inclusion/?src=A00220&yptr=yahoo",
+"https://www.cnbc.com/2026/09/05/ai-data-centers-cost-economy.html",
+"https://finance.yahoo.com/markets/stocks/articles/broadcom-avgo-ai-revenue-soars-145838390.html"
 ],
-"updated": "2026-09-05T11:57:13+00:00"
+"updated": "2026-09-05T17:16:13+00:00"
 }
