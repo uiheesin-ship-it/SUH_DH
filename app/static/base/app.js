@@ -825,19 +825,38 @@ function tvSymbol(ticker, map) {
   const sym = t.replace(/-/g, ".");          // TradingView uses BRK.B
   return exch ? `${exch}:${sym}` : sym;
 }
+// Build the TradingView import text: sector-grouped, each group preceded by a
+// "###Sector" header, everything comma-separated. Returns {text, total, missing}.
+function tvGroupedText(rows, map) {
+  const groups = new Map();   // sector -> [symbols], first-seen order preserved
+  for (const s of rows) {
+    const sec = (s.sector || "기타").replace(/,/g, " ");   // commas would break the delimiter
+    const sym = tvSymbol(s.ticker, map);
+    if (!sym) continue;
+    if (!groups.has(sec)) groups.set(sec, []);
+    groups.get(sec).push(sym);
+  }
+  const parts = [];
+  let total = 0, missing = 0;
+  for (const [sec, syms] of groups) {
+    if (!syms.length) continue;
+    parts.push("###" + sec);
+    for (const sym of syms) { parts.push(sym); total++; if (!sym.includes(":")) missing++; }
+  }
+  return { text: parts.join(","), total, missing };
+}
 async function exportTradingView() {
   const rows = filtered();
   if (!rows.length) { alert("표시된 종목이 없습니다."); return; }
   const map = await loadExchanges();
-  const syms = rows.map((s) => tvSymbol(s.ticker, map)).filter(Boolean);
-  const missing = syms.filter((s) => !s.includes(":")).length;
-  const blob = new Blob([syms.join(",")], { type: "text/plain;charset=utf-8" });
+  const { text, total, missing } = tvGroupedText(rows, map);
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `tradingview_base_${new Date().toISOString().slice(0, 10)}.txt`;
   a.click();
   URL.revokeObjectURL(a.href);
-  if (missing) alert(`${syms.length}개 중 ${missing}개는 거래소를 못 찾아 접두사 없이 넣었어요 (TradingView가 대부분 자동 인식합니다).`);
+  if (missing) alert(`${total}개 중 ${missing}개는 거래소를 못 찾아 접두사 없이 넣었어요 (TradingView가 대부분 자동 인식합니다).`);
 }
 
 // ---------- events ----------
