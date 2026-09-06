@@ -128,6 +128,25 @@ def main() -> None:
     else:
         print("  no data/eai snapshot yet (run the eai.yml workflow to generate).")
 
+    # US ticker → exchange map (for the TradingView TXT export on base/flat).
+    # Persist the repo copy so a build where the FDR listing hiccups reuses the
+    # last good map instead of shipping an empty one.
+    repo_exch = ROOT / "data" / "us_exchanges.json"
+    try:
+        from app import exchanges
+        emap = exchanges.us_exchange_map()
+        if emap:
+            write_json(SITE / "data" / "us_exchanges.json", emap)
+            write_json(repo_exch, emap)
+            print(f"  us exchange map: {len(emap)} symbols")
+        elif repo_exch.exists():
+            shutil.copyfile(repo_exch, SITE / "data" / "us_exchanges.json")
+            print("  us exchange map empty — reusing committed us_exchanges.json")
+    except Exception as e:
+        print(f"  exchange map failed: {e}")
+        if repo_exch.exists():
+            shutil.copyfile(repo_exch, SITE / "data" / "us_exchanges.json")
+
     # Tickers that have curated guidance data — for the earnings side panel.
     # Grouped by the watchlist's sector order (names omitted in the UI).
     write_json(SITE / "data" / "guidance_tickers.json",

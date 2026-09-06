@@ -40,6 +40,8 @@ on:
       - "data/base.json"
       # And the persisted flat-base-screener snapshot.
       - "data/flat.json"
+      # US ticker→exchange map (for TradingView export); committed by builds.
+      - "data/us_exchanges.json"
       # Same for the persisted Korean 52-week-high snapshot.
       - "data/krhighs.json"
       # And the Korean 60-trading-day-high snapshot.
@@ -93,10 +95,10 @@ jobs:
         # block the Pages deploy.
         continue-on-error: true
         run: |
-          if [ -n "$(git status --porcelain data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
+          if [ -n "$(git status --porcelain data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/us_exchanges.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/krhighs.json data/krhighs60.json data/krbase.json
+            git add data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/us_exchanges.json data/krhighs.json data/krhighs60.json data/krbase.json
             git commit -m "chore: update dashboard data (news, highs, base, flat, KR highs, KR base)"
             # The Telegram job commits to this same branch on its own cadence.
             # Retry, auto-resolving in favor of this fresh build.

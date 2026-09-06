@@ -804,6 +804,42 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+// ---------- TradingView TXT export ----------
+// Turn the currently filtered tickers into an ``EXCHANGE:SYMBOL`` comma list
+// (NASDAQ:AAPL,NYSE:BRK.B,…) for TradingView's watchlist import. Exchange comes
+// from data/us_exchanges.json (built from FDR listings). A ticker missing from
+// the map is exported bare (TradingView still resolves most).
+let _EXCH = null;
+async function loadExchanges() {
+  if (_EXCH) return _EXCH;
+  try {
+    const r = await fetch(`../data/us_exchanges.json?_=${Date.now()}`, { cache: "no-store" });
+    _EXCH = r.ok ? await r.json() : {};
+  } catch (_) { _EXCH = {}; }
+  return _EXCH;
+}
+function tvSymbol(ticker, map) {
+  const t = String(ticker || "").toUpperCase().trim();
+  if (!t) return "";
+  const exch = map[t.replace(/\./g, "-")];   // map keyed Finviz-style (BRK-B)
+  const sym = t.replace(/-/g, ".");          // TradingView uses BRK.B
+  return exch ? `${exch}:${sym}` : sym;
+}
+async function exportTradingView() {
+  const rows = filtered();
+  if (!rows.length) { alert("표시된 종목이 없습니다."); return; }
+  const map = await loadExchanges();
+  const syms = rows.map((s) => tvSymbol(s.ticker, map)).filter(Boolean);
+  const missing = syms.filter((s) => !s.includes(":")).length;
+  const blob = new Blob([syms.join(",")], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `tradingview_base_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  if (missing) alert(`${syms.length}개 중 ${missing}개는 거래소를 못 찾아 접두사 없이 넣었어요 (TradingView가 대부분 자동 인식합니다).`);
+}
+
 // ---------- events ----------
 // score-logic modal
 (function () {
@@ -818,6 +854,7 @@ function exportCsv() {
 })();
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
+if ($("#tv-btn")) $("#tv-btn").addEventListener("click", exportTradingView);
 $("#finviz-btn").addEventListener("click", openFinvizCharts);
 function syncRsBtn() { const b = $("#rs-btn"); if (b) b.textContent = rsCollapsed ? "RS 상세 ▸" : "RS 상세 ▾"; }
 $("#rs-btn").addEventListener("click", () => {

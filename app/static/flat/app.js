@@ -789,9 +789,39 @@ function downloadBlob(content, mime, ext) {
   URL.revokeObjectURL(a.href);
 }
 
+// ---------- TradingView TXT export ----------
+// EXCHANGE:SYMBOL comma list (NASDAQ:AAPL,NYSE:BRK.B,…) for TradingView import.
+// Exchange from data/us_exchanges.json; unknown tickers exported bare.
+let _EXCH = null;
+async function loadExchanges() {
+  if (_EXCH) return _EXCH;
+  try {
+    const r = await fetch(`../data/us_exchanges.json?_=${Date.now()}`, { cache: "no-store" });
+    _EXCH = r.ok ? await r.json() : {};
+  } catch (_) { _EXCH = {}; }
+  return _EXCH;
+}
+function tvSymbol(ticker, map) {
+  const t = String(ticker || "").toUpperCase().trim();
+  if (!t) return "";
+  const exch = map[t.replace(/\./g, "-")];
+  const sym = t.replace(/-/g, ".");
+  return exch ? `${exch}:${sym}` : sym;
+}
+async function exportTradingView() {
+  const rows = filtered();
+  if (!rows.length) { alert("표시된 종목이 없습니다."); return; }
+  const map = await loadExchanges();
+  const syms = rows.map((s) => tvSymbol(s.ticker, map)).filter(Boolean);
+  const missing = syms.filter((s) => !s.includes(":")).length;
+  downloadBlob(syms.join(","), "text/plain;charset=utf-8", "txt");
+  if (missing) alert(`${syms.length}개 중 ${missing}개는 거래소를 못 찾아 접두사 없이 넣었어요 (TradingView가 대부분 자동 인식합니다).`);
+}
+
 // ---------- events ----------
 $("#refresh-btn").addEventListener("click", load);
 $("#csv-btn").addEventListener("click", exportCsv);
+if ($("#tv-btn")) $("#tv-btn").addEventListener("click", exportTradingView);
 if ($("#finviz-btn")) $("#finviz-btn").addEventListener("click", openFinvizCharts);
 // 점수 로직 모달
 (function () {
