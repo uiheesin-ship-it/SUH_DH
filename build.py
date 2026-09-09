@@ -70,7 +70,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -80,7 +80,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -323,6 +323,50 @@ def main() -> None:
     elif repo_flat.exists():
         print("Reusing committed data/flat.json (skipping flat scan on push) ...")
         shutil.copyfile(repo_flat, SITE / "data" / "flat.json")
+
+    # Turnaround Screener (US bottom bases). Same heavy cadence + gating as the
+    # base/flat screens: full scan on scheduled/manual builds, reuse the
+    # committed snapshot on plain pushes and on the fast intraday cron
+    # (SUH_DH_SKIP_BASE=1). Force with SUH_DH_FORCE_TURNAROUND=1. Charts share
+    # data/chart/ (US bars) with the base and flat pages.
+    repo_turn = ROOT / "data" / "turnaround.json"
+    scan_turn = (
+        os.environ.get("SUH_DH_FORCE_TURNAROUND", "") == "1"
+        or (not skip_base and event in ("schedule", "workflow_dispatch"))
+        or not repo_turn.exists()
+    )
+    if scan_turn:
+        print("Building turnaround screener (full scan) ...")
+        try:
+            from app import turnaround as turnaround_screener
+
+            payload = turnaround_screener.run_scan(progress=True)
+            if publish_scan(payload, SITE / "data" / "turnaround.json", repo_turn):
+                chart_limit = int(os.environ.get("SUH_DH_TURNAROUND_CHART_LIMIT", "60"))
+                for s in payload.get("stocks", [])[:chart_limit]:
+                    t = s["ticker"]
+                    cp = SITE / "data" / "chart" / f"{t}.json"
+                    if cp.exists():
+                        continue
+                    try:
+                        write_json(cp, charts.get_chart(t, "max"))
+                    except Exception as e:
+                        print(f"  turnaround chart {t} failed: {e}")
+                    time.sleep(0.3)
+                print(f"  turnaround screen: {payload.get('count')} bottom bases "
+                      f"(universe {payload.get('universe_size')}).")
+        except Exception as e:
+            print(f"  turnaround screen failed: {e}")
+            if repo_turn.exists():
+                shutil.copyfile(repo_turn, SITE / "data" / "turnaround.json")
+            else:
+                write_json(SITE / "data" / "turnaround.json",
+                           {"built": built, "count": 0, "universe_size": 0, "stocks": [],
+                            "demo": False, "error": "turnaround screen unavailable",
+                            "detail": str(e)})
+    elif repo_turn.exists():
+        print("Reusing committed data/turnaround.json (skipping turnaround scan on push) ...")
+        shutil.copyfile(repo_turn, SITE / "data" / "turnaround.json")
 
     # Korean 52-week highs (KOSPI+KOSDAQ). Also heavy (per-ticker OHLCV), so it
     # follows the same cadence as the base screen: full scan on the 6-hourly cron

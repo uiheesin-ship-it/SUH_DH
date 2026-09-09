@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__, backlog, charts, earnings, kr, news, screener
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
+from .turnaround import get_screen as turnaround_get_screen
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -223,6 +224,25 @@ def flat_screen():
         return JSONResponse(
             status_code=502,
             content={"error": "평평 스크리너 실행에 실패했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/turnaround")
+def turnaround_screen():
+    """Turnaround Screener: US stocks building a healthy base at the BOTTOM and
+    sitting at that base's right edge.
+
+    Fills the gap between the other two screeners — the base screen requires an
+    uptrend and cannot look below the 200-day, while the flat screen makes
+    flatness mandatory and so misses VCP/cup/irregular bottom bases. Heavy —
+    caches server-side; the static build writes data/turnaround.json.
+    """
+    try:
+        return turnaround_get_screen()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "턴어라운드 스크리너 실행에 실패했습니다.", "detail": str(e)},
         )
 
 
