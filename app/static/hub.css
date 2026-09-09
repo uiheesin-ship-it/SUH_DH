@@ -1,6 +1,7 @@
 :root {
   --bg: #0f172a; --panel: #1e293b; --panel-2: #273548;
   --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --us: #38bdf8; --kr: #f472b6;
 }
 * { box-sizing: border-box; }
 body {
@@ -9,32 +10,74 @@ body {
   background: radial-gradient(1200px 600px at 50% -10%, #1b2a44, var(--bg));
   color: var(--text);
 }
-.hub-top { text-align: center; padding: 48px 20px 24px; }
+.hub-top { text-align: center; padding: 44px 20px 20px; }
 .hub-top h1 { margin: 0 0 8px; font-size: 28px; }
 .hub-top .sub { color: var(--muted); margin: 0; font-size: 14px; }
 
-.grid {
-  display: grid; gap: 16px; padding: 16px 24px 40px;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  max-width: 980px; margin: 0 auto;
+/* --- market band (row): 미장 on top, 국장 below -------------------- */
+#board { max-width: 1280px; margin: 0 auto; padding: 8px 24px 24px; }
+.market { margin-bottom: 34px; }
+.market-head { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+.market-emoji { font-size: 20px; line-height: 1; }
+.market-head h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+.market-note { color: var(--muted); font-size: 12px; }
+.market-head .rule { flex: 1; height: 1px; background: var(--border); }
+/* One accent per market so the two halves stay distinguishable while scrolling. */
+.market-us .market-head h2 { color: var(--us); }
+.market-kr .market-head h2 { color: var(--kr); }
+.market-us .col-head { border-left-color: var(--us); }
+.market-kr .col-head { border-left-color: var(--kr); }
+
+/* --- three category columns: 신고가 | 스크리너 | 기타 ---------------- */
+.cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.col { min-width: 0; }
+.col-head {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 10px; padding-left: 8px;
+  border-left: 3px solid var(--border);
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  letter-spacing: .06em; text-transform: uppercase;
 }
+.col-count {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  background: var(--panel-2); border-radius: 999px; padding: 0 6px;
+}
+.col-cards { display: flex; flex-direction: column; gap: 12px; }
+
+/* --- card ------------------------------------------------------------ */
 .card {
-  display: flex; align-items: center; gap: 16px;
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 14px; padding: 18px 20px; text-decoration: none; color: var(--text);
+  display: block; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 15px; text-decoration: none; color: var(--text);
   transition: transform .12s, border-color .12s, background .12s;
 }
-.card:hover { transform: translateY(-3px); border-color: var(--accent); background: var(--panel-2); }
+.card:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--panel-2); }
 .card.disabled { opacity: .55; cursor: default; }
 .card.disabled:hover { transform: none; border-color: var(--border); background: var(--panel); }
-.card-emoji { font-size: 34px; line-height: 1; }
-.card-body { flex: 1; }
-.card-name { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
-.card-desc { color: var(--muted); font-size: 13px; line-height: 1.4; }
-.card-go { color: var(--accent); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.card-emoji { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+.card-name { font-weight: 700; font-size: 14.5px; line-height: 1.3; }
+/* Descriptions run long (the screeners explain their whole method). Clamp to
+   keep the three columns aligned; the full text is on the card's title. */
+.card-desc {
+  color: var(--muted); font-size: 12.5px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-go { color: var(--accent); font-weight: 600; font-size: 12px; margin-top: 8px; }
 .soon {
   font-size: 11px; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
   background: var(--panel-2); color: var(--muted); vertical-align: middle;
 }
-.hub-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 0 20px 40px; }
+
+.hub-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 0 20px 40px; line-height: 1.7; }
 .hub-foot code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+
+/* Two columns first (기타 wraps under), then a single stack on phones. */
+@media (max-width: 940px) {
+  .cols { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px) {
+  .cols { grid-template-columns: 1fr; gap: 20px; }
+  .card-desc { -webkit-line-clamp: 3; }
+  #board { padding: 8px 16px 24px; }
+}
