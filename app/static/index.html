@@ -4,55 +4,41 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>대시보드 · SUH_DH</title>
-  <link rel="stylesheet" href="hub.css" />
+  <link rel="stylesheet" href="hub.css?v=2" />
 </head>
 <body>
   <header class="hub-top">
     <h1>📊 SUH_DH 대시보드</h1>
-    <p class="sub">투자/리서치 프로그램 모음. 카드를 눌러 들어가세요.</p>
+    <p class="sub">시장(미장·국장) × 종류(신고가·스크리너·기타)로 정렬했습니다. 카드를 눌러 들어가세요.</p>
   </header>
 
-  <main class="grid" id="grid"></main>
+  <main id="board"></main>
 
   <footer class="hub-foot">
     새 프로그램을 추가하려면 <code>app/static/index.html</code> 의
     <code>APPS</code> 배열에 항목 하나만 추가하면 됩니다.
+    <code>market</code>(<code>us</code>/<code>kr</code>)과
+    <code>group</code>(<code>highs</code>/<code>screener</code>/<code>other</code>)으로 자리가 정해집니다.
   </footer>
 
   <script>
     // 프로그램 레지스트리 — 새 프로그램은 여기 한 줄만 추가.
+    //   market: "us"(미장) | "kr"(국장)
+    //   group : "highs"(신고가) | "screener"(스크리너) | "other"(기타)
+    // 두 값이 대시보드에서 카드가 놓일 칸(행 × 열)을 결정합니다.
     const APPS = [
       {
         name: "미국 52주 신고가",
         emoji: "🇺🇸",
+        market: "us", group: "highs",
         desc: "미장 마감 후 52주 신고가 종목을 섹터·소섹터별, 시총순으로. 상승 이유(뉴스·실적)와 이평선 차트 포함.",
         href: "highs/",
         status: "ready",
       },
       {
-        name: "AI 투자 뉴스",
-        emoji: "🤖",
-        desc: "AI·반도체·데이터센터·전력/에너지·로보틱스 등 AI 생태계 뉴스만 선별. 무료 매체 우선, 하루 10~20건, 한국어 1~2줄 요약 + 원문 링크.",
-        href: "news/",
-        status: "ready",
-      },
-      {
-        name: "실적 발표 전후 주가 반응",
-        emoji: "📈",
-        desc: "티커별 실적 발표일 기준 직전1일·D+1·D+7·D+30·D+60 주가 수익률과 분기 평균. EPS 컨센서스 상회 여부 + 차분기 가이던스 vs 컨센서스(있는 경우)도 한 표에.",
-        href: "earnings/",
-        status: "ready",
-      },
-      {
-        name: "한국 실적 전후 주가",
-        emoji: "🇰🇷",
-        desc: "국내 종목의 실적 발표일 기준 D-7·직전1일·D+1·D+7·D+30·D+60 상승률과 분기 평균만 간단히. 컨센서스·EPS 없이 주가 반응만.",
-        href: "kr/",
-        status: "ready",
-      },
-      {
         name: "베이스 스크리너",
         emoji: "🧭",
+        market: "us", group: "screener",
         desc: "Minervini 추세 템플릿 + 베이스/VCP/변동성 축소/거래량 감소/RS 라인/섹터 강세를 정량화해 100점으로 채점한 watchlist. 종목별 SMA·베이스·피봇 오버레이 차트와 ready/breakout 알림 포함.",
         href: "base/",
         status: "ready",
@@ -60,6 +46,7 @@
       {
         name: "평평 스크리너",
         emoji: "🟰",
+        market: "us", group: "screener",
         desc: "미국 보통주 중 현재 '평평한 베이스'(수평·좁은 밀집)를 형성한 종목만 탐색. 종가 밴드·회귀 기울기·밀집도·중심이동·이상치로 평평도만 0~100점 채점(거래량·RS·섹터·펀더멘털은 점수 제외). 상승후/중립/하락후 유형 태그, REIT·죽은주식 배제 과거활동성 필터, 8개 기간 자동 탐색. 베이스 오버레이 차트·CSV/Excel·관심종목 포함. 돌파 예측이 아니라 후보 제공용.",
         href: "flat/",
         status: "ready",
@@ -67,61 +54,131 @@
       {
         name: "턴어라운드 스크리너",
         emoji: "🌅",
+        market: "us", group: "screener",
         desc: "바닥권에서 건전한 베이스(평평·VCP·컵·이름 없는 모양 모두)를 만들고 그 오른쪽 끝에 와 있는 종목. 베이스 스크리너는 상승추세를 요구해 200일선 아래를 못 보고, 평평 스크리너는 평평도가 필수라 VCP·컵 바닥 베이스를 놓치는데, 그 사이 구멍을 메웁니다. 유형 대신 품질 4축(수축·지지·마름·응집)으로 채점하고, 실적 전환은 점수에서 빼되 다음 실적까지 D-day를 제공 — 실적이 드러난 뒤엔 차트가 이미 뻗어 있기 때문. 밝은 테마.",
         href: "turnaround/",
         status: "ready",
       },
       {
+        name: "AI 투자 뉴스",
+        emoji: "🤖",
+        market: "us", group: "other",
+        desc: "AI·반도체·데이터센터·전력/에너지·로보틱스 등 AI 생태계 뉴스만 선별. 무료 매체 우선, 하루 10~20건, 한국어 1~2줄 요약 + 원문 링크.",
+        href: "news/",
+        status: "ready",
+      },
+      {
+        name: "실적 발표 전후 주가 반응",
+        emoji: "📈",
+        market: "us", group: "other",
+        desc: "티커별 실적 발표일 기준 직전1일·D+1·D+7·D+30·D+60 주가 수익률과 분기 평균. EPS 컨센서스 상회 여부 + 차분기 가이던스 vs 컨센서스(있는 경우)도 한 표에.",
+        href: "earnings/",
+        status: "ready",
+      },
+      {
+        name: "실적 컨콜 투자 테마",
+        emoji: "📞",
+        market: "us", group: "other",
+        desc: "미국 주요 기업 실적발표 컨퍼런스콜을 LLM으로 구조화·분석. 경영진 내러티브 톤과 실제 KPI·가이던스 변화를 분리 평가하고, 여러 기업·밸류체인의 공통/상충 신호를 종합해 산업·투자 테마를 발굴. 모든 결론에 회사·분기·발언자·문단 ID·영어 원문 근거 연결. 매일 자동 갱신(현재 6개 기업 Prototype).",
+        href: "eai/",
+        status: "ready",
+      },
+      {
         name: "국장 52주 신고가",
         emoji: "🇰🇷",
+        market: "kr", group: "highs",
         desc: "KOSPI·KOSDAQ 보통주 중 52주 신고가 종목을 섹터·시총순으로. 스팩·ETF·우선주 제외, 시총 1,500억원 이상. 이평선 차트 포함. (미장 신고가의 국장 버전)",
         href: "krhighs/",
         status: "ready",
       },
       {
         name: "국장 60일 신고가",
-        emoji: "🇰🇷",
+        emoji: "📅",
+        market: "kr", group: "highs",
         desc: "KOSPI·KOSDAQ 보통주 중 최근 60거래일(약 3개월) 신고가 종목을 섹터·시총순으로. 조건은 52주 버전과 동일(스팩·ETF·우선주 제외, 시총 1,500억원 이상), 기간만 60거래일. 이평선 차트 포함.",
         href: "krhighs60/",
         status: "ready",
       },
       {
         name: "국장 베이스 스크리너",
-        emoji: "🇰🇷",
+        emoji: "🧭",
+        market: "kr", group: "screener",
         desc: "미장 베이스 스크리너의 국장 버전. KOSPI·KOSDAQ 보통주를 Minervini 추세+베이스/VCP/거래량/RS로 100점 채점. RS는 코스피·코스닥 지수 대비. SMA·베이스·피봇 오버레이 차트 포함.",
         href: "krbase/",
         status: "ready",
       },
       {
+        name: "한국 실적 전후 주가",
+        emoji: "📊",
+        market: "kr", group: "other",
+        desc: "국내 종목의 실적 발표일 기준 D-7·직전1일·D+1·D+7·D+30·D+60 상승률과 분기 평균만 간단히. 컨센서스·EPS 없이 주가 반응만.",
+        href: "kr/",
+        status: "ready",
+      },
+      {
         name: "한국 수주잔고",
-        emoji: "🇰🇷",
+        emoji: "🏗️",
+        market: "kr", group: "other",
         desc: "분기별로 수주잔고를 공시하는 회사(건설·조선·방산·기계·플랜트·SI 등)의 최근 1개년 분기별 수주잔고 추이. 출처는 DART 정기보고서 본문 '수주상황' 표. 전분기·전년 대비 증감과 원문 링크 포함. 보고서 제출 시에만 갱신되어 매일 그날 제출분만 확인.",
         href: "backlog/",
         status: "ready",
       },
-      {
-        name: "실적 컨콜 투자 테마",
-        emoji: "📞",
-        desc: "미국 주요 기업 실적발표 컨퍼런스콜을 LLM으로 구조화·분석. 경영진 내러티브 톤과 실제 KPI·가이던스 변화를 분리 평가하고, 여러 기업·밸류체인의 공통/상충 신호를 종합해 산업·투자 테마를 발굴. 모든 결론에 회사·분기·발언자·문단 ID·영어 원문 근거 연결. 매일 자동 갱신(현재 6개 기업 Prototype).",
-        href: "eai/",
-        status: "ready",
-      },
-      // 예) { name: "급등 거래량 스캐너", emoji: "🔥", desc: "...", href: "/volume/", status: "soon" },
+      // 예) { name: "급등 거래량 스캐너", emoji: "🔥", market: "us", group: "screener", desc: "...", href: "volume/", status: "soon" },
     ];
 
-    const grid = document.getElementById("grid");
-    grid.innerHTML = APPS.map((a) => {
+    const MARKETS = [
+      { key: "us", label: "미장", emoji: "🇺🇸", note: "US · NYSE/NASDAQ" },
+      { key: "kr", label: "국장", emoji: "🇰🇷", note: "KR · KOSPI/KOSDAQ" },
+    ];
+    const GROUPS = [
+      { key: "highs", label: "신고가" },
+      { key: "screener", label: "스크리너" },
+      { key: "other", label: "기타" },
+    ];
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function cardHtml(a) {
       const soon = a.status === "soon";
+      // Full text as the tooltip: the descriptions are long and the card body
+      // clamps them, so hovering is how you read the rest without a detail page.
       const inner = `
-        <div class="card-emoji">${a.emoji}</div>
-        <div class="card-body">
-          <div class="card-name">${a.name}${soon ? '<span class="soon">준비중</span>' : ""}</div>
-          <div class="card-desc">${a.desc}</div>
+        <div class="card-top">
+          <span class="card-emoji">${a.emoji}</span>
+          <span class="card-name">${esc(a.name)}${soon ? '<span class="soon">준비중</span>' : ""}</span>
         </div>
+        <div class="card-desc">${esc(a.desc)}</div>
         <div class="card-go">${soon ? "" : "열기 →"}</div>`;
       return soon
-        ? `<div class="card disabled">${inner}</div>`
-        : `<a class="card" href="${a.href}">${inner}</a>`;
+        ? `<div class="card disabled" title="${esc(a.desc)}">${inner}</div>`
+        : `<a class="card" href="${a.href}" title="${esc(a.desc)}">${inner}</a>`;
+    }
+
+    // Unknown/missing market or group falls back to 미장·기타 rather than being
+    // dropped, so a new entry that forgets a field still shows up somewhere.
+    const keyOf = (val, list, fallback) =>
+      list.some((g) => g.key === val) ? val : fallback;
+
+    document.getElementById("board").innerHTML = MARKETS.map((m) => {
+      const mine = APPS.filter((a) => keyOf(a.market, MARKETS, "us") === m.key);
+      if (!mine.length) return "";
+      const cols = GROUPS.map((g) => {
+        const cards = mine.filter((a) => keyOf(a.group, GROUPS, "other") === g.key);
+        return `<section class="col">
+            <h3 class="col-head">${g.label}<span class="col-count">${cards.length}</span></h3>
+            <div class="col-cards">${cards.map(cardHtml).join("")}</div>
+          </section>`;
+      }).join("");
+      return `<section class="market market-${m.key}">
+          <div class="market-head">
+            <span class="market-emoji">${m.emoji}</span>
+            <h2>${m.label}</h2>
+            <span class="market-note">${m.note}</span>
+            <span class="rule"></span>
+          </div>
+          <div class="cols">${cols}</div>
+        </section>`;
     }).join("");
   </script>
 </body>
