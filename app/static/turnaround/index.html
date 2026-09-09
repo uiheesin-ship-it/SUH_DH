@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>턴어라운드 스크리너 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css?v=1" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🌅 턴어라운드 스크리너</h1>
+      <button id="logic-btn" class="logic-btn" title="점수·단계·베이스 판정 로직 보기">📊 점수 로직</button>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">불러오는 중…</span>
+      <button id="csv-btn" title="현재 필터 결과를 CSV로 저장">CSV ↓</button>
+      <button id="refresh-btn">새로고침</button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <label>최소 점수
+      <input type="range" id="f-score" min="0" max="100" step="5" value="55" />
+      <span id="f-score-val">55</span>
+    </label>
+    <label>단계
+      <select id="f-stage">
+        <option value="">전체</option>
+        <option value="전환신호">전환신호</option>
+        <option value="오른쪽끝">오른쪽끝</option>
+        <option value="다지는중">다지는중</option>
+        <option value="이른편">이른편</option>
+      </select>
+    </label>
+    <label>최소 낙폭
+      <input type="range" id="f-drawdown" min="30" max="80" step="5" value="30" />
+      <span id="f-drawdown-val">30%</span>
+    </label>
+    <label class="chk" title="첫 방향 전환 트리거가 최근에 발생한 종목만">트리거 신선
+      <input type="checkbox" id="f-fresh" />
+    </label>
+    <label class="chk" title="다음 실적 발표가 14일 이내인 종목만 — 바닥 베이스 오른쪽 끝 + 실적 임박">실적 D-14
+      <input type="checkbox" id="f-earnings" />
+    </label>
+    <label>섹터
+      <select id="f-sector"><option value="">전체</option></select>
+    </label>
+    <label class="search">검색
+      <input type="text" id="f-search" placeholder="티커/종목명" />
+    </label>
+    <span class="hint-col">열 머리글을 눌러 정렬</span>
+    <span id="count-badge" class="count-badge"></span>
+  </div>
+
+  <div id="split">
+    <div id="list-pane">
+      <main id="content">
+        <div class="loading">스캔 결과를 불러오는 중입니다…</div>
+      </main>
+      <footer class="footer">
+        이 스크리너는 <b>바닥권에서 건전한 베이스를 만들고 그 오른쪽 끝에 와 있는</b> 종목을 찾습니다.
+        베이스 유형(평평·VCP·컵·불규칙)은 미리 정하지 않고, 유형과 무관한 품질 4축(수축·지지·마름·응집)으로 채점합니다.
+        실적 전환은 점수에 넣지 않습니다 — 실적이 드러난 뒤엔 차트가 이미 뻗어 있기 때문이며,
+        대신 다음 실적까지 D-day를 열로 제공합니다. 돌파 예측이나 매수 추천이 아닙니다.
+      </footer>
+    </div>
+
+    <div id="divider" class="hidden" title="좌우로 끌어 너비 조절"></div>
+
+    <aside id="chart-pane" class="hidden">
+      <div class="chart-head">
+        <div class="chart-title">
+          <span id="chart-ticker" class="chart-ticker"></span>
+          <span id="chart-company" class="chart-company"></span>
+        </div>
+        <div class="chart-actions">
+          <a id="chart-external" href="#" target="_blank" rel="noopener" class="ext-link">Yahoo ↗</a>
+          <button id="chart-close" class="close" title="닫기">✕</button>
+        </div>
+      </div>
+      <div id="score-panel" class="score-panel"></div>
+      <div id="chart-area" class="chart-area"></div>
+      <div class="legend">
+        <span class="lg base">베이스 구간</span>
+        <span class="lg pivot">유효 피봇</span>
+        <span class="lg ma50">50일선</span>
+        <span class="lg ma200">200일선</span>
+        <span class="hint">· 드래그 이동 · 휠 확대/축소 · 더블클릭 전체기간</span>
+      </div>
+      <div id="detail-panel" class="detail-panel"></div>
+    </aside>
+  </div>
+
+  <div id="logic-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2>턴어라운드 스크리너 판정 로직</h2>
+        <button id="logic-close" class="close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-note">모든 임계값은 <code>turnaround_config.yaml</code>에서 조정할 수 있습니다. 투자 추천이 아닙니다.</p>
+
+        <h3>무엇을 찾는가</h3>
+        <p><b>이미 턴한 종목이 아니라, 턴하기 직전</b>을 찾습니다. 실적이 눈에 보이게 돌아섰을 때는 차트가 이미 뻗어 있을 확률이 높습니다.
+           그래서 이 스크리너는 바닥권에서 <b>건전한 베이스</b>를 만들고 있고, 그 베이스의 <b>오른쪽 끝</b>에 와 있는 종목만 봅니다.</p>
+        <p>베이스 스크리너는 상승추세(Minervini 템플릿·RS 80↑·52주 고점 25% 이내)를 요구해서 이 영역을 볼 수 없고,
+           평평 스크리너는 <b>평평도가 필수</b>라 VCP·컵·불규칙 바닥 베이스를 잡지 못합니다. 그 사이 구멍이 이 스크리너의 자리입니다.</p>
+
+        <h3>통과 게이트 (하나라도 걸리면 목록에서 제외)</h3>
+        <table class="logic-tbl">
+          <thead><tr><th>게이트</th><th>기준</th></tr></thead>
+          <tbody>
+            <tr><td>유동성</td><td>시총 3억$↑, 20일 평균 거래대금 600만$↑</td></tr>
+            <tr><td>바닥권</td><td>3년 고점 대비 <b>30%↑ 하락</b>. 52주 고점이 아니라 3년 고점을 쓰는 이유는, 베이스가 1년 넘게 이어지면 예전 고점이 52주 창 밖으로 밀려나 <b>베이스 안에서 만들어진 고점</b>과 비교하게 되기 때문</td></tr>
+            <tr><td>바닥 확인</td><td>저점 대비 +100% 미만(이미 두 배면 바닥권 아님) · 최근 20일 내 52주 신저가 없음(칼날 배제)</td></tr>
+            <tr><td>베이스 존재</td><td>20~120일, 깊이 5~40%, <b>창의 최저점이 앞쪽 70% 안</b>에서 형성</td></tr>
+            <tr><td>하락 미삼킴</td><td>마지막 종가가 창의 고저 범위에서 <b>45% 위</b>. 하락 구간을 삼킨 창은 오른쪽이 바닥에 붙은 낮은 선반이라 여기서 걸립니다</td></tr>
+            <tr><td>이미 뻗음</td><td>베이스 고점 +15% 초과 <b>또는</b> 50일선 대비 +18% 초과</td></tr>
+          </tbody>
+        </table>
+
+        <h3>점수 (합계 100)</h3>
+        <table class="logic-tbl">
+          <thead><tr><th>축</th><th>배점</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><b>베이스 품질</b></td><td>40</td><td>수축 12 · 지지 10 · 마름 10 · 응집 8. <b>유형을 미리 정하지 않습니다</b> — VCP든 평평이든 컵이든 이름 없는 모양이든 공통으로 갖는 성질만 잽니다</td></tr>
+            <tr><td><b>오른쪽 끝</b></td><td>30</td><td>유효 피봇까지 거리 · 베이스 밴드 내 위치 · 최근 조여짐. 목표가 여기라 배점이 가장 큽니다</td></tr>
+            <tr><td><b>바닥 셋업</b></td><td>20</td><td>200일선 기울기 완만화 · 이평선 회복 · RS 라인 복구. 전부 부분점수 — 200일선 아래에 있어도 감점만 될 뿐 탈락하지 않습니다</td></tr>
+            <tr><td><b>첫 전환 트리거</b></td><td>10</td><td>실적 갭상승 · 대량 상승봉 · 포켓피벗 · 200일선 첫 회복 · RS 신고가</td></tr>
+          </tbody>
+        </table>
+
+        <h3>품질 4축은 왜 저점 이후로만 계산하나</h3>
+        <p>베이스 창이 조금 넓게 잡혀 하락 구간을 물면, <b>네 축이 전부 엉뚱한 이유로 만점</b>이 나옵니다.
+           하락기의 큰 변동폭 덕에 이후 조용한 구간이 교과서적 수축으로 보이고, 하락기의 큰 거래량 덕에 이후가 완벽한 거래량 마름으로 보이거든요.
+           그래서 모든 품질 지표는 <b>저점(또는 베이스 시작) 이후 구간</b>에서만 계산합니다.</p>
+
+        <h3>유효 피봇이 둘인 이유</h3>
+        <p>바닥 베이스는 본래 깊어서 자기 고점이 20~30% 위에 있습니다. 그것만 보면 <b>ready가 영영 안 뜹니다.</b>
+           실제로 먼저 부딪히는 건 최근 레지(컵의 손잡이, 저항 밑 선반)이므로, <b>상태 판정</b>은 베이스 고점과 최근 레지 중 <b>가까운 쪽</b>으로 합니다.
+           반면 <b>제외 판정</b>은 베이스 고점 기준을 유지합니다 — 레지 기준으로 제외하면 15일 고점을 넘는 순간 탈락하는데, 그게 바로 우리가 잡으려는 첫 전환이기 때문입니다.</p>
+
+        <h3>단계</h3>
+        <table class="logic-tbl text">
+          <thead><tr><th>단계</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><b>전환신호</b></td><td>유효 피봇을 넘었거나 첫 전환 트리거가 최근 발생</td></tr>
+            <tr><td><b>오른쪽끝</b></td><td>유효 피봇 5% 이내 (ready)</td></tr>
+            <tr><td><b>다지는중</b></td><td>유효 피봇 12% 이내 (watch)</td></tr>
+            <tr><td><b>이른편</b></td><td>베이스는 있으나 아직 피봇에서 멂</td></tr>
+          </tbody>
+        </table>
+
+        <h3>실적은 왜 점수에 없나</h3>
+        <p>실적 전환이 확인된 시점엔 이미 늦기 때문입니다. 대신 <b>다음 실적까지 D-day</b>를 열로 제공합니다.
+           <b>"바닥 베이스 오른쪽 끝 + 실적 임박"</b>이 이 화면의 핵심 조합이고, 상단의 <code>실적 D-14</code> 필터가 그것만 골라줍니다.
+           바닥권에서 실적 발표로 갭상승한 경우는 <code>earnings_gap</code> 트리거로 따로 잡히며, 아직 뻗지 않았다면 목록에 남습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="../shared/data-source.js?v=3"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>
