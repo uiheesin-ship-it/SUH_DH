@@ -102,6 +102,7 @@ function visible() {
       const hay = `${s.ticker} ${s.company_name || ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
+    if (!passColFilters(s)) return false;
     return true;
   });
 
@@ -114,6 +115,141 @@ function visible() {
     return sortDir * (av - bv);
   });
   return rows;
+}
+
+// ---------- per-column filters ----------
+// Same model as the base screener: a ⏷ on each filterable header opens a
+// popover. Numeric columns take a min/max, categorical ones a checkbox list of
+// the values actually present in the current scan. These compose with the top
+// bar (AND), so the bar stays the coarse pass and the headers do the fine one.
+//
+// ``scale`` is what the column DISPLAYS divided by what it stores: base_depth
+// holds 0.21 and shows 21%, so the user types 21 and the filter compares 0.21.
+const COL_FILTER = {
+  sector:            { type: "cat" },
+  turnaround_score:  { type: "num", scale: 1,    unit: "점" },
+  stage:             { type: "cat" },
+  quality_score:     { type: "num", scale: 1,    unit: "점" },
+  edge_score:        { type: "num", scale: 1,    unit: "점" },
+  setup_score:       { type: "num", scale: 1,    unit: "점" },
+  trigger_score:     { type: "num", scale: 1,    unit: "점" },
+  off_peak_high:     { type: "num", scale: 100,  unit: "%" },
+  distance_to_pivot: { type: "num", scale: 100,  unit: "%" },
+  base_days:         { type: "num", scale: 1,    unit: "일", numericSort: true },
+  base_depth:        { type: "num", scale: 100,  unit: "%" },
+  days_to_earnings:  { type: "num", scale: 1,    unit: "일" },
+  current_price:     { type: "num", scale: 1,    unit: "$" },
+  market_cap:        { type: "num", scale: 1e-9, unit: "B" },
+};
+let colFilters = {};   // key -> {min,max} (num) | {allowed:[...]} (cat)
+
+function colFilterActive(key) {
+  const f = colFilters[key], meta = COL_FILTER[key];
+  if (!f || !meta) return false;
+  return meta.type === "num" ? (f.min != null || f.max != null)
+                             : !!(f.allowed && f.allowed.length);
+}
+function activeColCount() {
+  return Object.keys(colFilters).filter(colFilterActive).length;
+}
+function passColFilters(s) {
+  for (const key in colFilters) {
+    const meta = COL_FILTER[key];
+    if (!meta || !colFilterActive(key)) continue;
+    const f = colFilters[key], v = s[key];
+    if (meta.type === "num") {
+      const sc = meta.scale || 1;
+      // A null value fails any bound rather than passing silently — otherwise
+      // "실적 D- ≤ 14" would keep every stock whose earnings date is unknown.
+      if (f.min != null && !(v != null && v >= f.min / sc)) return false;
+      if (f.max != null && !(v != null && v <= f.max / sc)) return false;
+    } else if (!f.allowed.some((a) => String(a) === String(v))) {
+      return false;
+    }
+  }
+  return true;
+}
+function colDistinct(key) {
+  const meta = COL_FILTER[key], set = new Set();
+  STOCKS.forEach((s) => {
+    const v = s[key];
+    if (v !== null && v !== undefined && v !== "") set.add(v);
+  });
+  const arr = [...set];
+  arr.sort(meta.numericSort ? (a, b) => a - b : undefined);
+  return arr;
+}
+
+let colPopEl = null;
+function closeColPop() {
+  if (colPopEl) {
+    colPopEl.remove();
+    colPopEl = null;
+    document.removeEventListener("mousedown", onColPopDown, true);
+  }
+}
+function onColPopDown(e) {
+  if (colPopEl && !colPopEl.contains(e.target) && !e.target.classList.contains("col-filter")) closeColPop();
+}
+function openColFilter(key, anchorEl) {
+  closeColPop();
+  const meta = COL_FILTER[key];
+  if (!meta) return;
+  const f = colFilters[key] = colFilters[key]
+    || (meta.type === "num" ? { min: null, max: null } : { allowed: [] });
+  const label = (COLS.find((c) => c.k === key) || {}).t || key;
+
+  const pop = document.createElement("div");
+  pop.className = "colpop";
+  let inner = `<div class="colpop-h">${esc(label)} 필터</div>`;
+  if (meta.type === "num") {
+    const u = meta.unit || "";
+    inner += `<div class="colpop-row"><span>≥</span><input type="number" id="cp-min" value="${f.min ?? ""}" placeholder="min"><span>${esc(u)}</span></div>
+              <div class="colpop-row"><span>≤</span><input type="number" id="cp-max" value="${f.max ?? ""}" placeholder="max"><span>${esc(u)}</span></div>`;
+  } else {
+    const allowed = new Set((f.allowed || []).map(String));
+    const anySel = allowed.size > 0;
+    inner += `<div class="colpop-actions"><button id="cp-all">전체</button><button id="cp-none">해제</button></div><div class="colpop-list">` +
+      colDistinct(key).map((v) => {
+        const checked = !anySel || allowed.has(String(v));
+        return `<label><input type="checkbox" class="cp-chk" value="${esc(String(v))}" ${checked ? "checked" : ""}> ${esc(String(v))}</label>`;
+      }).join("") + `</div>`;
+  }
+  inner += `<div class="colpop-foot"><button id="cp-clear">이 열 해제</button><button id="cp-clearall">전체 해제</button></div>`;
+  pop.innerHTML = inner;
+  document.body.appendChild(pop);
+  colPopEl = pop;
+
+  // Place under the caret, nudged back inside the viewport on the right edge.
+  const r = anchorEl.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = (r.bottom + 4) + "px";
+
+  if (meta.type === "num") {
+    const upd = () => {
+      const mn = pop.querySelector("#cp-min").value, mx = pop.querySelector("#cp-max").value;
+      f.min = mn === "" ? null : +mn;
+      f.max = mx === "" ? null : +mx;
+      render();
+    };
+    pop.querySelector("#cp-min").addEventListener("input", upd);
+    pop.querySelector("#cp-max").addEventListener("input", upd);
+  } else {
+    const chks = () => [...pop.querySelectorAll(".cp-chk")];
+    const updCat = () => {
+      const all = chks(), checked = all.filter((c) => c.checked).map((c) => c.value);
+      // All-checked and none-checked both mean "no constraint" — otherwise
+      // unticking the last box would empty the table with no way back.
+      f.allowed = (checked.length === all.length || checked.length === 0) ? [] : checked;
+      render();
+    };
+    pop.querySelectorAll(".cp-chk").forEach((c) => c.addEventListener("change", updCat));
+    pop.querySelector("#cp-all").addEventListener("click", () => { chks().forEach((c) => c.checked = true); updCat(); });
+    pop.querySelector("#cp-none").addEventListener("click", () => { chks().forEach((c) => c.checked = false); updCat(); });
+  }
+  pop.querySelector("#cp-clear").addEventListener("click", () => { delete colFilters[key]; closeColPop(); render(); });
+  pop.querySelector("#cp-clearall").addEventListener("click", () => { colFilters = {}; closeColPop(); render(); });
+  setTimeout(() => document.addEventListener("mousedown", onColPopDown, true), 0);
 }
 
 // ---------- table ----------
@@ -138,13 +274,23 @@ const COLS = [
 function render() {
   const rows = visible();
   $("#count-badge").textContent = `${rows.length} / ${STOCKS.length}`;
+  // An active column filter lives inside a header popover, so surface it here —
+  // otherwise a short list looks like a bad scan rather than a narrow filter.
+  const nCol = activeColCount();
+  const chip = $("#colfilter-chip");
+  chip.classList.toggle("hidden", nCol === 0);
+  if (nCol) chip.querySelector("#colfilter-n").textContent = nCol;
   if (!rows.length) {
     $("#content").innerHTML = `<div class="empty">조건에 맞는 종목이 없습니다. 필터를 낮춰보세요.</div>`;
     return;
   }
-  const head = COLS.map((c) =>
-    `<th class="${c.l ? "l" : ""}" data-k="${c.k}">${c.t}${sortKey === c.k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</th>`
-  ).join("");
+  const head = COLS.map((c) => {
+    const arrow = sortKey === c.k ? (sortDir < 0 ? " ▾" : " ▴") : "";
+    const fic = COL_FILTER[c.k]
+      ? `<span class="col-filter${colFilterActive(c.k) ? " on" : ""}" data-fkey="${esc(c.k)}" title="열 필터">⏷</span>`
+      : "";
+    return `<th class="${c.l ? "l" : ""}" data-k="${c.k}">${c.t}${arrow}${fic}</th>`;
+  }).join("");
 
   const body = rows.map((s) => {
     const trig = (s.triggers || []).slice(0, 2)
@@ -173,6 +319,11 @@ function render() {
 
   $("#content").innerHTML = `<table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 
+  $("#content").querySelectorAll(".col-filter").forEach((el) =>
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();               // the caret must not also sort the column
+      openColFilter(el.dataset.fkey, el);
+    }));
   $("#content").querySelectorAll("thead th").forEach((th) => {
     th.addEventListener("click", () => {
       const k = th.dataset.k;
@@ -460,6 +611,7 @@ function bind() {
   $("#f-search").addEventListener("input", render);
   $("#refresh-btn").addEventListener("click", load);
   $("#csv-btn").addEventListener("click", exportCsv);
+  $("#colfilter-clear").addEventListener("click", () => { colFilters = {}; closeColPop(); render(); });
   $("#finviz-btn").addEventListener("click", openFinvizCharts);
   $("#tv-btn").addEventListener("click", exportTradingView);
   $("#chart-close").addEventListener("click", () => {
