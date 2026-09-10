@@ -13,14 +13,37 @@ Output matches app/screener.get_dashboard() so the frontend/grouping is shared.
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 import math
 import os
 import time
+from datetime import date, timedelta
+from pathlib import Path
 
 from . import cache
 from .screener import group_by_sector  # reuse the US-highs sector→industry grouping
 
 KRHIGHS_TTL = float(os.environ.get("SUH_DH_KRHIGHS_TTL", "600"))
+
+# Persisted universe snapshot. The KOSPI/KOSDAQ listing comes from KRX
+# (data.krx.co.kr) via FinanceDataReader, which KRX periodically blocks from
+# datacenter (GitHub Actions) IPs — when that happens the live fetch returns an
+# empty universe and every KR scan (52w/60d highs + KR base) yields 0, freezing
+# the committed data for days. So we keep a last-good universe on disk and fall
+# back to it. The list of tickers barely changes day to day, and the actual
+# new-high test uses fresh per-ticker bars (Naver/Yahoo), so a slightly stale
+# universe still produces correct, fresh results.
+_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+_UNIVERSE_SNAPSHOT = _DATA_DIR / "kr_universe.json"
+# FinanceData's community mirror of the daily KRX listing, served from GitHub —
+# reachable from the build server even when data.krx.co.kr blocks it. Used as a
+# KRX-independent secondary source so freshness recovers on its own.
+_GH_LISTING_CACHE = (
+    "https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/"
+    "refs/heads/master/data/listing/krx/{date}.csv"
+)
 # Market-cap floor in KRW. 1,500억원 = 150,000,000,000.
 MIN_MARCAP_KRW = float(os.environ.get("SUH_DH_KR_MIN_MARCAP", str(150_000_000_000)))
 # Cap how many names we pull OHLCV for, to bound runtime on the scheduled build.
@@ -145,13 +168,93 @@ def _demo_base():
     ]
 
 
+def _fetch_listing_gh_cache() -> list[dict]:
+    """KRX listing from FinanceData's GitHub CSV mirror (KRX-independent).
+
+    Probes the most recent available date (the mirror lags a little behind the
+    live KRX close). Returns the same row schema as _fetch_listing(). Never
+    raises — an empty list means the mirror was unreachable/behind.
+    """
+    import urllib.request
+
+    mkt_map = {"STK": "KOSPI", "KSQ": "KOSDAQ"}  # skip KNX (KONEX)
+    today = date.today()
+    for i in range(0, 10):  # look back up to ~1.5 weeks for the latest snapshot
+        day = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        try:
+            with urllib.request.urlopen(
+                _GH_LISTING_CACHE.format(date=day), timeout=20
+            ) as resp:
+                text = resp.read().decode("utf-8-sig", "replace")
+        except Exception:
+            continue
+        rows: list[dict] = []
+        for r in csv.DictReader(io.StringIO(text)):
+            mid = r.get("MarketId")
+            if mid not in mkt_map:
+                continue
+            rows.append({
+                "code": str(r.get("Code", "")).zfill(6),
+                "name": r.get("Name"),
+                "market": mkt_map[mid],
+                "sector": mkt_map[mid],
+                "industry": None,
+                "market_cap": _num(r.get("Marcap")),
+                "price": _num(r.get("Close")),
+                "change_pct": _num(r.get("ChagesRatio")),
+            })
+        if rows:
+            return rows
+    return []
+
+
+def _save_universe_snapshot(rows: list[dict]) -> None:
+    """Persist a last-good universe (best-effort; a read-only FS is fine)."""
+    try:
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {"asof": date.today().isoformat(), "count": len(rows), "rows": rows}
+        _UNIVERSE_SNAPSHOT.write_text(
+            json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _load_universe_snapshot() -> list[dict]:
+    try:
+        payload = json.loads(_UNIVERSE_SNAPSHOT.read_text(encoding="utf-8"))
+        return payload.get("rows") or []
+    except Exception:
+        return []
+
+
+def _resolve_listing() -> list[dict]:
+    """Best-available KRX listing: live KRX → GitHub mirror → committed snapshot.
+
+    Refreshes the on-disk snapshot whenever a live source succeeds, so the
+    scans self-heal to fresh data the moment KRX is reachable again.
+    """
+    listing = _fetch_listing()
+    if not listing:
+        listing = _fetch_listing_gh_cache()
+    if listing:
+        _save_universe_snapshot(listing)
+        return listing
+    # Both live sources are blocked/behind — reuse the last good universe so the
+    # scans still run (off fresh per-ticker bars) instead of freezing at 0.
+    snap = _load_universe_snapshot()
+    if snap:
+        print(f"  KR universe: live listing unavailable — reusing snapshot "
+              f"({len(snap)} names)")
+    return snap
+
+
 def kr_universe(limit: int | None = None) -> list[dict]:
     """Filtered KOSPI+KOSDAQ candidate list (excl. SPAC/ETF/preferred, cap floor).
 
     Shared by the highs screen and the KR base screener. Each row:
     {code, name, market, sector, industry, market_cap, price}.
     """
-    listing = _demo_universe() if _demo() else _fetch_listing()
+    listing = _demo_universe() if _demo() else _resolve_listing()
     universe = [
         r for r in listing
         if not _is_excluded(r.get("name"))
@@ -178,9 +281,13 @@ def _fetch_live() -> list[dict]:
             continue
         close = bars.get("close") or []
         price = close[-1] if close else r.get("price")
-        change = r.get("change_pct")
-        if change is None and len(close) >= 2 and close[-2]:
+        # Prefer the change computed from the fresh bars: the listing's
+        # change_pct can be stale when the universe came from a snapshot.
+        change = None
+        if len(close) >= 2 and close[-2]:
             change = round((close[-1] / close[-2] - 1) * 100, 2)
+        if change is None:
+            change = r.get("change_pct")
         out.append({
             "ticker": r["code"],
             "company": r["name"],
