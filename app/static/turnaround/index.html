@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>턴어라운드 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css?v=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -17,6 +17,8 @@
     </div>
     <div class="controls">
       <span id="status" class="status">불러오는 중…</span>
+      <button id="finviz-btn" title="화면에 표시된(필터된) 종목들의 차트를 Finviz 차트 뷰에서 한눈에 보기">📈 Finviz 차트</button>
+      <button id="tv-btn" title="표시된 종목을 거래소 접두사(NASDAQ:XXX)를 붙여 TradingView 관심목록 import용 .txt로 저장">TradingView ↓</button>
       <button id="csv-btn" title="현재 필터 결과를 CSV로 저장">CSV ↓</button>
       <button id="refresh-btn">새로고침</button>
     </div>
@@ -165,6 +167,6 @@
 
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
-  <script src="app.js?v=1"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

@@ -342,6 +342,86 @@ async function openChart(ticker) {
   }, { responsive: true, displayModeBar: false });
 }
 
+// ---------- Finviz charts view ----------
+// Open the currently-filtered tickers in Finviz's Charts view (v=210), a
+// paginated grid of daily candlesticks — far lighter than rendering hundreds of
+// Plotly charts in-app, and the fastest way to eyeball whether a base is real.
+function openFinvizCharts() {
+  const rows = visible();
+  const tickers = rows.map((s) => String(s.ticker).trim().toUpperCase()).filter(Boolean);
+  if (!tickers.length) {
+    alert("표시된 종목이 없습니다. 필터를 완화한 뒤 다시 눌러 주세요.");
+    return;
+  }
+  // Cap the list so the URL isn't rejected for length. Finviz paginates 20
+  // charts a page, so the cap is still more than anyone scrolls through.
+  const CAP = 500;
+  let list = tickers;
+  if (list.length > CAP) {
+    if (!confirm(`표시된 종목이 ${list.length}개입니다. Finviz 링크 길이 제한으로 상위 ${CAP}개만 엽니다. 계속할까요?`)) return;
+    list = list.slice(0, CAP);
+  }
+  const url = "https://finviz.com/screener.ashx?v=210&t=" + encodeURIComponent(list.join(","));
+  window.open(url, "_blank", "noopener");
+}
+
+// ---------- TradingView TXT export ----------
+// Turn the filtered tickers into an ``EXCHANGE:SYMBOL`` comma list
+// (NASDAQ:AAPL,NYSE:BRK.B,…) for TradingView's watchlist import. The exchange
+// comes from data/us_exchanges.json (built from FDR listings and shared with the
+// base and flat pages). A ticker missing from the map is exported bare —
+// TradingView resolves most of those itself, so a gap is not worth dropping the
+// row over.
+let _EXCH = null;
+async function loadExchanges() {
+  if (_EXCH) return _EXCH;
+  try {
+    const r = await fetch(`../data/us_exchanges.json?_=${Date.now()}`, { cache: "no-store" });
+    _EXCH = r.ok ? await r.json() : {};
+  } catch (_) { _EXCH = {}; }
+  return _EXCH;
+}
+function tvSymbol(ticker, map) {
+  const t = String(ticker || "").toUpperCase().trim();
+  if (!t) return "";
+  const exch = map[t.replace(/\./g, "-")];   // map is keyed Finviz-style (BRK-B)
+  const sym = t.replace(/-/g, ".");           // TradingView wants BRK.B
+  return exch ? `${exch}:${sym}` : sym;
+}
+// Sector-grouped, each group preceded by a "###Sector" header, comma-separated —
+// the format TradingView reads back as watchlist sections.
+function tvGroupedText(rows, map) {
+  const groups = new Map();   // sector -> [symbols], first-seen order preserved
+  for (const s of rows) {
+    const sec = (s.sector || "기타").replace(/,/g, " ");   // a comma would break the delimiter
+    const sym = tvSymbol(s.ticker, map);
+    if (!sym) continue;
+    if (!groups.has(sec)) groups.set(sec, []);
+    groups.get(sec).push(sym);
+  }
+  const parts = [];
+  let total = 0, missing = 0;
+  for (const [sec, syms] of groups) {
+    if (!syms.length) continue;
+    parts.push("###" + sec);
+    for (const sym of syms) { parts.push(sym); total++; if (!sym.includes(":")) missing++; }
+  }
+  return { text: parts.join(","), total, missing };
+}
+async function exportTradingView() {
+  const rows = visible();
+  if (!rows.length) { alert("표시된 종목이 없습니다."); return; }
+  const map = await loadExchanges();
+  const { text, total, missing } = tvGroupedText(rows, map);
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `tradingview_turnaround_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  if (missing) alert(`${total}개 중 ${missing}개는 거래소를 못 찾아 접두사 없이 넣었어요 (TradingView가 대부분 자동 인식합니다).`);
+}
+
 // ---------- CSV ----------
 function exportCsv() {
   const rows = visible();
@@ -380,6 +460,8 @@ function bind() {
   $("#f-search").addEventListener("input", render);
   $("#refresh-btn").addEventListener("click", load);
   $("#csv-btn").addEventListener("click", exportCsv);
+  $("#finviz-btn").addEventListener("click", openFinvizCharts);
+  $("#tv-btn").addEventListener("click", exportTradingView);
   $("#chart-close").addEventListener("click", () => {
     $("#chart-pane").classList.add("hidden");
     $("#divider").classList.add("hidden");
