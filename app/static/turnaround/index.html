@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>턴어라운드 스크리너 · SUH_DH</title>
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -54,7 +54,10 @@
     <label class="search">검색
       <input type="text" id="f-search" placeholder="티커/종목명" />
     </label>
-    <span class="hint-col">열 머리글을 눌러 정렬</span>
+    <span class="hint-col">열 머리글을 눌러 정렬 · <b>⏷</b> 를 눌러 그 열의 값으로 필터</span>
+    <span id="colfilter-chip" class="colfilter-chip hidden">열 필터 <b id="colfilter-n">0</b>개
+      <button id="colfilter-clear" title="열 필터 전체 해제">해제</button>
+    </span>
     <span id="count-badge" class="count-badge"></span>
   </div>
 
@@ -167,6 +170,6 @@
 
   <script src="config.js"></script>
   <script src="../shared/data-source.js?v=3"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
