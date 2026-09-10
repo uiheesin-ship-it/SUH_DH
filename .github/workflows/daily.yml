@@ -25,7 +25,17 @@ on:
     # These are full builds (base NOT skipped) that commit the refreshed
     # base.json; every other run above then reuses it.
     - cron: "0 12,22 * * 1-5"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      scan:
+        description: "재스캔 대상 — 기본은 '배포만'(스캔 없이 커밋된 스냅샷 재사용)"
+        type: choice
+        default: none
+        options:
+          - none      # 배포만 — 정적 페이지만 다시 올림 (수분)
+          - kr-only   # 국장 3종만 (국장 신고가/60일/베이스)
+          - us-only   # 미장 3종만 (베이스/평평/턴어라운드)
+          - all       # 전부 — 무겁습니다 (1~3시간)
   push:
     branches: ["claude/funny-carson-ent3s7"]
     paths-ignore:
@@ -92,6 +102,12 @@ jobs:
           # the 6-hourly news cron and the 30-min intraday highs cron — skips it
           # and reuses the last committed base.json, so those builds stay fast.
           SUH_DH_SKIP_BASE: ${{ (github.event.schedule == '*/30 13-22 * * 1-5' || github.event.schedule == '30 */6 * * *') && '1' || '' }}
+          # Manual runs pick what to rescan. The default is 'none' because a
+          # manual run is nearly always "deploy this again", not "spend two
+          # hours re-reading the whole market" — and while it ran, the
+          # concurrency group blocked every deploy queued behind it.
+          # Scheduled runs ignore this and keep their own cadence above.
+          SUH_DH_SCAN: ${{ github.event.inputs.scan || 'none' }}
       - name: Commit news.json for the Telegram job
         # This commit mirrors the news digest (for Telegram) and persists the
         # base-screener snapshot (so push builds can skip the heavy rescan).

@@ -58,6 +58,53 @@ def publish_scan(dash: dict, site_path: Path, repo_path: Path) -> bool:
     return False
 
 
+# Which market groups get a fresh scan on this build.
+#
+# A scan re-reads the market, not the code — prices move daily, so the schedule
+# below is about data freshness and has nothing to do with what changed in the
+# repo. The three US screeners take roughly an hour each and the concurrency
+# group serialises deploys behind them, so scanning when nobody asked for it
+# costs far more than the stale snapshot it avoids.
+#
+#   workflow_dispatch -> whatever the run's `scan` input asked for. Default
+#                        "none": a manual run is nearly always "deploy again",
+#                        and the old behaviour (always scan everything) meant
+#                        verifying a one-line KR fix blocked deploys for hours.
+#   schedule          -> unchanged. The twice-daily heavy cron scans; the fast
+#                        news/intraday crons set SUH_DH_SKIP_BASE=1 and skip.
+#   push              -> never; reuse the committed snapshots.
+SCAN_GROUPS = {
+    "none": frozenset(),
+    "kr-only": frozenset({"kr"}),
+    "us-only": frozenset({"us"}),
+    "all": frozenset({"us", "kr"}),
+}
+
+
+def scan_groups(event: str, skip_base: bool) -> frozenset:
+    if event == "workflow_dispatch":
+        choice = (os.environ.get("SUH_DH_SCAN") or "none").strip().lower()
+        groups = SCAN_GROUPS.get(choice)
+        if groups is None:      # unknown value -> deploy only, never a surprise scan
+            print(f"  unknown SUH_DH_SCAN={choice!r}; scanning nothing (deploy only)")
+            return frozenset()
+        return groups
+    if not skip_base and event == "schedule":
+        return SCAN_GROUPS["all"]
+    return frozenset()
+
+
+def should_scan(group: str, force_env: str, repo_path: Path, groups: frozenset) -> bool:
+    """A screener rescans when its group is selected, when its own force flag is
+    set, or when it has no committed snapshot yet — that last case is what
+    bootstraps a newly added screener no matter which mode the build runs in."""
+    return (
+        os.environ.get(force_env, "") == "1"
+        or group in groups
+        or not repo_path.exists()
+    )
+
+
 def main() -> None:
     if SITE.exists():
         shutil.rmtree(SITE)
@@ -241,14 +288,14 @@ def main() -> None:
     event = os.environ.get("GITHUB_EVENT_NAME", "")
     # SUH_DH_SKIP_BASE=1 forces reuse of the committed base.json even on a
     # scheduled run. The frequent intraday cron sets this so those builds stay
-    # fast (the base scan is the single heaviest step, ~10-20 min); the 6-hourly
-    # cron and manual dispatch leave it unset, so the base screen still refreshes.
+    # fast (the base scan is the single heaviest step, ~10-20 min); the
+    # twice-daily heavy cron leaves it unset, so the base screen refreshes there.
+    # Manual runs no longer imply a scan — see scan_groups().
     skip_base = os.environ.get("SUH_DH_SKIP_BASE", "") == "1"
-    scan_base = (
-        os.environ.get("SUH_DH_FORCE_BASE", "") == "1"
-        or (not skip_base and event in ("schedule", "workflow_dispatch"))
-        or not repo_base.exists()
-    )
+    groups = scan_groups(event, skip_base)
+    print(f"Scan selection: event={event or '(local)'} skip_base={skip_base} "
+          f"-> {sorted(groups) or 'none (deploy only)'}")
+    scan_base = should_scan("us", "SUH_DH_FORCE_BASE", repo_base, groups)
     if scan_base:
         print("Building base screener (full scan) ...")
         try:
@@ -282,16 +329,11 @@ def main() -> None:
         print("Reusing committed data/base.json (skipping base scan on push) ...")
         shutil.copyfile(repo_base, SITE / "data" / "base.json")
 
-    # Flat Base Screener (US). Same heavy cadence + gating as the base screen:
-    # full scan on scheduled/manual builds, reuse the committed snapshot on plain
-    # pushes and on the fast intraday cron (SUH_DH_SKIP_BASE=1). Force with
+    # Flat Base Screener (US). Scan cadence is decided by scan_groups() — the
+    # "us" group — exactly like the base screen. Force a single rescan with
     # SUH_DH_FORCE_FLAT=1. Charts share data/chart/ (US bars) with the base page.
     repo_flat = ROOT / "data" / "flat.json"
-    scan_flat = (
-        os.environ.get("SUH_DH_FORCE_FLAT", "") == "1"
-        or (not skip_base and event in ("schedule", "workflow_dispatch"))
-        or not repo_flat.exists()
-    )
+    scan_flat = should_scan("us", "SUH_DH_FORCE_FLAT", repo_flat, groups)
     if scan_flat:
         print("Building flat screener (full scan) ...")
         try:
@@ -324,17 +366,11 @@ def main() -> None:
         print("Reusing committed data/flat.json (skipping flat scan on push) ...")
         shutil.copyfile(repo_flat, SITE / "data" / "flat.json")
 
-    # Turnaround Screener (US bottom bases). Same heavy cadence + gating as the
-    # base/flat screens: full scan on scheduled/manual builds, reuse the
-    # committed snapshot on plain pushes and on the fast intraday cron
-    # (SUH_DH_SKIP_BASE=1). Force with SUH_DH_FORCE_TURNAROUND=1. Charts share
-    # data/chart/ (US bars) with the base and flat pages.
+    # Turnaround Screener (US bottom bases). Scan cadence from scan_groups()
+    # ("us" group), same as base/flat. Force with SUH_DH_FORCE_TURNAROUND=1.
+    # Charts share data/chart/ (US bars) with the base and flat pages.
     repo_turn = ROOT / "data" / "turnaround.json"
-    scan_turn = (
-        os.environ.get("SUH_DH_FORCE_TURNAROUND", "") == "1"
-        or (not skip_base and event in ("schedule", "workflow_dispatch"))
-        or not repo_turn.exists()
-    )
+    scan_turn = should_scan("us", "SUH_DH_FORCE_TURNAROUND", repo_turn, groups)
     if scan_turn:
         print("Building turnaround screener (full scan) ...")
         try:
@@ -372,11 +408,7 @@ def main() -> None:
     # follows the same cadence as the base screen: full scan on the 6-hourly cron
     # / manual dispatch, reuse the committed snapshot on pushes and intraday crons.
     repo_krh = ROOT / "data" / "krhighs.json"
-    scan_krh = (
-        os.environ.get("SUH_DH_FORCE_KRHIGHS", "") == "1"
-        or (not skip_base and event in ("schedule", "workflow_dispatch"))
-        or not repo_krh.exists()
-    )
+    scan_krh = should_scan("kr", "SUH_DH_FORCE_KRHIGHS", repo_krh, groups)
     if scan_krh:
         print("Building Korean 52-week highs (full scan) ...")
         try:
@@ -417,11 +449,7 @@ def main() -> None:
     # Korean 60-trading-day highs — same universe/cadence as krhighs above, just a
     # shorter look-back window. Same full-scan-on-cron / reuse-on-push pattern.
     repo_krh60 = ROOT / "data" / "krhighs60.json"
-    scan_krh60 = (
-        os.environ.get("SUH_DH_FORCE_KRHIGHS60", "") == "1"
-        or (not skip_base and event in ("schedule", "workflow_dispatch"))
-        or not repo_krh60.exists()
-    )
+    scan_krh60 = should_scan("kr", "SUH_DH_FORCE_KRHIGHS60", repo_krh60, groups)
     if scan_krh60:
         print("Building Korean 60-day highs (full scan) ...")
         try:
@@ -459,11 +487,7 @@ def main() -> None:
 
     # Korean base screener (same heavy cadence as the US base screen).
     repo_krb = ROOT / "data" / "krbase.json"
-    scan_krb = (
-        os.environ.get("SUH_DH_FORCE_KRBASE", "") == "1"
-        or (not skip_base and event in ("schedule", "workflow_dispatch"))
-        or not repo_krb.exists()
-    )
+    scan_krb = should_scan("kr", "SUH_DH_FORCE_KRBASE", repo_krb, groups)
     if scan_krb:
         print("Building Korean base screener (full scan) ...")
         try:
