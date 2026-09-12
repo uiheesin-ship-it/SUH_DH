@@ -56,7 +56,10 @@ TV_RAW = {
 }
 
 # Yahoo 가격에서 파생하는 지표: (티커들, 계산 방식)
-YF_TICKERS = ["SPY", "QQQ", "RSP", "^VIX", "^VIX3M", "HYG", "LQD", "XLP"]
+# ^VIX3M 은 첫 실전 실행에서 내려오지 않았다(Yahoo 가 심볼별로 들쭉날쭉하다).
+# ^VXV 는 같은 3개월 VIX 의 옛 심볼이라 둘 다 받아 먼저 잡히는 쪽을 쓴다.
+YF_TICKERS = ["SPY", "QQQ", "RSP", "^VIX", "^VIX3M", "^VXV", "HYG", "LQD", "XLP"]
+VIX3M_CANDIDATES = ("^VIX3M", "^VXV")
 
 FRED_SERIES = {"HY_OAS": "BAMLH0A0HYM2"}
 
@@ -70,6 +73,13 @@ SPX_CONSTITUENTS_CSV = (
 # ------------------------------------------------------------------ http
 def _get(url: str, timeout: int = 30, retries: int = 3,
          data: bytes | None = None, headers: dict | None = None) -> str:
+    """재시도가 의미 있는 실패만 재시도한다.
+
+    404/400 처럼 "이 주소가 틀렸다"는 응답은 몇 번을 더 보내도 같으므로 즉시
+    포기한다 — 첫 실행에서 TradingView 심볼 14개가 각각 3번씩 404 를 맞으며
+    백오프 sleep 으로 2분을 버린 적이 있다. 429(과요청)와 5xx, 타임아웃 같은
+    일시적 실패만 백오프하며 다시 시도한다.
+    """
     last: Exception | None = None
     for i in range(retries):
         try:
@@ -79,52 +89,89 @@ def _get(url: str, timeout: int = 30, retries: int = 3,
             )
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read().decode("utf-8", "ignore")
-        except Exception as e:  # noqa: BLE001 - 어떤 실패든 재시도 후 포기
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code < 500 and e.code != 429:
+                raise                      # 주소/요청이 틀린 것 — 재시도 무의미
+            time.sleep(2 * (i + 1))
+        except Exception as e:  # noqa: BLE001 - 네트워크/타임아웃은 재시도
             last = e
             time.sleep(2 * (i + 1))
     raise last  # type: ignore[misc]
 
 
 # ----------------------------------------------------- 1. TradingView
-def fetch_tradingview(symbols: dict[str, str]) -> dict[str, float]:
-    """{키: 심볼} → {키: 최신 종가}. 실패한 심볼은 그냥 빠진다.
+# 스캐너 엔드포인트 후보. 첫 실전 실행에서 /index/scan 이 전 심볼 404 를 돌려줬다
+# — 경로가 틀린 것이지 심볼이 없는 게 아니다. 어느 형태가 살아 있는지 여기서
+# 확정할 방법이 없으므로(샌드박스가 tradingview 를 차단) 후보를 순서대로 시도하고
+# 성공한 변형을 로그에 남긴다. 다음 실행의 로그가 곧 답이 된다.
+TV_BATCH_URLS = (
+    "https://scanner.tradingview.com/america/scan",
+    "https://scanner.tradingview.com/global/scan?label-product=markets-screener",
+    "https://scanner.tradingview.com/index/scan",
+)
+# 단건 조회는 no_404=true 가 없으면 필드 하나만 없어도 404 를 돌려준다.
+TV_SYMBOL_URL = ("https://scanner.tradingview.com/symbol"
+                 "?symbol={sym}&fields=close&no_404=true")
 
-    스캐너의 배치 엔드포인트를 먼저 쓰고(한 번에 전부), 막히면 심볼 단건
-    엔드포인트로 하나씩 다시 시도한다. 어느 쪽도 인증이 필요 없다.
+TV_HEADERS = {
+    "Content-Type": "application/json",
+    "Origin": "https://www.tradingview.com",
+    "Referer": "https://www.tradingview.com/",
+    "Accept": "application/json",
+}
+
+
+def _tv_batch(url: str, tickers: list[str]) -> dict[str, float]:
+    body = json.dumps({
+        "symbols": {"tickers": tickers, "query": {"types": []}},
+        "columns": ["close"],
+    }).encode()
+    txt = _get(url, data=body, retries=2, headers=TV_HEADERS)
+    rows = (json.loads(txt) or {}).get("data") or []
+    out = {}
+    for r in rows:
+        v = (r.get("d") or [None])[0]
+        if isinstance(v, (int, float)):
+            out[r.get("s")] = float(v)
+    return out
+
+
+def fetch_tradingview(symbols: dict[str, str]) -> dict[str, float]:
+    """{키: 심볼} → {키: 최신 종가}. 받지 못한 심볼은 그냥 빠진다.
+
+    배치 엔드포인트 후보를 차례로 시도해 하나라도 값을 주면 채택하고, 그래도
+    빈 심볼은 단건 조회로 한 번 더 훑는다. 어느 경로도 안 되면 빈 dict 를
+    돌려주고 호출부가 직접 계산 폴백으로 넘어간다.
     """
     out: dict[str, float] = {}
     tickers = list(symbols.values())
-    try:
-        body = json.dumps({
-            "symbols": {"tickers": tickers, "query": {"types": []}},
-            "columns": ["close"],
-        }).encode()
-        txt = _get("https://scanner.tradingview.com/index/scan", data=body,
-                   headers={"Content-Type": "application/json",
-                            "Origin": "https://www.tradingview.com",
-                            "Referer": "https://www.tradingview.com/"})
-        rows = (json.loads(txt) or {}).get("data") or []
-        got = {r.get("s"): (r.get("d") or [None])[0] for r in rows}
-        for key, sym in symbols.items():
-            v = got.get(sym)
-            if isinstance(v, (int, float)):
-                out[key] = float(v)
-    except Exception as e:  # noqa: BLE001
-        print(f"  tradingview batch failed: {e}")
+
+    for url in TV_BATCH_URLS:
+        try:
+            got = _tv_batch(url, tickers)
+        except Exception as e:  # noqa: BLE001
+            print(f"  tradingview batch {url.split('/')[3]} failed: {e}")
+            continue
+        if got:
+            print(f"  tradingview batch OK via {url} ({len(got)} symbols)")
+            for key, sym in symbols.items():
+                if sym in got:
+                    out[key] = got[sym]
+            break
+        print(f"  tradingview batch {url.split('/')[3]} returned no rows")
 
     missing = {k: s for k, s in symbols.items() if k not in out}
     for key, sym in missing.items():
         try:
-            txt = _get(f"https://scanner.tradingview.com/symbol"
-                       f"?symbol={urllib.parse.quote(sym)}&fields=close",
-                       retries=2,
-                       headers={"Referer": "https://www.tradingview.com/"})
+            txt = _get(TV_SYMBOL_URL.format(sym=urllib.parse.quote(sym)),
+                       retries=1, headers={"Referer": "https://www.tradingview.com/"})
             v = (json.loads(txt) or {}).get("close")
             if isinstance(v, (int, float)):
                 out[key] = float(v)
         except Exception as e:  # noqa: BLE001
             print(f"  tradingview {sym} failed: {e}")
-        time.sleep(0.3)
+        time.sleep(0.2)
     return out
 
 
@@ -154,7 +201,9 @@ def fetch_yahoo(period: str = "2y") -> dict[str, dict[str, float]]:
         return close[t] if t in close else None
 
     spy, qqq, rsp = col("SPY"), col("QQQ"), col("RSP")
-    vix, vix3m = col("^VIX"), col("^VIX3M")
+    vix = col("^VIX")
+    vix3m = next((c for c in map(col, VIX3M_CANDIDATES)
+                  if c is not None and c.notna().any()), None)
     hyg, lqd, xlp = col("HYG"), col("LQD"), col("XLP")
 
     out: dict[str, dict[str, float]] = {}
@@ -180,6 +229,10 @@ def fetch_yahoo(period: str = "2y") -> dict[str, dict[str, float]]:
             if prev:
                 put(str(r.index[i].date()), key,
                     (r.iloc[i] / prev - 1) * 100)
+
+    missing = [t for t in YF_TICKERS if t not in close or not close[t].notna().any()]
+    if missing:
+        print(f"  yahoo: no data for {', '.join(missing)}")
 
     ratio_20d(rsp, spy, "RSP_SPY_20D")
     ratio_20d(hyg, lqd, "HYG_LQD_20D")
@@ -216,8 +269,10 @@ def fetch_fred(series: dict[str, str], cosd: str = "2023-01-01") -> dict[str, di
     out: dict[str, dict[str, float]] = {}
     for key, sid in series.items():
         try:
+            # 첫 실전 실행이 read timeout 으로 떨어졌다. FRED 는 CSV 를 즉석에서
+            # 만들어 주느라 가끔 느리므로 기본값(30s/3회)보다 넉넉히 준다.
             txt = _get(f"https://fred.stlouisfed.org/graph/fredgraph.csv"
-                       f"?id={sid}&cosd={cosd}")
+                       f"?id={sid}&cosd={cosd}", timeout=90, retries=4)
         except Exception as e:  # noqa: BLE001
             print(f"  fred {sid} failed: {e}")
             continue
