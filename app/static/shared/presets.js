@@ -75,8 +75,36 @@ window.SUHPresets = (function () {
         chip.className = "preset-chip";
         chip.title = "클릭: 이 조건으로 필터";
         const name = document.createElement("span");
+        name.className = "preset-name";
         name.textContent = p.name;
         name.addEventListener("click", () => applyState(p.state, opts));
+        // ✎ 이름 변경
+        const rename = document.createElement("span");
+        rename.className = "preset-edit";
+        rename.textContent = "✎";
+        rename.title = "이름 변경";
+        rename.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const l = load(program);
+          const cur = (l[i] && l[i].name) || p.name;
+          const nm = (prompt("새 이름:", cur) || "").trim();
+          if (!nm || nm === cur) return;
+          l[i].name = nm;
+          // 같은 이름의 다른 프리셋이 있으면 이 항목만 남기고 제거(중복 방지)
+          save(program, l.filter((q, j) => j === i || q.name !== nm));
+          render();
+        });
+        // ⟳ 현재 화면의 필터로 이 프리셋의 조건을 갱신
+        const upd = document.createElement("span");
+        upd.className = "preset-upd";
+        upd.textContent = "⟳";
+        upd.title = "지금 걸린 필터(상단 + 열 필터)로 이 조건 갱신(덮어쓰기)";
+        upd.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!confirm(`'${p.name}' 조건을 지금 화면의 필터로 갱신(덮어쓰기)할까요?`)) return;
+          const l = load(program);
+          if (l[i]) { l[i].state = captureState(opts); save(program, l); render(); }
+        });
         const del = document.createElement("span");
         del.className = "preset-del";
         del.textContent = "×";
@@ -89,6 +117,8 @@ window.SUHPresets = (function () {
           render();
         });
         chip.appendChild(name);
+        chip.appendChild(upd);
+        chip.appendChild(rename);
         chip.appendChild(del);
         bar.appendChild(chip);
       });

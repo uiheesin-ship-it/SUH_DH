@@ -225,6 +225,9 @@ td.etf { color: var(--accent); }
 .preset-chip:hover { border-color: var(--accent); color: var(--accent); }
 .preset-chip .preset-del { color: var(--muted); font-weight: 700; padding: 0 3px; border-radius: 999px; }
 .preset-chip .preset-del:hover { color: #fca5a5; background: rgba(0,0,0,.3); }
+.preset-chip .preset-edit, .preset-chip .preset-upd { color: var(--muted); padding: 0 3px; border-radius: 999px; font-weight: 700; }
+.preset-chip .preset-edit:hover, .preset-chip .preset-upd:hover { color: var(--accent); background: rgba(0,0,0,.3); }
+.preset-chip .preset-name { cursor: pointer; }
 .preset-add { background: none; color: var(--accent); border: 1px dashed var(--border);
   border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
 .preset-add:hover { border-color: var(--accent); }
