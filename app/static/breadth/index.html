@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>미장 마켓 브레스 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🌡️ 미장 마켓 브레스</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">불러오는 중…</span>
+      <button id="refresh-btn">새로고침</button>
+    </div>
+  </header>
+
+  <main id="content">
+    <!-- 종합 판정 -->
+    <section class="hero" id="hero">
+      <div class="loading">브레스 데이터를 불러오는 중입니다…</div>
+    </section>
+
+    <!-- 다이버전스 경고 -->
+    <section id="alerts" class="alerts"></section>
+
+    <!-- 지표 그룹 -->
+    <section id="groups"></section>
+
+    <!-- TradingView 원본 차트 -->
+    <section class="tv-section" id="tv-section">
+      <div class="sec-head">
+        <h2>원본 차트 (TradingView)</h2>
+        <p class="sec-desc">
+          위 카드의 숫자와 같은 지표를 TradingView 차트로 직접 봅니다.
+          우리 수집이 실패해도 이 차트는 항상 최신입니다.
+        </p>
+      </div>
+      <div class="tv-tabs" id="tv-tabs"></div>
+      <div class="tv-box">
+        <div id="tv-chart"></div>
+        <div class="tv-fallback" id="tv-fallback">
+          TradingView 위젯을 불러오지 못했습니다.
+          <a id="tv-link" href="https://www.tradingview.com/chart/?symbol=INDEX%3AS5FI"
+             target="_blank" rel="noopener">TradingView 에서 바로 보기 ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 해석 가이드 -->
+    <section class="guide">
+      <div class="sec-head">
+        <h2>읽는 법</h2>
+        <p class="sec-desc">숫자 하나하나보다 <b>지수와 브레스의 방향이 같은가</b>가 핵심입니다.</p>
+      </div>
+      <div class="guide-grid">
+        <div class="guide-card">
+          <h3>① 레짐 — 지금 사도 되는 장인가</h3>
+          <p><b>S5FI(50일선 위 %)</b>가 기준선입니다. 60% 이상이면 폭이 넓은 상승,
+             40% 아래면 소수 종목만 가는 장입니다. <b>S5TH(200일선 위 %)</b>가
+             50% 아래에 오래 머물면 구조적 약세로 봅니다.</p>
+        </div>
+        <div class="guide-card">
+          <h3>② 다이버전스 — 천장/바닥의 신호</h3>
+          <p>지수는 신고가인데 S5FI·신고가−신저가가 계속 낮아지면 내부는 이미
+             무너지는 중입니다. 반대로 S5TH가 극단 침체(20% 부근)에서
+             중기 브레스만 먼저 돌아서면 바닥권 전환 후보입니다.</p>
+        </div>
+        <div class="guide-card">
+          <h3>③ 확인 — 거래량과 신용</h3>
+          <p><b>상승/하락 거래량 비율</b>이 4배(9:1에 가까운 매집일)면 돌파의
+             신뢰도가 올라갑니다. 주식 브레스가 나빠질 때 <b>하이일드 스프레드</b>가
+             같이 벌어지면 진짜 위험, 조용하면 단순 조정일 확률이 높습니다.</p>
+        </div>
+        <div class="guide-card">
+          <h3>④ 스크리너와 함께 쓰기</h3>
+          <p>브레스가 <b>양호</b>면 베이스·평평 스크리너의 돌파 세팅을 적극적으로,
+             <b>주의·위험</b>이면 같은 세팅이라도 비중을 줄이고 손절을 좁히는 식으로
+             쓰는 게 이 페이지의 용도입니다.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <b>데이터 출처</b> — 브레스 지수는 TradingView(<code>INDEX:S5FI</code> 등)에서,
+    동일가중·변동성·방어주 비율은 Yahoo Finance 가격에서, 하이일드 스프레드는 FRED
+    (<code>BAMLH0A0HYM2</code>)에서 받아옵니다. TradingView 수신이 막히면 S&amp;P 500
+    구성종목 종가로 %&gt;이평선을 직접 계산해 채웁니다(카드의 출처 배지로 구분).
+    값은 미국장 마감 후 하루 한 번 갱신되며, 종합점수는 이 페이지의 가중 평균일 뿐
+    표준 지표가 아닙니다. 투자 판단의 근거가 아니라 참고용입니다.
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="../shared/data-source.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
