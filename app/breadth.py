@@ -29,6 +29,15 @@ DATA_FILE = os.environ.get("SUH_DH_BREADTH_FILE") or str(
 # 시계열로 보관할 최대 일수(약 2년). 파일이 무한히 커지지 않게 수집기가 자른다.
 MAX_HISTORY_DAYS = 500
 
+# 종합점수에 넣어 줄 수 있는 최대 지연(거래일).
+#
+# 지표마다 자기 마지막 값을 쓰게 고쳤더니 반대쪽 문제가 생겼다 — Yahoo 의
+# ^VIX3M 이 2026-07-17 이후로 갱신을 멈췄는데, 두 달 묵은 VIX 기간구조가
+# "현재 리스크 레짐"인 척 점수에 들어가고 있었다. 며칠 어긋나는 건 정상이고
+# 두 달은 죽은 값이다. 이 선을 넘으면 카드에는 날짜와 함께 남기되(원천이 죽은
+# 걸 사용자가 알아야 하니까) 점수 계산에서는 뺀다.
+STALE_LIMIT_DAYS = 5
+
 
 @dataclass(frozen=True)
 class Metric:
@@ -404,9 +413,15 @@ def get_breadth() -> dict:
     latest_date = rows[-1][0]
     sources = data.get("sources") or {}
 
+    # 기준일에서 며칠 전인지 세려면 날짜 목록이 필요하다(거래일 기준).
+    day_index = {d: i for i, (d, _) in enumerate(rows)}
+    last_i = len(rows) - 1
+
     metrics = []
     for m in METRICS:
         mdate, v, p = _last_points(rows, m.key)
+        lag = last_i - day_index[mdate] if mdate in day_index else 0
+        usable = v is not None and lag <= STALE_LIMIT_DAYS
         label, tone = zone_of(m, v)
         # 스파크라인: 최근 90 영업일. (날짜, 값) 쌍으로 보내 결측을 건너뛴다.
         spark = [[d, r[m.key]] for d, r in rows[-90:] if r.get(m.key) is not None]
@@ -417,6 +432,8 @@ def get_breadth() -> dict:
             "value": v, "prev": p,
             # 이 지표의 값이 실제로 찍힌 날. 기준일과 다르면 화면이 날짜를 띄운다.
             "asof": mdate, "stale": bool(mdate and mdate != latest_date),
+            # 너무 오래된 값은 보여주되 점수에서는 뺀다(원천이 죽은 경우).
+            "lag": lag, "usable": usable,
             "change": round(v - p, 4) if (v is not None and p is not None) else None,
             "d20": _trend(rows, m.key, 20),
             "zone": label, "tone": tone,
@@ -424,7 +441,8 @@ def get_breadth() -> dict:
             "spark": spark,
         })
 
-    values = {m["key"]: m["value"] for m in metrics}
+    # 점수에는 "지금 값"만 넣는다 — 오래 묵은 값은 카드에만 남는다.
+    values = {m["key"]: m["value"] for m in metrics if m["usable"]}
     return {
         "updated": data.get("updated"),
         "asof": latest_date,
@@ -464,7 +482,7 @@ def _empty(note: str) -> dict:
             {"key": m.key, "label": m.label, "group": m.group, "unit": m.unit,
              "symbol": m.symbol, "source": m.source, "desc": m.desc, "use": m.use,
              "decimals": m.decimals, "value": None, "prev": None, "change": None,
-             "asof": None, "stale": False,
+             "asof": None, "stale": False, "lag": 0, "usable": False,
              "d20": None, "zone": None, "tone": None, "score": None,
              "weight": m.weight, "spark": []}
             for m in METRICS
