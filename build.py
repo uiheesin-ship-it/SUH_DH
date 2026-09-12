@@ -117,7 +117,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "eai"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -127,7 +127,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "eai"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -580,6 +580,27 @@ def main() -> None:
         write_json(SITE / "data" / "kr_backlog.json",
                    {"updated": None, "count": 0, "companies": [], "demo": False,
                     "note": "아직 수주잔고 데이터가 없습니다. kr-backlog 워크플로를 실행하세요."})
+
+    # 미장 마켓 브레스. 수집은 breadth.yml 워크플로(tools/breadth_us.py)가 하고
+    # data/breadth_us.json(원본 시계열) + data/breadth.json(판정이 끝난 뷰)을
+    # 커밋한다. 여기서는 커밋된 스냅샷을 배포본에 실어 나르기만 한다 — 수주잔고
+    # 와 같은 방식. 뷰가 없으면(수집 전) 시계열에서 즉석으로 만들어 채운다.
+    try:
+        from app import breadth as breadth_mod
+
+        (SITE / "data").mkdir(parents=True, exist_ok=True)
+        for name in ("breadth_us.json", "breadth.json"):
+            src = ROOT / "data" / name
+            if src.exists():
+                shutil.copyfile(src, SITE / "data" / name)
+        if not (SITE / "data" / "breadth.json").exists():
+            write_json(SITE / "data" / "breadth.json", breadth_mod.get_breadth())
+        view = json.loads((SITE / "data" / "breadth.json").read_text(encoding="utf-8"))
+        comp = view.get("composite") or {}
+        print(f"Publishing breadth (asof {view.get('asof')}, "
+              f"종합 {comp.get('score')} {comp.get('regime') or '-'}) ...")
+    except Exception as e:
+        print(f"  breadth publish failed: {e}")
 
     # US 52-week highs: re-fetch and enrich with per-ticker reasons + charts
     # (the slow part). The bare list was already published up front; this pass

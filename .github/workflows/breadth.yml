@@ -1,0 +1,58 @@
+name: Fetch US market breadth
+
+# 미장 마켓 브레스 수집 → data/breadth_us.json(시계열) + data/breadth.json(뷰).
+#
+# 값은 하루 한 번만 바뀌므로(일봉 기준) 미국장 마감 뒤 한 번만 돌린다.
+# 21:10 UTC = 뉴욕 17:10 (EDT) / 16:10 (EST) — 정규장 마감과 데이터 확정 이후.
+# 시크릿 불필요(TradingView·Yahoo·FRED 모두 키 없이 읽는다).
+on:
+  schedule:
+    - cron: "10 21 * * 1-5"   # 평일 장 마감 후
+  workflow_dispatch:
+    inputs:
+      compute:
+        description: "S&P500 구성종목으로 %>이평선을 직접 계산(과거치 백필, 수 분 소요)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: breadth
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      # 다른 데이터 워크플로와 같은 브랜치를 본다. 배포되는 사이트와
+      # app/static/shared/data-source.js 의 raw 경로가 모두 이 브랜치다.
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install --quiet yfinance pandas numpy curl_cffi
+      - name: Fetch breadth
+        run: |
+          python tools/breadth_us.py \
+            ${{ github.event.inputs.compute == 'true' && '--compute' || '' }}
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/breadth_us.json data/breadth.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/breadth_us.json data/breadth.json
+            git commit -m "data(breadth): refresh US market breadth"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi

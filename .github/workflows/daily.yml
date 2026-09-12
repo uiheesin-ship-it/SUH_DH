@@ -69,6 +69,10 @@ on:
       # served to the page via raw, so its frequent commits must not loop the build.
       - "data/highs.json"
       - "data/meta.json"
+      # And the market-breadth series/view committed by breadth.yml — the page
+      # reads them via raw, so those daily commits must not loop the build.
+      - "data/breadth_us.json"
+      - "data/breadth.json"
 
 permissions:
   # Write access so the build can commit data/news.json for the Telegram job.

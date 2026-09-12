@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, backlog, charts, earnings, kr, news, screener
+from . import __version__, backlog, breadth, charts, earnings, kr, news, screener
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
 from .turnaround import get_screen as turnaround_get_screen
@@ -276,6 +276,23 @@ def kr_backlog_company(stock_code: str):
         return JSONResponse(
             status_code=502,
             content={"error": "수주잔고 조회에 실패했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/breadth")
+def us_breadth():
+    """미장 마켓 브레스: %>이평선·A/D·신고가/신저가 + 리스크 레짐 + 종합점수.
+
+    수집은 tools/breadth_us.py (breadth.yml 워크플로)가 하고 data/breadth_us.json
+    에 시계열로 쌓는다. 여기서는 그 스냅샷을 읽어 구간 판정만 붙여 돌려준다 —
+    요청마다 외부를 때리지 않으므로 빠르고, 정적 페이지와 값이 같다.
+    """
+    try:
+        return breadth.get_breadth()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "마켓 브레스 데이터를 불러오지 못했습니다.", "detail": str(e)},
         )
 
 

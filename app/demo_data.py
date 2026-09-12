@@ -314,3 +314,52 @@ def demo_chart(ticker: str, rng: str) -> dict:
         "close": closes,
         "volume": volumes,
     }
+
+
+# --- 마켓 브레스(미장) ------------------------------------------------------
+# 실제 수집 전에도 브레스 페이지의 레이아웃/채점/경고를 확인할 수 있게 만든
+# 합성 시계열. 값은 "지수는 200일선 위인데 중기 브레스가 빠지는" 전형적인
+# 다이버전스 국면을 재현하도록 만들어 두었다(경고 로직까지 눈으로 확인 가능).
+def demo_breadth_series(days: int = 160) -> dict:
+    today = datetime.now(timezone.utc).date()
+    series: dict[str, dict[str, float]] = {}
+    d = today - timedelta(days=int(days * 1.45))  # 주말 제외분 보정
+    i = 0
+    while d <= today:
+        if d.weekday() < 5:  # 평일만
+            w = i / max(1, days)          # 0 → 1 진행도
+            wave = math.sin(i / 9.0)
+            # 중기 브레스는 후반으로 갈수록 약해지고(diverge), 지수는 버틴다.
+            s5fi = 68 - 30 * w + 7 * wave
+            series[d.isoformat()] = {
+                "S5TW": round(max(2, min(98, s5fi + 9 * math.sin(i / 4.0))), 1),
+                "S5FI": round(max(2, min(98, s5fi)), 1),
+                "S5TH": round(max(2, min(98, 62 - 16 * w + 4 * wave)), 1),
+                "NDFI": round(max(2, min(98, s5fi + 5 - 6 * w)), 1),
+                "NDTH": round(max(2, min(98, 66 - 14 * w + 3 * wave)), 1),
+                "NCTH": round(max(2, min(98, 48 - 18 * w + 5 * wave)), 1),
+                "ADDN": round(600 * wave - 900 * w, 0),
+                "ADRN": round(max(0.2, 1.35 + 0.5 * wave - 0.55 * w), 2),
+                "NHNL": round(180 * (1 - 1.6 * w) + 90 * wave, 0),
+                "NYMO": round(55 * wave - 45 * w, 1),
+                "NYSI": round(900 - 1400 * w + 200 * wave, 0),
+                "UD_VOL": round(max(0.15, 1.6 + 1.1 * wave - 0.9 * w), 2),
+                "RSP_SPY_20D": round(1.4 * wave - 2.2 * w, 2),
+                "VIX": round(14 + 6 * w - 2 * wave, 2),
+                "VIX_TERM": round(1.12 - 0.14 * w + 0.02 * wave, 3),
+                "HY_OAS": round(3.0 + 0.9 * w - 0.15 * wave, 2),
+                "XLP_SPY_20D": round(-0.8 + 2.4 * w - 0.9 * wave, 2),
+                "SPY_VS_200": round(7.5 - 3.0 * w + 1.8 * wave, 2),
+                "QQQ_VS_200": round(9.0 - 4.0 * w + 2.2 * wave, 2),
+                "HYG_LQD_20D": round(0.9 * wave - 1.3 * w, 2),
+            }
+            i += 1
+        d += timedelta(days=1)
+    return {
+        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "asof": max(series) if series else None,
+        "demo": True,
+        "series": series,
+        "sources": {"S5FI": "demo"},
+        "notes": ["SUH_DH_DEMO=1 — 합성 데이터입니다. 실제 시장 값이 아닙니다."],
+    }
