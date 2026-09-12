@@ -235,8 +235,33 @@ def test_metric_uses_its_own_last_session(tmp_path, monkeypatch):
     assert by["VIX_TERM"]["change"] == pytest.approx(-0.03)   # 그 직전 값 대비
 
     assert by["S5FI"]["asof"] == "2026-01-07" and by["S5FI"]["stale"] is False
-    # 뒤처진 지표도 종합점수에 들어간다(빈 칸으로 버리면 커버리지가 깎인다).
+    # 하루 늦은 정도는 종합점수에 들어간다(빈 칸으로 버리면 커버리지가 깎인다).
+    assert by["VIX_TERM"]["usable"] is True
     assert "VIX_TERM" in [p["key"] for p in view["composite"]["parts"]]
+
+
+def test_long_stale_value_is_shown_but_not_scored(tmp_path, monkeypatch):
+    """원천이 죽어 값이 멈추면 카드에는 남기되 점수에서는 뺀다.
+
+    실제로 Yahoo 의 ^VIX3M 이 2026-07-17 이후 갱신을 멈췄는데, 두 달 묵은 VIX
+    기간구조가 "현재 리스크 레짐"인 척 종합점수에 들어가고 있었다.
+    """
+    series = {f"2026-01-{d:02d}": {"S5FI": 50.0} for d in range(1, 21)}
+    series["2026-01-01"]["VIX_TERM"] = 1.05      # 19거래일 전에서 멈춘 값
+    path = tmp_path / "breadth_us.json"
+    path.write_text(json.dumps({"series": series}), encoding="utf-8")
+    monkeypatch.setattr(breadth, "DATA_FILE", str(path))
+    monkeypatch.delenv("SUH_DH_DEMO", raising=False)
+    view = breadth.get_breadth()
+
+    vt = {m["key"]: m for m in view["metrics"]}["VIX_TERM"]
+    assert vt["value"] == 1.05                    # 카드에는 그대로 보인다
+    assert vt["asof"] == "2026-01-01" and vt["stale"] is True
+    assert vt["lag"] > breadth.STALE_LIMIT_DAYS
+    assert vt["usable"] is False                  # 점수에서는 빠진다
+    assert "VIX_TERM" not in [p["key"] for p in view["composite"]["parts"]]
+    # S5FI 만 남으므로 종합점수는 S5FI 그대로.
+    assert view["composite"]["score"] == 50.0
 
 
 def test_missing_file_is_a_friendly_empty_view(tmp_path, monkeypatch):

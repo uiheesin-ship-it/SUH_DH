@@ -136,9 +136,14 @@ function card(m) {
     : "";
   // 원천마다 마지막 거래일이 다르다. 기준일보다 오래된 값이면 그 날짜를 붙여
   // "왜 어제 값이지?" 를 묻지 않게 한다(빈 칸으로 버리는 것보다 낫다).
+  // 며칠 어긋나는 건 정상이고, 오래 멈춰 있으면 원천이 죽은 것 — 후자는 점수에서
+  // 빠지므로(usable=false) 카드도 흐리게 해서 "값은 있지만 못 믿는다"를 보여준다.
+  const dead = m.value !== null && m.usable === false;
   const stale = m.stale && m.asof
-    ? `<span class="card-stale" title="이 지표의 최신 수집일">${esc(m.asof)}</span>` : "";
-  return `<article class="card${na ? " na" : ""}" title="${esc(m.desc)}">
+    ? `<span class="card-stale${dead ? " dead" : ""}" title="${dead
+        ? "값이 오래 멈춰 있어 종합점수에서 제외했습니다" : "이 지표의 최신 수집일"}"
+       >${esc(m.asof)}</span>` : "";
+  return `<article class="card${na ? " na" : ""}${dead ? " dead" : ""}" title="${esc(m.desc)}">
     <div class="card-head">
       <span class="card-label">${esc(m.label)}${stale}</span>
       <span class="card-src" title="출처">${esc(m.source || "")}</span>
