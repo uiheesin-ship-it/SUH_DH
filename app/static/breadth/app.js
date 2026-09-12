@@ -125,9 +125,13 @@ function card(m) {
   const d20 = (m.d20 !== null && m.d20 !== undefined)
     ? `<span class="card-d20">20일 ${m.d20 > 0 ? "+" : ""}${fmt(m.d20, m.decimals)}${m.unit === "%" ? "%p" : ""}</span>`
     : "";
+  // 원천마다 마지막 거래일이 다르다. 기준일보다 오래된 값이면 그 날짜를 붙여
+  // "왜 어제 값이지?" 를 묻지 않게 한다(빈 칸으로 버리는 것보다 낫다).
+  const stale = m.stale && m.asof
+    ? `<span class="card-stale" title="이 지표의 최신 수집일">${esc(m.asof)}</span>` : "";
   return `<article class="card${na ? " na" : ""}" title="${esc(m.desc)}">
     <div class="card-head">
-      <span class="card-label">${esc(m.label)}</span>
+      <span class="card-label">${esc(m.label)}${stale}</span>
       <span class="card-src" title="출처">${esc(m.source || "")}</span>
     </div>
     <div class="card-val">

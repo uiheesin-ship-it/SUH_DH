@@ -104,6 +104,10 @@ body {
 .card.na { opacity: .5; }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .card-label { font-size: 13px; font-weight: 700; }
+.card-stale {
+  margin-left: 6px; font-size: 10px; font-weight: 500; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 5px; padding: 0 4px;
+}
 .card-src {
   font-size: 10px; color: var(--muted); border: 1px solid var(--border);
   border-radius: 5px; padding: 1px 5px; white-space: nowrap;

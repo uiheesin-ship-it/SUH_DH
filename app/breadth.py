@@ -305,6 +305,22 @@ def _series_rows(data: dict) -> list[tuple[str, dict]]:
     return sorted(((d, v) for d, v in series.items() if isinstance(v, dict)))
 
 
+def _last_points(rows: list[tuple[str, dict]], key: str) -> tuple[str | None, float | None, float | None]:
+    """그 지표가 실제로 값을 가진 마지막 (날짜, 값, 그 전 값).
+
+    원천마다 마지막 거래일이 하루이틀 어긋난다 — 실제로 ^VIX3M 이 SPY 보다 며칠
+    일찍 끝나는 바람에 VIX 기간구조가 459일치나 쌓여 있는데도 카드가 "—" 로
+    비어 있었다. 기준일 한 줄만 보지 말고 지표별로 마지막 값을 찾아 쓰고,
+    기준일보다 오래됐으면 화면에 그 날짜를 같이 보여준다.
+    """
+    pts = [(d, v[key]) for d, v in rows if v.get(key) is not None]
+    if not pts:
+        return None, None, None
+    d, val = pts[-1]
+    prev = pts[-2][1] if len(pts) > 1 else None
+    return d, val, prev
+
+
 def _trend(rows: list[tuple[str, dict]], key: str, back: int) -> float | None:
     """back 거래일 전 대비 변화량(절대값 차이). 데이터가 모자라면 None."""
     pts = [(d, v.get(key)) for d, v in rows if v.get(key) is not None]
@@ -414,14 +430,12 @@ def get_breadth() -> dict:
     if not rows:
         return _empty("아직 수집된 데이터가 없습니다. breadth 워크플로를 실행하세요.")
 
-    latest_date, latest = rows[-1]
-    prev = rows[-2][1] if len(rows) > 1 else {}
+    latest_date = rows[-1][0]
     sources = data.get("sources") or {}
 
     metrics = []
     for m in METRICS:
-        v = latest.get(m.key)
-        p = prev.get(m.key)
+        mdate, v, p = _last_points(rows, m.key)
         label, tone = zone_of(m, v)
         # 스파크라인: 최근 90 영업일. (날짜, 값) 쌍으로 보내 결측을 건너뛴다.
         spark = [[d, r[m.key]] for d, r in rows[-90:] if r.get(m.key) is not None]
@@ -430,6 +444,8 @@ def get_breadth() -> dict:
             "symbol": m.symbol, "source": sources.get(m.key) or m.source,
             "desc": m.desc, "use": m.use, "decimals": m.decimals,
             "value": v, "prev": p,
+            # 이 지표의 값이 실제로 찍힌 날. 기준일과 다르면 화면이 날짜를 띄운다.
+            "asof": mdate, "stale": bool(mdate and mdate != latest_date),
             "change": round(v - p, 4) if (v is not None and p is not None) else None,
             "d20": _trend(rows, m.key, 20),
             "zone": label, "tone": tone,
@@ -477,6 +493,7 @@ def _empty(note: str) -> dict:
             {"key": m.key, "label": m.label, "group": m.group, "unit": m.unit,
              "symbol": m.symbol, "source": m.source, "desc": m.desc, "use": m.use,
              "decimals": m.decimals, "value": None, "prev": None, "change": None,
+             "asof": None, "stale": False,
              "d20": None, "zone": None, "tone": None, "score": None,
              "weight": m.weight, "spark": []}
             for m in METRICS

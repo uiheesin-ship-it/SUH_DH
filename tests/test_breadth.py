@@ -211,6 +211,33 @@ def test_view_sparkline_skips_missing_values(snapshot):
     assert [p[0] for p in s5fi["spark"]] == ["2026-01-05", "2026-01-06", "2026-01-07"]
 
 
+def test_metric_uses_its_own_last_session(tmp_path, monkeypatch):
+    """원천마다 마지막 거래일이 다르다 — 하루 늦은 지표를 빈 칸으로 버리지 않는다.
+
+    실제로 ^VIX3M 이 SPY 보다 며칠 일찍 끝나는 바람에 VIX 기간구조가 459일치나
+    쌓여 있는데도 카드가 "—" 로 비어 있었다.
+    """
+    path = tmp_path / "breadth_us.json"
+    path.write_text(json.dumps({"series": {
+        "2026-01-05": {"S5FI": 60.0, "VIX_TERM": 1.05},
+        "2026-01-06": {"S5FI": 58.0, "VIX_TERM": 1.02},
+        "2026-01-07": {"S5FI": 52.5},          # VIX_TERM 은 이날 값이 없다
+    }}), encoding="utf-8")
+    monkeypatch.setattr(breadth, "DATA_FILE", str(path))
+    monkeypatch.delenv("SUH_DH_DEMO", raising=False)
+    view = breadth.get_breadth()
+
+    by = {m["key"]: m for m in view["metrics"]}
+    assert by["VIX_TERM"]["value"] == 1.02            # 마지막으로 있던 값
+    assert by["VIX_TERM"]["asof"] == "2026-01-06"     # 그 값이 찍힌 날
+    assert by["VIX_TERM"]["stale"] is True            # 기준일보다 오래됐다고 표시
+    assert by["VIX_TERM"]["change"] == pytest.approx(-0.03)   # 그 직전 값 대비
+
+    assert by["S5FI"]["asof"] == "2026-01-07" and by["S5FI"]["stale"] is False
+    # 뒤처진 지표도 종합점수에 들어간다(빈 칸으로 버리면 커버리지가 깎인다).
+    assert "VIX_TERM" in [p["key"] for p in view["composite"]["parts"]]
+
+
 def test_missing_file_is_a_friendly_empty_view(tmp_path, monkeypatch):
     monkeypatch.setattr(breadth, "DATA_FILE", str(tmp_path / "nope.json"))
     monkeypatch.delenv("SUH_DH_DEMO", raising=False)
