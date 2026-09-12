@@ -71,23 +71,23 @@ def test_sub_score_linear():
 
 
 def test_sub_score_clamps_outside_range():
-    m = breadth.BY_KEY["ADDN"]           # score_at=(-1500, 1500)
+    m = breadth.BY_KEY["SPX_AD"]         # score_at=(-350, 350)
     assert breadth.sub_score(m, -9000) == 0
     assert breadth.sub_score(m, 9000) == 100
     assert breadth.sub_score(m, 0) == 50
 
 
 def test_sub_score_inverted_metric():
-    """하이일드 스프레드는 낮을수록 좋다 — score_at 을 (높음, 낮음)으로 뒤집어 표현."""
-    m = breadth.BY_KEY["HY_OAS"]         # score_at=(6.0, 2.8)
-    assert breadth.sub_score(m, 2.8) == 100
-    assert breadth.sub_score(m, 6.0) == 0
-    assert breadth.sub_score(m, 2.0) == 100   # 더 낮아도 100 에서 잘린다
-    assert 40 < breadth.sub_score(m, 4.4) < 60
+    """방어주 상대강도는 낮을수록 좋다 — score_at 을 (높음, 낮음)으로 뒤집어 표현."""
+    m = breadth.BY_KEY["XLP_SPY_20D"]    # score_at=(2.0, -2.0)
+    assert breadth.sub_score(m, -2.0) == 100   # 방어주가 뒤처짐 = 위험선호
+    assert breadth.sub_score(m, 2.0) == 0      # 방어주로 돈이 몰림 = 내부 약화
+    assert breadth.sub_score(m, -9.0) == 100   # 더 낮아도 100 에서 잘린다
+    assert breadth.sub_score(m, 0.0) == 50
 
 
 def test_sub_score_none_without_scoring_range():
-    assert breadth.sub_score(breadth.BY_KEY["NYSI"], 500) is None
+    assert breadth.sub_score(breadth.BY_KEY["SPY_VS_200"], 5.0) is None
     assert breadth.sub_score(breadth.BY_KEY["S5FI"], None) is None
 
 
@@ -137,12 +137,13 @@ def test_bearish_divergence_detected():
 
 
 def test_no_divergence_when_breadth_confirms():
-    rows = [("2026-01-02", {"SPY_VS_200": 6.0, "S5FI": 72.0, "NHNL": 120})]
+    rows = [("2026-01-02", {"SPY_VS_200": 6.0, "S5FI": 72.0, "SPX_NHNL": 30})]
     assert breadth.divergences(rows) == []
 
 
 def test_new_low_divergence():
-    rows = [("2026-01-02", {"SPY_VS_200": 3.0, "S5FI": 70.0, "NHNL": -80})]
+    # S&P 500(500 종목) 기준이라 NYSE 전체를 볼 때보다 임계값이 작다.
+    rows = [("2026-01-02", {"SPY_VS_200": 3.0, "S5FI": 70.0, "SPX_NHNL": -25})]
     assert any("신저가" in a["title"] for a in breadth.divergences(rows))
 
 
@@ -168,15 +169,15 @@ def test_divergences_on_empty_series():
 def snapshot(tmp_path, monkeypatch):
     """3일짜리 최소 스냅샷을 파일로 깔고 breadth 가 그걸 읽게 한다."""
     series = {
-        "2026-01-05": {"S5FI": 60.0, "S5TH": 55.0, "HY_OAS": 3.0},
-        "2026-01-06": {"S5FI": 58.0, "S5TH": 54.0, "HY_OAS": 3.1},
-        "2026-01-07": {"S5FI": 52.5, "S5TH": 53.0, "HY_OAS": 3.2},
+        "2026-01-05": {"S5FI": 60.0, "S5TH": 55.0, "SPX_NHNL": 30},
+        "2026-01-06": {"S5FI": 58.0, "S5TH": 54.0, "SPX_NHNL": 12},
+        "2026-01-07": {"S5FI": 52.5, "S5TH": 53.0, "SPX_NHNL": -8},
     }
     path = tmp_path / "breadth_us.json"
     path.write_text(json.dumps({
         "updated": "2026-01-07T21:10:00+00:00",
         "series": series,
-        "sources": {"S5FI": "tradingview", "HY_OAS": "fred"},
+        "sources": {"S5FI": "computed", "SPX_NHNL": "computed"},
     }), encoding="utf-8")
     monkeypatch.setattr(breadth, "DATA_FILE", str(path))
     monkeypatch.delenv("SUH_DH_DEMO", raising=False)
@@ -198,8 +199,8 @@ def test_view_computes_daily_change(snapshot):
 
 def test_view_keeps_source_labels(snapshot):
     by = {m["key"]: m for m in snapshot["metrics"]}
-    assert by["S5FI"]["source"] == "tradingview"
-    assert by["HY_OAS"]["source"] == "fred"
+    assert by["S5FI"]["source"] == "computed"
+    assert by["SPX_NHNL"]["source"] == "computed"
     # 수집되지 않은 지표는 레지스트리의 기본 출처를 그대로 보여준다.
     assert by["VIX"]["source"] == "yahoo"
 
@@ -289,11 +290,83 @@ def test_merge_ignores_none_values():
     assert series["2026-01-05"] == {"S5FI": 60.0, "S5TH": 50.0}
 
 
-def test_tv_symbols_cover_the_registry():
-    """레지스트리에 TradingView 지표를 추가하면 수집기도 자동으로 따라간다."""
-    breadth_us = load_fetcher()
+def test_no_metric_depends_on_a_dead_source():
+    """죽은 원천(TradingView 스캐너 · FRED)에 의존하는 지표가 남아 있지 않은지.
 
-    direct = {m.key: m.symbol for m in breadth.METRICS if m.source == "tradingview"}
-    assert "S5FI" in direct and direct["S5FI"] == "INDEX:S5FI"
-    # 파생 지표의 원재료는 별도 목록으로 관리된다.
-    assert {"MAHN", "MALN", "UVOL", "DVOL"} <= set(breadth_us.TV_RAW)
+    둘 다 실전에서 막힌 경로다. 레지스트리에 되살아나면 카드가 영영 "—" 로
+    남으므로, 실수로 다시 들어오는 걸 여기서 막는다.
+    """
+    dead = {m.key for m in breadth.METRICS if m.source in ("tradingview", "fred")}
+    assert not dead, f"죽은 원천에 묶인 지표: {sorted(dead)}"
+    assert {m.source for m in breadth.METRICS} <= {"computed", "yahoo"}
+
+
+def test_every_metric_key_is_unique():
+    keys = [m.key for m in breadth.METRICS]
+    assert len(keys) == len(set(keys))
+
+
+# ------------------------------------------------- 구성종목 직접 계산
+def _frame(rows: dict[str, list[float]], start: str = "2026-01-01"):
+    """(티커 → 종가 리스트) 를 날짜 인덱스 표로. 계산 검증용 합성 데이터."""
+    import pandas as pd
+
+    n = len(next(iter(rows.values())))
+    idx = pd.bdate_range(start, periods=n)
+    return pd.DataFrame(rows, index=idx)
+
+
+def test_pct_above_ma_counts_only_valid_names():
+    """이동평균이 아직 안 잡히는 종목은 분모에서 빠져야 한다."""
+    breadth_us = load_fetcher()
+    # A 는 계속 오르고(이평선 위), B 는 계속 내린다(이평선 아래).
+    close = _frame({"A": [10 + i for i in range(10)],
+                    "B": [30 - i for i in range(10)]})
+    out = breadth_us.pct_above_ma(close, {3: "PCT3"})
+    vals = [v["PCT3"] for v in out.values()]
+    assert vals, "3일 이평선이 잡히는 날부터 값이 나와야 한다"
+    assert all(v == 50.0 for v in vals)      # 둘 중 하나만 위 → 50%
+    # 창이 차기 전(첫 2일)은 값이 없다.
+    assert len(out) == 8
+
+
+def test_advance_decline_nets_up_and_down():
+    breadth_us = load_fetcher()
+    close = _frame({"A": [10, 11, 12], "B": [10, 9, 8], "C": [10, 11, 10]})
+    out = breadth_us.advance_decline(close)
+    days = sorted(out)
+    # 2일차: A↑ C↑ B↓ → +1 / 3일차: A↑ B↓ C↓ → -1
+    assert out[days[1]]["SPX_AD"] == 1
+    assert out[days[2]]["SPX_AD"] == -1
+
+
+def test_new_high_low_nets_highs_and_lows():
+    breadth_us = load_fetcher()
+    close = _frame({"UP": [1, 2, 3, 4, 5], "DOWN": [5, 4, 3, 2, 1]})
+    out = breadth_us.new_high_low(close, window=3)
+    days = sorted(out)
+    # 매일 UP 은 신고가, DOWN 은 신저가 → 상쇄되어 0
+    assert out[days[-1]]["SPX_NHNL"] == 0
+
+    close2 = _frame({"UP": [1, 2, 3, 4, 5], "FLAT": [9, 9, 9, 9, 9]})
+    out2 = breadth_us.new_high_low(close2, window=3)
+    # FLAT 은 최고가이자 최저가(횡보) → 신고가 +1, 신저가 +1 로 상쇄,
+    # UP 만 순증 → +1
+    assert out2[sorted(out2)[-1]]["SPX_NHNL"] == 1
+
+
+def test_drop_retired_cleans_old_keys():
+    """레지스트리에서 뺀 지표의 과거 값은 시계열에서도 치운다."""
+    breadth_us = load_fetcher()
+    series = {"2026-01-05": {"S5FI": 60.0, "ADDN": 300, "NHNL": -20}}
+    removed = breadth_us.drop_retired(series, set(breadth.BY_KEY))
+    assert removed == 2
+    assert series["2026-01-05"] == {"S5FI": 60.0}
+
+
+def test_ndx_list_looks_like_a_nasdaq_100():
+    breadth_us = load_fetcher()
+    assert 90 <= len(breadth_us.NDX_100) <= 110
+    assert len(set(breadth_us.NDX_100)) == len(breadth_us.NDX_100)
+    for anchor in ("AAPL", "MSFT", "NVDA", "AMZN"):
+        assert anchor in breadth_us.NDX_100

@@ -66,86 +66,60 @@ PCT_ZONES = (
 )
 
 # 지표 레지스트리. 순서가 곧 화면 배치 순서.
+# 지표 레지스트리. 순서가 곧 화면 배치 순서.
+#
+# 출처 이력(왜 이 구성인가):
+#   TradingView 의 INDEX:S5FI 계열은 웹 화면 전용이라 공개 조회 경로가 없다.
+#   스캐너의 america/global 엔드포인트는 응답은 하지만 INDEX 심볼에 0행을 주고,
+#   단건 조회도 close 를 돌려주지 않는다(실행 1·2차 로그로 확인). 그래서 숫자는
+#   구성종목에서 직접 계산하고, TradingView 는 화면 하단 위젯 차트로만 쓴다.
+#   FRED 하이일드 스프레드도 러너에서 계속 read timeout 이라(이 저장소의 기존
+#   fred-rates 워크플로도 한 번도 성공하지 못했다) HYG/LQD 비율로 대체했다.
 METRICS: tuple[Metric, ...] = (
-    # ── core: 사용자가 지정한 %>MA · A/D 8종 ───────────────────────────────
-    Metric("S5TW", "S&P500 20일선 위 비율", "tradingview", "INDEX:S5TW", "core",
+    # ── core: %>이평선 (구성종목 종가로 직접 계산) ────────────────────────
+    Metric("S5TW", "S&P500 20일선 위 비율", "computed", "S&P 500 구성종목", "core",
            desc="S&P 500 종목 중 20일 이동평균 위에 있는 비율",
            use="단기 breadth — 과열/침체가 가장 빨리 찍힌다. 되돌림 타이밍용.",
            zones=PCT_ZONES, score_at=(0, 100), weight=10),
-    Metric("S5FI", "S&P500 50일선 위 비율", "tradingview", "INDEX:S5FI", "core",
+    Metric("S5FI", "S&P500 50일선 위 비율", "computed", "S&P 500 구성종목", "core",
            desc="S&P 500 종목 중 50일 이동평균 위에 있는 비율",
            use="중기 breadth — 시장 폭의 기준 지표. 하나만 본다면 이것.",
            zones=PCT_ZONES, score_at=(0, 100), weight=25),
-    Metric("S5TH", "S&P500 200일선 위 비율", "tradingview", "INDEX:S5TH", "core",
+    Metric("S5TH", "S&P500 200일선 위 비율", "computed", "S&P 500 구성종목", "core",
            desc="S&P 500 종목 중 200일 이동평균 위에 있는 비율",
            use="장기 건강도 — 강세장/약세장 구분. 50% 아래 지속은 구조적 약세.",
            zones=PCT_ZONES, score_at=(0, 100), weight=20),
-    Metric("NDFI", "나스닥100 50일선 위 비율", "tradingview", "INDEX:NDFI", "core",
+    Metric("NDFI", "나스닥100 50일선 위 비율", "computed", "Nasdaq 100 구성종목", "core",
            desc="Nasdaq 100 종목 중 50일 이동평균 위에 있는 비율",
            use="성장주 중기 breadth — S5FI 와 벌어지면 스타일 쏠림 신호.",
            zones=PCT_ZONES, score_at=(0, 100), weight=5),
-    Metric("NDTH", "나스닥100 200일선 위 비율", "tradingview", "INDEX:NDTH", "core",
+    Metric("NDTH", "나스닥100 200일선 위 비율", "computed", "Nasdaq 100 구성종목", "core",
            desc="Nasdaq 100 종목 중 200일 이동평균 위에 있는 비율",
            use="성장주 장기 건강도.",
            zones=PCT_ZONES, score_at=(0, 100), weight=5),
-    Metric("NCTH", "나스닥종합 200일선 위 비율", "tradingview", "INDEX:NCTH", "core",
-           desc="Nasdaq Composite(약 3천 종목) 중 200일 이동평균 위 비율",
-           use="가장 넓은 breadth — 소형주까지 포함. NDTH 와 크게 벌어지면 "
-               "대형주만 끌고 가는 장.",
-           zones=PCT_ZONES, score_at=(0, 100), weight=5),
-    Metric("ADDN", "NYSE 상승−하락 종목수", "tradingview", "INDEX:ADDN", "core",
-           unit="종목", decimals=0,
-           desc="당일 NYSE 상승 종목수 − 하락 종목수(net advancers)",
-           use="일일 A/D — 그날 시장이 넓게 올랐는지 좁게 올랐는지.",
-           zones=((-1500.0, "매도 우위 극단", "deep-low"),
-                  (-300.0, "매도 우위", "low"),
-                  (300.0, "혼조", "mid"),
-                  (1500.0, "매수 우위", "high"),
-                  (None, "매수 우위 극단", "deep-high")),
-           score_at=(-1500, 1500), weight=3),
-    Metric("ADRN", "NYSE 등락 비율", "tradingview", "INDEX:ADRN", "core",
-           unit="배", decimals=2,
-           desc="당일 NYSE 상승 종목수 ÷ 하락 종목수",
-           use="A/D 를 비율로 — 2배 이상은 강한 폭의 상승, 0.5배 이하는 투매.",
-           zones=((0.5, "투매", "deep-low"), (0.8, "약세", "low"),
-                  (1.25, "중립", "mid"), (2.0, "강세", "high"),
-                  (None, "전면 상승", "deep-high")),
-           score_at=(0.5, 2.0), weight=2),
 
-    # ── extra: 추천 추가 지표 ─────────────────────────────────────────────
-    Metric("NHNL", "NYSE 신고가−신저가", "derived", "INDEX:MAHN − INDEX:MALN", "extra",
+    # ── extra: %>이평선만으로는 안 보이는 것 ──────────────────────────────
+    # NYSE 전체(약 3,000 종목) 기준 A/D·신고가는 받아올 곳이 없어서, 같은 성격을
+    # S&P 500 안에서 계산한다. 모집단이 다르므로 이름도 다르게 붙였다 — NYSE 판을
+    # 보고 싶으면 화면 하단 TradingView 위젯(INDEX:ADDN 등)을 쓰면 된다.
+    Metric("SPX_NHNL", "S&P500 신고가−신저가", "computed", "S&P 500 구성종목", "extra",
            unit="종목", decimals=0,
-           desc="52주 신고가 종목수 − 신저가 종목수",
+           desc="S&P 500 안에서 52주 신고가를 낸 종목수 − 신저가를 낸 종목수",
            use="%>MA 가 높은데 이 값이 음수면 겉만 멀쩡한 장. 레짐 확인에 %>MA "
-               "다음으로 중요하다.",
-           zones=((-150.0, "신저가 우위 극단", "deep-low"), (-20.0, "신저가 우위", "low"),
-                  (20.0, "균형", "mid"), (150.0, "신고가 우위", "high"),
+               "다음으로 중요하다. (NYSE 전체가 아니라 S&P 500 기준)",
+           zones=((-40.0, "신저가 우위 극단", "deep-low"), (-5.0, "신저가 우위", "low"),
+                  (5.0, "균형", "mid"), (40.0, "신고가 우위", "high"),
                   (None, "신고가 폭발", "deep-high")),
-           score_at=(-150, 150), weight=10),
-    Metric("NYMO", "맥클렐란 오실레이터", "tradingview", "INDEX:NYMO", "extra",
-           unit="", decimals=1,
-           desc="NYSE A/D 의 19일·39일 EMA 차이 — breadth 모멘텀",
-           use="브레스의 속도. −100 이하는 투매 소진, +100 이상은 단기 과열.",
-           zones=((-100.0, "투매 소진", "deep-low"), (-40.0, "약세", "low"),
-                  (40.0, "중립", "mid"), (100.0, "강세", "high"),
-                  (None, "단기 과열", "deep-high")),
-           score_at=(-100, 100), weight=5),
-    Metric("NYSI", "맥클렐란 총계지수", "tradingview", "INDEX:NYSI", "extra",
-           unit="", decimals=0,
-           desc="맥클렐란 오실레이터의 누적 합 — breadth 의 장기 추세",
-           use="방향(상승/하락 전환)만 본다. 값 자체보다 기울기.",
-           zones=((-500.0, "장기 약세", "low"), (500.0, "중립", "mid"),
-                  (None, "장기 강세", "high")),
-           weight=0),
-    Metric("UD_VOL", "상승/하락 거래량 비율", "derived", "INDEX:UVOL ÷ INDEX:DVOL", "extra",
-           unit="배", decimals=2,
-           desc="NYSE 상승 종목 거래량 ÷ 하락 종목 거래량",
-           use="9:1 이상은 기관 매집(추종매수일 후보), 1:9 이하는 투매일. "
-               "베이스 스크리너의 돌파 신뢰도를 가르는 지표.",
-           zones=((0.4, "투매일", "deep-low"), (0.8, "약세", "low"),
-                  (1.5, "중립", "mid"), (4.0, "강세", "high"),
-                  (None, "매집일(9:1)", "deep-high")),
-           score_at=(0.4, 4.0), weight=5),
+           score_at=(-40, 40), weight=10),
+    Metric("SPX_AD", "S&P500 상승−하락 종목수", "computed", "S&P 500 구성종목", "extra",
+           unit="종목", decimals=0,
+           desc="당일 S&P 500 안에서 오른 종목수 − 내린 종목수",
+           use="그날 시장이 넓게 올랐는지 좁게 올랐는지. 지수는 올랐는데 이 값이 "
+               "음수면 대형주 몇 개가 끌어올린 날. (NYSE 전체가 아니라 S&P 500 기준)",
+           zones=((-350.0, "매도 우위 극단", "deep-low"), (-100.0, "매도 우위", "low"),
+                  (100.0, "혼조", "mid"), (350.0, "매수 우위", "high"),
+                  (None, "매수 우위 극단", "deep-high")),
+           score_at=(-350, 350), weight=5),
     Metric("RSP_SPY_20D", "동일가중/시총가중 20일 추이", "yahoo", "RSP÷SPY", "extra",
            unit="%", decimals=2,
            desc="RSP(동일가중 S&P) ÷ SPY(시총가중) 비율의 최근 20거래일 변화율",
@@ -164,14 +138,16 @@ METRICS: tuple[Metric, ...] = (
            zones=((0.95, "백워데이션(위험)", "deep-low"), (1.0, "평탄", "low"),
                   (1.1, "정상", "mid"), (None, "안정", "high")),
            score_at=(0.95, 1.12), weight=7),
-    Metric("HY_OAS", "하이일드 스프레드", "fred", "BAMLH0A0HYM2", "context",
-           unit="%p", decimals=2,
-           desc="ICE BofA 미국 하이일드 채권 옵션조정 스프레드(FRED)",
-           use="신용시장의 확인. 주식 브레스가 무너질 때 스프레드가 같이 벌어지면 "
-               "진짜 위험, 아니면 단순 조정일 확률이 높다.",
-           zones=((3.2, "안정", "high"), (4.5, "중립", "mid"),
-                  (6.0, "경계", "low"), (None, "위기", "deep-low")),
-           score_at=(6.0, 2.8), weight=8),
+    Metric("HYG_LQD_20D", "하이일드/투자등급 20일", "yahoo", "HYG÷LQD", "context",
+           unit="%", decimals=2,
+           desc="HYG(하이일드 ETF) ÷ LQD(투자등급 ETF) 비율의 20거래일 변화율",
+           use="신용시장의 확인. 주식 브레스가 무너질 때 이 값도 같이 빠지면 진짜 "
+               "위험, 조용하면 단순 조정일 확률이 높다. (FRED 스프레드가 러너에서 "
+               "계속 막혀 그 자리를 대신한다)",
+           zones=((-1.5, "위험회피 극단", "deep-low"), (-0.4, "위험회피", "low"),
+                  (0.4, "중립", "mid"), (1.5, "위험선호", "high"),
+                  (None, "강한 위험선호", "deep-high")),
+           score_at=(-1.5, 1.5), weight=10),
     Metric("XLP_SPY_20D", "방어주 상대강도 20일", "yahoo", "XLP÷SPY", "context",
            unit="%", decimals=2,
            desc="XLP(필수소비재) ÷ SPY 비율의 최근 20거래일 변화율",
@@ -205,15 +181,8 @@ METRICS: tuple[Metric, ...] = (
                   (25.0, "경계", "mid"), (35.0, "불안", "low"),
                   (None, "패닉", "deep-low")),
            weight=0),
-    Metric("HYG_LQD_20D", "하이일드/투자등급 20일", "yahoo", "HYG÷LQD", "context",
-           unit="%", decimals=2,
-           desc="HYG(하이일드 ETF) ÷ LQD(투자등급 ETF) 비율의 20거래일 변화율",
-           use="채권시장의 위험선호. FRED 스프레드보다 하루 빠르게 움직인다.",
-           zones=((-1.5, "위험회피 극단", "deep-low"), (-0.4, "위험회피", "low"),
-                  (0.4, "중립", "mid"), (1.5, "위험선호", "high"),
-                  (None, "강한 위험선호", "deep-high")),
-           score_at=(-1.5, 1.5), weight=5),
 )
+
 
 BY_KEY: dict[str, Metric] = {m.key: m for m in METRICS}
 
@@ -348,7 +317,7 @@ def divergences(rows: list[tuple[str, dict]]) -> list[dict]:
     spy_gap = latest.get("SPY_VS_200")
     s5fi = latest.get("S5FI")
     s5th = latest.get("S5TH")
-    nhnl = latest.get("NHNL")
+    nhnl = latest.get("SPX_NHNL")
 
     # 1) 지수는 추세 위인데 절반도 안 되는 종목만 추세 위 — 전형적 천장 신호.
     if spy_gap is not None and s5fi is not None and spy_gap > 0 and s5fi < 45:
@@ -361,12 +330,14 @@ def divergences(rows: list[tuple[str, dict]]) -> list[dict]:
         })
 
     # 2) 지수 추세 위 + 신저가가 신고가보다 많음 — 내부 손상.
-    if spy_gap is not None and nhnl is not None and spy_gap > 0 and nhnl < -20:
+    # 기준이 S&P 500(500 종목)이라 NYSE 전체를 볼 때보다 임계값이 작다.
+    if spy_gap is not None and nhnl is not None and spy_gap > 0 and nhnl < -5:
         out.append({
             "level": "warn",
             "title": "지수 강세 · 신저가 우위",
-            "detail": f"신고가−신저가가 {nhnl:+.0f} 종목입니다. 지수가 추세 위인데 "
-                      f"신저가가 더 많다는 것은 하위 종목군이 이미 무너지고 있다는 뜻입니다.",
+            "detail": f"S&P 500 안에서 신고가−신저가가 {nhnl:+.0f} 종목입니다. 지수가 "
+                      f"추세 위인데 신저가가 더 많다는 것은 하위 종목군이 이미 "
+                      f"무너지고 있다는 뜻입니다.",
         })
 
     # 3) 20일 전 대비 중기 브레스가 크게 빠졌는데 지수는 버팀 — 악화 진행 중.
@@ -388,14 +359,14 @@ def divergences(rows: list[tuple[str, dict]]) -> list[dict]:
                       f"20거래일간 {d20:+.0f}%p 개선됐습니다. 바닥권 전환 후보 국면입니다.",
         })
 
-    # 5) 신용시장 확인. 주식 브레스가 나쁜데 스프레드는 조용하면 단순 조정일 확률.
-    oas = latest.get("HY_OAS")
-    if oas is not None and s5fi is not None and s5fi < 40 and oas < 3.6:
+    # 5) 신용시장 확인. 주식 브레스가 나쁜데 신용은 조용하면 단순 조정일 확률.
+    credit = latest.get("HYG_LQD_20D")
+    if credit is not None and s5fi is not None and s5fi < 40 and credit > -0.4:
         out.append({
             "level": "info",
             "title": "주식 브레스 약세 · 신용시장은 안정",
-            "detail": f"하이일드 스프레드가 {oas:.2f}%p 로 낮게 유지되고 있습니다. "
-                      f"신용 경색을 동반하지 않은 조정일 가능성이 높습니다.",
+            "detail": f"하이일드/투자등급 비율이 20거래일간 {credit:+.2f}% 로 버티고 "
+                      f"있습니다. 신용 경색을 동반하지 않은 조정일 가능성이 높습니다.",
         })
     return out
 

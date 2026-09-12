@@ -337,21 +337,15 @@ def demo_breadth_series(days: int = 160) -> dict:
                 "S5TH": round(max(2, min(98, 62 - 16 * w + 4 * wave)), 1),
                 "NDFI": round(max(2, min(98, s5fi + 5 - 6 * w)), 1),
                 "NDTH": round(max(2, min(98, 66 - 14 * w + 3 * wave)), 1),
-                "NCTH": round(max(2, min(98, 48 - 18 * w + 5 * wave)), 1),
-                "ADDN": round(600 * wave - 900 * w, 0),
-                "ADRN": round(max(0.2, 1.35 + 0.5 * wave - 0.55 * w), 2),
-                "NHNL": round(180 * (1 - 1.6 * w) + 90 * wave, 0),
-                "NYMO": round(55 * wave - 45 * w, 1),
-                "NYSI": round(900 - 1400 * w + 200 * wave, 0),
-                "UD_VOL": round(max(0.15, 1.6 + 1.1 * wave - 0.9 * w), 2),
+                "SPX_AD": round(200 * wave - 300 * w, 0),
+                "SPX_NHNL": round(45 * (1 - 1.6 * w) + 22 * wave, 0),
                 "RSP_SPY_20D": round(1.4 * wave - 2.2 * w, 2),
                 "VIX": round(14 + 6 * w - 2 * wave, 2),
                 "VIX_TERM": round(1.12 - 0.14 * w + 0.02 * wave, 3),
-                "HY_OAS": round(3.0 + 0.9 * w - 0.15 * wave, 2),
+                "HYG_LQD_20D": round(0.9 * wave - 1.3 * w, 2),
                 "XLP_SPY_20D": round(-0.8 + 2.4 * w - 0.9 * wave, 2),
                 "SPY_VS_200": round(7.5 - 3.0 * w + 1.8 * wave, 2),
                 "QQQ_VS_200": round(9.0 - 4.0 * w + 2.2 * wave, 2),
-                "HYG_LQD_20D": round(0.9 * wave - 1.3 * w, 2),
             }
             i += 1
         d += timedelta(days=1)
@@ -360,6 +354,7 @@ def demo_breadth_series(days: int = 160) -> dict:
         "asof": max(series) if series else None,
         "demo": True,
         "series": series,
-        "sources": {"S5FI": "demo"},
+        "sources": {k: "demo" for k in (
+            "S5TW", "S5FI", "S5TH", "NDFI", "NDTH", "SPX_AD", "SPX_NHNL")},
         "notes": ["SUH_DH_DEMO=1 — 합성 데이터입니다. 실제 시장 값이 아닙니다."],
     }

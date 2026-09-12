@@ -8,7 +8,12 @@ const $ = (sel) => document.querySelector(sel);
 const STATIC = !!window.SUH_DH_STATIC;
 const BUILT = window.SUH_DH_BUILT || null;
 
-// TradingView 차트 탭. 사용자가 지정한 심볼 순서를 그대로 따른다.
+// TradingView 차트 탭.
+//
+// 숫자 카드는 구성종목에서 직접 계산한 값이고, 여기 위젯은 시장이 계산해 둔
+// 원본이다. 특히 NYSE 전체(약 3,000 종목) 기준 A/D · 신고가 · 맥클렐란 ·
+// 상승하락 거래량은 공개 조회 경로가 없어 카드로는 못 만들었으므로, 그 지표를
+// 보는 유일한 자리가 이 탭이다.
 const TV_SYMBOLS = [
   ["INDEX:S5FI", "S&P 50일선 위 %"],
   ["INDEX:S5TW", "S&P 20일선 위 %"],
@@ -18,9 +23,13 @@ const TV_SYMBOLS = [
   ["INDEX:NCTH", "나스닥종합 200일"],
   ["INDEX:ADDN", "NYSE 상승−하락"],
   ["INDEX:ADRN", "NYSE 등락비율"],
+  ["INDEX:MAHN", "NYSE 신고가"],
+  ["INDEX:MALN", "NYSE 신저가"],
   ["INDEX:NYMO", "맥클렐란 오실"],
+  ["INDEX:NYSI", "맥클렐란 총계"],
+  ["INDEX:UVOL", "상승 거래량"],
+  ["INDEX:DVOL", "하락 거래량"],
 ];
-
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
