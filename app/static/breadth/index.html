@@ -31,6 +31,29 @@
     <!-- 지표 그룹 -->
     <section id="groups"></section>
 
+    <!-- 시계열 차트 -->
+    <section class="ts-section" id="ts-section">
+      <div class="sec-head">
+        <h2>시계열 비교</h2>
+        <p class="sec-desc">
+          같은 좌표계에 겹쳐 보면 <b>언제부터 벌어졌는지</b>가 보입니다.
+          카드의 미니 차트는 최근 90거래일 방향만 보여 주는 용도이고, 여기서 축·눈금과
+          함께 봅니다. 위 카드를 누르면 그 지표만 골라 보여 줍니다.
+          <b>단위가 다른 지표는 탭으로 나눠</b> 두었습니다 — 한 그림에 섞으면 교차점이
+          아무 의미가 없어지기 때문입니다.
+        </p>
+      </div>
+      <div class="ts-controls">
+        <div class="tv-tabs" id="ts-tabs"></div>
+        <div class="ts-ranges" id="ts-ranges"></div>
+      </div>
+      <div class="ts-legend" id="ts-legend"></div>
+      <div class="ts-box">
+        <div class="ts-plot" id="ts-plot"></div>
+        <div class="ts-tip" id="ts-tip"></div>
+      </div>
+    </section>
+
     <!-- TradingView 원본 차트 -->
     <section class="tv-section" id="tv-section">
       <div class="sec-head">

@@ -63,6 +63,9 @@ class Metric:
     score_at: tuple[float, float] | None = None
     weight: float = 0.0
     decimals: int = 1
+    # 겹쳐 그릴 수 있는 지표끼리 묶는 축 이름. 단위가 다른 값을 한 좌표계에
+    # 올리면 아무 의미 없는 그림이 되므로, 차트는 이 그룹 단위로만 겹쳐 그린다.
+    axis: str = ""
 
 
 # 0~100% 형태(‘N일선 위 종목 비율’)는 구간 해석이 전부 같으므로 한 번만 정의한다.
@@ -89,23 +92,23 @@ METRICS: tuple[Metric, ...] = (
     Metric("S5TW", "S&P500 20일선 위 비율", "computed", "S&P 500 구성종목", "core",
            desc="S&P 500 종목 중 20일 이동평균 위에 있는 비율",
            use="단기 breadth — 과열/침체가 가장 빨리 찍힌다. 되돌림 타이밍용.",
-           zones=PCT_ZONES, score_at=(0, 100), weight=10),
+           zones=PCT_ZONES, score_at=(0, 100), weight=10, axis="pct_ma"),
     Metric("S5FI", "S&P500 50일선 위 비율", "computed", "S&P 500 구성종목", "core",
            desc="S&P 500 종목 중 50일 이동평균 위에 있는 비율",
            use="중기 breadth — 시장 폭의 기준 지표. 하나만 본다면 이것.",
-           zones=PCT_ZONES, score_at=(0, 100), weight=25),
+           zones=PCT_ZONES, score_at=(0, 100), weight=25, axis="pct_ma"),
     Metric("S5TH", "S&P500 200일선 위 비율", "computed", "S&P 500 구성종목", "core",
            desc="S&P 500 종목 중 200일 이동평균 위에 있는 비율",
            use="장기 건강도 — 강세장/약세장 구분. 50% 아래 지속은 구조적 약세.",
-           zones=PCT_ZONES, score_at=(0, 100), weight=20),
+           zones=PCT_ZONES, score_at=(0, 100), weight=20, axis="pct_ma"),
     Metric("NDFI", "나스닥100 50일선 위 비율", "computed", "Nasdaq 100 구성종목", "core",
            desc="Nasdaq 100 종목 중 50일 이동평균 위에 있는 비율",
            use="성장주 중기 breadth — S5FI 와 벌어지면 스타일 쏠림 신호.",
-           zones=PCT_ZONES, score_at=(0, 100), weight=5),
+           zones=PCT_ZONES, score_at=(0, 100), weight=5, axis="pct_ma"),
     Metric("NDTH", "나스닥100 200일선 위 비율", "computed", "Nasdaq 100 구성종목", "core",
            desc="Nasdaq 100 종목 중 200일 이동평균 위에 있는 비율",
            use="성장주 장기 건강도.",
-           zones=PCT_ZONES, score_at=(0, 100), weight=5),
+           zones=PCT_ZONES, score_at=(0, 100), weight=5, axis="pct_ma"),
 
     # ── extra: %>이평선만으로는 안 보이는 것 ──────────────────────────────
     # NYSE 전체(약 3,000 종목) 기준 A/D·신고가는 받아올 곳이 없어서, 같은 성격을
@@ -119,7 +122,7 @@ METRICS: tuple[Metric, ...] = (
            zones=((-40.0, "신저가 우위 극단", "deep-low"), (-5.0, "신저가 우위", "low"),
                   (5.0, "균형", "mid"), (40.0, "신고가 우위", "high"),
                   (None, "신고가 폭발", "deep-high")),
-           score_at=(-40, 40), weight=10),
+           score_at=(-40, 40), weight=10, axis="count"),
     Metric("SPX_AD", "S&P500 상승−하락 종목수", "computed", "S&P 500 구성종목", "extra",
            unit="종목", decimals=0,
            desc="당일 S&P 500 안에서 오른 종목수 − 내린 종목수",
@@ -128,7 +131,7 @@ METRICS: tuple[Metric, ...] = (
            zones=((-350.0, "매도 우위 극단", "deep-low"), (-100.0, "매도 우위", "low"),
                   (100.0, "혼조", "mid"), (350.0, "매수 우위", "high"),
                   (None, "매수 우위 극단", "deep-high")),
-           score_at=(-350, 350), weight=5),
+           score_at=(-350, 350), weight=5, axis="count"),
     Metric("RSP_SPY_20D", "동일가중/시총가중 20일 추이", "yahoo", "RSP÷SPY", "extra",
            unit="%", decimals=2,
            desc="RSP(동일가중 S&P) ÷ SPY(시총가중) 비율의 최근 20거래일 변화율",
@@ -137,7 +140,7 @@ METRICS: tuple[Metric, ...] = (
            zones=((-2.0, "극단 쏠림", "deep-low"), (-0.5, "대형주 쏠림", "low"),
                   (0.5, "중립", "mid"), (2.0, "폭 확산", "high"),
                   (None, "강한 확산", "deep-high")),
-           score_at=(-2.0, 2.0), weight=10),
+           score_at=(-2.0, 2.0), weight=10, axis="rel20"),
 
     # ── context: 리스크 레짐(브레스는 아니지만 같이 봐야 하는 것) ─────────
     Metric("VIX_TERM", "VIX 기간구조(3M÷1M)", "yahoo", "^VIX3M÷^VIX", "context",
@@ -146,7 +149,7 @@ METRICS: tuple[Metric, ...] = (
            use="1 아래로 내려가면 위험 국면. 브레스 악화와 겹치면 방어적으로.",
            zones=((0.95, "백워데이션(위험)", "deep-low"), (1.0, "평탄", "low"),
                   (1.1, "정상", "mid"), (None, "안정", "high")),
-           score_at=(0.95, 1.12), weight=7),
+           score_at=(0.95, 1.12), weight=7, axis="vixterm"),
     Metric("HYG_LQD_20D", "하이일드/투자등급 20일", "yahoo", "HYG÷LQD", "context",
            unit="%", decimals=2,
            desc="HYG(하이일드 ETF) ÷ LQD(투자등급 ETF) 비율의 20거래일 변화율",
@@ -156,7 +159,7 @@ METRICS: tuple[Metric, ...] = (
            zones=((-1.5, "위험회피 극단", "deep-low"), (-0.4, "위험회피", "low"),
                   (0.4, "중립", "mid"), (1.5, "위험선호", "high"),
                   (None, "강한 위험선호", "deep-high")),
-           score_at=(-1.5, 1.5), weight=10),
+           score_at=(-1.5, 1.5), weight=10, axis="rel20"),
     Metric("XLP_SPY_20D", "방어주 상대강도 20일", "yahoo", "XLP÷SPY", "context",
            unit="%", decimals=2,
            desc="XLP(필수소비재) ÷ SPY 비율의 최근 20거래일 변화율",
@@ -165,7 +168,7 @@ METRICS: tuple[Metric, ...] = (
            zones=((-2.0, "공격적", "deep-high"), (-0.5, "위험선호", "high"),
                   (0.5, "중립", "mid"), (2.0, "방어 전환", "low"),
                   (None, "강한 방어", "deep-low")),
-           score_at=(2.0, -2.0), weight=5),
+           score_at=(2.0, -2.0), weight=5, axis="rel20"),
     Metric("SPY_VS_200", "S&P500 200일선 이격", "yahoo", "SPY", "context",
            unit="%", decimals=2,
            desc="SPY 종가의 200일 이동평균 대비 괴리율",
@@ -174,7 +177,7 @@ METRICS: tuple[Metric, ...] = (
            zones=((-5.0, "추세 이탈", "deep-low"), (0.0, "200일선 아래", "low"),
                   (5.0, "추세 유지", "mid"), (12.0, "강세", "high"),
                   (None, "과열 이격", "deep-high")),
-           weight=0),
+           weight=0, axis="gap200"),
     Metric("QQQ_VS_200", "나스닥100 200일선 이격", "yahoo", "QQQ", "context",
            unit="%", decimals=2,
            desc="QQQ 종가의 200일 이동평균 대비 괴리율",
@@ -182,18 +185,31 @@ METRICS: tuple[Metric, ...] = (
            zones=((-5.0, "추세 이탈", "deep-low"), (0.0, "200일선 아래", "low"),
                   (5.0, "추세 유지", "mid"), (12.0, "강세", "high"),
                   (None, "과열 이격", "deep-high")),
-           weight=0),
+           weight=0, axis="gap200"),
     Metric("VIX", "VIX", "yahoo", "^VIX", "context", unit="", decimals=2,
            desc="S&P 500 30일 내재변동성",
            use="절대 수준보다 기간구조(위)와 같이 본다.",
            zones=((13.0, "안일", "deep-high"), (18.0, "안정", "high"),
                   (25.0, "경계", "mid"), (35.0, "불안", "low"),
                   (None, "패닉", "deep-low")),
-           weight=0),
+           weight=0, axis="vix"),
 )
 
 
 BY_KEY: dict[str, Metric] = {m.key: m for m in METRICS}
+
+# 차트 탭. (축 키, 탭 이름, y축 단위 라벨, 0 기준선을 그릴지)
+#
+# 단위가 다른 지표를 한 그림에 겹치면(이중 y축) 아무 의미 없는 교차점이 생기므로
+# 같은 단위끼리만 묶는다. 기본 탭은 가장 자주 겹쳐 보는 "추세 위 비율".
+AXES = (
+    ("pct_ma", "추세 위 비율", "%", False),
+    ("count", "종목 수", "종목", True),
+    ("rel20", "20일 상대강도", "%", True),
+    ("gap200", "200일선 이격", "%", True),
+    ("vix", "VIX", "", False),
+    ("vixterm", "VIX 기간구조", "배", False),
+)
 
 GROUPS = (
     ("core", "핵심 브레스", "얼마나 많은 종목이 추세 위에 있고, 오늘 얼마나 넓게 올랐나"),
@@ -394,6 +410,19 @@ def _read_file() -> dict | str:
     return data
 
 
+def _chart_block(rows: list[tuple[str, dict]]) -> dict:
+    """날짜축 하나 + 지표별 값 배열(결측은 None).
+
+    카드마다 (날짜, 값) 쌍을 따로 싣던 걸 공유 날짜축으로 바꿨다. 파일도
+    작아지지만, 무엇보다 여러 지표를 같은 x축에 겹쳐 그릴 수 있게 된다 —
+    50일선 비율과 200일선 비율을 한 그림에서 비교하는 게 이 페이지의 핵심이다.
+    """
+    return {
+        "dates": [d for d, _ in rows],
+        "values": {m.key: [r.get(m.key) for _, r in rows] for m in METRICS},
+    }
+
+
 def get_breadth() -> dict:
     """대시보드가 그대로 그릴 수 있는 형태로 스냅샷을 반환한다."""
     data = _read_file()
@@ -423,8 +452,6 @@ def get_breadth() -> dict:
         lag = last_i - day_index[mdate] if mdate in day_index else 0
         usable = v is not None and lag <= STALE_LIMIT_DAYS
         label, tone = zone_of(m, v)
-        # 스파크라인: 최근 90 영업일. (날짜, 값) 쌍으로 보내 결측을 건너뛴다.
-        spark = [[d, r[m.key]] for d, r in rows[-90:] if r.get(m.key) is not None]
         metrics.append({
             "key": m.key, "label": m.label, "group": m.group, "unit": m.unit,
             "symbol": m.symbol, "source": sources.get(m.key) or m.source,
@@ -438,7 +465,7 @@ def get_breadth() -> dict:
             "d20": _trend(rows, m.key, 20),
             "zone": label, "tone": tone,
             "score": sub_score(m, v), "weight": m.weight,
-            "spark": spark,
+            "axis": m.axis,
         })
 
     # 점수에는 "지금 값"만 넣는다 — 오래 묵은 값은 카드에만 남는다.
@@ -454,6 +481,8 @@ def get_breadth() -> dict:
         "score_history": _score_history(rows),
         "alerts": divergences(rows),
         "groups": [{"key": k, "label": lab, "desc": d} for k, lab, d in GROUPS],
+        "axes": [{"key": k, "label": lab, "unit": u, "zero": z} for k, lab, u, z in AXES],
+        "chart": _chart_block(rows),
         "metrics": metrics,
         "notes": data.get("notes") or [],
     }
@@ -477,6 +506,8 @@ def _empty(note: str) -> dict:
         "composite": {"score": None, "regime": None, "tone": None,
                       "note": note, "parts": [], "coverage": 0.0},
         "score_history": [], "alerts": [],
+        "axes": [{"key": k, "label": lab, "unit": u, "zero": z} for k, lab, u, z in AXES],
+        "chart": {"dates": [], "values": {m.key: [] for m in METRICS}},
         "groups": [{"key": k, "label": lab, "desc": d} for k, lab, d in GROUPS],
         "metrics": [
             {"key": m.key, "label": m.label, "group": m.group, "unit": m.unit,
@@ -484,7 +515,7 @@ def _empty(note: str) -> dict:
              "decimals": m.decimals, "value": None, "prev": None, "change": None,
              "asof": None, "stale": False, "lag": 0, "usable": False,
              "d20": None, "zone": None, "tone": None, "score": None,
-             "weight": m.weight, "spark": []}
+             "weight": m.weight, "axis": m.axis}
             for m in METRICS
         ],
         "notes": [note],
