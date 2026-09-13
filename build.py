@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 import traceback
@@ -27,6 +28,27 @@ ROOT = Path(__file__).parent
 SITE = ROOT / "site"
 STATIC = ROOT / "app" / "static"
 LIMIT = int(os.environ.get("SUH_DH_BUILD_LIMIT", "150"))
+
+
+# 브라우저가 옛 CSS/JS 를 계속 쓰는 걸 막는다.
+#
+# 페이지를 고쳐 배포해도 사용자 화면은 그대로인 일이 실제로 있었다 — GitHub Pages
+# 가 에셋에 캐시 헤더를 붙이고, <script src="app.js"> 처럼 버전 표시가 없으면
+# 브라우저가 옛 파일을 그대로 재사용하기 때문이다. 허브만 hub.css?v=2 로 손수
+# 막고 있었는데, 그걸 전 페이지에 자동으로 적용한다.
+_ASSET_RE = re.compile(r'\b(href|src)="(?!https?:|//)([^"?#]+\.(?:css|js))(?:\?[^"#]*)?((?:#[^"]*)?)"')
+
+
+def stamp_assets(site: Path, stamp: str) -> int:
+    """배포본의 모든 html 에서 로컬 css/js 참조에 ?v=<빌드시각> 을 붙인다."""
+    n = 0
+    for html in site.rglob("*.html"):
+        text = html.read_text(encoding="utf-8")
+        new = _ASSET_RE.sub(lambda m: f'{m.group(1)}="{m.group(2)}?v={stamp}{m.group(3)}"', text)
+        if new != text:
+            html.write_text(new, encoding="utf-8")
+            n += 1
+    return n
 
 
 def _all_stocks(dashboard: dict) -> list[dict]:
@@ -130,6 +152,10 @@ def main() -> None:
         for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
+
+    # 에셋 캐시 무효화 — config.js 를 다 쓴 다음에 한 번만.
+    stamp = built.replace("-", "").replace(":", "").replace("+0000", "")[:15]
+    print(f"Stamping assets with ?v={stamp} ... {stamp_assets(SITE, stamp)} html files")
 
     # --- US 52-week highs, published FIRST (fix #1) --------------------------
     # The new-high LIST is cheap (one Finviz fetch) and is the thing that changes
