@@ -129,6 +129,56 @@ body {
 .card-foot .sym { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
 .card-d20 { color: var(--muted); font-size: 11px; }
 
+/* ---------- 시계열 차트 ---------- */
+.ts-controls { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.ts-ranges { display: flex; gap: 4px; }
+.ts-range {
+  background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+  border-radius: 7px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+.ts-range:hover { color: var(--text); border-color: var(--accent); }
+.ts-range.on { background: var(--panel-2); color: var(--text); border-color: var(--accent); }
+
+.ts-legend { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.ts-key {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+.ts-key:hover { border-color: var(--accent); }
+.ts-key.off { color: var(--muted); opacity: .5; }
+.ts-key.off .ts-swatch { background: var(--muted) !important; }
+.ts-swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+.ts-box {
+  position: relative; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px;
+}
+.ts-plot svg { width: 100%; height: 340px; display: block; overflow: visible; }
+.ts-grid { stroke: var(--border); stroke-width: 1; }
+.ts-zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.ts-cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.ts-ylab, .ts-xlab {
+  fill: var(--muted); font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.ts-ylab { text-anchor: end; }
+
+.ts-tip {
+  position: absolute; top: 12px; display: none; pointer-events: none;
+  background: rgba(15, 23, 42, .96); border: 1px solid var(--border);
+  border-radius: 9px; padding: 8px 10px; font-size: 12px; min-width: 190px;
+  transform: translateX(12px); z-index: 2;
+}
+.ts-tip.on { display: block; }
+.ts-tip.flip { transform: translateX(calc(-100% - 12px)); }
+.ts-tip-date { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.ts-tip-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.ts-tip-name { flex: 1; color: var(--muted); }
+.ts-tip-row b { font-variant-numeric: tabular-nums; }
+
+.card[data-key] { cursor: pointer; }
+
 /* ---------- TradingView ---------- */
 .tv-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .tv-tab {
@@ -167,4 +217,6 @@ body {
 @media (max-width: 720px) {
   .hero { grid-template-columns: 1fr; }
   #tv-chart, .tv-box { min-height: 360px; height: 360px; }
+  .ts-plot svg { height: 260px; }
+  .ts-tip { min-width: 150px; font-size: 11px; }
 }

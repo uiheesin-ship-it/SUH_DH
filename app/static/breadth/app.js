@@ -6,6 +6,7 @@ const $ = (sel) => document.querySelector(sel);
 //   STATIC=false -> live FastAPI backend (/api/breadth), used when running locally
 //   STATIC=true  -> committed snapshot data/breadth_us.json (GitHub Pages)
 const STATIC = !!window.SUH_DH_STATIC;
+let VIEW = { metrics: [], axes: [] };
 const BUILT = window.SUH_DH_BUILT || null;
 
 // TradingView 차트 탭.
@@ -52,11 +53,52 @@ function fmtChange(m) {
   return `<span class="card-chg ${cls}">${sign}${fmt(m.change, m.decimals)}${unit}</span>`;
 }
 
+// ---------- 공유 시계열 ----------
+// 카드의 미니 차트와 아래 큰 차트가 같은 배열을 본다(뷰가 날짜축을 공유해서 보낸다).
+let CHART = { dates: [], values: {} };
+
+// 계열 색 — dataviz 기본 팔레트의 다크 스텝 1~5번을 순서대로. 순서는 고정이고
+// 돌려쓰지 않는다(한 축에 최대 5계열이라 8슬롯 안에 들어온다).
+const SERIES_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181"];
+
+function seriesPoints(key, days) {
+  const vals = CHART.values[key] || [];
+  const n = CHART.dates.length;
+  const from = days ? Math.max(0, n - days) : 0;
+  const out = [];
+  for (let i = from; i < n; i++) {
+    if (vals[i] !== null && vals[i] !== undefined) out.push([i, vals[i]]);
+  }
+  return out;
+}
+
 // ---------- sparkline ----------
 // 값 하나만 보면 구간 판정에 그치고, 방향을 봐야 다이버전스가 보인다. 그래서
-// 모든 카드에 최근 90거래일 미니 차트를 붙인다.
-function sparkline(points, tone, w = 240, h = 34) {
-  const vals = points.map((p) => p[1]);
+// 모든 카드에 최근 90거래일 미니 차트를 붙인다(축은 없다 — 방향만 읽는 용도).
+function sparkline(key, tone, w = 240, h = 34) {
+  const pts = seriesPoints(key, 90);
+  if (pts.length < 2) return "";
+  const vals = pts.map((p) => p[1]);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = max - min || 1;
+  const x = (i) => (i / (vals.length - 1)) * w;
+  const y = (v) => h - 3 - ((v - min) / span) * (h - 6);
+  const d = vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const color = `var(--${tone || "mid"})`;
+  const id = "g" + Math.random().toString(36).slice(2, 8);
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${d}L${w},${h}L0,${h}Z" fill="url(#${id})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.6"
+          stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// 점수 추이용(값 배열을 직접 받는다).
+function scoreSpark(vals, tone, w = 600, h = 56) {
   if (vals.length < 2) return "";
   const min = Math.min(...vals), max = Math.max(...vals);
   const span = max - min || 1;
@@ -64,15 +106,8 @@ function sparkline(points, tone, w = 240, h = 34) {
   const y = (v) => h - 3 - ((v - min) / span) * (h - 6);
   const d = vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
   const color = `var(--${tone || "mid"})`;
-  const area = `${d}L${w},${h}L0,${h}Z`;
-  const id = "g" + Math.random().toString(36).slice(2, 8);
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${color}" stop-opacity=".28"/>
-      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
-    </linearGradient></defs>
-    <path d="${area}" fill="url(#${id})"/>
-    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.6"
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.8"
           stroke-linejoin="round" stroke-linecap="round"/>
   </svg>`;
 }
@@ -88,7 +123,7 @@ function renderHero(data) {
   const tone = c.tone || "mid";
   const parts = (c.parts || []).map((p) =>
     `<span class="part" title="가중치 ${p.weight}">${esc(p.label)} <b>${fmt(p.score, 0)}</b></span>`).join("");
-  const hist = (data.score_history || []).map((p) => [p[0], p[1]]);
+  const hist = (data.score_history || []).map((p) => p[1]);
 
   $("#hero").innerHTML = `
     <div class="gauge">
@@ -106,7 +141,7 @@ function renderHero(data) {
         <span>점수 커버리지 ${fmt(c.coverage, 0)}%</span>
         <span>시계열 ${data.days}일</span>
       </div>
-      <div class="hero-chart" title="종합점수 최근 추이">${sparkline(hist, tone, 600, 56)}</div>
+      <div class="hero-chart" title="종합점수 최근 추이">${scoreSpark(hist, tone)}</div>
       <div class="hero-parts">${parts}</div>
     </div>`;
   $("#hero").style.gridTemplateColumns = "";
@@ -143,7 +178,8 @@ function card(m) {
     ? `<span class="card-stale${dead ? " dead" : ""}" title="${dead
         ? "값이 오래 멈춰 있어 종합점수에서 제외했습니다" : "이 지표의 최신 수집일"}"
        >${esc(m.asof)}</span>` : "";
-  return `<article class="card${na ? " na" : ""}${dead ? " dead" : ""}" title="${esc(m.desc)}">
+  return `<article class="card${na ? " na" : ""}${dead ? " dead" : ""}" data-key="${esc(m.key)}"
+    title="${esc(m.desc)}\n\n(눌러서 아래 차트에서 보기)">
     <div class="card-head">
       <span class="card-label">${esc(m.label)}${stale}</span>
       <span class="card-src" title="출처">${esc(m.source || "")}</span>
@@ -154,7 +190,7 @@ function card(m) {
       ${fmtChange(m)}
     </div>
     <div>${zone} ${d20}</div>
-    <div class="card-spark">${sparkline(m.spark || [], m.tone)}</div>
+    <div class="card-spark">${sparkline(m.key, m.tone)}</div>
     <div class="card-foot">${esc(m.use || m.desc)}
       <div class="sym">${esc(m.symbol)}</div>
     </div>
@@ -172,6 +208,199 @@ function renderGroups(data) {
       <div class="cards">${mine.map(card).join("")}</div>`;
   }).join("");
   $("#groups").innerHTML = html;
+}
+
+
+// ---------- 시계열 차트 ----------
+// 카드의 미니 차트는 방향만 보여 준다. "50일선 비율과 200일선 비율이 언제
+// 벌어졌나" 같은 건 같은 좌표계에 겹쳐 봐야 보이므로 축·눈금·호버가 있는
+// 차트를 따로 둔다.
+//
+// 단위가 다른 지표를 한 그림에 겹치면(이중 y축) 교차점이 아무 의미가 없어지므로
+// 같은 단위끼리 묶은 탭(axes)으로만 겹쳐 그린다.
+const RANGES = [[60, "3개월"], [120, "6개월"], [250, "1년"], [0, "전체"]];
+const CH = { axis: null, range: 120, hidden: new Set(), hover: null };
+
+function axisMetrics(axisKey) {
+  return (VIEW.metrics || []).filter((m) => m.axis === axisKey);
+}
+
+function niceTicks(min, max, count = 5) {
+  const span = (max - min) || 1;
+  const raw = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].find((f) => f * mag >= raw) * mag;
+  const out = [];
+  for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) out.push(t);
+  return out;
+}
+
+// 탭·범위·범례는 선택이 바뀔 때만, 그림은 호버마다 — 마우스가 움직일 때마다
+// 컨트롤까지 새로 만들면 낭비다.
+function renderChart() {
+  renderChartChrome();
+  renderPlot();
+}
+
+function renderChartChrome() {
+  const axis = (VIEW.axes || []).find((a) => a.key === CH.axis);
+  if (!axis) return;
+  const metrics = axisMetrics(axis.key);
+
+  $("#ts-tabs").innerHTML = (VIEW.axes || []).map((a) =>
+    `<button class="tv-tab${a.key === CH.axis ? " on" : ""}" data-axis="${esc(a.key)}"
+     >${esc(a.label)}</button>`).join("");
+  $("#ts-ranges").innerHTML = RANGES.map(([d, lab]) =>
+    `<button class="ts-range${d === CH.range ? " on" : ""}" data-range="${d}">${lab}</button>`).join("");
+  $("#ts-legend").innerHTML = metrics.map((m, i) => {
+    const off = CH.hidden.has(m.key);
+    return `<button class="ts-key${off ? " off" : ""}" data-key="${esc(m.key)}"
+      title="눌러서 숨기기/보이기">
+      <span class="ts-swatch" style="background:${SERIES_COLORS[i % SERIES_COLORS.length]}"></span>
+      ${esc(m.label)}</button>`;
+  }).join("");
+}
+
+function renderPlot() {
+  const axis = (VIEW.axes || []).find((a) => a.key === CH.axis);
+  if (!axis) return;
+  const metrics = axisMetrics(axis.key);
+  const shown = metrics.filter((m) => !CH.hidden.has(m.key));
+
+  // --- 데이터 범위 ------------------------------------------------------
+  const n = CHART.dates.length;
+  const from = CH.range ? Math.max(0, n - CH.range) : 0;
+  const series = shown.map((m) => ({
+    metric: m,
+    color: SERIES_COLORS[metrics.indexOf(m) % SERIES_COLORS.length],
+    pts: seriesPoints(m.key, CH.range),
+  })).filter((s) => s.pts.length > 1);
+
+  if (!series.length) {
+    $("#ts-plot").innerHTML = `<div class="loading">표시할 계열을 하나 이상 선택하세요.</div>`;
+    return;
+  }
+
+  const all = series.flatMap((s) => s.pts.map((p) => p[1]));
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (axis.zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  const pad = (hi - lo || 1) * 0.08;
+  lo -= pad; hi += pad;
+  if (axis.unit === "%" && axis.key === "pct_ma") { lo = Math.max(0, lo); hi = Math.min(100, hi); }
+
+  // --- 좌표계 -----------------------------------------------------------
+  const W = 1000, H = 340, L = 52, R = 14, T = 14, B = 30;
+  const px = (i) => L + ((i - from) / Math.max(1, n - 1 - from)) * (W - L - R);
+  const py = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+
+  const ticks = niceTicks(lo, hi);
+  const grid = ticks.map((t) =>
+    `<line class="ts-grid" x1="${L}" x2="${W - R}" y1="${py(t).toFixed(1)}" y2="${py(t).toFixed(1)}"/>
+     <text class="ts-ylab" x="${L - 8}" y="${(py(t) + 4).toFixed(1)}">${fmt(t, t % 1 ? 1 : 0)}</text>`).join("");
+
+  const zeroLine = axis.zero && lo < 0 && hi > 0
+    ? `<line class="ts-zero" x1="${L}" x2="${W - R}" y1="${py(0).toFixed(1)}" y2="${py(0).toFixed(1)}"/>` : "";
+
+  // x축 날짜 라벨 5개
+  const xlabs = [];
+  for (let k = 0; k <= 4; k++) {
+    const i = Math.round(from + (k / 4) * (n - 1 - from));
+    const d = CHART.dates[i];
+    if (!d) continue;
+    xlabs.push(`<text class="ts-xlab" x="${px(i).toFixed(1)}" y="${H - 8}"
+      text-anchor="${k === 0 ? "start" : k === 4 ? "end" : "middle"}">${d.slice(2)}</text>`);
+  }
+
+  const paths = series.map((s) => {
+    const d = s.pts.map(([i, v], k) => `${k ? "L" : "M"}${px(i).toFixed(1)},${py(v).toFixed(1)}`).join("");
+    const last = s.pts[s.pts.length - 1];
+    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"
+              stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="${px(last[0]).toFixed(1)}" cy="${py(last[1]).toFixed(1)}" r="3.5"
+              fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`;
+  }).join("");
+
+  // 호버 크로스헤어 + 값 표시
+  let hover = "";
+  if (CH.hover !== null && CH.hover >= from && CH.hover < n) {
+    const i = CH.hover;
+    hover = `<line class="ts-cross" x1="${px(i).toFixed(1)}" x2="${px(i).toFixed(1)}" y1="${T}" y2="${H - B}"/>`
+      + series.map((s) => {
+          const hit = s.pts.reduce((a, b) => (Math.abs(b[0] - i) < Math.abs(a[0] - i) ? b : a));
+          return `<circle cx="${px(hit[0]).toFixed(1)}" cy="${py(hit[1]).toFixed(1)}" r="4.5"
+                    fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`;
+        }).join("");
+  }
+
+  $("#ts-plot").innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="ts-svg">
+       ${grid}${zeroLine}${xlabs.join("")}${paths}${hover}
+     </svg>`;
+
+  // 툴팁(HTML) — 선택된 계열의 그날 값을 한 번에.
+  const tip = $("#ts-tip");
+  if (CH.hover !== null && CH.hover >= from && CH.hover < n) {
+    const i = CH.hover;
+    tip.innerHTML = `<div class="ts-tip-date">${esc(CHART.dates[i])}</div>` +
+      series.map((s) => {
+        const v = (CHART.values[s.metric.key] || [])[i];
+        return `<div class="ts-tip-row">
+          <span class="ts-swatch" style="background:${s.color}"></span>
+          <span class="ts-tip-name">${esc(s.metric.label)}</span>
+          <b>${v === null || v === undefined ? "—" : fmt(v, s.metric.decimals)}${esc(axis.unit)}</b>
+        </div>`;
+      }).join("");
+    tip.style.left = `${(px(i) / W) * 100}%`;
+    tip.classList.add("on");
+    tip.classList.toggle("flip", px(i) / W > 0.6);
+  } else {
+    tip.classList.remove("on");
+  }
+}
+
+function bindChart() {
+  $("#ts-tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-axis]");
+    if (!b) return;
+    CH.axis = b.dataset.axis; CH.hidden.clear(); renderChart();
+  });
+  $("#ts-ranges").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-range]");
+    if (!b) return;
+    CH.range = parseInt(b.dataset.range, 10); renderChart();
+  });
+  $("#ts-legend").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-key]");
+    if (!b) return;
+    const k = b.dataset.key;
+    // 마지막 한 계열까지 끄면 빈 그림이 되므로 그건 막는다.
+    if (CH.hidden.has(k)) CH.hidden.delete(k);
+    else if (axisMetrics(CH.axis).length - CH.hidden.size > 1) CH.hidden.add(k);
+    renderChart();
+  });
+  const plot = $("#ts-plot");
+  plot.addEventListener("mousemove", (e) => {
+    const r = plot.getBoundingClientRect();
+    const W = 1000, L = 52, R = 14;
+    const n = CHART.dates.length;
+    const from = CH.range ? Math.max(0, n - CH.range) : 0;
+    const xr = ((e.clientX - r.left) / r.width) * W;
+    const t = (xr - L) / (W - L - R);
+    const i = Math.round(from + t * (n - 1 - from));
+    const clamped = Math.max(from, Math.min(n - 1, i));
+    if (clamped !== CH.hover) { CH.hover = clamped; renderPlot(); }
+  });
+  plot.addEventListener("mouseleave", () => { CH.hover = null; renderPlot(); });
+}
+
+// 카드를 누르면 그 지표가 속한 탭으로 차트를 바꾸고 그 계열만 남긴다.
+function focusMetric(key) {
+  const m = (VIEW.metrics || []).find((x) => x.key === key);
+  if (!m || !m.axis) return;
+  CH.axis = m.axis;
+  CH.hidden = new Set(axisMetrics(m.axis).map((x) => x.key).filter((k) => k !== key));
+  renderChart();
+  document.getElementById("ts-section").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ---------- TradingView widget ----------
@@ -244,9 +473,13 @@ async function load() {
 }
 
 function render(data) {
+  VIEW = data;
+  CHART = data.chart || { dates: [], values: {} };
+  if (!CH.axis) CH.axis = (data.axes || [{}])[0].key;
   renderHero(data);
   renderAlerts(data);
   renderGroups(data);
+  renderChart();
   $("#demo-badge").classList.toggle("hidden", !data.demo);
   const when = data.updated ? new Date(data.updated).toLocaleString("ko-KR")
                             : (BUILT ? new Date(BUILT).toLocaleString("ko-KR") : "최근");
@@ -259,6 +492,12 @@ function renderError(msg, detail) {
   $("#status").textContent = "오류";
 }
 
+$("#groups").addEventListener("click", (e) => {
+  const card = e.target.closest(".card[data-key]");
+  if (card) focusMetric(card.dataset.key);
+});
+
 $("#refresh-btn").addEventListener("click", load);
+bindChart();
 renderTvTabs();
 load();

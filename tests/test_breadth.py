@@ -205,11 +205,37 @@ def test_view_keeps_source_labels(snapshot):
     assert by["VIX"]["source"] == "yahoo"
 
 
-def test_view_sparkline_skips_missing_values(snapshot):
-    vix = next(m for m in snapshot["metrics"] if m["key"] == "VIX")
-    assert vix["value"] is None and vix["spark"] == []
-    s5fi = next(m for m in snapshot["metrics"] if m["key"] == "S5FI")
-    assert [p[0] for p in s5fi["spark"]] == ["2026-01-05", "2026-01-06", "2026-01-07"]
+def test_chart_block_shares_one_date_axis(snapshot):
+    """차트는 날짜축 하나를 공유하고 지표별로 값 배열만 싣는다.
+
+    지표마다 (날짜, 값) 쌍을 따로 싣던 걸 바꾼 것 — 여러 지표를 같은 x축에
+    겹쳐 그리려면 인덱스가 맞아떨어져야 한다.
+    """
+    ch = snapshot["chart"]
+    assert ch["dates"] == ["2026-01-05", "2026-01-06", "2026-01-07"]
+    assert ch["values"]["S5FI"] == [60.0, 58.0, 52.5]
+    # 수집되지 않은 지표도 같은 길이의 배열(전부 None)로 자리를 지킨다.
+    assert ch["values"]["VIX"] == [None, None, None]
+    for key, vals in ch["values"].items():
+        assert len(vals) == len(ch["dates"]), key
+
+
+def test_every_metric_belongs_to_a_chart_axis():
+    """단위가 다른 지표를 한 좌표계에 겹치지 않도록 전부 축 그룹에 속해야 한다."""
+    axis_keys = {k for k, _, _, _ in breadth.AXES}
+    for m in breadth.METRICS:
+        assert m.axis in axis_keys, f"{m.key} 의 축 {m.axis!r} 이 AXES 에 없다"
+    # 한 축에 5계열을 넘기면 색 팔레트(순서 고정 5슬롯)를 돌려쓰게 된다.
+    for k in axis_keys:
+        n = sum(1 for m in breadth.METRICS if m.axis == k)
+        assert 1 <= n <= 5, f"축 {k} 에 {n} 계열"
+
+
+def test_axis_groups_share_one_unit():
+    """같은 축에 올리는 지표는 단위가 같아야 한다(이중 y축 금지)."""
+    for k, _, _, _ in breadth.AXES:
+        units = {m.unit for m in breadth.METRICS if m.axis == k}
+        assert len(units) == 1, f"축 {k} 에 단위가 섞였다: {units}"
 
 
 def test_metric_uses_its_own_last_session(tmp_path, monkeypatch):
