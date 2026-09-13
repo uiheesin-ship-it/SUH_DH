@@ -1,13 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/technology/articles/nvidia-nvda-excluded-china-data-032951004.html",
-"https://www.cnbc.com/2026/08/28/what-we-learned-from-warshs-jackson-hole-speech-and-ge-vernovas-cfo-to-retire.html",
-"https://www.bloomberg.com/news/articles/2026-08-29/australian-minister-denies-softer-stance-on-data-center-power",
-"https://www.datacenterdynamics.com/en/marketwatch/the-fiber-connectivity-challenge-behind-ai-at-scale/",
-"https://www.datacenterdynamics.com/en/opinions/from-pressure-to-proof-leading-through-constraint-in-the-data-center-era/",
-"https://finance.yahoo.com/markets/article/wall-street-is-turning-nvidias-ai-chips-into-a-new-futures-market-chart-of-the-day-115118331.html",
-"https://www.cnbc.com/2026/08/29/tech-backlash-ai-data-centers-elections.html",
-"https://www.cnbc.com/2026/08/29/op-ed-salesforce-revealed-next-battleground-in-ai-its-not-models.html",
 "https://www.investors.com/research/investing-action-plan/stock-market-week-ahead-chips-cybersecurity-and-jobs/?src=A00220&yptr=yahoo",
 "https://www.cnbc.com/2026/08/29/big-lesson-from-this-weeks-earnings-ai-buildout-is-not-a-zero-sum-game.html",
 "https://finance.yahoo.com/markets/stocks/articles/gorman-rupp-eyes-data-centers-160206039.html",
@@ -499,7 +491,15 @@
 "https://www.bloomberg.com/news/articles/2026-09-13/xi-pitches-his-ai-vision-at-brics-summit-as-china-duels-with-us",
 "https://www.datacenterdynamics.com/en/opinions/from-grid-constraint-to-grid-asset-rethinking-the-path-to-data-center-power/",
 "https://www.cnbc.com/2026/09/13/china-xi-ai-tech-brics.html",
-"https://www.bloomberg.com/news/videos/2026-09-13/can-scotland-s-abundant-wind-power-a-data-center-boom-video"
+"https://www.bloomberg.com/news/videos/2026-09-13/can-scotland-s-abundant-wind-power-a-data-center-boom-video",
+"https://www.bloomberg.com/news/videos/2026-09-13/rogue-ai-breakouts-raise-pressure-for-new-rules",
+"https://www.bloomberg.com/news/videos/2026-09-13/investors-see-ai-slowdown-as-a-temporary-step-video",
+"https://finance.yahoo.com/markets/stocks/articles/nvidia-older-gpus-still-earn-140210350.html",
+"https://finance.yahoo.com/technology/ai/articles/alibaba-amazon-face-same-ai-140837189.html",
+"https://www.cnbc.com/2026/09/13/china-dilemma-ai-slowdown-anthropic.html",
+"https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-fed-meeting-anthropic-amodei-openai-altman-spacex-musk-ai-model-slowdown/?src=A00220&yptr=yahoo",
+"https://www.datacenterdynamics.com/en/opinions/how-retrofitting-can-help-win-the-ai-infrastructure-race/",
+"https://finance.yahoo.com/markets/stocks/articles/could-upstart-10x-ai-fintech-160501346.html"
 ],
-"updated": "2026-09-13T14:10:19+00:00"
+"updated": "2026-09-13T17:33:31+00:00"
 }
