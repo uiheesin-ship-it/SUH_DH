@@ -1,0 +1,33 @@
+name: Scan cost probe
+
+# 스캐너 유니버스 상한(max_candidates)을 풀면 스캔이 얼마나 더 걸리는지 실측한다.
+#
+# 측정 전용이다 — 스냅샷을 만들지도, 커밋하지도, 배포를 막지도 않는다.
+# 상한을 풀지 말지 판단할 숫자만 로그에 찍는다. 판단이 끝나면 지워도 된다.
+on:
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: "수신 시간 측정에 쓸 표본 종목 수 (0 = 크기만 재고 수신은 생략)"
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scan-cost
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install --quiet yfinance pandas numpy curl_cffi finvizfinance pyyaml
+      - name: Probe
+        run: python tools/scan_cost_probe.py --sample "${{ github.event.inputs.sample || '60' }}"
