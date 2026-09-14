@@ -254,20 +254,50 @@ def test_theme_mates_beat_lucky_strangers_across_windows():
         f"동료와 무관한 종목의 간격이 너무 좁다 (무관 최고 {best_stranger})")
 
 
-def test_noise_line_sits_above_unrelated_pairs():
-    """잡음선은 '무관한 종목끼리도 이만큼은 나온다'를 실측한 값이어야 한다."""
+def _sector_world(seed=3, N=600, T=260, n_sectors=4):
+    """섹터 4개가 각각 강하게 동행하는 세계 — 진짜 구조가 잔뜩 있는 유니버스."""
+    rng = np.random.default_rng(seed)
+    mkt = rng.normal(0, 0.01, T)
+    secs = [rng.normal(0, 0.012, T) for _ in range(n_sectors)]
+    R = np.vstack([1.1 * mkt + 0.9 * secs[i % n_sectors] + rng.normal(0, 0.012, T)
+                   for i in range(N)])
+    return R, mkt
+
+
+def test_noise_line_measures_luck_not_real_structure():
+    """잡음선은 '진짜 쌍의 상위권'이 아니라 '우연의 상한'이어야 한다.
+
+    처음엔 무작위 쌍의 상관을 그냥 쟀는데, 무작위로 고른 두 종목도 같은 섹터면
+    진짜로 같이 움직인다 — 그래서 50일 선이 +0.58 로 나왔고 JPM 의 은행 동료가
+    전부 잡음으로 찍혔다. 시간축을 어긋나게 돌려서 재야 우연만 남는다.
+    """
     cu = load_builder()
-    rng = np.random.default_rng(5)
-    R = rng.normal(0, 0.02, (400, 260))          # 전부 서로 무관
-    Z, ok = correl.standardized(R, window=50)
-    line = cu.noise_line(Z, ok, seed=1)
+    R, mkt = _sector_world()
+    E = correl.residualize(R, mkt)
+    Z, ok = correl.standardized(E, window=50)
+
+    line = cu.noise_line(Z, ok, universe=len(R), seed=1)
+    M = Z @ Z.T
+    np.fill_diagonal(M, np.nan)
+    real_top = float(np.nanquantile(np.abs(M), 0.99))
     assert line is not None
-    # 무관한 쌍만 있는 세계이므로 선은 0 보다 확실히 크고(우연은 실재한다),
-    # 1 에 가깝지는 않다(전부 우연이라고 말하는 선은 쓸모가 없다).
-    assert 0.15 < line < 0.45, line
-    # 창이 짧을수록 우연히 큰 값이 나오기 쉽다 — 선도 같이 올라가야 한다.
-    Z20, ok20 = correl.standardized(R, window=20)
-    assert cu.noise_line(Z20, ok20, seed=1) > line
+    assert line < real_top * 0.9, (
+        f"잡음선({line})이 진짜 쌍의 상위권({real_top})까지 먹었다")
+
+    # 이론값(독립 두 계열의 상관 표준오차 1/√(T-1) × 다중비교 z≈3.3)과 같은 자리.
+    assert 0.5 / np.sqrt(49) < line < 6.0 / np.sqrt(49), line
+
+
+def test_noise_line_rises_as_the_window_shortens():
+    """창이 짧을수록 우연히 큰 값이 나온다 — 선도 같이 올라가야 한다."""
+    cu = load_builder()
+    R, mkt = _sector_world()
+    E = correl.residualize(R, mkt)
+    lines = []
+    for w in correl.WINDOWS:
+        Z, ok = correl.standardized(E, window=w)
+        lines.append(cu.noise_line(Z, ok, universe=len(R), seed=1))
+    assert lines == sorted(lines, reverse=True), dict(zip(correl.WINDOWS, lines))
 
 
 def test_meta_row_survives_an_old_snapshot_without_etf_flag():
