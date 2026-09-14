@@ -43,7 +43,7 @@
       <label>거래대금 ≥ <input id="f-dv" type="number" step="10" placeholder="백만$" /></label>
       <label class="chk"><input id="f-xsector" type="checkbox" /> 같은 섹터 제외</label>
       <label class="chk"><input id="f-xetf" type="checkbox" checked /> ETF 제외</label>
-      <label class="chk"><input id="f-signal" type="checkbox" /> 잡음선 위만</label>
+      <label class="chk"><input id="f-signal" type="checkbox" /> 잡음선 넘은 기간 있는 것만</label>
       <button id="f-clear">초기화</button>
       <span id="f-count" class="f-count"></span>
       <span id="f-noise" class="f-count"></span>
@@ -70,6 +70,8 @@
     상관을 재면 남는 건 우연뿐인데, 그 분포에서 <b>1/N 지점</b>(N = 유니버스 종목 수)을
     실측한 값입니다. 이보다 낮은 숫자는 <span class="noise-demo">이렇게 흐리게</span>
     칠해 둡니다 — 그 숫자 하나만으로는 우연과 구별되지 않는다는 뜻입니다.
+    <b>한 행의 숫자가 전부 흐리면</b> 그 종목과는 어느 기간으로 봐도 동행을 말할 수
+    없다는 뜻이고, 위의 체크를 켜면 그런 행이 빠집니다.
     <b>20일 선이 유독 높은 게 정상</b>입니다: 20일짜리 상관은 2,000종목을 훑으면
     운만으로도 +0.7이 나옵니다.
     <b>ETF 는 기본으로 숨깁니다</b>: 성장주 ETF 는 그 종목을 담고 있어서 상관이 높게
