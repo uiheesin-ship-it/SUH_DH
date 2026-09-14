@@ -21,8 +21,9 @@
                   세 기간 잔차의 최솟값으로 고른다(한 기간만 보면 우연이 상위권을
                   먹는다). 상관행렬은 3,700종목이면 하나가 110MB 라, 6개를 동시에
                   들지 않고 **한 번에 하나씩** 만들고 버린다(피크 메모리 1개분).
-  6. 잡음선     : 무작위 쌍의 잔차 상관 분포에서 상위 1% 지점을 창마다 실측해
-                  같이 저장한다. 화면에서 그 아래 값은 흐리게 칠한다.
+  6. 잡음선     : 시간축을 어긋나게 돌린 무작위 쌍의 상관 분포에서 상위 1/N
+                  지점을 창마다 실측해 같이 저장한다 — "유니버스를 다 훑었을 때
+                  운만으로 나오는 최고값". 화면에서 그 아래 값은 흐리게 칠한다.
 
 계산 자체는 가볍다(3,700종목 × 250일 상관행렬이 1초 미만). 무거운 건 가격 수신뿐.
 
@@ -351,33 +352,47 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
     return out
 
 
-def noise_line(Z, ok_row, pct: float = 99.0, samples: int = 60000, seed: int = 0):
-    """무작위 쌍의 상관 분포에서 |r| 의 pct 백분위 — "우연으로도 이만큼은 나온다"선.
+def noise_line(Z, ok_row, universe=None, samples: int = 300000, seed: int = 0):
+    """"이 유니버스를 다 훑었을 때 운만으로 나올 수 있는 최고값".
 
-    유니버스가 2,200종목이면 한 종목당 2,200번 비교하는 셈이라, 50일 창에서는
-    아무 관계 없는 종목도 +0.45 쯤이 흔히 나온다. 그 선을 데이터에서 직접
-    재서 화면에 띄우면, 상위권 숫자가 신호인지 우연인지 사용자가 바로 안다.
-    이론값(Bonferroni) 대신 실측을 쓰는 이유는 잔차에도 섹터 요인이 남아 있어
-    쌍끼리 독립이 아니기 때문이다.
+    무작위 쌍을 그냥 재면 안 된다 — 처음에 그렇게 했다가 50일 선이 +0.58 로
+    나왔고, 그러면 JPM 과 BAC(+0.84) 말고는 전부 잡음으로 찍힌다. 무작위로 고른
+    두 종목도 같은 섹터면 진짜로 같이 움직이므로, 그 분포의 상위 1%는 "우연"이
+    아니라 "실제 상관이 큰 쌍들"이다.
+
+    그래서 **시간축을 어긋나게 돌려서**(원형 시프트) 잰다. 각 종목의 수익률
+    분포와 자기상관은 그대로 두고 종목끼리의 시점만 어긋나게 하면, 남는 상관은
+    오로지 우연이다. 표준화된 행을 돌려도 평균 0 · 노름 1 이 그대로라 내적이
+    곧 상관계수다.
+
+    백분위는 1 − 1/N 을 쓴다. 한 종목을 조회할 때 N개와 비교하는 셈이므로,
+    "N번 뽑으면 한 번쯤 나오는 값" = 운만으로 기대되는 1등이다. 이보다 낮은
+    숫자는 그 자체로는 우연과 구별되지 않는다.
     """
     import numpy as np
 
     idx = np.flatnonzero(ok_row)
-    if len(idx) < 50:
+    n = int(universe or len(idx))
+    if len(idx) < 50 or n < 2:
         return None
+    T = Z.shape[1]
     rng = np.random.default_rng(seed)
+
     vals = []
-    for start in range(0, samples, 20000):          # 통째로 뽑으면 메모리가 뜬다
-        k = min(20000, samples - start)
+    step = 20000
+    for start in range(0, samples, step):
+        k = min(step, samples - start)
         a = rng.choice(idx, k)
         b = rng.choice(idx, k)
+        # 덩어리마다 다른 시프트를 준다. 0 이나 T 근처면 안 어긋나므로 피한다.
+        shift = int(rng.integers(T // 4, T - T // 4)) if T >= 8 else 1
         m = a != b
         if not m.any():
             continue
-        vals.append(np.abs(np.einsum("ij,ij->i", Z[a[m]], Z[b[m]])))
+        vals.append(np.abs(np.einsum("ij,ij->i", Z[a[m]], np.roll(Z[b[m]], shift, axis=1))))
     if not vals:
         return None
-    return round(float(np.percentile(np.concatenate(vals), pct)), 3)
+    return round(float(np.quantile(np.concatenate(vals), 1.0 - 1.0 / n)), 3)
 
 
 def _top_idx(row, k: int) -> list[int]:
@@ -480,11 +495,11 @@ def main() -> None:
     noise = {}
     for w in WINDOWS:
         Zw, okw = standardized(E, window=w)
-        line = noise_line(Zw, okw)
+        line = noise_line(Zw, okw, universe=len(keep))
         if line is not None:
             noise[str(w)] = line
     if noise:
-        log("  잡음선(무작위 쌍 |잔차상관| 99%): " +
+        log("  잡음선(시간 어긋낸 무작위 쌍의 상위 1/N): " +
             ", ".join(f"{w}일 {v:+.2f}" for w, v in noise.items()))
 
     avg_dv = (dvol.tail(60).mean() if dvol is not None else None)
