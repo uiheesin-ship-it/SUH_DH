@@ -544,3 +544,20 @@ def test_flat_sampler_is_what_drops_qualifying_names():
     assert len(kept) < len(rows), "솎아내기가 아무것도 안 버렸다"
     # 0 을 주면 전부 남는다 — 우리가 쓰는 우회가 이것이다.
     assert len(universe._sample(list(rows), 0)) == 100
+
+
+def test_flat_and_turnaround_scan_the_whole_universe():
+    """평평·턴어라운드는 후보를 솎아내지 않아야 한다(0 = 전수).
+
+    솎아내기는 기준을 다 넘는 종목을 임의로 버린다 — 실측으로 평평은 7,927 중
+    4,227개(53%), 턴어라운드는 3,247 중 247개가 그렇게 빠지고 있었다. 상관
+    프로그램이 APPS 를 못 찾은 것도 이 때문이었다.
+    """
+    from app.flat import config as flat_cfg
+    from app.turnaround import config as turn_cfg
+
+    flat = flat_cfg.load()["universe"]
+    assert flat["max_candidates"] == 0, "평평 유니버스가 다시 솎아내고 있다"
+    assert flat["max_etf_candidates"] == 0
+    assert turn_cfg.load()["universe"]["max_candidates"] == 0, (
+        "턴어라운드 유니버스가 다시 솎아내고 있다")

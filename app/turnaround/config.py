@@ -28,7 +28,9 @@ DEFAULTS: dict[str, Any] = {
     "universe": {
         "source": "finviz",
         "include_adr": True,
-        "max_candidates": 3000,
+        # 0 = 전수. 상한을 두면 기준 통과 종목이 임의로 잘린다(평평 쪽 주석 참고).
+        # 실측 3,247 중 247개가 그렇게 빠지고 있었다.
+        "max_candidates": 0,
     },
     "min_price": 1.0,
     "min_market_cap": 300_000_000,
