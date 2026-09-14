@@ -2,12 +2,21 @@ name: Fetch US market breadth
 
 # 미장 마켓 브레스 수집 → data/breadth_us.json(시계열) + data/breadth.json(뷰).
 #
-# 값은 하루 한 번만 바뀌므로(일봉 기준) 미국장 마감 뒤 한 번만 돌린다.
-# 21:10 UTC = 뉴욕 17:10 (EDT) / 16:10 (EST) — 정규장 마감과 데이터 확정 이후.
-# 시크릿 불필요(TradingView·Yahoo·FRED 모두 키 없이 읽는다).
+# ⏸ 자동 수집 중단됨 (2026-09-14).
+#   TradingView 에서 티커로 직접 확인하는 편이 낫다는 판단이라 프로그램을 허브에서
+#   감췄고(app/static/index.html 의 status:"hidden") 매일 돌던 크론도 뺐다.
+#   수동 실행(Run workflow)만 남겨 둔다 — 파이프라인이 아직 도는지 확인하거나
+#   다시 켜기 전에 한 번 돌려 볼 때를 위해서.
+#
+#   다시 켜려면: 아래 schedule 블록의 주석을 풀면 된다(평일 21:10 UTC =
+#   뉴욕 17:10 EDT / 16:10 EST, 정규장 마감과 데이터 확정 이후).
+#   단, 멈춰 있던 기간만큼 시계열에 구멍이 남는다 — period 를 길게 줘서
+#   한 번 돌리면 구성종목 계산분(%>이평선·A/D·신고가)은 과거까지 다시 채워진다.
+#
+# 시크릿은 필요 없다(Yahoo 만 읽는다).
 on:
-  schedule:
-    - cron: "10 21 * * 1-5"   # 평일 장 마감 후
+  # schedule:
+  #   - cron: "10 21 * * 1-5"   # 평일 장 마감 후
   workflow_dispatch:
     inputs:
       period:
