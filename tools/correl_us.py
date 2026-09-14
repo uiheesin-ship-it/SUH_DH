@@ -2,11 +2,15 @@
 """미장 티커 상관관계 수집기 → data/correl.json.
 
 흐름:
-  1. 유니버스   : 평평 스크리너의 유니버스를 그대로 쓴다(app.flat.universe).
-                  이 저장소가 이미 정의해 둔 "거래할 만한 미국 주식" 목록이고,
+  1. 유니버스   : 평평 스크리너의 유니버스를 쓰되 **후보 수 상한은 푼다**
+                  (app.flat.universe). 저장소가 이미 정의해 둔 "거래할 만한
+                  미국 주식" 목록이고,
                   베이스 스크리너와 달리 **이평선 조건이 없어** 상관 분석에 맞다 —
                   베이스 쪽은 정배열(50·200일선 위)만 담아서, 그걸 쓰면 하락 중인
                   종목이 통째로 빠지고 헤지 후보(음의 상관)를 찾을 수 없다.
+                  평평 쪽은 후보를 3,000종목으로 솎아내는데, 그러면 기준을 다
+                  넘는 종목이 임의로 빠진다(APPS 가 그렇게 없었다). 솎아내기는
+                  끄고 유동성 기준만으로 거른다.
                   Finviz 가 403 으로 막히면 지난번 목록(data/correl_universe.json)을
                   재사용한다 — 유니버스는 하루 사이에 크게 바뀌지 않는다.
   2. 가격       : yfinance 로 배치로 받는다. 한 번에 많이 붙이면 레이트 리밋에
@@ -36,6 +40,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import time
@@ -97,12 +102,33 @@ def _load_universe() -> list[dict]:
         return []
 
 
+def unsampled_flat_config(base: dict) -> dict:
+    """평평 스크리너 설정에서 후보 수 상한만 푼 사본.
+
+    평평 스크리너는 Finviz 결과를 3,000종목(+ETF 700)으로 잘라 쓴다. 자를 때
+    시총 구간이 고르게 남도록 **일정 간격으로 솎아내는데**, 구간 안의 어떤
+    종목이 빠질지는 사실상 임의다. 평평 스크리너는 "쓸 만한 표본"만 있으면
+    되니 괜찮지만, 상관 분석에서는 치명적이다 — 사용자가 찾는 바로 그 종목이
+    조용히 없을 수 있다. 실제로 APPS(디지털터빈, 시총 $1.4B, 거래대금 $29M)가
+    기준을 다 넘고도 이렇게 빠졌다.
+
+    여기서는 솎아내지 않는다(0 = 무제한). 걸러내는 일은 유동성 기준
+    (가격 $5 · 거래대금 $10M · 관측 130일)에만 맡긴다.
+    """
+    cfg = copy.deepcopy(base)          # load() 는 공유 캐시를 돌려준다 — 원본을 건드리면 안 된다
+    uni = cfg.setdefault("universe", {})
+    uni["max_candidates"] = 0
+    uni["max_etf_candidates"] = 0
+    return cfg
+
+
 def universe_rows() -> list[dict]:
     """{ticker, name, sector, industry, market_cap, is_etf} 목록.
 
-    평평 스크리너의 유니버스를 그대로 쓴다 — 이 저장소가 이미 정의해 둔 "거래할
+    평평 스크리너의 유니버스를 쓴다 — 이 저장소가 이미 정의해 둔 "거래할
     만한 미국 주식"이고, 이평선 조건이 없어 상승·하락 종목이 모두 들어온다.
     (베이스 쪽 유니버스는 정배열만 담아서 헤지 후보를 찾을 수 없다.)
+    다만 후보 수 상한은 풀고 가져온다 — unsampled_flat_config 참고.
 
     Finviz 는 403 으로 막힌 이력이 있으므로, 성공하면 목록을 파일로 남기고
     실패하면 그 파일을 재사용한다.
@@ -112,7 +138,7 @@ def universe_rows() -> list[dict]:
         from app.flat import config as flat_config
         from app.flat import universe as flat_universe
 
-        for r in flat_universe.get_candidates(flat_config.load()):
+        for r in flat_universe.get_candidates(unsampled_flat_config(flat_config.load())):
             t = (r.get("ticker") or "").upper().strip()
             if not t:
                 continue
