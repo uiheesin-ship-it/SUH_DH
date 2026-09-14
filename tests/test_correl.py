@@ -508,3 +508,39 @@ def test_etf_rows_are_labelled_even_in_an_old_snapshot():
     assert view["rows"][0]["sector"] == "ETF"
     assert view["self"]["is_etf"] is False
     assert view["self"]["sector"] == "Technology"
+
+
+# ------------------------------------------- 유니버스에서 종목이 조용히 빠지는 문제
+# 평평 스크리너는 Finviz 결과를 3,000종목으로 **솎아내서** 쓴다(시총 구간이 고르게
+# 남도록 일정 간격으로 버린다). 평평 쪽은 표본만 있으면 되니 괜찮지만 상관 분석에서는
+# 사용자가 찾는 바로 그 종목이 없어진다 — APPS(시총 $1.4B, 거래대금 $29M)가 기준을
+# 다 넘고도 이렇게 빠졌다. 여기서는 솎아내기를 끄고 유동성 기준만으로 거른다.
+def test_correl_asks_for_an_unsampled_universe():
+    cu = load_builder()
+    base = {"universe": {"max_candidates": 3000, "max_etf_candidates": 700,
+                         "include_etf": True, "include_reit": False},
+            "min_market_cap": 300_000_000, "min_price": 1.0}
+    cfg = cu.unsampled_flat_config(base)
+
+    assert cfg["universe"]["max_candidates"] == 0, "후보 솎아내기가 여전히 켜져 있다"
+    assert cfg["universe"]["max_etf_candidates"] == 0
+    # 나머지 설정(품질 기준)은 평평 스크리너 것을 그대로 따라야 한다.
+    assert cfg["min_market_cap"] == 300_000_000
+    assert cfg["universe"]["include_etf"] is True
+    # load() 는 공유 캐시를 돌려주므로 원본을 건드리면 평평 스크리너가 망가진다.
+    assert base["universe"]["max_candidates"] == 3000, "원본 설정을 수정해 버렸다"
+
+
+def test_flat_sampler_is_what_drops_qualifying_names():
+    """솎아내기가 실제로 기준 통과 종목을 버린다는 걸 못 박아 둔다.
+
+    이 동작이 사라지거나 바뀌면 위 우회가 필요 없어지므로, 그때 이 테스트가
+    먼저 깨져서 알려 준다.
+    """
+    universe = pytest.importorskip("app.flat.universe")
+    rows = [{"ticker": f"T{i}", "market_cap": 1e9 - i} for i in range(100)]
+    kept = {r["ticker"] for r in universe._sample(list(rows), 60)}
+    assert len(kept) == 60
+    assert len(kept) < len(rows), "솎아내기가 아무것도 안 버렸다"
+    # 0 을 주면 전부 남는다 — 우리가 쓰는 우회가 이것이다.
+    assert len(universe._sample(list(rows), 0)) == 100

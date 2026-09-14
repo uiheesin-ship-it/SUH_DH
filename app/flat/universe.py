@@ -168,6 +168,22 @@ def _fetch_finviz(cfg: dict, etf_pass: bool = False) -> list[dict]:
     return rows
 
 
+def _sample(lst: list, n: int) -> list:
+    """Even market-cap sampling so the list isn't all mega-cap. n <= 0 keeps all.
+
+    Note this DISCARDS qualifying names — it thins the sorted list at a fixed
+    stride, so which name inside a cap band survives is effectively arbitrary.
+    That is fine for a screener that only needs a representative sample, but a
+    consumer that must not lose a specific ticker (the correlation collector)
+    passes n = 0 to turn it off.
+    """
+    lst.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
+    if 0 < n < len(lst):
+        step = len(lst) / n
+        return [lst[int(i * step)] for i in range(n)]
+    return lst
+
+
 def get_candidates(cfg: dict) -> list[dict]:
     if _demo():
         uni = cfg["universe"]
@@ -213,15 +229,6 @@ def get_candidates(cfg: dict) -> list[dict]:
         if not include_adr and (r.get("country") or "USA") != "USA":
             continue
         filtered.append(r)
-
-    # Even market-cap sampling so the list isn't all mega-cap. Stocks and ETFs
-    # get SEPARATE budgets so adding ETFs doesn't push stocks out of the cap.
-    def _sample(lst: list, n: int) -> list:
-        lst.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
-        if 0 < n < len(lst):
-            step = len(lst) / n
-            return [lst[int(i * step)] for i in range(n)]
-        return lst
 
     cap = int(uni.get("max_candidates", 1500))
     if os.environ.get("SUH_DH_FLAT_LIMIT"):
