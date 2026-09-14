@@ -42,8 +42,11 @@
       <label>원시50 ≤ <input id="f-raw" type="number" step="0.05" placeholder="예: 0" /></label>
       <label>거래대금 ≥ <input id="f-dv" type="number" step="10" placeholder="백만$" /></label>
       <label class="chk"><input id="f-xsector" type="checkbox" /> 같은 섹터 제외</label>
+      <label class="chk"><input id="f-xetf" type="checkbox" checked /> ETF 제외</label>
+      <label class="chk"><input id="f-signal" type="checkbox" /> 잡음선 위만</label>
       <button id="f-clear">초기화</button>
       <span id="f-count" class="f-count"></span>
+      <span id="f-noise" class="f-count"></span>
     </section>
 
     <div class="table-wrap">
@@ -56,6 +59,18 @@
   </main>
 
   <footer class="footer">
+    <b>동행 점수</b>는 20·50·120일 잔차 상관 중 <b>가장 낮은 값</b>입니다. 기간 하나만
+    보고 줄을 세우면 상위권이 우연으로 찹니다 — 50일 상관의 표준오차가 1/√50 ≈ 0.14 라
+    2,000종목을 훑으면 아무 관계 없는 종목도 +0.45쯤은 흔히 찍습니다. 세 기간이 모두
+    버틴 종목만 위로 올라오게 한 것이 동행 점수입니다. 대가도 있습니다 — <b>한 기간만
+    같이 가는 종목은 점수가 낮게 나옵니다</b>. 단기 테마를 찾을 땐 <b>잔차 20일</b> 열을
+    직접 눌러 정렬하세요.
+    <b>잡음선</b>은 무작위로 고른 두 종목의 잔차 상관 분포에서 상위 1% 지점을 실측한
+    값입니다. 이보다 낮은 숫자는 <span class="noise-demo">이렇게 흐리게</span> 칠해
+    둡니다 — 우연으로도 나올 수 있는 크기라는 뜻입니다.
+    <b>ETF 는 기본으로 숨깁니다</b>: 성장주 ETF 는 그 종목을 담고 있어서 상관이 높게
+    나오는 게 당연하고(테마 동료가 아니라 자기 자신입니다), 위에서 체크를 풀면 보입니다.
+    <br />
     <b>읽는 법</b> — <b>잔차 상관</b>은 시장(SPY) 움직임을 걷어낸 뒤의 상관입니다.
     <b>“이 종목이 움직일 때 같이 가는 종목”을 찾을 땐 잔차를 내림차순</b>으로 보세요.
     모든 주식에는 시장 움직임이 섞여 있어서, 원시 상관만 보면 테마와 무관한

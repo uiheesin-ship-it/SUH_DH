@@ -125,3 +125,16 @@ td.n { color: var(--text); }
   .table-wrap { max-height: calc(100vh - 220px); }
   td.n, td.s { max-width: 120px; }
 }
+
+/* 동행 점수 — 기본 정렬 열이라 살짝 강조한다. */
+thead th.score { background: #2a3b52; }
+td.score { font-weight: 600; }
+
+/* ETF 표시 — 성장주 ETF 는 그 종목을 담고 있어 상관이 높은 게 당연하다. */
+.etf {
+  font-size: 10px; padding: 1px 4px; border-radius: 3px;
+  background: #374151; color: #9ca3af; vertical-align: middle;
+}
+
+/* 잡음선 아래 값의 색(본문 설명에서 예시로 쓴다). */
+.noise-demo { color: #6b7280; }
