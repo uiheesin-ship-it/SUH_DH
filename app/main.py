@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, backlog, breadth, charts, earnings, kr, news, screener
+from . import __version__, backlog, breadth, charts, correl, earnings, kr, news, screener
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
 from .turnaround import get_screen as turnaround_get_screen
@@ -293,6 +293,35 @@ def us_breadth():
         return JSONResponse(
             status_code=502,
             content={"error": "마켓 브레스 데이터를 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/correl")
+def correl_snapshot():
+    """티커 상관관계 스냅샷 전체(압축 포맷).
+
+    화면은 이 파일 하나를 받아 들고 있다가 티커를 바꿀 때마다 클라이언트에서
+    펼친다 — 종목마다 왕복하지 않아 입력이 즉시 반응한다. 정적 배포도 같은
+    파일을 읽으므로 코드 경로가 하나다.
+    """
+    data = correl._load()
+    if data is None:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "아직 수집된 상관 데이터가 없습니다. correl 워크플로를 실행하세요."},
+        )
+    return data
+
+
+@app.get("/api/correl/{ticker}")
+def correl_for(ticker: str):
+    """한 티커의 상관 이웃 목록(펼친 형태) — 프로그램적으로 쓸 때."""
+    try:
+        return correl.get_correl(ticker)
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"{ticker} 상관 데이터를 불러오지 못했습니다.", "detail": str(e)},
         )
 
 

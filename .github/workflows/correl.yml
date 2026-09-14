@@ -1,0 +1,62 @@
+name: Fetch US ticker correlations
+
+# 미장 티커 상관관계 수집 → data/correl.json.
+#
+# 상관은 천천히 변한다(20일 창이 하루 새로 바뀌어 봤자 순위는 거의 그대로).
+# 매일 돌릴 이유가 없어 주 2회만 돈다 — 수·토 새벽, 미국장 마감 뒤.
+# 무거운 건 계산이 아니라 가격 수신이다: 계산은 1초대, 수신이 대부분의 시간.
+# 시크릿 불필요(Yahoo 만 읽는다. Finviz 메타는 열리면 덧붙이고 막히면 건너뛴다).
+on:
+  schedule:
+    - cron: "40 21 * * 3,6"    # 수·토 21:40 UTC
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "유니버스 상한(0 = 전체). 빠른 점검용"
+        default: "0"
+      min_dollar_vol:
+        description: "최소 60일 평균 거래대금(백만 달러). 높일수록 종목이 줄고 파일이 작아집니다"
+        default: "10"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: correl
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # 다른 데이터 워크플로와 같은 브랜치를 본다(배포본과 raw 경로가 여기다).
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install --quiet yfinance pandas numpy curl_cffi finvizfinance pyyaml
+      - name: Fetch correlations
+        run: |
+          python tools/correl_us.py \
+            --limit "${{ github.event.inputs.limit || '0' }}" \
+            --min-dollar-vol "${{ github.event.inputs.min_dollar_vol || '10' }}"
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/correl.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/correl.json
+            git commit -m "data(correl): refresh US ticker correlations"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
