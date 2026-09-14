@@ -250,6 +250,18 @@ $(".presets").addEventListener("click", (e) => {
   render();
 });
 
+// ---------- 계산 로직 모달 ----------
+(function () {
+  const modal = $("#logic-modal");
+  if (!modal) return;
+  const close = () => modal.classList.add("hidden");
+  $("#logic-btn").addEventListener("click", () => modal.classList.remove("hidden"));
+  $("#logic-close").addEventListener("click", close);
+  // 바깥을 누르거나 Esc 로도 닫는다.
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+})();
+
 // ---------- 로드 ----------
 async function load() {
   try {
