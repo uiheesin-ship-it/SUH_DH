@@ -285,3 +285,38 @@ def test_schema_matches_window_count():
                                   "res20", "res50", "res120"]
     assert len(correl.PAIR_SCHEMA) == 1 + 2 * len(correl.WINDOWS)
     assert len(correl.META_SCHEMA) == 6
+
+
+# ------------------------------------------- 반쪽 스냅샷 방지 (레이트 리밋)
+# 첫 실전 실행에서 Yahoo 가 YFRateLimitError 를 뿌려 NVDA·MSFT·TSLA 를 포함해
+# 수천 종목이 빠졌는데도 1,441종목짜리 결과가 조용히 커밋됐다. 사용자는
+# "NVDA 가 왜 없지?"만 보게 된다. 그 조용한 실패를 여기서 막는다.
+def test_anchor_check_flags_a_rate_limited_download():
+    cu = load_builder()
+    pd = pytest.importorskip("pandas")
+    idx = pd.bdate_range("2026-01-01", periods=200)
+
+    full = pd.DataFrame({t: np.linspace(10, 20, 200) for t in cu.ANCHORS}, index=idx)
+    assert cu.missing_anchors(full) == []
+
+    # 대형주 절반이 빠진 상황 — 레이트 리밋의 전형적인 모습
+    half = full[cu.ANCHORS[:len(cu.ANCHORS) // 2]]
+    assert len(cu.missing_anchors(half)) > cu.MAX_MISSING_ANCHORS
+
+
+def test_anchor_check_treats_all_nan_column_as_missing():
+    """yfinance 는 실패해도 예외 대신 빈 열을 준다 — 열이 있다고 받은 게 아니다."""
+    cu = load_builder()
+    pd = pytest.importorskip("pandas")
+    idx = pd.bdate_range("2026-01-01", periods=50)
+    df = pd.DataFrame({t: np.full(50, np.nan) for t in cu.ANCHORS}, index=idx)
+    df["SPY"] = np.linspace(10, 20, 50)
+    gone = cu.missing_anchors(df)
+    assert "SPY" not in gone and "NVDA" in gone
+
+
+def test_batch_settings_stay_conservative():
+    """배치를 다시 키우면 같은 사고가 난다 — 값 자체를 고정해 둔다."""
+    cu = load_builder()
+    assert cu.BATCH <= 200, "Yahoo 레이트 리밋에 걸린 크기(400)로 되돌아갔다"
+    assert cu.BATCH_SLEEP > 0 and cu.RETRY_ROUNDS >= 2

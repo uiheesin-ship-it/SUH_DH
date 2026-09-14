@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -46,7 +47,21 @@ PERIOD = "1y"                      # 120일 창 + 여유. 단기 위주라 길�
 MIN_PRICE = 5.0
 MIN_DOLLAR_VOL_M = 10.0            # 60일 평균 거래대금(백만 달러)
 MIN_OBS = 130                      # 최소 관측 거래일 — 120일 창을 채울 수 있어야
-BATCH = 400                        # yfinance 한 번에 받을 티커 수
+# Yahoo 는 한 번에 많이 요청하면 YFRateLimitError 를 돌려준다. 첫 실전 실행에서
+# 400개씩 쉬지 않고 붙였다가 NVDA·MSFT·TSLA 를 포함해 수천 종목이 레이트 리밋으로
+# 빠졌다(6,553 중 유동성 통과 1,441). 배치를 줄이고 사이사이 쉬면서, 실패한 종목만
+# 모아 라운드를 거듭해 다시 받는다.
+BATCH = 150                        # yfinance 한 번에 받을 티커 수
+BATCH_SLEEP = 2.0                  # 배치 사이 대기(초)
+RETRY_ROUNDS = 3                   # 실패분 재시도 라운드 수(라운드마다 더 오래 쉰다)
+
+# 이만큼은 반드시 들어와야 "제대로 받았다"고 볼 수 있는 대형주. 이 중 상당수가
+# 빠졌다면 레이트 리밋에 맞은 것이므로 결과를 커밋하지 않는다 — 반쪽 스냅샷이
+# 조용히 올라가면 사용자는 "NVDA 가 왜 없지?"만 보게 된다.
+ANCHORS = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA",
+           "JPM", "XOM", "LLY", "V", "WMT", "AVGO", "UNH", "MA", "HD", "PG",
+           "COST", "JNJ"]
+MAX_MISSING_ANCHORS = 4            # 이보다 많이 빠지면 수신 실패로 본다
 
 
 def log(msg: str) -> None:
@@ -113,38 +128,84 @@ def metadata() -> dict[str, dict]:
 
 
 # ------------------------------------------------------------ 2. 가격 수신
-def download(symbols: list[str], period: str = PERIOD):
-    """종가·거래대금 표를 배치로 받아 합친다. (close_df, dollar_vol_df)"""
+def _download_once(chunk: list[str], period: str):
+    """한 배치. (close_df, volume_df) 또는 실패 시 (None, None)."""
     import pandas as pd
     import yfinance as yf
 
+    try:
+        df = yf.download(chunk, period=period, interval="1d",
+                         auto_adjust=True, progress=False, threads=True)
+    except Exception as e:  # noqa: BLE001
+        log(f"    배치 실패: {e}")
+        return None, None
+    if df is None or df.empty:
+        return None, None
+    c = df["Close"] if "Close" in df else df
+    v = df["Volume"] if "Volume" in df else None
+    if isinstance(c, pd.Series):               # 티커 하나면 Series 로 온다
+        c = c.to_frame(chunk[0])
+    if v is not None and isinstance(v, pd.Series):
+        v = v.to_frame(chunk[0])
+    return c, v
+
+
+def download(symbols: list[str], period: str = PERIOD):
+    """종가·거래대금 표를 배치로 받아 합친다. (close_df, dollar_vol_df)
+
+    레이트 리밋은 일시적이므로 한 번 실패한 티커를 버리지 않고 라운드를 거듭해
+    다시 받는다. yfinance 는 실패해도 예외를 던지지 않고 그 티커의 열을 비워
+    돌려주므로, "값이 하나라도 있는 열"만 성공으로 친다.
+    """
+    import pandas as pd
+
     closes, dvols = [], []
-    for i in range(0, len(symbols), BATCH):
-        chunk = symbols[i:i + BATCH]
-        log(f"  받는 중 {i + 1}~{i + len(chunk)} / {len(symbols)}")
-        try:
-            df = yf.download(chunk, period=period, interval="1d",
-                             auto_adjust=True, progress=False, threads=True)
-        except Exception as e:  # noqa: BLE001
-            log(f"    배치 실패: {e}")
-            continue
-        if df is None or df.empty:
-            continue
-        c = df["Close"] if "Close" in df else df
-        v = df["Volume"] if "Volume" in df else None
-        if isinstance(c, pd.Series):           # 티커 하나면 Series 로 온다
-            c = c.to_frame(chunk[0])
-        closes.append(c)
-        if v is not None:
-            if isinstance(v, pd.Series):
-                v = v.to_frame(chunk[0])
-            dvols.append(c * v)                # 거래대금 = 종가 × 거래량
+    got: set[str] = set()
+    pending = list(symbols)
+
+    for rnd in range(RETRY_ROUNDS):
+        if not pending:
+            break
+        wait = BATCH_SLEEP * (rnd + 1)          # 라운드마다 더 여유를 둔다
+        log(f"  라운드 {rnd + 1}: {len(pending)}종목 (배치 {BATCH}, 대기 {wait:.0f}s)")
+        failed: list[str] = []
+        for i in range(0, len(pending), BATCH):
+            chunk = pending[i:i + BATCH]
+            c, v = _download_once(chunk, period)
+            if c is None:
+                failed += chunk
+                time.sleep(wait)
+                continue
+            ok = [t for t in chunk if t in c.columns and c[t].notna().any()]
+            failed += [t for t in chunk if t not in ok]
+            if ok:
+                closes.append(c[ok])
+                if v is not None:
+                    vok = [t for t in ok if t in v.columns]
+                    if vok:
+                        dvols.append(c[vok] * v[vok])
+                got |= set(ok)
+            if (i // BATCH) % 10 == 9:
+                log(f"    … {i + len(chunk)}/{len(pending)} (누적 수신 {len(got)})")
+            time.sleep(wait)
+        pending = [t for t in failed if t not in got]
+        log(f"  라운드 {rnd + 1} 끝 — 누적 수신 {len(got)}, 미수신 {len(pending)}")
+
+    if pending:
+        log(f"  끝내 못 받은 종목 {len(pending)}개 "
+            f"(예: {', '.join(pending[:8])}{' …' if len(pending) > 8 else ''})")
     if not closes:
         return None, None
     close = pd.concat(closes, axis=1).sort_index()
     dvol = pd.concat(dvols, axis=1).sort_index() if dvols else None
     return close.loc[:, ~close.columns.duplicated()], (
         None if dvol is None else dvol.loc[:, ~dvol.columns.duplicated()])
+
+
+def missing_anchors(close) -> list[str]:
+    """대형주 중 가격을 못 받은 것들 — 수신이 정상이었는지 판단하는 기준."""
+    return [t for t in ANCHORS
+            if t not in close.columns or not close[t].notna().any()]
 
 
 # ------------------------------------------------------- 3. 유동성 필터
@@ -249,12 +310,34 @@ def main() -> None:
         log(f"{MARKET} 가격을 못 받아 잔차를 구할 수 없습니다. 중단.")
         return
 
+    # 레이트 리밋에 맞은 반쪽 결과를 조용히 덮어쓰지 않는다.
+    gone = missing_anchors(close)
+    if len(gone) > MAX_MISSING_ANCHORS:
+        log(f"대형주 {len(gone)}/{len(ANCHORS)}개를 못 받았습니다({', '.join(gone)}). "
+            f"레이트 리밋으로 보이므로 기존 스냅샷을 그대로 둡니다.")
+        return
+    if gone:
+        log(f"  참고: 대형주 {len(gone)}개 미수신({', '.join(gone)}) — 허용 범위 안")
+
     keep = liquid_columns(close, dvol, min_dv)
     keep = [t for t in keep if t != MARKET]
     log(f"유동성 통과 {len(keep)}종목 "
         f"(가격 ≥ ${MIN_PRICE:.0f}, 거래대금 ≥ ${min_dv:.0f}M, 관측 ≥ {MIN_OBS}일)")
     if len(keep) < 50:
         log("통과 종목이 너무 적습니다. 중단.")
+        return
+
+    # 지난번보다 크게 줄었으면 수신이 덜 된 것이다 — 유동성 기준을 사용자가
+    # 의도적으로 올린 경우가 아니면 기존 스냅샷을 지키는 쪽이 안전하다.
+    prev_n = 0
+    if OUT.exists():
+        try:
+            prev_n = len(json.loads(OUT.read_text(encoding="utf-8")).get("tickers") or [])
+        except Exception:  # noqa: BLE001
+            prev_n = 0
+    if prev_n and len(keep) < prev_n * 0.7 and min_dv <= MIN_DOLLAR_VOL_M:
+        log(f"지난 스냅샷({prev_n}종목)보다 30% 넘게 줄었습니다({len(keep)}종목). "
+            f"수신 누락으로 보이므로 기존 스냅샷을 그대로 둡니다.")
         return
 
     import numpy as np

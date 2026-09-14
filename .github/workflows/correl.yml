@@ -28,7 +28,7 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       # 다른 데이터 워크플로와 같은 브랜치를 본다(배포본과 raw 경로가 여기다).
       - uses: actions/checkout@v4
