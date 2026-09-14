@@ -358,3 +358,58 @@ def demo_breadth_series(days: int = 160) -> dict:
             "S5TW", "S5FI", "S5TH", "NDFI", "NDTH", "SPX_AD", "SPX_NHNL")},
         "notes": ["SUH_DH_DEMO=1 — 합성 데이터입니다. 실제 시장 값이 아닙니다."],
     }
+
+
+# --- 티커 상관관계 ----------------------------------------------------------
+# 실제 시세 없이 화면을 확인할 수 있게, 시장 + 테마 + 고유잡음으로 이루어진 가짜
+# 시장을 만들어 실제 수집기와 같은 계산을 태운다. 테마가 심어져 있으므로 "잔차
+# 상위에 같은 테마가 모인다"는 동작까지 눈으로 확인된다.
+def demo_correl(n_per_theme: int = 14) -> dict:
+    import numpy as np
+
+    from .correl import (META_SCHEMA, PAIR_SCHEMA, WINDOWS, daily_returns,
+                         market_betas, residualize)
+
+    themes = [("AI 반도체", "Technology", "Semiconductors"),
+              ("AI 전력", "Utilities", "Utilities - Regulated Electric"),
+              ("데이터센터", "Real Estate", "REIT - Specialty"),
+              ("방산", "Industrials", "Aerospace & Defense"),
+              ("헬스케어", "Healthcare", "Drug Manufacturers"),
+              ("소비재", "Consumer Defensive", "Packaged Foods")]
+    T = 300
+    rng = np.random.default_rng(42)
+    mkt_r = rng.normal(0, .010, T)
+    tickers, meta_rows, rets = [], [], []
+    for ti, (tname, sector, industry) in enumerate(themes):
+        factor = rng.normal(0, .015, T)
+        for k in range(n_per_theme):
+            sym = f"{chr(65 + ti)}{chr(65 + k // 26)}{chr(65 + k % 26)}"
+            beta = float(rng.uniform(.5, 1.9))
+            tickers.append(sym)
+            meta_rows.append([f"{tname} 데모 {k + 1}", sector, industry, beta,
+                              float(rng.uniform(3e9, 4e11)), float(rng.uniform(2e7, 9e9))])
+            rets.append(beta * mkt_r + rng.uniform(.5, 1.1) * factor
+                        + rng.normal(0, .013, T))
+
+    R = np.vstack(rets)
+    beta = market_betas(R, mkt_r)
+    E = residualize(R, mkt_r, beta)
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "correl_us", __file__.replace("app/demo_data.py", "tools/correl_us.py"))
+    cu = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cu)
+    pairs = cu.build_pairs(tickers, R, E)
+
+    return {
+        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "asof": str((datetime.now(timezone.utc) - timedelta(days=1)).date()),
+        "demo": True, "market": "SPY", "period": "1y",
+        "windows": list(WINDOWS), "pair_schema": PAIR_SCHEMA, "meta_schema": META_SCHEMA,
+        "tickers": tickers,
+        "meta": [[m[0], m[1], m[2], int(round(b * 100)),
+                  int(m[4] / 1e6), int(m[5] / 1e6)]
+                 for m, b in zip(meta_rows, beta)],
+        "neighbors": pairs,
+    }

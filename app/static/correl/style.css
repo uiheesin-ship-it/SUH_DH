@@ -1,0 +1,127 @@
+:root {
+  --bg: #0f172a; --panel: #1e293b; --panel-2: #273548;
+  --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, #1b2a44, var(--bg));
+  color: var(--text);
+}
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(15, 23, 42, .92); backdrop-filter: blur(6px);
+}
+.title { display: flex; align-items: center; gap: 12px; }
+.title h1 { margin: 0; font-size: 18px; }
+.home-link {
+  text-decoration: none; color: var(--muted); font-size: 20px; line-height: 1;
+  border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px;
+}
+.home-link:hover { color: var(--accent); border-color: var(--accent); }
+.status { color: var(--muted); font-size: 13px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+.badge.demo { background: #7c2d12; color: #fed7aa; }
+.hidden { display: none !important; }
+
+#content { max-width: 1500px; margin: 0 auto; padding: 16px 20px 40px; }
+.loading { color: var(--muted); padding: 28px 8px; text-align: center; }
+
+/* ---------- 검색 ---------- */
+.search { position: relative; margin-bottom: 12px; }
+.search-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#q {
+  flex: 1; min-width: 220px; max-width: 340px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-radius: 9px; padding: 10px 13px; font-size: 15px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+#q:focus { outline: none; border-color: var(--accent); }
+#go, .preset, #f-clear {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+}
+#go:hover, .preset:hover, #f-clear:hover { border-color: var(--accent); }
+.presets { display: flex; gap: 6px; margin-left: auto; }
+
+.suggest {
+  position: absolute; top: 48px; left: 0; z-index: 15; width: min(420px, 100%);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+.suggest button {
+  display: flex; gap: 8px; width: 100%; text-align: left; background: none;
+  color: var(--text); border: 0; border-bottom: 1px solid var(--border);
+  padding: 8px 12px; cursor: pointer; font-size: 13px;
+}
+.suggest button:last-child { border-bottom: 0; }
+.suggest button:hover { background: var(--panel-2); }
+.suggest span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.self { margin-top: 10px; }
+.self-card {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px;
+}
+.self-t { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.self-n { font-size: 14px; }
+.self-meta { color: var(--muted); font-size: 12px; }
+.miss { color: #fca5a5; font-size: 13px; padding: 10px 2px; line-height: 1.6; }
+
+/* ---------- 필터 ---------- */
+.filters {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; margin: 12px 0;
+}
+.filters label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.filters input[type=search], .filters input[type=number], .filters select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 5px 8px; font-size: 12px; width: 110px;
+}
+.filters select { width: 140px; }
+.filters .chk { cursor: pointer; }
+.f-count { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+/* ---------- 표 ---------- */
+/* 가로 스크롤을 주면 이 요소가 스크롤 컨테이너가 되어, 헤더의 sticky 기준도
+   페이지가 아니라 이 상자가 된다. 그래서 세로도 이 상자 안에서 스크롤시키고
+   헤더는 top:0 으로 붙인다(top 을 상단바 높이로 주면 첫 행을 덮어 가린다). */
+.table-wrap {
+  overflow: auto; border: 1px solid var(--border); border-radius: 10px;
+  max-height: calc(100vh - 260px); min-height: 240px;
+}
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+thead th {
+  position: sticky; top: 0; z-index: 5; background: var(--panel-2);
+  border-bottom: 1px solid var(--border); padding: 9px 10px; text-align: left;
+  cursor: pointer; white-space: nowrap; font-size: 12px; color: var(--muted);
+}
+thead th:hover { color: var(--text); }
+thead th.on { color: var(--accent); }
+thead th.c { text-align: right; }
+thead th.res { background: #223142; }
+.arrow { font-size: 9px; margin-left: 3px; }
+tbody td { border-bottom: 1px solid var(--border); padding: 7px 10px; white-space: nowrap; }
+tbody tr:hover { background: rgba(56, 189, 248, .06); }
+td.c { text-align: right; font-variant-numeric: tabular-nums; }
+td.t a { color: var(--accent); text-decoration: none; font-weight: 700; }
+td.t a:hover { text-decoration: underline; }
+td.n, td.s { max-width: 210px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+td.n { color: var(--text); }
+
+.footer {
+  max-width: 1500px; margin: 0 auto; padding: 18px 20px 40px;
+  color: var(--muted); font-size: 12px; line-height: 1.85; border-top: 1px solid var(--border);
+}
+.footer b { color: var(--text); }
+
+@media (max-width: 720px) {
+  .presets { margin-left: 0; }
+  .table-wrap { max-height: calc(100vh - 220px); }
+  td.n, td.s { max-width: 120px; }
+}

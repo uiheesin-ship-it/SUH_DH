@@ -73,6 +73,8 @@ on:
       # reads them via raw, so those daily commits must not loop the build.
       - "data/breadth_us.json"
       - "data/breadth.json"
+      # 티커 상관 스냅샷 — correl.yml 이 주 2회 커밋하고 페이지는 raw 로 읽는다.
+      - "data/correl.json"
 
 permissions:
   # Write access so the build can commit data/news.json for the Telegram job.

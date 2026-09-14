@@ -139,7 +139,7 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "eai"):
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -149,7 +149,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "eai"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
@@ -606,6 +606,19 @@ def main() -> None:
         write_json(SITE / "data" / "kr_backlog.json",
                    {"updated": None, "count": 0, "companies": [], "demo": False,
                     "note": "아직 수주잔고 데이터가 없습니다. kr-backlog 워크플로를 실행하세요."})
+
+    # 티커 상관관계. 수집은 correl.yml(tools/correl_us.py)이 하고 data/correl.json
+    # 을 커밋한다. 여기서는 커밋된 스냅샷을 배포본에 실어 나르기만 한다.
+    try:
+        (SITE / "data").mkdir(parents=True, exist_ok=True)
+        src = ROOT / "data" / "correl.json"
+        if src.exists():
+            shutil.copyfile(src, SITE / "data" / "correl.json")
+            print(f"Publishing correl ({src.stat().st_size / 1e6:.1f}MB) ...")
+        else:
+            print("  no data/correl.json yet (run the correl.yml workflow).")
+    except Exception as e:
+        print(f"  correl publish failed: {e}")
 
     # 미장 마켓 브레스. 수집은 breadth.yml 워크플로(tools/breadth_us.py)가 하고
     # data/breadth_us.json(원본 시계열) + data/breadth.json(판정이 끝난 뷰)을

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>티커 상관관계 · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🔗 티커 상관관계</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">불러오는 중…</span>
+    </div>
+  </header>
+
+  <main id="content">
+    <!-- 티커 입력 -->
+    <section class="search">
+      <div class="search-row">
+        <input id="q" type="search" placeholder="티커 입력 (예: NVDA)"
+               autocomplete="off" spellcheck="false" />
+        <button id="go">찾기</button>
+        <div class="presets">
+          <button class="preset" data-preset="theme">테마 동행</button>
+          <button class="preset" data-preset="hedge">헤지 후보</button>
+        </div>
+      </div>
+      <div id="suggest" class="suggest hidden"></div>
+      <div id="self" class="self"></div>
+    </section>
+
+    <!-- 필터 -->
+    <section class="filters" id="filters">
+      <label>검색 <input id="f-text" type="search" placeholder="티커·회사명" /></label>
+      <label>섹터 <select id="f-sector"></select></label>
+      <label>잔차50 ≥ <input id="f-res" type="number" step="0.05" placeholder="예: 0.3" /></label>
+      <label>원시50 ≤ <input id="f-raw" type="number" step="0.05" placeholder="예: 0" /></label>
+      <label>거래대금 ≥ <input id="f-dv" type="number" step="10" placeholder="백만$" /></label>
+      <label class="chk"><input id="f-xsector" type="checkbox" /> 같은 섹터 제외</label>
+      <button id="f-clear">초기화</button>
+      <span id="f-count" class="f-count"></span>
+    </section>
+
+    <div class="table-wrap">
+      <table id="tbl">
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="empty" class="loading"></div>
+  </main>
+
+  <footer class="footer">
+    <b>읽는 법</b> — <b>잔차 상관</b>은 시장(SPY) 움직임을 걷어낸 뒤의 상관입니다.
+    <b>“이 종목이 움직일 때 같이 가는 종목”을 찾을 땐 잔차를 내림차순</b>으로 보세요.
+    모든 주식에는 시장 움직임이 섞여 있어서, 원시 상관만 보면 테마와 무관한
+    고베타 대형주가 상위권을 채웁니다.
+    <b>헤지</b>는 반대로 <b>원시 상관을 오름차순</b>(음수부터)으로 봅니다 —
+    헤지는 실제 손익이 상쇄돼야 하므로 시장 움직임까지 포함해서 봐야 합니다.
+    <br />
+    상관은 <b>가격이 아니라 일간 수익률</b>로 계산합니다(가격끼리 상관시키면 둘 다
+    우상향이라 무관한 종목도 0.95가 나옵니다). 20·50·120거래일 세 기간을 모두 싣는데,
+    같은 두 종목도 기간에 따라 답이 달라지고 <b>그 차이 자체가 신호</b>입니다.
+    섹터는 회귀로 빼지 않았습니다 — 테마가 섹터와 겹치는 경우가 많아 같이 지워지고,
+    섹터 라벨 자체도 부정확할 때가 있어서입니다. 대신 위에서 필터하세요.
+    상관은 과거의 동행일 뿐 인과나 미래를 뜻하지 않습니다.
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="../shared/data-source.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
