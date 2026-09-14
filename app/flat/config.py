@@ -24,9 +24,19 @@ DEFAULTS: dict[str, Any] = {
         "include_reit": False,     # REIT excluded by default
         "include_adr": True,
         "include_etf": True,       # add a tagged ETF pass (leveraged/inverse excluded)
-        "max_candidates": 3000,    # raised: no share-vol filter -> bigger universe
-        "max_etf_candidates": 700, # SEPARATE budget for ETFs so they're additive
-                                   # (don't squeeze stocks out of max_candidates)
+        # 0 = 전수. 상한을 두면 시총 구간을 고르게 남기려고 정렬 후 일정 간격으로
+        # 솎아내는데(universe._sample), 구간 안의 어떤 종목이 빠질지는 사실상
+        # 임의라서 기준을 다 넘는 종목이 조용히 사라진다 — 3,000 상한일 때 실측
+        # 7,927 중 4,227개(53%)가 그렇게 빠졌고, APPS(시총 $1.4B, 거래대금 $29M)가
+        # 그중 하나였다.
+        #
+        # 전수로 바꿔도 감당된다. 베이스·평평·턴어라운드는 한 빌드 안에서 같은
+        # 일봉 캐시를 쓰므로 실제 수신량은 합이 아니라 합집합이고(실측 4,618 →
+        # 8,014), 종목당 0.35초로 27분 → 47분이다. 반면 캐시 TTL 을 빌드 길이에
+        # 맞추면서(daily.yml) 중복 수신 24분이 사라졌으므로, 합치면 예전 51분보다
+        # 오히려 빠르다.
+        "max_candidates": 0,
+        "max_etf_candidates": 0,
     },
     # Quality floor is market cap, not price. min_price is only a sub-$1
     # penny-stock data-noise guard; min_market_cap does the real filtering.

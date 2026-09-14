@@ -20,7 +20,9 @@
 universe:
   source: finviz
   include_adr: true       # ADR 포함 여부
-  max_candidates: 3000    # OHLCV 정밀분석 최대 후보 수(초과 시 시총 균등표본)
+  # 0 = 전수. 상한을 두면 기준 통과 종목이 임의로 잘린다(flat_config.yaml 주석
+  # 참고). 실측 3,247 중 247개가 그렇게 빠지고 있었다.
+  max_candidates: 0       # OHLCV 정밀분석 후보 상한 (0 = 전수)
 
 min_price: 1.0                      # 서브-$1 페니주 데이터 노이즈 방지용 최소값
 min_market_cap: 300000000           # 시총 3억 달러(소형주) 미만 제외
