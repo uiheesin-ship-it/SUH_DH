@@ -100,6 +100,47 @@ def residualize(R, mkt, beta=None):
     return R - b[:, None] * m[None, :]
 
 
+def standardized(R, window=None, min_obs=None):
+    """창 구간을 표준화한 행렬 Z 와, 그 창에서 값이 온전한 종목 마스크.
+
+    Z 를 만들어 두면 상관은 ``Z @ Z.T`` 한 번으로 끝난다 — 결측을 쌍마다 따지는
+    corr_matrix 는 중간 행렬을 9개 만들어 결과의 9배를 쓴다(3,000종목에서 660MB).
+    유동성 필터를 통과한 종목은 창 안에 결측이 거의 없으므로, 온전한 종목만
+    골라 이 빠른 길로 보내고 나머지는 그 창에서 값을 주지 않는다("그 기간
+    데이터가 온전한 종목만 그 기간 상관을 갖는다").
+
+    float32 를 쓴다 — 저장할 때 ×100 정수로 반올림하므로 소수 2자리면 충분하고,
+    메모리는 절반이다.
+    """
+    import numpy as np
+
+    X = np.asarray(R, dtype=np.float64)
+    if window:
+        X = X[:, -window:]
+    T = X.shape[1]
+    need = min_obs if min_obs is not None else max(10, int(T * 0.8))
+
+    ok_row = np.isfinite(X).all(axis=1) & (T >= need)
+    Z = np.zeros((X.shape[0], T), dtype=np.float32)
+    if ok_row.any():
+        W = X[ok_row]
+        W = W - W.mean(axis=1, keepdims=True)
+        sd = W.std(axis=1, keepdims=True)
+        sd[sd == 0] = 1.0
+        Z[ok_row] = (W / sd / np.sqrt(T)).astype(np.float32)
+    return Z, ok_row
+
+
+def corr_rows(Z, ok_row, i, cols):
+    """종목 i 와 cols 들의 상관계수만. 행렬 전체를 만들지 않는다."""
+    import numpy as np
+
+    if not ok_row[i] or len(cols) == 0:
+        return np.full(len(cols), np.nan, dtype=np.float32)
+    v = Z[cols] @ Z[i]
+    return np.where(ok_row[cols], np.clip(v, -1.0, 1.0), np.nan)
+
+
 def corr_matrix(R, window=None, min_obs=None):
     """행끼리의 상관계수 행렬. window 를 주면 마지막 window 일만 쓴다.
 
