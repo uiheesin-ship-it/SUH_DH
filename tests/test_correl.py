@@ -320,3 +320,54 @@ def test_batch_settings_stay_conservative():
     cu = load_builder()
     assert cu.BATCH <= 200, "Yahoo 레이트 리밋에 걸린 크기(400)로 되돌아갔다"
     assert cu.BATCH_SLEEP > 0 and cu.RETRY_ROUNDS >= 2
+
+
+# --------------------------------------------- 메모리 경로 (standardized)
+# 쌍마다 결측을 따지는 corr_matrix 는 중간 행렬을 9개 만들어 결과의 9배를 쓴다
+# (3,000종목에서 660MB). 창별로 표준화해 두면 상관이 Z@Z.T 한 번이라 37MB 다.
+# 값이 어긋나면 화면 숫자가 조용히 달라지므로 두 경로가 같은지 고정한다.
+def test_standardized_path_matches_corrcoef():
+    X = np.random.default_rng(21).normal(0, 1, (40, 200))
+    Z, ok = correl.standardized(X, window=120)
+    assert ok.all()
+    assert (Z @ Z.T) == pytest.approx(np.corrcoef(X[:, -120:]), abs=1e-4)
+
+
+def test_standardized_excludes_rows_with_gaps_in_the_window():
+    """창 안에 결측이 있는 종목은 그 창에서 값을 주지 않는다."""
+    X = np.random.default_rng(22).normal(0, 1, (5, 200))
+    X[2, -5] = np.nan
+    Z, ok = correl.standardized(X, window=120)
+    assert ok[0] and not ok[2]
+    v = correl.corr_rows(Z, ok, 0, np.array([1, 2, 3]))
+    assert np.isfinite(v[0]) and np.isnan(v[1]) and np.isfinite(v[2])
+
+
+def test_corr_rows_needs_no_full_matrix():
+    """후보가 정해진 뒤에는 행렬 없이 필요한 쌍만 구한다 — 값은 같아야 한다."""
+    X = np.random.default_rng(23).normal(0, 1, (30, 200))
+    Z, ok = correl.standardized(X, window=60)
+    full = Z @ Z.T
+    cols = np.array([3, 7, 11])
+    assert correl.corr_rows(Z, ok, 5, cols) == pytest.approx(full[5, cols], abs=1e-5)
+
+
+def test_build_pairs_survives_a_single_missing_day():
+    """하루 결측으로 이웃이 통째로 사라지면 안 된다.
+
+    실측에서 T0 의 최근 창에 하루 NaN 을 넣었더니 이웃이 60개 → 0개가 됐다.
+    수집기는 가격 단계에서 ffill 로 메우지만, 그래도 결측이 남은 종목이 다른
+    종목들의 이웃 목록까지 망가뜨리지는 않아야 한다.
+    """
+    cu = load_builder()
+    rng = np.random.default_rng(24)
+    N, T = 40, 200
+    mkt = rng.normal(0, 0.01, T)
+    theme = rng.normal(0, 0.015, T)
+    R = np.vstack([rng.uniform(.5, 1.5) * mkt + (0.9 if i < 10 else 0.0) * theme
+                   + rng.normal(0, 0.012, T) for i in range(N)])
+    R[0, -7] = np.nan                      # 0번만 최근 창에 구멍
+    pairs = cu.build_pairs([f"T{i}" for i in range(N)], R, correl.residualize(R, mkt))
+    assert len(pairs) == N
+    # 0번은 그 창에서 빠질 수 있어도, 나머지는 정상적으로 이웃을 갖는다.
+    assert all(len(pairs[i]) > 0 for i in range(1, N))

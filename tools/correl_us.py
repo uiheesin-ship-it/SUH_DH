@@ -2,22 +2,28 @@
 """미장 티커 상관관계 수집기 → data/correl.json.
 
 흐름:
-  1. 유니버스   : data/us_exchanges.json 의 미국 상장 심볼(약 7천개)에서 출발한다.
-                  Finviz 가 열리면 회사명·섹터·산업·시총을 덧붙이고, 막히면
-                  커밋된 스크리너 스냅샷(flat/base/turnaround/highs)에서 긁는다.
-  2. 가격       : yfinance 로 한 번에 받아(배치) 종가 행렬을 만든다. 종목별로
-                  한 번씩 부르는 기존 스크리너 방식보다 훨씬 빠르다.
+  1. 유니버스   : 평평 스크리너의 유니버스를 그대로 쓴다(app.flat.universe).
+                  이 저장소가 이미 정의해 둔 "거래할 만한 미국 주식" 목록이고,
+                  베이스 스크리너와 달리 **이평선 조건이 없어** 상관 분석에 맞다 —
+                  베이스 쪽은 정배열(50·200일선 위)만 담아서, 그걸 쓰면 하락 중인
+                  종목이 통째로 빠지고 헤지 후보(음의 상관)를 찾을 수 없다.
+                  Finviz 가 403 으로 막히면 지난번 목록(data/correl_universe.json)을
+                  재사용한다 — 유니버스는 하루 사이에 크게 바뀌지 않는다.
+  2. 가격       : yfinance 로 배치로 받는다. 한 번에 많이 붙이면 레이트 리밋에
+                  맞으므로 작게 끊고 쉬어 가며, 실패분은 라운드를 거듭해 다시 받는다.
   3. 유동성 필터 : 가격 $5 이상, 60일 평균 거래대금 하한 이상, 관측일수 하한 이상.
                   안 걸러내면 거래 없는 잡주가 우연히 상위권에 뜬다.
   4. 상관       : 일간 수익률 → 20/50/120일 원시 상관 + 시장(SPY) 잔차 상관.
   5. 이웃 추리기 : 어느 열로 정렬해도 한쪽 기준에 치우치지 않도록, 6개 순위
                   (3기간 × 원시/잔차)의 상위와 원시 하위(헤지 후보)를 합집합으로
-                  모은 뒤 잔차 50일 기준으로 잘라 저장한다.
+                  모은 뒤 잔차 50일 기준으로 잘라 저장한다. 상관행렬은 3,700종목이면
+                  하나가 110MB 라, 6개를 동시에 들지 않고 **한 번에 하나씩** 만들고
+                  버린다(피크 메모리 1개분).
 
 계산 자체는 가볍다(3,700종목 × 250일 상관행렬이 1초 미만). 무거운 건 가격 수신뿐.
 
-  python tools/correl_us.py                    # 전체
-  python tools/correl_us.py --limit 300        # 일부만(빠른 점검)
+  python tools/correl_us.py                       # 전체
+  python tools/correl_us.py --limit 300           # 일부만(빠른 점검)
   python tools/correl_us.py --min-dollar-vol 20   # 유동성 기준 올리기(백만달러)
 
 샌드박스에서는 Yahoo 가 막히므로 GitHub Actions 에서 실행한다.
@@ -36,17 +42,18 @@ sys.path.insert(0, str(ROOT))
 
 from app.correl import (  # noqa: E402
     BOTTOM_N, META_SCHEMA, PAIR_SCHEMA, TOP_N, WINDOWS,
-    corr_matrix, daily_returns, market_betas, residualize,
+    corr_rows, daily_returns, market_betas, residualize, standardized,
 )
 
 OUT = ROOT / "data" / "correl.json"
-EXCHANGES = ROOT / "data" / "us_exchanges.json"
+UNIVERSE_CACHE = ROOT / "data" / "correl_universe.json"   # Finviz 실패 시 폴백
 MARKET = "SPY"                     # 잔차를 구할 때 빼는 시장 대용치
 
 PERIOD = "1y"                      # 120일 창 + 여유. 단기 위주라 길게 받을 이유가 없다
 MIN_PRICE = 5.0
 MIN_DOLLAR_VOL_M = 10.0            # 60일 평균 거래대금(백만 달러)
 MIN_OBS = 130                      # 최소 관측 거래일 — 120일 창을 채울 수 있어야
+MAX_NEIGHBORS = 60                 # 종목당 저장할 이웃 수(파일 크기와 직결)
 # Yahoo 는 한 번에 많이 요청하면 YFRateLimitError 를 돌려준다. 첫 실전 실행에서
 # 400개씩 쉬지 않고 붙였다가 NVDA·MSFT·TSLA 를 포함해 수천 종목이 레이트 리밋으로
 # 빠졌다(6,553 중 유동성 통과 1,441). 배치를 줄이고 사이사이 쉬면서, 실패한 종목만
@@ -69,62 +76,64 @@ def log(msg: str) -> None:
 
 
 # ------------------------------------------------------------ 1. 유니버스
-def base_symbols() -> list[str]:
-    if not EXCHANGES.exists():
-        log(f"  {EXCHANGES} 가 없습니다 — 빌드가 먼저 만들어야 합니다.")
+def _save_universe(rows: list[dict]) -> None:
+    UNIVERSE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    UNIVERSE_CACHE.write_text(json.dumps(
+        {"updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+         "count": len(rows), "rows": rows}, ensure_ascii=False), encoding="utf-8")
+
+
+def _load_universe() -> list[dict]:
+    if not UNIVERSE_CACHE.exists():
         return []
-    data = json.loads(EXCHANGES.read_text(encoding="utf-8"))
-    # '.' 이 든 심볼(우선주·워런트 등)과 5자 이상 티커는 대체로 보통주가 아니다.
-    return sorted(t for t in data if t.isalpha() and len(t) <= 5)
+    try:
+        return json.loads(UNIVERSE_CACHE.read_text(encoding="utf-8")).get("rows") or []
+    except Exception:  # noqa: BLE001
+        return []
 
 
-def metadata() -> dict[str, dict]:
-    """{티커: {name, sector, industry, market_cap}} — Finviz 우선, 스냅샷 보조."""
-    meta: dict[str, dict] = {}
+def universe_rows() -> list[dict]:
+    """{ticker, name, sector, industry, market_cap, is_etf} 목록.
 
-    def put(t, name=None, sector=None, industry=None, mcap=None):
-        cur = meta.setdefault(t, {})
-        for k, v in (("name", name), ("sector", sector),
-                     ("industry", industry), ("market_cap", mcap)):
-            if v and not cur.get(k):
-                cur[k] = v
+    평평 스크리너의 유니버스를 그대로 쓴다 — 이 저장소가 이미 정의해 둔 "거래할
+    만한 미국 주식"이고, 이평선 조건이 없어 상승·하락 종목이 모두 들어온다.
+    (베이스 쪽 유니버스는 정배열만 담아서 헤지 후보를 찾을 수 없다.)
 
-    # 커밋된 스크리너 스냅샷 — 네트워크 없이 읽히고, Finviz 가 막혀도 남는다.
-    for fname in ("flat.json", "base.json", "turnaround.json", "highs.json"):
-        path = ROOT / "data" / fname
-        if not path.exists():
-            continue
-        try:
-            d = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        rows = d.get("stocks") or d.get("setups") or []
-        if not rows and "sectors" in d:
-            rows = [s for sec in d["sectors"] for ind in sec.get("industries", [])
-                    for s in ind.get("stocks", [])] + \
-                   [s for sec in d["sectors"] for s in sec.get("stocks", [])]
-        for r in rows:
-            t = (r.get("ticker") or "").upper()
-            if t:
-                put(t, r.get("company_name") or r.get("company"), r.get("sector"),
-                    r.get("industry"), r.get("market_cap"))
-    log(f"  스냅샷에서 메타 {len(meta)}종목")
-
-    # Finviz 로 유니버스 전체를 덧칠(열리면).
+    Finviz 는 403 으로 막힌 이력이 있으므로, 성공하면 목록을 파일로 남기고
+    실패하면 그 파일을 재사용한다.
+    """
+    rows: list[dict] = []
     try:
         from app.flat import config as flat_config
         from app.flat import universe as flat_universe
 
-        rows = flat_universe.get_candidates(flat_config.load())
-        for r in rows:
-            t = (r.get("ticker") or "").upper()
-            if t:
-                put(t, r.get("company"), r.get("sector"), r.get("industry"),
-                    r.get("market_cap"))
-        log(f"  Finviz 로 보강 → 총 {len(meta)}종목")
-    except Exception as e:  # noqa: BLE001 - 없으면 스냅샷만으로 간다
-        log(f"  Finviz 메타 보강 실패(스냅샷만 사용): {e}")
-    return meta
+        for r in flat_universe.get_candidates(flat_config.load()):
+            t = (r.get("ticker") or "").upper().strip()
+            if not t:
+                continue
+            rows.append({
+                "ticker": t,
+                "name": r.get("company") or "",
+                "sector": r.get("sector") or "",
+                "industry": r.get("industry") or "",
+                "market_cap": r.get("market_cap") or 0,
+                "is_etf": bool(r.get("is_etf")),
+            })
+    except Exception as e:  # noqa: BLE001
+        log(f"  Finviz 유니버스 실패: {e}")
+
+    if rows:
+        log(f"  평평 스크리너 유니버스 {len(rows)}종목 "
+            f"(ETF {sum(1 for r in rows if r['is_etf'])}개 포함)")
+        _save_universe(rows)
+        return rows
+
+    cached = _load_universe()
+    if cached:
+        log(f"  Finviz 가 막혀 지난 유니버스를 재사용합니다 ({len(cached)}종목)")
+    else:
+        log("  유니버스를 얻지 못했고 폴백 파일도 없습니다.")
+    return cached
 
 
 # ------------------------------------------------------------ 2. 가격 수신
@@ -232,35 +241,79 @@ def liquid_columns(close, dvol, min_dollar_vol_m: float) -> list[str]:
 
 
 # ----------------------------------------------------------- 4~5. 상관
-def build_pairs(tickers, R, E):
+def _specs():
+    """저장 순서(PAIR_SCHEMA)와 같은 (종류, 창) 목록 — 원시 3개 뒤 잔차 3개."""
+    return [("raw", w) for w in WINDOWS] + [("res", w) for w in WINDOWS]
+
+
+def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
     """종목별 이웃 목록. 반환: [[ [j, raw…, res…], … ], …] (티커 순서와 동일)
 
     후보를 한 기준으로만 뽑으면 다른 열로 정렬할 때 편향이 생긴다. 그래서 6개
-    순위의 상위와 원시 상관 하위(헤지 후보)를 합집합으로 모은다.
+    순위(3기간 × 원시/잔차)의 상위와 원시 하위(헤지 후보)를 합집합으로 모은다.
+
+    메모리가 관건이다. 상관을 쌍마다 결측을 따져 구하면 중간 행렬이 9개 생겨
+    3,000종목에서 660MB 를 쓴다. 대신 창별로 표준화한 Z 를 만들어 두면
+    상관은 Z@Z.T 한 번이고(37MB), **후보가 정해진 뒤에는 행렬조차 필요 없다** —
+    필요한 쌍만 내적하면 된다. 그래서 1차에서만 행렬을 쓰고 한 번에 하나씩
+    버리며, 2차(값 채우기)는 행렬 없이 후보 쌍만 계산한다.
     """
+    import gc
+
     import numpy as np
 
     n = len(tickers)
-    raws = [corr_matrix(R, window=w) for w in WINDOWS]
-    ress = [corr_matrix(E, window=w) for w in WINDOWS]
-    for M in raws + ress:
-        np.fill_diagonal(M, np.nan)
+    mid_w = 50 if 50 in WINDOWS else WINDOWS[len(WINDOWS) // 2]
 
-    mid = WINDOWS.index(50) if 50 in WINDOWS else len(WINDOWS) // 2
-    out = []
+    # 창별 표준화 행렬은 작다(N×window float32) — 전부 들고 있어도 된다.
+    Zs = {(kind, w): standardized(R if kind == "raw" else E, window=w)
+          for kind, w in _specs()}
+
+    # --- 1차: 후보 모으기 (행렬 하나씩 만들고 버린다) ----------------------
+    cand: list[set] = [set() for _ in range(n)]
+    for kind, w in _specs():
+        Z, ok = Zs[(kind, w)]
+        M = Z @ Z.T
+        M[~ok] = np.nan
+        M[:, ~ok] = np.nan
+        np.fill_diagonal(M, np.nan)
+        for i in range(n):
+            row = M[i]
+            if kind == "res":
+                cand[i].update(_top_idx(row, TOP_N))          # 테마 동행 후보
+            else:
+                cand[i].update(_top_idx(row, TOP_N // 2))     # 같이 움직이는 종목
+                cand[i].update(_top_idx(-row, BOTTOM_N))      # 헤지 후보(음의 상관)
+        del M
+        gc.collect()
+
+    # --- 후보 자르기: 잔차 중간 창 기준 -----------------------------------
+    Zm, okm = Zs[("res", mid_w)]
+    keep: list[list[int]] = []
     for i in range(n):
-        cand: set[int] = set()
-        for M in ress:                                   # 테마 동행 후보
-            cand |= set(_top_idx(M[i], TOP_N))
-        for M in raws:                                   # 같이 움직이는 종목
-            cand |= set(_top_idx(M[i], TOP_N // 2))
-            cand |= set(_top_idx(-M[i], BOTTOM_N))       # 헤지 후보(음의 상관)
-        cand.discard(i)
-        # 너무 커지지 않게 잔차(중간 기간) 기준으로 자른다.
-        order = sorted(cand, key=lambda j: -(ress[mid][i, j] if np.isfinite(ress[mid][i, j]) else -9))
-        keep = order[:TOP_N + BOTTOM_N + TOP_N // 2]
-        out.append([[int(j)] + [_i100(M[i, j]) for M in raws]
-                                + [_i100(M[i, j]) for M in ress] for j in keep])
+        c = cand[i]
+        c.discard(i)
+        cols = np.fromiter(c, dtype=np.int64, count=len(c))
+        if len(cols) == 0:
+            keep.append([])
+            continue
+        v = corr_rows(Zm, okm, i, cols)
+        order = np.argsort(-np.where(np.isfinite(v), v, -9.0))[:max_neighbors]
+        keep.append([int(cols[k]) for k in order])
+    del cand
+    gc.collect()
+
+    # --- 2차: 값 채우기 — 행렬 없이 후보 쌍만 --------------------------------
+    out = [[[j] for j in row] for row in keep]
+    for kind, w in _specs():
+        Z, ok = Zs[(kind, w)]
+        for i in range(n):
+            cols = keep[i]
+            if not cols:
+                continue
+            v = corr_rows(Z, ok, i, np.asarray(cols, dtype=np.int64))
+            for slot, x in enumerate(v):
+                out[i][slot].append(_i100(x))
     return out
 
 
@@ -289,15 +342,16 @@ def main() -> None:
     limit = opt("--limit", int, 0)
     min_dv = opt("--min-dollar-vol", float, MIN_DOLLAR_VOL_M)
 
-    syms = base_symbols()
+    log("유니버스 구성 중 ...")
+    rows = universe_rows()
     if limit:
-        syms = syms[:limit]
-    if not syms:
+        rows = rows[:limit]
+    if not rows:
         log("유니버스가 비었습니다. 중단.")
         return
+    meta_src = {r["ticker"]: r for r in rows}
+    syms = sorted(meta_src)
     log(f"유니버스 {len(syms)}종목 (+ 시장 {MARKET})")
-
-    meta_src = metadata()
 
     log("가격 받는 중 ...")
     close, dvol = download(sorted(set(syms) | {MARKET}))
@@ -342,6 +396,12 @@ def main() -> None:
 
     import numpy as np
 
+    # 중간에 빠진 날(거래정지·데이터 누락)은 직전 종가로 메운다 → 그날 수익률 0%.
+    # "거래가 없었으니 가격이 안 변했다"는 해석이고, 안 메우면 하루 결측만으로도
+    # 그 종목이 창 전체에서 제외돼 이웃이 하나도 안 잡힌다(실측으로 확인).
+    # ffill 은 상장 전 구간(앞쪽 NaN)은 그대로 두므로 신규 상장은 영향받지 않는다.
+    close = close.ffill()
+
     prices = close[keep].to_numpy(dtype=np.float64).T          # (N, T)
     mkt_px = close[MARKET].to_numpy(dtype=np.float64)[None, :]
     R = daily_returns(prices)
@@ -372,6 +432,8 @@ def main() -> None:
         "asof": str(close.index[-1].date()),
         "market": MARKET,
         "period": PERIOD,
+        "universe_source": "flat-screener",   # 이평선 조건 없는 목록(상관 분석용)
+        "etf_included": sum(1 for t in keep if meta_src.get(t, {}).get("is_etf")),
         "windows": list(WINDOWS),
         "pair_schema": PAIR_SCHEMA,
         "meta_schema": META_SCHEMA,
