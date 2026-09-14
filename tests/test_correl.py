@@ -193,6 +193,91 @@ def test_build_pairs_orders_theme_mates_first():
     assert {p[0] for p in pairs[0][:2]} == {1, 2}
 
 
+def _crowded_world(seed=21, N=300, T=260):
+    """주인공 하나 + 진짜 테마 동료 4 + 정반대 1 + 무관한 잡음 다수.
+
+    무관한 종목을 많이 깔아 두는 게 핵심이다 — 한 기간만 보고 고르면 그중
+    누군가가 우연히 상위권에 앉는다(실제 스냅샷에서 NVDA 의 50일 잔차 상위가
+    유조선·석유주로 찼다). 세 기간을 모두 요구하면 그 우연이 걸러져야 한다.
+    """
+    rng = np.random.default_rng(seed)
+    mkt = rng.normal(0, 0.01, T)
+    theme = rng.normal(0, 0.012, T)
+    rows = [1.5 * mkt + 1.0 * theme + rng.normal(0, 0.008, T)]
+    rows += [1.2 * mkt + 0.9 * theme + rng.normal(0, 0.012, T) for _ in range(4)]
+    rows += [-1.2 * mkt - 0.9 * theme + rng.normal(0, 0.008, T)]
+    rows += [rng.normal(0, 0.02, T) for _ in range(N - 6)]
+    return np.vstack(rows), mkt
+
+
+def test_neighbors_reserve_room_for_hedges():
+    """동행 후보가 넘쳐도 헤지 자리는 남아 있어야 한다.
+
+    첫 스냅샷은 후보를 잔차 내림차순으로 한 번에 잘라서, 이웃이 꽉 찬 종목의
+    68%가 음의 상관 이웃을 하나도 갖지 못했다 — 헤지 탭이 통째로 죽은 셈이다.
+    """
+    cu = load_builder()
+    R, mkt = _crowded_world()
+    pairs = cu.build_pairs([f"T{i}" for i in range(len(R))], R,
+                           correl.residualize(R, mkt))
+    row = pairs[0]
+    assert len(row) == cu.MAX_NEIGHBORS
+    negatives = [p for p in row if p[2] is not None and p[2] < 0]
+    assert negatives, "동행 후보에 밀려 음의 상관 이웃이 전부 잘렸다"
+    assert 5 in {p[0] for p in row}, "정반대로 움직이는 종목이 헤지 자리에 없다"
+
+
+def test_theme_mates_beat_lucky_strangers_across_windows():
+    """세 기간 잔차의 최솟값(동행 점수)으로 줄을 세우면 진짜 동료가 위로 온다.
+
+    상위권이 무관한 종목에게 넘어가지 않는 것이 요점이다. 대신 세 기간 중
+    하나라도 흔들린 동료는 같이 내려간다(엄격한 기준의 대가) — 그 종목은
+    화면에서 해당 기간 열로 정렬하면 여전히 찾을 수 있다.
+    """
+    cu = load_builder()
+    MATES = {1, 2, 3, 4}
+    R, mkt = _crowded_world()
+    pairs = cu.build_pairs([f"T{i}" for i in range(len(R))], R,
+                           correl.residualize(R, mkt))
+
+    def score(p):
+        v = p[4:4 + len(correl.WINDOWS)]
+        return -999 if any(x is None for x in v) else min(v)
+
+    ranked = sorted(pairs[0], key=score, reverse=True)
+    top3 = {p[0] for p in ranked[:3]}
+    assert top3 <= MATES, f"상위권에 무관한 종목 {top3 - MATES} 가 끼었다"
+
+    # 남은 무관한 종목 중 가장 운 좋은 것보다, 살아남은 동료가 확실히 위에 있어야.
+    best_stranger = max(score(p) for p in pairs[0] if p[0] not in MATES)
+    assert min(score(p) for p in ranked[:3]) > best_stranger + 20, (
+        f"동료와 무관한 종목의 간격이 너무 좁다 (무관 최고 {best_stranger})")
+
+
+def test_noise_line_sits_above_unrelated_pairs():
+    """잡음선은 '무관한 종목끼리도 이만큼은 나온다'를 실측한 값이어야 한다."""
+    cu = load_builder()
+    rng = np.random.default_rng(5)
+    R = rng.normal(0, 0.02, (400, 260))          # 전부 서로 무관
+    Z, ok = correl.standardized(R, window=50)
+    line = cu.noise_line(Z, ok, seed=1)
+    assert line is not None
+    # 무관한 쌍만 있는 세계이므로 선은 0 보다 확실히 크고(우연은 실재한다),
+    # 1 에 가깝지는 않다(전부 우연이라고 말하는 선은 쓸모가 없다).
+    assert 0.15 < line < 0.45, line
+    # 창이 짧을수록 우연히 큰 값이 나오기 쉽다 — 선도 같이 올라가야 한다.
+    Z20, ok20 = correl.standardized(R, window=20)
+    assert cu.noise_line(Z20, ok20, seed=1) > line
+
+
+def test_meta_row_survives_an_old_snapshot_without_etf_flag():
+    """is_etf 가 없던 스냅샷을 읽어도 화면이 깨지지 않아야 한다."""
+    old = ["Acme Corp", "Technology", "Semis", 150, 1000, 30]   # 6칸(구 포맷)
+    got = correl._meta_at([old], 0)
+    assert len(got) == len(correl.META_SCHEMA)
+    assert got[:6] == old and got[6] == 0
+
+
 def test_build_pairs_keeps_hedge_candidates():
     """음의 상관(헤지 후보)도 이웃에 남아야 정렬로 찾을 수 있다."""
     cu = load_builder()
@@ -284,7 +369,8 @@ def test_schema_matches_window_count():
     assert correl.PAIR_SCHEMA == ["j", "raw20", "raw50", "raw120",
                                   "res20", "res50", "res120"]
     assert len(correl.PAIR_SCHEMA) == 1 + 2 * len(correl.WINDOWS)
-    assert len(correl.META_SCHEMA) == 6
+    assert len(correl.META_SCHEMA) == 7
+    assert correl.META_SCHEMA[-1] == "is_etf"
 
 
 # ------------------------------------------- 반쪽 스냅샷 방지 (레이트 리밋)
@@ -371,3 +457,24 @@ def test_build_pairs_survives_a_single_missing_day():
     assert len(pairs) == N
     # 0번은 그 창에서 빠질 수 있어도, 나머지는 정상적으로 이웃을 갖는다.
     assert all(len(pairs[i]) > 0 for i in range(1, N))
+
+
+def test_etf_rows_are_labelled_even_in_an_old_snapshot():
+    """ETF 는 섹터가 전부 Financial 로 붙어 나온다 — 섹터 자리를 ETF 로 바꿔 준다.
+
+    성장주 ETF 는 그 종목 자체를 담고 있어 상관이 높은 게 당연하다(테마 동료가
+    아니라 자기 자신이다). 첫 스냅샷에서 NVDA 의 잔차 상위 3개가 전부 ETF 였다.
+    """
+    data = {
+        "tickers": ["NVDA", "FBCG"],
+        # FBCG 는 is_etf 칸이 없던 옛 포맷 — 산업명으로 알아봐야 한다.
+        "meta": [["NVIDIA Corp", "Technology", "Semiconductors", 192, 5122890, 27677],
+                 ["Fidelity Blue Chip Growth ETF", "Financial",
+                  "Exchange Traded Fund", 150, 0, 36]],
+        "neighbors": [[[1, 71, 71, 71, 60, 60, 60]], [[0, 71, 71, 71, 60, 60, 60]]],
+    }
+    view = correl.expand(data, "NVDA")
+    assert view["rows"][0]["is_etf"] is True
+    assert view["rows"][0]["sector"] == "ETF"
+    assert view["self"]["is_etf"] is False
+    assert view["self"]["sector"] == "Technology"

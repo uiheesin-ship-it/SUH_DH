@@ -2,8 +2,8 @@
 
 두 가지 용도가 한 표에 들어간다.
 
-  테마 동행 : 잔차 상관 내림차순. 시장 움직임을 걷어낸 뒤에도 같이 가는 종목이
-              진짜 테마 동료다(밸류체인·대체재).
+  테마 동행 : 동행 점수(세 기간 잔차 상관의 최솟값) 내림차순. 시장 움직임을
+              걷어낸 뒤에도, 세 기간 모두에서 같이 가는 종목이 진짜 테마 동료다.
   헤지      : 원시 상관 오름차순. 헤지는 실제 손익이 상쇄돼야 하므로 시장
               움직임까지 포함한 원시 상관으로 봐야 한다.
 
@@ -17,6 +17,14 @@
 회귀로 지우면 찾으려던 신호까지 같이 지워지고, 섹터 라벨 자체가 부정확한 종목
 (변압기 회사가 Industrials, 데이터센터 REIT 이 Real Estate)에는 엉뚱한 지수를
 빼서 노이즈를 넣게 된다. 대신 섹터를 열로 보여주고 화면에서 필터하게 한다.
+
+기간 하나만 보고 줄을 세우지 않는다. 50일 상관의 표준오차가 1/√50 ≈ 0.14 라
+2,200종목을 훑으면 아무 관계 없는 종목도 +0.45쯤을 흔히 찍는다 — 첫 스냅샷에서
+NVDA 의 50일 잔차 상위가 유조선·석유주로 찬 것이 그 탓이다. 세 기간이 모두 버틴
+값(동행 점수)으로 자르고, 무작위 쌍에서 실측한 "잡음선"을 화면에 같이 띄운다.
+
+ETF 는 기본으로 숨긴다. 성장주 ETF 는 그 종목 자체를 담고 있어 상관이 높은 게
+당연하다 — 테마 동료가 아니라 자기 자신이다.
 
 가격이 아니라 수익률로 상관을 구한다. 가격 수준끼리 상관시키면 둘 다 우상향이라
 무관한 종목도 0.95가 나온다.
@@ -44,9 +52,15 @@ WINDOWS = (20, 50, 120)
 TOP_N = 30          # 테마 동행 후보 (잔차 상관 상위)
 BOTTOM_N = 15       # 헤지 후보 (원시 상관 하위)
 
+# 이웃 정원을 두 용도로 쪼개 둔다. 안 쪼개면 마지막에 잔차 내림차순으로 한 번
+# 자를 때 헤지 후보(음의 상관)가 전부 잘려 나간다 — 실제로 첫 스냅샷에서
+# 이웃이 꽉 찬 종목의 68%가 음의 상관 이웃을 하나도 갖지 못했다.
+HEDGE_SLOTS = 15    # 원시 상관 오름차순으로 따로 확보하는 자리
+
 # 저장 포맷 — 파일이 커지지 않게 상관계수는 ×100 정수로, 티커는 인덱스로 쓴다.
 PAIR_SCHEMA = ["j"] + [f"raw{w}" for w in WINDOWS] + [f"res{w}" for w in WINDOWS]
-META_SCHEMA = ["name", "sector", "industry", "beta_x100", "mcap_musd", "dvol_musd"]
+META_SCHEMA = ["name", "sector", "industry", "beta_x100", "mcap_musd", "dvol_musd",
+               "is_etf"]
 
 
 # ------------------------------------------------------------------ 계산
@@ -191,6 +205,13 @@ def _load() -> dict | None:
     return data if isinstance(data, dict) and data.get("tickers") else None
 
 
+def _meta_at(meta: list, j: int) -> list:
+    """메타 한 줄을 스키마 길이에 맞춰 꺼낸다(옛 스냅샷은 is_etf 가 없다)."""
+    m = list(meta[j]) if j < len(meta) else []
+    blank = ["", "", "", 0, 0, 0, 0]
+    return [m[k] if k < len(m) else blank[k] for k in range(len(META_SCHEMA))]
+
+
 def expand(data: dict, ticker: str) -> dict | None:
     """저장된 압축 포맷을 화면/ API 가 쓰는 행 목록으로 편다."""
     tickers = data.get("tickers") or []
@@ -202,17 +223,22 @@ def expand(data: dict, ticker: str) -> dict | None:
     meta = data.get("meta") or []
     nb = (data.get("neighbors") or [])[i] if i < len(data.get("neighbors") or []) else []
 
-    def row(j, name, sector, industry, beta, mcap, dvol):
-        return {"ticker": tickers[j], "name": name, "sector": sector,
+    def row(j, name, sector, industry, beta, mcap, dvol, is_etf=0):
+        # is_etf 를 싣기 전 스냅샷도 산업명으로 알아본다. ETF 는 섹터가 전부
+        # Financial 로 붙어 나오므로 섹터 자리에는 "ETF" 를 쓴다.
+        etf = bool(is_etf) or industry == "Exchange Traded Fund"
+        return {"ticker": tickers[j], "name": name,
+                "sector": "ETF" if etf else sector,
                 "industry": industry, "beta": (beta or 0) / 100,
-                "market_cap": (mcap or 0) * 1e6, "dollar_volume": (dvol or 0) * 1e6}
+                "market_cap": (mcap or 0) * 1e6, "dollar_volume": (dvol or 0) * 1e6,
+                "is_etf": etf}
 
     out = []
     for pair in nb:
         j = pair[0]
         if j >= len(tickers):
             continue
-        m = meta[j] if j < len(meta) else ["", "", "", 0, 0, 0]
+        m = _meta_at(meta, j)
         r = row(j, *m)
         n = len(WINDOWS)
         for k, w in enumerate(WINDOWS):
@@ -220,9 +246,10 @@ def expand(data: dict, ticker: str) -> dict | None:
             r[f"res{w}"] = None if pair[1 + n + k] is None else pair[1 + n + k] / 100
         out.append(r)
 
-    self_meta = meta[i] if i < len(meta) else ["", "", "", 0, 0, 0]
+    self_meta = _meta_at(meta, i)
     return {
         "ticker": tickers[i],
+        "noise": data.get("noise") or {},
         "self": row(i, *self_meta),
         "windows": list(WINDOWS),
         "count": len(out),

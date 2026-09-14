@@ -16,9 +16,13 @@
   4. 상관       : 일간 수익률 → 20/50/120일 원시 상관 + 시장(SPY) 잔차 상관.
   5. 이웃 추리기 : 어느 열로 정렬해도 한쪽 기준에 치우치지 않도록, 6개 순위
                   (3기간 × 원시/잔차)의 상위와 원시 하위(헤지 후보)를 합집합으로
-                  모은 뒤 잔차 50일 기준으로 잘라 저장한다. 상관행렬은 3,700종목이면
-                  하나가 110MB 라, 6개를 동시에 들지 않고 **한 번에 하나씩** 만들고
-                  버린다(피크 메모리 1개분).
+                  모은다. 자를 때는 동행 자리와 헤지 자리를 나눠 채운다 — 한 번에
+                  잔차 내림차순으로 자르면 헤지 후보가 통째로 사라진다. 동행 자리는
+                  세 기간 잔차의 최솟값으로 고른다(한 기간만 보면 우연이 상위권을
+                  먹는다). 상관행렬은 3,700종목이면 하나가 110MB 라, 6개를 동시에
+                  들지 않고 **한 번에 하나씩** 만들고 버린다(피크 메모리 1개분).
+  6. 잡음선     : 무작위 쌍의 잔차 상관 분포에서 상위 1% 지점을 창마다 실측해
+                  같이 저장한다. 화면에서 그 아래 값은 흐리게 칠한다.
 
 계산 자체는 가볍다(3,700종목 × 250일 상관행렬이 1초 미만). 무거운 건 가격 수신뿐.
 
@@ -41,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.correl import (  # noqa: E402
-    BOTTOM_N, META_SCHEMA, PAIR_SCHEMA, TOP_N, WINDOWS,
+    BOTTOM_N, HEDGE_SLOTS, META_SCHEMA, PAIR_SCHEMA, TOP_N, WINDOWS,
     corr_rows, daily_returns, market_betas, residualize, standardized,
 )
 
@@ -252,6 +256,17 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
     후보를 한 기준으로만 뽑으면 다른 열로 정렬할 때 편향이 생긴다. 그래서 6개
     순위(3기간 × 원시/잔차)의 상위와 원시 하위(헤지 후보)를 합집합으로 모은다.
 
+    자를 때 두 가지를 조심한다.
+
+      헤지 자리를 따로 뺀다 — 잔차 내림차순으로 한 번에 자르면 애써 모은 음의
+      상관 후보가 전부 잘린다(첫 스냅샷에서 이웃이 꽉 찬 종목의 68%가 음의 상관
+      이웃을 하나도 갖지 못했다). 동행 자리와 헤지 자리를 나눠 각각 채운다.
+
+      동행 자리는 **세 기간의 잔차 상관 중 최솟값**으로 자른다. 2,200종목 중
+      한 기간만 보고 고르면 상위권이 우연으로 채워진다 — 50일 상관의 표준오차가
+      1/√50 ≈ 0.14 라 무관한 종목도 0.45쯤은 우연히 나오고, 실제로 NVDA 의
+      50일 잔차 상위가 유조선·석유주로 찼다. 세 기간이 모두 버텨야 남긴다.
+
     메모리가 관건이다. 상관을 쌍마다 결측을 따져 구하면 중간 행렬이 9개 생겨
     3,000종목에서 660MB 를 쓴다. 대신 창별로 표준화한 Z 를 만들어 두면
     상관은 Z@Z.T 한 번이고(37MB), **후보가 정해진 뒤에는 행렬조차 필요 없다** —
@@ -287,8 +302,10 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
         del M
         gc.collect()
 
-    # --- 후보 자르기: 잔차 중간 창 기준 -----------------------------------
-    Zm, okm = Zs[("res", mid_w)]
+    # --- 후보 자르기: 동행 자리와 헤지 자리를 따로 채운다 -------------------
+    hedge_slots = min(HEDGE_SLOTS, max_neighbors // 2)
+    theme_slots = max_neighbors - hedge_slots
+    Zraw, okraw = Zs[("raw", mid_w)]
     keep: list[list[int]] = []
     for i in range(n):
         c = cand[i]
@@ -297,9 +314,26 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
         if len(cols) == 0:
             keep.append([])
             continue
-        v = corr_rows(Zm, okm, i, cols)
-        order = np.argsort(-np.where(np.isfinite(v), v, -9.0))[:max_neighbors]
-        keep.append([int(cols[k]) for k in order])
+
+        # 동행 점수 = 세 기간 잔차 상관의 최솟값(한 기간이라도 없으면 탈락).
+        score = np.full(len(cols), np.inf, dtype=np.float64)
+        for w in WINDOWS:
+            Zw, okw = Zs[("res", w)]
+            score = np.minimum(score, corr_rows(Zw, okw, i, cols).astype(np.float64))
+        theme = np.argsort(-np.where(np.isfinite(score), score, -9.0))[:theme_slots]
+
+        chosen = [int(cols[k]) for k in theme]
+        taken = set(chosen)
+        # 헤지는 실제 손익이 상쇄돼야 하므로 원시 상관 오름차순으로 고른다.
+        hv = corr_rows(Zraw, okraw, i, cols)
+        for k in np.argsort(np.where(np.isfinite(hv), hv, 9.0)):
+            if len(chosen) >= max_neighbors:
+                break
+            j = int(cols[k])
+            if j not in taken:
+                chosen.append(j)
+                taken.add(j)
+        keep.append(chosen)
     del cand
     gc.collect()
 
@@ -315,6 +349,35 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
             for slot, x in enumerate(v):
                 out[i][slot].append(_i100(x))
     return out
+
+
+def noise_line(Z, ok_row, pct: float = 99.0, samples: int = 60000, seed: int = 0):
+    """무작위 쌍의 상관 분포에서 |r| 의 pct 백분위 — "우연으로도 이만큼은 나온다"선.
+
+    유니버스가 2,200종목이면 한 종목당 2,200번 비교하는 셈이라, 50일 창에서는
+    아무 관계 없는 종목도 +0.45 쯤이 흔히 나온다. 그 선을 데이터에서 직접
+    재서 화면에 띄우면, 상위권 숫자가 신호인지 우연인지 사용자가 바로 안다.
+    이론값(Bonferroni) 대신 실측을 쓰는 이유는 잔차에도 섹터 요인이 남아 있어
+    쌍끼리 독립이 아니기 때문이다.
+    """
+    import numpy as np
+
+    idx = np.flatnonzero(ok_row)
+    if len(idx) < 50:
+        return None
+    rng = np.random.default_rng(seed)
+    vals = []
+    for start in range(0, samples, 20000):          # 통째로 뽑으면 메모리가 뜬다
+        k = min(20000, samples - start)
+        a = rng.choice(idx, k)
+        b = rng.choice(idx, k)
+        m = a != b
+        if not m.any():
+            continue
+        vals.append(np.abs(np.einsum("ij,ij->i", Z[a[m]], Z[b[m]])))
+    if not vals:
+        return None
+    return round(float(np.percentile(np.concatenate(vals), pct)), 3)
 
 
 def _top_idx(row, k: int) -> list[int]:
@@ -413,6 +476,17 @@ def main() -> None:
     E = residualize(R, mkt, beta)
     pairs = build_pairs(keep, R, E)
 
+    # 잡음선 — 이 값 아래는 우연으로도 나온다. 화면에서 흐리게 표시한다.
+    noise = {}
+    for w in WINDOWS:
+        Zw, okw = standardized(E, window=w)
+        line = noise_line(Zw, okw)
+        if line is not None:
+            noise[str(w)] = line
+    if noise:
+        log("  잡음선(무작위 쌍 |잔차상관| 99%): " +
+            ", ".join(f"{w}일 {v:+.2f}" for w, v in noise.items()))
+
     avg_dv = (dvol.tail(60).mean() if dvol is not None else None)
     last_px = close.ffill().iloc[-1]
     meta = []
@@ -425,6 +499,7 @@ def main() -> None:
             int(round(float(beta[i]) * 100)),
             int(round((m.get("market_cap") or 0) / 1e6)),
             int(round(float(avg_dv.get(t, 0)) / 1e6)) if avg_dv is not None else 0,
+            1 if m.get("is_etf") else 0,
         ])
 
     payload = {
@@ -433,6 +508,7 @@ def main() -> None:
         "market": MARKET,
         "period": PERIOD,
         "universe_source": "flat-screener",   # 이평선 조건 없는 목록(상관 분석용)
+        "noise": noise,                       # 창별 "우연으로도 나오는" 상관 수준
         "etf_included": sum(1 for t in keep if meta_src.get(t, {}).get("is_etf")),
         "windows": list(WINDOWS),
         "pair_schema": PAIR_SCHEMA,
