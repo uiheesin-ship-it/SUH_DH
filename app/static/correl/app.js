@@ -53,9 +53,14 @@ function comoveScore(r) {
   return v.some((x) => x === null || x === undefined) ? null : Math.min(...v);
 }
 
-// 세 기간 모두 잡음선 위인가 — "잡음선 위만" 필터가 쓴다.
+// 한 기간이라도 잡음선 위인가 — "잡음선 위만" 필터가 쓴다.
+//
+// 세 기간을 모두 요구하면 필터가 죽는다: 20일 선이 +0.71 이라 사실상 20일
+// 필터가 되고, 실측으로 종목의 39%가 아무것도 남지 않았다(중앙값 1개).
+// 한 기간만 요구하면 57개 중 34개가 남아 "믿을 구석이 하나라도 있는 행"을
+// 고르는 필터가 된다.
 function aboveNoise(r) {
-  return WINDOWS.every((w) => {
+  return WINDOWS.some((w) => {
     const line = NOISE[String(w)];
     const v = r[`res${w}`];
     return !line || (v !== null && v !== undefined && Math.abs(v) >= line);
