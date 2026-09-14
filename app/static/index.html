@@ -19,13 +19,17 @@
     <code>APPS</code> 배열에 항목 하나만 추가하면 됩니다.
     <code>market</code>(<code>us</code>/<code>kr</code>)과
     <code>group</code>(<code>highs</code>/<code>screener</code>/<code>other</code>)으로 자리가 정해집니다.
+    <code>status: "hidden"</code> 으로 두면 카드만 감춰집니다(프로그램은 그대로 배포).
   </footer>
 
   <script>
     // 프로그램 레지스트리 — 새 프로그램은 여기 한 줄만 추가.
     //   market: "us"(미장) | "kr"(국장)
     //   group : "highs"(신고가) | "screener"(스크리너) | "other"(기타)
-    // 두 값이 대시보드에서 카드가 놓일 칸(행 × 열)을 결정합니다.
+    //   status: "ready"(정상) | "soon"(준비중 — 회색 카드) | "hidden"(허브에서 감춤)
+    // market·group 두 값이 대시보드에서 카드가 놓일 칸(행 × 열)을 결정합니다.
+    // "hidden" 은 카드만 안 보일 뿐 프로그램은 그대로 배포되므로 href 주소로
+    // 직접 들어갈 수 있습니다. 지우지 않고 감추는 쪽이라 되돌리기도 한 글자입니다.
     const APPS = [
       {
         name: "미국 52주 신고가",
@@ -65,7 +69,7 @@
         market: "us", group: "other",
         desc: "지수 말고 '얼마나 많은 종목이 같이 가는가'. S&P500·나스닥의 20/50/200일선 위 종목 비율, NYSE 등락종목·신고가−신저가·상승하락 거래량, 동일가중(RSP/SPY)·VIX 기간구조·하이일드 스프레드까지 한 화면에. 0~100 종합점수와 레짐(위험/주의/중립/양호/과열), '지수는 신고가인데 브레스는 하락' 같은 다이버전스 경고를 자동 판정. 값은 TradingView·Yahoo·FRED에서 받아오고 실패 시 구성종목으로 직접 계산.",
         href: "breadth/",
-        status: "ready",
+        status: "hidden",
       },
       {
         name: "AI 투자 뉴스",
@@ -168,8 +172,11 @@
     const keyOf = (val, list, fallback) =>
       list.some((g) => g.key === val) ? val : fallback;
 
+    // status:"hidden" 은 목록에서 빼되 레지스트리에는 남겨 둔다.
+    const VISIBLE = APPS.filter((a) => a.status !== "hidden");
+
     document.getElementById("board").innerHTML = MARKETS.map((m) => {
-      const mine = APPS.filter((a) => keyOf(a.market, MARKETS, "us") === m.key);
+      const mine = VISIBLE.filter((a) => keyOf(a.market, MARKETS, "us") === m.key);
       if (!mine.length) return "";
       const cols = GROUPS.map((g) => {
         const cards = mine.filter((a) => keyOf(a.group, GROUPS, "other") === g.key);
