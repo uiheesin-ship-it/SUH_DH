@@ -134,3 +134,42 @@ def test_stamp_keeps_fragments_and_skips_other_files(tmp_path):
     out = page.read_text(encoding="utf-8")
     assert 'href="a.css?v=S1#top"' in out
     assert 'src="logo.png"' in out          # css/js 만 대상
+
+
+# ------------------------------- 신고가 재수집 실패가 빌드를 죽이면 안 된다
+# 2026-09-15 빌드에서 Finviz 가 러너를 막았다. 빌드 앞부분의 "목록 먼저 발행"
+# 단계는 try 로 감싸여 넘어갔는데, 맨 끝의 재수집(종목별 사유·차트를 덧입히는
+# 단계)이 안 감싸여 있어 예외가 새고 빌드가 죽었다 — 그 앞에서 끝낸 스캐너 세
+# 개(40분치)가 커밋 단계까지 못 가고 통째로 버려졌다.
+def test_late_highs_fetch_failure_does_not_kill_the_build(monkeypatch, tmp_path):
+    """Finviz 가 막혀도 빌드는 끝까지 가야 한다 — 앞선 스캔 결과를 지키려고."""
+    import json as _json
+
+    from app import screener
+
+    monkeypatch.setenv("SUH_DH_DEMO", "1")
+    monkeypatch.setenv("SUH_DH_SCAN", "none")
+    monkeypatch.setattr(build, "SITE", tmp_path / "site")
+    monkeypatch.setattr(build, "LIMIT", 1)
+
+    # 앞부분(목록 발행)은 성공하고, 맨 끝 재수집만 막힌 상황을 만든다.
+    real = screener.get_dashboard
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return real()
+        raise RuntimeError("Finviz screener returned no data")
+
+    monkeypatch.setattr(screener, "get_dashboard", flaky)
+    # 한국 낮 시간이면 재수집을 건너뛰므로(커밋된 목록 재사용) 시나리오가 안 산다.
+    monkeypatch.setattr(screener, "highs_frozen", lambda: False)
+
+    build.main()          # 예외가 새면 여기서 실패한다
+
+    assert calls["n"] >= 2, "맨 끝 재수집이 아예 호출되지 않아 시나리오가 재현되지 않았다"
+    published = tmp_path / "site" / "data" / "highs.json"
+    assert published.exists(), "빌드가 신고가 목록을 하나도 안 남겼다"
+    data = _json.loads(published.read_text(encoding="utf-8"))
+    assert data.get("count", 0) > 0, "재수집 실패 후 앞서 발행한 목록으로 되돌아가지 못했다"

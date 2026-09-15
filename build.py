@@ -653,8 +653,26 @@ def main() -> None:
         dashboard = json.loads(repo_highs.read_text(encoding="utf-8"))
         print(f"  frozen (Korean daytime) — reusing committed list ({dashboard.get('count', 0)} stocks).")
     else:
-        dashboard = screener.get_dashboard()
-        dashboard["built"] = built
+        try:
+            dashboard = screener.get_dashboard()
+            dashboard["built"] = built
+        except Exception as e:
+            # Finviz 가 러너를 막는 일이 있다(실측: 2026-09-15 빌드 내내 차단).
+            # 여기서 예외가 새면 **앞선 스캔 수십 분치가 통째로 버려진다** —
+            # 빌드가 죽어 커밋 단계까지 못 가기 때문이다. 이 재수집은 이미
+            # 발행한 목록에 종목별 사유·차트를 덧입히는 단계일 뿐이므로,
+            # 실패하면 그 목록을 그대로 두고 넘어간다.
+            print(f"  52-week highs fetch failed: {e}")
+            site_highs = SITE / "data" / "highs.json"
+            src = site_highs if site_highs.exists() else repo_highs
+            if src.exists():
+                dashboard = json.loads(src.read_text(encoding="utf-8"))
+                print(f"  falling back to the published list "
+                      f"({dashboard.get('count', 0)} stocks, no reason/chart enrichment).")
+            else:
+                dashboard = {"count": 0, "stocks": [], "built": built,
+                             "error": "52-week highs unavailable", "detail": str(e)}
+                print("  no published or committed list to fall back to — leaving it empty.")
     stocks = _all_stocks(dashboard)
     # Most important (largest) names first so we never run out of budget on them.
     stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
@@ -688,7 +706,7 @@ def main() -> None:
     write_json(SITE / "data" / "highs.json", dashboard)
     if not frozen:
         write_json(ROOT / "data" / "highs.json", dashboard)  # repo copy for raw fetch
-        meta = {"built": built, "count": dashboard["count"], "charts": fetched}
+        meta = {"built": built, "count": dashboard.get("count", 0), "charts": fetched}
         write_json(SITE / "data" / "meta.json", meta)
         write_json(ROOT / "data" / "meta.json", meta)
     print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
