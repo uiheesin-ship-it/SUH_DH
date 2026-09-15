@@ -17,19 +17,17 @@
                   맞으므로 작게 끊고 쉬어 가며, 실패분은 라운드를 거듭해 다시 받는다.
   3. 유동성 필터 : 가격 $5 이상, 60일 평균 거래대금 하한 이상, 관측일수 하한 이상.
                   안 걸러내면 거래 없는 잡주가 우연히 상위권에 뜬다.
-  4. 상관       : 일간 수익률 → 20/50/120일 원시 상관 + 시장(SPY) 잔차 상관.
-  5. 이웃 추리기 : 어느 열로 정렬해도 한쪽 기준에 치우치지 않도록, 6개 순위
-                  (3기간 × 원시/잔차)의 상위와 원시 하위(헤지 후보)를 합집합으로
-                  모은다. 자를 때는 동행 자리와 헤지 자리를 나눠 채운다 — 한 번에
-                  잔차 내림차순으로 자르면 헤지 후보가 통째로 사라진다. 동행 자리는
-                  세 기간 잔차의 최솟값으로 고른다(한 기간만 보면 우연이 상위권을
-                  먹는다). 상관행렬은 3,700종목이면 하나가 110MB 라, 6개를 동시에
-                  들지 않고 **한 번에 하나씩** 만들고 버린다(피크 메모리 1개분).
-  6. 잡음선     : 시간축을 어긋나게 돌린 무작위 쌍의 상관 분포에서 상위 1/N
+  4. 저장       : **상관이 아니라 수익률 행렬을 싣는다.** 120일 창이 최장이라
+                  130일치 int16(×10000)면 되고, 3,000종목이 0.8MB 다. 상관은
+                  화면에서 조회할 때 계산한다 — 행 하나와 전체 행렬의 내적이라
+                  브라우저에서 수 밀리초다. 그래서 **이웃 수 상한이 없다**(예전엔
+                  종목당 60개만 저장했고, 그 정원을 헤지·ETF 로 어떻게 나눌지
+                  계속 손봐야 했다). 자세한 이유는 app/correl.py 주석 참고.
+  5. 잡음선     : 시간축을 어긋나게 돌린 무작위 쌍의 상관 분포에서 상위 1/N
                   지점을 창마다 실측해 같이 저장한다 — "유니버스를 다 훑었을 때
                   운만으로 나오는 최고값". 화면에서 그 아래 값은 흐리게 칠한다.
 
-계산 자체는 가볍다(3,700종목 × 250일 상관행렬이 1초 미만). 무거운 건 가격 수신뿐.
+무거운 건 가격 수신뿐이다.
 
   python tools/correl_us.py                       # 전체
   python tools/correl_us.py --limit 300           # 일부만(빠른 점검)
@@ -51,8 +49,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.correl import (  # noqa: E402
-    BOTTOM_N, ETF_SLOTS, HEDGE_SLOTS, META_SCHEMA, PAIR_SCHEMA, TOP_N, WINDOWS,
-    corr_rows, daily_returns, market_betas, residualize, standardized,
+    META_SCHEMA, RETURN_SCALE, STORE_DAYS, WINDOWS,
+    daily_returns, encode_returns, market_betas, residualize, standardized,
 )
 
 OUT = ROOT / "data" / "correl.json"
@@ -63,7 +61,6 @@ PERIOD = "1y"                      # 120일 창 + 여유. 단기 위주라 길�
 MIN_PRICE = 5.0
 MIN_DOLLAR_VOL_M = 10.0            # 60일 평균 거래대금(백만 달러)
 MIN_OBS = 130                      # 최소 관측 거래일 — 120일 창을 채울 수 있어야
-MAX_NEIGHBORS = 60                 # 종목당 저장할 이웃 수(파일 크기와 직결)
 # Yahoo 는 한 번에 많이 요청하면 YFRateLimitError 를 돌려준다. 첫 실전 실행에서
 # 400개씩 쉬지 않고 붙였다가 NVDA·MSFT·TSLA 를 포함해 수천 종목이 레이트 리밋으로
 # 빠졌다(6,553 중 유동성 통과 1,441). 배치를 줄이고 사이사이 쉬면서, 실패한 종목만
@@ -272,145 +269,6 @@ def liquid_columns(close, dvol, min_dollar_vol_m: float) -> list[str]:
 
 
 # ----------------------------------------------------------- 4~5. 상관
-def _specs():
-    """저장 순서(PAIR_SCHEMA)와 같은 (종류, 창) 목록 — 원시 3개 뒤 잔차 3개."""
-    return [("raw", w) for w in WINDOWS] + [("res", w) for w in WINDOWS]
-
-
-def build_pairs(tickers, R, E, is_etf=None, max_neighbors: int = MAX_NEIGHBORS):
-    """종목별 이웃 목록. 반환: [[ [j, raw…, res…], … ], …] (티커 순서와 동일)
-
-    후보를 한 기준으로만 뽑으면 다른 열로 정렬할 때 편향이 생긴다. 그래서 6개
-    순위(3기간 × 원시/잔차)의 상위와 원시 하위(헤지 후보)를 합집합으로 모은다.
-
-    자를 때 두 가지를 조심한다.
-
-      헤지 자리를 따로 뺀다 — 잔차 내림차순으로 한 번에 자르면 애써 모은 음의
-      상관 후보가 전부 잘린다(첫 스냅샷에서 이웃이 꽉 찬 종목의 68%가 음의 상관
-      이웃을 하나도 갖지 못했다). 동행 자리와 헤지 자리를 나눠 각각 채운다.
-
-      ETF 자리도 따로 뺀다 — ETF 는 그 종목을 담고 있어 상관이 높은 게 당연해서
-      자리를 안 나누면 정원을 통째로 먹는다. 유니버스 상한을 풀어 ETF 가 105개
-      에서 743개로 늘자 MU 의 이웃 60개 중 45개가 ETF 가 됐다(실제 종목 15개).
-      ETF_SLOTS 개까지만 받고 나머지는 실제 종목에 준다.
-
-      동행 자리는 **세 기간의 잔차 상관 중 최솟값**으로 자른다. 2,200종목 중
-      한 기간만 보고 고르면 상위권이 우연으로 채워진다 — 50일 상관의 표준오차가
-      1/√50 ≈ 0.14 라 무관한 종목도 0.45쯤은 우연히 나오고, 실제로 NVDA 의
-      50일 잔차 상위가 유조선·석유주로 찼다. 세 기간이 모두 버텨야 남긴다.
-
-    메모리가 관건이다. 상관을 쌍마다 결측을 따져 구하면 중간 행렬이 9개 생겨
-    3,000종목에서 660MB 를 쓴다. 대신 창별로 표준화한 Z 를 만들어 두면
-    상관은 Z@Z.T 한 번이고(37MB), **후보가 정해진 뒤에는 행렬조차 필요 없다** —
-    필요한 쌍만 내적하면 된다. 그래서 1차에서만 행렬을 쓰고 한 번에 하나씩
-    버리며, 2차(값 채우기)는 행렬 없이 후보 쌍만 계산한다.
-    """
-    import gc
-
-    import numpy as np
-
-    n = len(tickers)
-    mid_w = 50 if 50 in WINDOWS else WINDOWS[len(WINDOWS) // 2]
-    etf_mask = (np.zeros(n, dtype=bool) if is_etf is None
-                else np.asarray(is_etf, dtype=bool))
-
-    # 창별 표준화 행렬은 작다(N×window float32) — 전부 들고 있어도 된다.
-    Zs = {(kind, w): standardized(R if kind == "raw" else E, window=w)
-          for kind, w in _specs()}
-
-    # --- 1차: 후보 모으기 (행렬 하나씩 만들고 버린다) ----------------------
-    cand: list[set] = [set() for _ in range(n)]
-    for kind, w in _specs():
-        Z, ok = Zs[(kind, w)]
-        M = Z @ Z.T
-        M[~ok] = np.nan
-        M[:, ~ok] = np.nan
-        np.fill_diagonal(M, np.nan)
-        for i in range(n):
-            row = M[i]
-            # ETF 를 따로 뽑는다. 섞어서 상위를 고르면 ETF 가 후보를 통째로 먹어
-            # **진짜 동료가 애초에 후보에도 못 든다** — 그 종목을 담은 ETF 는
-            # 상관이 0.9를 넘는 게 당연해서 상위 30개가 전부 ETF 로 찬다.
-            # 정원(ETF_SLOTS)은 마지막에 자를 때도 걸지만, 여기서 안 나누면
-            # 자를 후보 자체가 ETF 뿐이라 소용이 없다.
-            stock_row = np.where(etf_mask, np.nan, row)
-            etf_row = np.where(etf_mask, row, np.nan)
-            if kind == "res":
-                cand[i].update(_top_idx(stock_row, TOP_N))        # 테마 동행 후보
-                cand[i].update(_top_idx(etf_row, ETF_SLOTS))
-            else:
-                cand[i].update(_top_idx(stock_row, TOP_N // 2))   # 같이 움직이는 종목
-                cand[i].update(_top_idx(etf_row, ETF_SLOTS // 2))
-                cand[i].update(_top_idx(-stock_row, BOTTOM_N))    # 헤지 후보(음의 상관)
-                cand[i].update(_top_idx(-etf_row, BOTTOM_N // 2))
-        del M
-        gc.collect()
-
-    # --- 후보 자르기: 동행 자리와 헤지 자리를 따로 채운다 -------------------
-    hedge_slots = min(HEDGE_SLOTS, max_neighbors // 2)
-    theme_slots = max_neighbors - hedge_slots
-    etf_cap = min(ETF_SLOTS, max_neighbors)
-    Zraw, okraw = Zs[("raw", mid_w)]
-    keep: list[list[int]] = []
-    for i in range(n):
-        c = cand[i]
-        c.discard(i)
-        cols = np.fromiter(c, dtype=np.int64, count=len(c))
-        if len(cols) == 0:
-            keep.append([])
-            continue
-
-        chosen: list[int] = []
-        taken: set[int] = set()
-        n_etf = 0
-
-        def take(j: int) -> bool:
-            """ETF 정원을 지키며 한 자리 채운다. 채웠으면 True."""
-            nonlocal n_etf
-            if j in taken:
-                return False
-            if etf_mask[j]:
-                if n_etf >= etf_cap:
-                    return False
-                n_etf += 1
-            chosen.append(j)
-            taken.add(j)
-            return True
-
-        # 동행 점수 = 세 기간 잔차 상관의 최솟값(한 기간이라도 없으면 탈락).
-        score = np.full(len(cols), np.inf, dtype=np.float64)
-        for w in WINDOWS:
-            Zw, okw = Zs[("res", w)]
-            score = np.minimum(score, corr_rows(Zw, okw, i, cols).astype(np.float64))
-        for k in np.argsort(-np.where(np.isfinite(score), score, -9.0)):
-            if len(chosen) >= theme_slots:
-                break
-            take(int(cols[k]))
-
-        # 헤지는 실제 손익이 상쇄돼야 하므로 원시 상관 오름차순으로 고른다.
-        hv = corr_rows(Zraw, okraw, i, cols)
-        for k in np.argsort(np.where(np.isfinite(hv), hv, 9.0)):
-            if len(chosen) >= max_neighbors:
-                break
-            take(int(cols[k]))
-        keep.append(chosen)
-    del cand
-    gc.collect()
-
-    # --- 2차: 값 채우기 — 행렬 없이 후보 쌍만 --------------------------------
-    out = [[[j] for j in row] for row in keep]
-    for kind, w in _specs():
-        Z, ok = Zs[(kind, w)]
-        for i in range(n):
-            cols = keep[i]
-            if not cols:
-                continue
-            v = corr_rows(Z, ok, i, np.asarray(cols, dtype=np.int64))
-            for slot, x in enumerate(v):
-                out[i][slot].append(_i100(x))
-    return out
-
-
 def noise_line(Z, ok_row, universe=None, samples: int = 300000, seed: int = 0):
     """"이 유니버스를 다 훑었을 때 운만으로 나올 수 있는 최고값".
 
@@ -452,21 +310,6 @@ def noise_line(Z, ok_row, universe=None, samples: int = 300000, seed: int = 0):
     if not vals:
         return None
     return round(float(np.quantile(np.concatenate(vals), 1.0 - 1.0 / n)), 3)
-
-
-def _top_idx(row, k: int) -> list[int]:
-    import numpy as np
-
-    v = np.where(np.isfinite(row), row, -np.inf)
-    k = min(k, len(v))
-    idx = np.argpartition(-v, k - 1)[:k] if k > 0 else []
-    return [int(j) for j in idx if np.isfinite(row[j])]
-
-
-def _i100(x):
-    import numpy as np
-
-    return None if x is None or not np.isfinite(x) else int(round(float(x) * 100))
 
 
 # ------------------------------------------------------------------ main
@@ -545,13 +388,12 @@ def main() -> None:
     mkt = daily_returns(mkt_px)[0]
     mkt = np.where(np.isfinite(mkt), mkt, 0.0)
 
-    log("상관 계산 중 ...")
+    log("베타·잔차 계산 중 ...")
     beta = market_betas(R, mkt)
     E = residualize(R, mkt, beta)
-    etf_flags = [bool(meta_src.get(t, {}).get("is_etf")) for t in keep]
-    pairs = build_pairs(keep, R, E, is_etf=etf_flags)
 
     # 잡음선 — 이 값 아래는 우연으로도 나온다. 화면에서 흐리게 표시한다.
+    # 저장할 창 길이만큼만 쓰면 브라우저가 계산할 값과 같은 기준이 된다.
     noise = {}
     for w in WINDOWS:
         Zw, okw = standardized(E, window=w)
@@ -563,7 +405,6 @@ def main() -> None:
             ", ".join(f"{w}일 {v:+.2f}" for w, v in noise.items()))
 
     avg_dv = (dvol.tail(60).mean() if dvol is not None else None)
-    last_px = close.ffill().iloc[-1]
     meta = []
     for i, t in enumerate(keep):
         m = meta_src.get(t, {})
@@ -577,6 +418,9 @@ def main() -> None:
             1 if m.get("is_etf") else 0,
         ])
 
+    # 상관이 아니라 **수익률 행렬**을 싣는다. 미리 계산한 답(이웃 60개)보다
+    # 작으면서 이웃은 전부 나온다 — 이유는 app/correl.py 의 저장 포맷 주석 참고.
+    days = min(STORE_DAYS, R.shape[1])
     payload = {
         "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "asof": str(close.index[-1].date()),
@@ -586,17 +430,18 @@ def main() -> None:
         "noise": noise,                       # 창별 "우연으로도 나오는" 상관 수준
         "etf_included": sum(1 for t in keep if meta_src.get(t, {}).get("is_etf")),
         "windows": list(WINDOWS),
-        "pair_schema": PAIR_SCHEMA,
+        "days": days,
+        "scale": RETURN_SCALE,
         "meta_schema": META_SCHEMA,
         "tickers": keep,
         "meta": meta,
-        "neighbors": pairs,
+        "market_returns": encode_returns(mkt[None, -days:]),
+        "returns": encode_returns(R[:, -days:]),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
                    encoding="utf-8")
-    avg_n = sum(len(p) for p in pairs) / max(1, len(pairs))
-    log(f"Wrote {OUT} — {len(keep)}종목, 평균 이웃 {avg_n:.0f}개, "
+    log(f"Wrote {OUT} — {len(keep)}종목 × {days}일, "
         f"{OUT.stat().st_size / 1e6:.1f}MB, 기준일 {payload['asof']}")
 
 

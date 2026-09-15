@@ -183,3 +183,11 @@ td.score { font-weight: 600; }
   .modal-box { max-height: calc(100vh - 32px); }
   .modal-body { font-size: 12.5px; }
 }
+
+/* "더 보기" — 계산은 전 종목이지만 DOM 은 끊어서 그린다. */
+.more {
+  display: block; width: 100%; margin: 10px 0 0;
+  padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel); color: var(--muted); font-size: 13px; cursor: pointer;
+}
+.more:hover { border-color: var(--accent); color: var(--accent); }

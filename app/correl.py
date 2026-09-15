@@ -47,24 +47,20 @@ DATA_FILE = os.environ.get("SUH_DH_CORREL_FILE") or str(
 # 답이 다르고, 그 차이 자체가 신호라서 세 기간을 모두 열로 싣는다.
 WINDOWS = (20, 50, 120)
 
-# 종목당 보관할 이웃 수. 후보는 여러 기준의 상위/하위를 합집합으로 모으므로
-# (어느 열로 정렬해도 한쪽 기준에 치우치지 않게) 실제 개수는 이보다 적을 수 있다.
-TOP_N = 30          # 테마 동행 후보 (잔차 상관 상위)
-BOTTOM_N = 15       # 헤지 후보 (원시 상관 하위)
-
-# 이웃 정원을 두 용도로 쪼개 둔다. 안 쪼개면 마지막에 잔차 내림차순으로 한 번
-# 자를 때 헤지 후보(음의 상관)가 전부 잘려 나간다 — 실제로 첫 스냅샷에서
-# 이웃이 꽉 찬 종목의 68%가 음의 상관 이웃을 하나도 갖지 못했다.
-HEDGE_SLOTS = 15    # 원시 상관 오름차순으로 따로 확보하는 자리
-
-# ETF 가 차지할 수 있는 자리의 상한. ETF 는 그 종목을 담고 있어 상관이 높은 게
-# 당연해서, 자리를 안 나누면 정원을 통째로 먹는다 — 유니버스 상한을 풀어 ETF 가
-# 105개에서 743개로 늘자 MU 의 이웃 60개 중 45개가 ETF 가 됐다(실제 종목 15개).
-# 몇 개는 남겨 둔다: SMH·SOXX 가 같이 뜨면 "섹터 전체가 움직였다"는 정보다.
-ETF_SLOTS = 10
-
-# 저장 포맷 — 파일이 커지지 않게 상관계수는 ×100 정수로, 티커는 인덱스로 쓴다.
-PAIR_SCHEMA = ["j"] + [f"raw{w}" for w in WINDOWS] + [f"res{w}" for w in WINDOWS]
+# 저장 포맷 — **상관이 아니라 수익률 행렬을 싣는다.**
+#
+# 예전엔 3,000종목 전부의 상관을 미리 구해 종목당 이웃 60개만 저장했다. 그러면
+# 파일이 5.0MB 인데 이웃은 60개뿐이고, 정원을 어떻게 나눌지(헤지 몇 자리, ETF
+# 몇 자리)를 계속 손보게 된다 — ETF 가 늘자 MU 의 이웃 60개 중 45개가 ETF 로
+# 차서 실제 종목이 15개만 남은 적도 있다.
+#
+# 원본을 그대로 실으면 그 문제가 통째로 사라진다. 120일 창이 최장이라 130일치면
+# 충분하고, 수익률을 int16(×10000)로 담으면 3,000종목이 0.8MB 다 — **미리 계산한
+# 답(5.0MB)보다 작은데 이웃은 3,026개 전부 나온다.** 티커 하나를 조회할 때 드는
+# 계산은 행 하나와 전체 행렬의 내적뿐이라(2.4M flops) 브라우저에서 수 밀리초다.
+RETURN_SCALE = 10000        # 수익률 → int16 (1 = 0.01%p)
+RETURN_NA = -32768          # 결측 표시(int16 최솟값)
+STORE_DAYS = max(WINDOWS) + 10
 META_SCHEMA = ["name", "sector", "industry", "beta_x100", "mcap_musd", "dvol_musd",
                "is_etf"]
 
@@ -123,14 +119,14 @@ def residualize(R, mkt, beta=None):
 def standardized(R, window=None, min_obs=None):
     """창 구간을 표준화한 행렬 Z 와, 그 창에서 값이 온전한 종목 마스크.
 
-    Z 를 만들어 두면 상관은 ``Z @ Z.T`` 한 번으로 끝난다 — 결측을 쌍마다 따지는
-    corr_matrix 는 중간 행렬을 9개 만들어 결과의 9배를 쓴다(3,000종목에서 660MB).
-    유동성 필터를 통과한 종목은 창 안에 결측이 거의 없으므로, 온전한 종목만
-    골라 이 빠른 길로 보내고 나머지는 그 창에서 값을 주지 않는다("그 기간
-    데이터가 온전한 종목만 그 기간 상관을 갖는다").
+    한 번 만들어 두면 **한 종목과 전체의 상관이 내적 하나**다 — ``Z @ Z[i]``.
+    화면이 티커를 바꿀 때마다 이걸 하므로 3,000종목이어도 수 밀리초다.
 
-    float32 를 쓴다 — 저장할 때 ×100 정수로 반올림하므로 소수 2자리면 충분하고,
-    메모리는 절반이다.
+    창 안에 결측이 하나라도 있는 종목은 그 창에서 값을 주지 않는다("그 기간
+    데이터가 온전한 종목만 그 기간 상관을 갖는다"). 유동성 필터를 통과한
+    종목은 결측이 거의 없다.
+
+    float32 를 쓴다 — 화면에 소수 2자리로 보여 주므로 충분하고 메모리는 절반이다.
     """
     import numpy as np
 
@@ -149,45 +145,6 @@ def standardized(R, window=None, min_obs=None):
         sd[sd == 0] = 1.0
         Z[ok_row] = (W / sd / np.sqrt(T)).astype(np.float32)
     return Z, ok_row
-
-
-def corr_rows(Z, ok_row, i, cols):
-    """종목 i 와 cols 들의 상관계수만. 행렬 전체를 만들지 않는다."""
-    import numpy as np
-
-    if not ok_row[i] or len(cols) == 0:
-        return np.full(len(cols), np.nan, dtype=np.float32)
-    v = Z[cols] @ Z[i]
-    return np.where(ok_row[cols], np.clip(v, -1.0, 1.0), np.nan)
-
-
-def corr_matrix(R, window=None, min_obs=None):
-    """행끼리의 상관계수 행렬. window 를 주면 마지막 window 일만 쓴다.
-
-    관측이 모자란 쌍(상장한 지 얼마 안 된 종목 등)은 NaN 으로 둔다 — 며칠치로
-    구한 0.98 은 의미가 없다.
-    """
-    import numpy as np
-
-    X = np.asarray(R, dtype=np.float64)
-    if window:
-        X = X[:, -window:]
-    T = X.shape[1]
-    need = min_obs if min_obs is not None else max(10, int(T * 0.8))
-
-    ok = np.isfinite(X)
-    Xz = np.where(ok, X, 0.0)
-    cnt = ok.astype(np.float64) @ ok.astype(np.float64).T      # 쌍별 공통 관측일수
-    with np.errstate(invalid="ignore", divide="ignore"):
-        s = Xz @ ok.T.astype(np.float64)                       # Σx over 공통일
-        ss = (Xz * Xz) @ ok.T.astype(np.float64)               # Σx² over 공통일
-        sxy = Xz @ Xz.T
-        cov = sxy / cnt - (s / cnt) * (s.T / cnt)
-        va = ss / cnt - (s / cnt) ** 2
-        den = np.sqrt(np.clip(va, 0, None) * np.clip(va.T, 0, None))
-        C = np.where(den > 0, cov / den, np.nan)
-    C[cnt < need] = np.nan
-    return np.clip(C, -1.0, 1.0)
 
 
 # ------------------------------------------------------------------ 뷰
@@ -218,8 +175,58 @@ def _meta_at(meta: list, j: int) -> list:
     return [m[k] if k < len(m) else blank[k] for k in range(len(META_SCHEMA))]
 
 
+def encode_returns(R, scale: int = RETURN_SCALE) -> str:
+    """수익률 행렬 → base64(int16). 결측은 RETURN_NA."""
+    import base64
+
+    import numpy as np
+
+    X = np.asarray(R, dtype=np.float64) * scale
+    lim = 32767
+    Q = np.where(np.isfinite(X), np.clip(np.round(X), -lim, lim), RETURN_NA)
+    return base64.b64encode(Q.astype("<i2").tobytes()).decode("ascii")
+
+
+def decode_returns(blob: str, rows: int, cols: int, scale: int = RETURN_SCALE):
+    """base64(int16) → 수익률 행렬(결측은 NaN)."""
+    import base64
+
+    import numpy as np
+
+    Q = np.frombuffer(base64.b64decode(blob), dtype="<i2")
+    if Q.size < rows * cols:
+        raise ValueError(f"수익률 행렬이 짧습니다: {Q.size} < {rows * cols}")
+    Q = Q[: rows * cols].reshape(rows, cols).astype(np.float64)
+    return np.where(Q == RETURN_NA, np.nan, Q / scale)
+
+
+def _matrices(data: dict):
+    """저장된 행렬을 펼쳐 (원시 R, 잔차 E) 를 돌려준다.
+
+    잔차 = 실제 − 베타 × 시장. 베타는 수집 때 1년치로 구해 메타에 실어 두었다 —
+    여기서 130일로 다시 구하면 값이 달라지므로 그대로 쓴다.
+    """
+    import numpy as np
+
+    tickers = data.get("tickers") or []
+    days = int(data.get("days") or 0)
+    scale = int(data.get("scale") or RETURN_SCALE)
+    R = decode_returns(data["returns"], len(tickers), days, scale)
+    mkt = decode_returns(data["market_returns"], 1, days, scale)[0]
+    mkt = np.where(np.isfinite(mkt), mkt, 0.0)
+    meta = data.get("meta") or []
+    beta = np.array([(_meta_at(meta, i)[3] or 0) / 100 for i in range(len(tickers))])
+    return R, R - beta[:, None] * mkt[None, :]
+
+
 def expand(data: dict, ticker: str) -> dict | None:
-    """저장된 압축 포맷을 화면/ API 가 쓰는 행 목록으로 편다."""
+    """한 종목과 **유니버스 전체**의 상관을 구해 행 목록으로 편다.
+
+    미리 계산해 둔 이웃을 찾아보는 게 아니라 지금 계산한다 — 행 하나와 전체
+    행렬의 내적이라 3,000종목이어도 수 밀리초다. 그래서 이웃 수 상한이 없다.
+    """
+    import numpy as np
+
     tickers = data.get("tickers") or []
     try:
         i = tickers.index(ticker.upper().strip())
@@ -227,37 +234,34 @@ def expand(data: dict, ticker: str) -> dict | None:
         return None
 
     meta = data.get("meta") or []
-    nb = (data.get("neighbors") or [])[i] if i < len(data.get("neighbors") or []) else []
+    windows = list(data.get("windows") or WINDOWS)
+    R, E = _matrices(data)
 
-    def row(j, name, sector, industry, beta, mcap, dvol, is_etf=0):
-        # is_etf 를 싣기 전 스냅샷도 산업명으로 알아본다. ETF 는 섹터가 전부
-        # Financial 로 붙어 나오므로 섹터 자리에는 "ETF" 를 쓴다.
+    corr: dict[str, object] = {}
+    for kind, M in (("raw", R), ("res", E)):
+        for w in windows:
+            Z, ok = standardized(M, window=w)
+            v = Z @ Z[i] if ok[i] else np.full(len(tickers), np.nan)
+            corr[f"{kind}{w}"] = np.where(ok, np.clip(v, -1.0, 1.0), np.nan)
+
+    def row(j):
+        name, sector, industry, beta, mcap, dvol, is_etf = _meta_at(meta, j)
         etf = bool(is_etf) or industry == "Exchange Traded Fund"
-        return {"ticker": tickers[j], "name": name,
-                "sector": "ETF" if etf else sector,
-                "industry": industry, "beta": (beta or 0) / 100,
-                "market_cap": (mcap or 0) * 1e6, "dollar_volume": (dvol or 0) * 1e6,
-                "is_etf": etf}
+        r = {"ticker": tickers[j], "name": name,
+             "sector": "ETF" if etf else sector, "industry": industry,
+             "beta": (beta or 0) / 100, "market_cap": (mcap or 0) * 1e6,
+             "dollar_volume": (dvol or 0) * 1e6, "is_etf": etf}
+        for key, vals in corr.items():
+            x = vals[j]
+            r[key] = None if not np.isfinite(x) else round(float(x), 4)
+        return r
 
-    out = []
-    for pair in nb:
-        j = pair[0]
-        if j >= len(tickers):
-            continue
-        m = _meta_at(meta, j)
-        r = row(j, *m)
-        n = len(WINDOWS)
-        for k, w in enumerate(WINDOWS):
-            r[f"raw{w}"] = None if pair[1 + k] is None else pair[1 + k] / 100
-            r[f"res{w}"] = None if pair[1 + n + k] is None else pair[1 + n + k] / 100
-        out.append(r)
-
-    self_meta = _meta_at(meta, i)
+    out = [row(j) for j in range(len(tickers)) if j != i]
     return {
         "ticker": tickers[i],
         "noise": data.get("noise") or {},
-        "self": row(i, *self_meta),
-        "windows": list(WINDOWS),
+        "self": row(i),
+        "windows": windows,
         "count": len(out),
         "rows": out,
     }
