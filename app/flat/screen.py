@@ -253,20 +253,38 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     records: list[dict] = []
     failures = 0
     insufficient = 0
+    nodata = 0
     demo = os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
+
+    # 일봉을 배치로 미리 받아 둔다. 아래 루프의 fetch_bars 는 그러면 캐시를
+    # 읽을 뿐이라 네트워크를 안 탄다(종목당 요청 1건 → 150건당 1건).
+    if not demo:
+        pre = basedata.prefetch([c["ticker"] for c in candidates], progress=progress)
+        if progress:
+            print(f"  일봉 배치 수신: {pre['fetched']}종목 수신, "
+                  f"{pre['cached']}종목 캐시 재사용, {pre['missing']}종목 미수신"
+                  f"{' (종목별로 다시 시도합니다)' if pre['missing'] else ''}")
+
     for i, cand in enumerate(candidates):
+        # 캐시에 있으면 네트워크를 안 타므로 예의상 대기도 필요 없다.
+        cached = demo or basedata.is_cached(cand["ticker"])
         try:
             bars = basedata.fetch_bars(cand["ticker"])
-            rec = _build_record(cand, bars, cfg, spy)
-            if rec is None:
-                pass
-            elif rec.get("_insufficient"):
-                insufficient += 1
+            if not (bars and bars.get("close")):
+                # 수신 자체가 안 된 것 — "상장한 지 얼마 안 돼 이력이 짧음"과
+                # 같은 칸에 넣으면 레이트 리밋에 맞아도 조용히 넘어간다.
+                nodata += 1
             else:
-                records.append(rec)
+                rec = _build_record(cand, bars, cfg, spy)
+                if rec is None:
+                    pass
+                elif rec.get("_insufficient"):
+                    insufficient += 1
+                else:
+                    records.append(rec)
         except Exception:
             failures += 1
-        if not demo:
+        if not cached:
             time.sleep(0.2)
         if progress and (i + 1) % 25 == 0:
             print(f"  ... {i + 1}/{len(candidates)} scanned, {len(records)} flat bases")
@@ -281,6 +299,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         "universe_size": len(candidates),
         "failures": failures,
         "insufficient": insufficient,
+        "nodata": nodata,
         "demo": demo,
         "market": "US",
         "stocks": records,

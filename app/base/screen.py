@@ -247,13 +247,32 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         dropped.append({"ticker": ticker, "reason": reason})
 
     demo = os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
+
+    # 일봉을 배치로 미리 받아 둔다. 아래 루프의 fetch_bars 는 그러면 캐시를
+    # 읽을 뿐이라 네트워크를 안 탄다(종목당 요청 1건 → 150건당 1건).
+    # 못 받은 종목은 캐시에 안 들어가므로 종목별 경로(재시도 + Stooq)를 탄다.
+    if not demo:
+        pre = data.prefetch([c["ticker"] for c in candidates], progress=progress)
+        if progress:
+            print(f"  일봉 배치 수신: {pre['fetched']}종목 수신, "
+                  f"{pre['cached']}종목 캐시 재사용, {pre['missing']}종목 미수신")
+
     for i, cand in enumerate(candidates):
+        # 캐시에 있으면 네트워크를 안 타므로 예의상 대기도 필요 없다.
+        cached = demo or data.is_cached(cand["ticker"])
         try:
             bars = data.fetch_bars(cand["ticker"])
         except Exception as e:
             failures += 1
             _drop(cand["ticker"], f"fetch_error:{type(e).__name__}")
-            if not demo:
+            if not cached:
+                time.sleep(0.2)
+            continue
+        if not bars or not bars.get("close"):
+            # 수신 실패를 따로 센다 — 기존엔 "데이터부족"에 섞여 레이트 리밋에
+            # 맞아도 결과만 조용히 줄었다.
+            _drop(cand["ticker"], "nodata")
+            if not cached:
                 time.sleep(0.2)
             continue
         try:
@@ -266,7 +285,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
             records.append(rec)
         elif reason:
             _drop(cand["ticker"], reason)
-        if not demo:
+        if not cached:
             time.sleep(0.2)   # be gentle with the data source
         if progress and (i + 1) % 25 == 0:
             print(f"  ... {i + 1}/{len(candidates)} scanned, {len(records)} kept")

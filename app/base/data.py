@@ -21,6 +21,14 @@ from .. import cache
 BARS_TTL = float(os.environ.get("SUH_DH_BASE_BARS_TTL", "1800"))
 DEFAULT_PERIOD = os.environ.get("SUH_DH_BASE_PERIOD", "2y")
 
+# 배치 수신 설정. yf.download 는 한 번에 여러 종목을 받아 오므로, 종목당 요청을
+# 보내는 fetch_bars 보다 훨씬 빠르고 요청 수가 적어 레이트 리밋에도 안전하다
+# (실측 종목당 0.081초 vs 0.350초, 요청 수 1/150). 값은 상관 수집기가 실전에서
+# 검증한 것과 같게 둔다 — 400개씩 쉬지 않고 붙였다가 YFRateLimitError 로
+# 수천 종목을 놓친 적이 있다.
+BATCH = 150
+BATCH_PAUSE = 2.0
+
 
 def _demo() -> bool:
     return os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
@@ -130,6 +138,128 @@ def _demo_bars(ticker: str, period: str = DEFAULT_PERIOD) -> dict:
     return {"ticker": ticker, "dates": dates, "open": o, "high": h, "low": l, "close": c, "volume": v}
 
 
+def _bars_key(ticker: str, period: str) -> str:
+    return f"basebars:{ticker}:{period}"
+
+
+def is_cached(ticker: str, period: str = DEFAULT_PERIOD) -> bool:
+    """이미 캐시에 있나 — 있으면 네트워크를 안 타므로 예의상 대기도 필요 없다."""
+    return cache.peek(_bars_key((ticker or "").upper().strip(), period), BARS_TTL) is not None
+
+
+def _store_bars(ticker: str, period: str, bars: dict) -> None:
+    """fetch_bars 와 같은 키로 캐시에 넣는다(빈 결과는 넣지 않는다)."""
+    cache.get_or_set(_bars_key(ticker, period), BARS_TTL, lambda: bars,
+                     cache_when=lambda d: bool(d and d.get("close")))
+
+
+def _batch_bars(chunk: list[str], period: str) -> dict[str, dict]:
+    """여러 종목을 요청 한 번으로 받아 {티커: fetch_bars 와 같은 모양} 으로 편다.
+
+    yf.download 는 종목이 여럿이면 열이 MultiIndex(필드, 티커)로 오고 하나면
+    평평하게 온다. 어느 쪽이든 df["Close"] 가 티커별 표(또는 Series)를 준다.
+    실패하면 빈 dict 를 돌려준다 — 부르는 쪽이 종목별 경로로 되돌아간다.
+    """
+    import pandas as pd
+    import yfinance as yf
+
+    try:
+        df = yf.download(chunk, period=period, interval="1d", auto_adjust=True,
+                         progress=False, threads=True)
+    except Exception:  # noqa: BLE001
+        return {}
+    if df is None or df.empty:
+        return {}
+
+    cols: dict[str, object] = {}
+    for f in ("Open", "High", "Low", "Close", "Volume"):
+        try:
+            x = df[f]
+        except Exception:  # noqa: BLE001
+            return {}
+        cols[f] = x.to_frame(chunk[0]) if isinstance(x, pd.Series) else x
+
+    out: dict[str, dict] = {}
+    close_df = cols["Close"]
+    for t in chunk:
+        if t not in getattr(close_df, "columns", []):
+            continue
+        c = close_df[t]
+        keep = c.notna()
+        if not keep.any():
+            continue
+        idx = c.index[keep]
+        cc = c[keep]
+
+        def at(field, fill):
+            frame = cols[field]
+            if t not in frame.columns:
+                return fill
+            return frame[t].reindex(idx).fillna(fill)
+
+        vol = at("Volume", 0)
+        out[t] = {
+            "ticker": t,
+            "dates": [d.strftime("%Y-%m-%d") for d in idx],
+            "open": [round(float(x), 4) for x in at("Open", cc)],
+            "high": [round(float(x), 4) for x in at("High", cc)],
+            "low": [round(float(x), 4) for x in at("Low", cc)],
+            "close": [round(float(x), 4) for x in cc],
+            "volume": [int(x) for x in (vol if hasattr(vol, "__iter__") else [0] * len(idx))],
+        }
+    return out
+
+
+def prefetch(tickers, period: str = DEFAULT_PERIOD, batch: int = BATCH,
+             pause: float = BATCH_PAUSE, rounds: int = 2, progress: bool = False) -> dict:
+    """종목 목록의 일봉을 배치로 미리 받아 캐시에 채운다.
+
+    fetch_bars 는 종목당 요청 1건이라 8,000종목이면 47분이 든다. 배치로 받으면
+    같은 양이 11분이다. 캐시 키가 fetch_bars 와 같으므로, 스캔 전에 이걸 한 번
+    돌려 두면 이후의 종목별 호출이 전부 캐시 히트가 된다 — **스크리너 코드는
+    바뀌지 않는다.**
+
+    못 받은 종목은 캐시에 넣지 않는다. 그 종목은 스캔 중에 기존 종목별 경로
+    (3회 재시도 + Stooq 폴백)를 그대로 타므로 안전망이 유지된다.
+    """
+    if _demo():
+        return {"requested": 0, "cached": 0, "fetched": 0, "missing": 0}
+
+    seen, want = set(), []
+    for t in tickers:
+        t = (t or "").upper().strip()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        if not is_cached(t, period):
+            want.append(t)
+
+    got, pending = 0, want
+    for rnd in range(max(1, rounds)):
+        if not pending:
+            break
+        wait = pause * (rnd + 1)
+        failed: list[str] = []
+        for i in range(0, len(pending), batch):
+            chunk = pending[i:i + batch]
+            bars = _batch_bars(chunk, period)
+            for t in chunk:
+                d = bars.get(t)
+                if d and d.get("close"):
+                    _store_bars(t, period, d)
+                    got += 1
+                else:
+                    failed.append(t)
+            time.sleep(wait)
+            if progress:
+                done = min(i + batch, len(pending))
+                print(f"    ... 배치 수신 {done}/{len(pending)} (누적 {got})", flush=True)
+        pending = failed
+
+    return {"requested": len(seen), "cached": len(seen) - len(want),
+            "fetched": got, "missing": len(pending)}
+
+
 def fetch_bars(ticker: str, period: str = DEFAULT_PERIOD, use_cache: bool = True) -> dict:
     """Adjusted daily OHLCV for one ticker (cached, with fallback source)."""
     ticker = ticker.upper().strip()
@@ -146,7 +276,7 @@ def fetch_bars(ticker: str, period: str = DEFAULT_PERIOD, use_cache: bool = True
         return producer()
     # Only cache non-empty results so a transient block is retried next time.
     return cache.get_or_set(
-        f"basebars:{ticker}:{period}", BARS_TTL, producer,
+        _bars_key(ticker, period), BARS_TTL, producer,
         cache_when=lambda d: bool(d and d.get("close")),
     )
 
