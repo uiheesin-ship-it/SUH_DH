@@ -345,16 +345,57 @@ $(".presets").addEventListener("click", (e) => {
   render();
 });
 
+// ---------- 유니버스 설명: 숫자를 스냅샷에서 읽어 채운다 ----------
+// 손으로 적어 두면 기준을 바꿨을 때 설명만 옛날 값으로 남는다.
+function fillUniverse() {
+  const box = $("#uni-funnel");
+  if (!box || !DATA) return;
+  const f = DATA.filters || {};
+  const kept = DATA.tickers.length;
+  const raw = DATA.universe_raw || null;
+  const etf = DATA.etf_included;
+  const num = (v) => Number(v).toLocaleString();
+  const dropped = raw ? raw - kept : null;
+
+  const step = (n, label, detail) => `
+    <tr><td>${esc(label)}</td><td>${n === null ? "—" : num(n)}</td>
+        <td>${detail}</td></tr>`;
+
+  box.innerHTML = `
+    <table class="logic-tbl">
+      <thead><tr><th>단계</th><th>남는 수</th><th>거르는 기준</th></tr></thead>
+      <tbody>
+        ${step(raw, "① 평평 유니버스", `가격 &gt; $1 · 시총 ≥ $300M · 일반주 +
+           ETF(레버리지·인버스 제외) · REIT 제외 · <b>이평선 조건 없음</b>`)}
+        ${step(kept, "② 유동성·이력", `가격 ≥ $${f.min_price ?? 5} ·
+           ${f.dollar_vol_window ?? 60}일 평균 거래대금 ≥ $${f.min_dollar_vol_musd ?? 10}M ·
+           관측 ≥ ${f.min_obs_days ?? 130}거래일`)}
+      </tbody>
+    </table>
+    <p class="modal-note">${dropped === null
+      ? "이 스냅샷에는 1차 후보 수가 기록돼 있지 않습니다(다음 수집부터 표시됩니다)."
+      : `2차에서 <b>${num(dropped)}종목</b>이 걸러졌습니다 — 대부분 거래대금이 모자라거나
+         상장한 지 얼마 안 돼 ${f.min_obs_days ?? 130}일치 이력이 없는 종목입니다.`}
+      최종 ${num(kept)}종목${etf ? ` 중 ETF 가 ${num(etf)}개` : ""}이고,
+      <b>이 전체가 표에 들어갑니다</b>(이웃 수 상한 없음).</p>`;
+}
+
 // ---------- 계산 로직 모달 ----------
 (function () {
-  const modal = $("#logic-modal");
-  if (!modal) return;
-  const close = () => modal.classList.add("hidden");
-  $("#logic-btn").addEventListener("click", () => modal.classList.remove("hidden"));
-  $("#logic-close").addEventListener("click", close);
-  // 바깥을 누르거나 Esc 로도 닫는다.
-  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  for (const [btn, id, before] of [["#logic-btn", "#logic-modal", null],
+                                   ["#uni-btn", "#uni-modal", fillUniverse]]) {
+    const modal = $(id), open = $(btn);
+    if (!modal || !open) continue;
+    const close = () => modal.classList.add("hidden");
+    open.addEventListener("click", () => {
+      if (before) before();
+      modal.classList.remove("hidden");
+    });
+    modal.querySelector(".close").addEventListener("click", close);
+    // 바깥을 누르거나 Esc 로도 닫는다.
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  }
 })();
 
 // ---------- 로드 ----------

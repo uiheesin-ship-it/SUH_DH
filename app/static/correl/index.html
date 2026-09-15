@@ -27,6 +27,8 @@
         <button id="go">찾기</button>
         <button id="logic-btn" class="logic-btn"
                 title="동행 점수 · 잔차 · 원시 상관을 어떻게 구하는지 보기">📐 계산 로직</button>
+        <button id="uni-btn" class="logic-btn"
+                title="어떤 종목이 대상이고 무엇이 걸러지는지 보기">🗂 유니버스</button>
         <div class="presets">
           <button class="preset" data-preset="theme">테마 동행</button>
           <button class="preset" data-preset="hedge">헤지 후보</button>
@@ -60,6 +62,60 @@
     <button id="more" class="more hidden"></button>
     <div id="empty" class="loading"></div>
   </main>
+
+  <!-- 유니버스 설명 -->
+  <div id="uni-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2>어떤 종목이 대상인가</h2>
+        <button id="uni-close" class="close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-note">아래 숫자는 지금 화면이 쓰고 있는 스냅샷에서 그대로 읽은
+          값입니다 — 기준을 바꾸면 설명도 같이 바뀝니다.</p>
+
+        <h3>모집단은 <b>평평 스크리너의 유니버스</b>입니다</h3>
+        <p>이 저장소가 이미 정의해 둔 "거래할 만한 미국 주식" 목록을 빌려 씁니다.
+          <b>평평 스크리너의 <u>결과</u>가 아니라 <u>후보 목록</u></b>이라는 점이
+          중요합니다 — 평평한 바닥인지 아닌지는 상관 분석과 무관하므로 따지지 않습니다.</p>
+        <table class="logic-tbl text">
+          <thead><tr><th>왜 평평 쪽인가</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><b>이평선 조건이 없음</b></td>
+              <td>평평 유니버스는 "평평한 바닥은 어디에나 있을 수 있다"는 전제라 50·200일선
+                조건을 안 겁니다. 그래서 <b>상승·하락 종목이 모두</b> 들어옵니다.</td></tr>
+            <tr><td><b>베이스 쪽은 안 되는 이유</b></td>
+              <td>베이스 스크리너의 Finviz 질의에는 <b>정배열 조건(50·200일선 위)</b>이
+                들어 있습니다. 그걸 쓰면 하락 중인 종목이 통째로 빠져
+                <b>헤지 후보(음의 상관)를 찾을 수 없습니다.</b></td></tr>
+            <tr><td><b>합집합은?</b></td>
+              <td>베이스·턴어라운드 유니버스는 평평의 부분집합에 가깝습니다
+                (실측 평평 7,927 / 셋 합집합 8,014). 넓혀도 거의 안 늘어납니다.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>걸러지는 순서</h3>
+        <div id="uni-funnel"></div>
+        <p class="modal-note">1차는 평평 스크리너의 정의를 그대로 따르고, 2차는 상관
+          분석에 필요한 <b>유동성·이력</b>만 봅니다. 거래 없는 잡주를 안 걸러내면
+          우연한 상관으로 상위권에 뜹니다.</p>
+
+        <h3>후보 수 상한은 없습니다</h3>
+        <p>평평 스크리너 자체는 후보를 3,000종목으로 <b>솎아냅니다</b> — 시총 구간이
+          고르게 남도록 정렬 후 일정 간격으로 버리는 방식이라, 구간 안의 어떤 종목이
+          빠질지는 사실상 임의입니다. 스크리너는 "쓸 만한 표본"만 있으면 되니 괜찮지만
+          <b>상관 분석에서는 찾는 바로 그 종목이 조용히 없을 수 있습니다</b> —
+          실제로 APPS(시총 $1.4B, 거래대금 $29M)가 기준을 다 넘고도 그렇게 빠졌습니다.
+          그래서 수집기는 상한을 풀고 가져옵니다.</p>
+
+        <h3>시세는 따로 받습니다</h3>
+        <p class="modal-note">유니버스 <b>목록만</b> 평평 쪽에서 빌려 오고, 가격은 상관
+          수집기가 직접 받습니다(별도 워크플로라 스크리너의 캐시를 공유할 수 없습니다).
+          그래서 평평 스크리너가 언제 돌았는지와 무관하게 상관 데이터는 자체 기준일을
+          가집니다.</p>
+      </div>
+    </div>
+  </div>
 
   <!-- 계산 로직 설명 -->
   <div id="logic-modal" class="modal-overlay hidden">
