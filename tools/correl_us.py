@@ -426,7 +426,12 @@ def main() -> None:
         "asof": str(close.index[-1].date()),
         "market": MARKET,
         "period": PERIOD,
+        # 화면의 "유니버스" 설명이 이 숫자들을 그대로 읽는다 — 문서에 손으로 적어
+        # 두면 기준을 바꿨을 때 설명만 옛날 값으로 남는다.
         "universe_source": "flat-screener",   # 이평선 조건 없는 목록(상관 분석용)
+        "universe_raw": len(syms),            # 유동성 필터 전 후보 수
+        "filters": {"min_price": MIN_PRICE, "min_dollar_vol_musd": min_dv,
+                    "min_obs_days": MIN_OBS, "dollar_vol_window": 60},
         "noise": noise,                       # 창별 "우연으로도 나오는" 상관 수준
         "etf_included": sum(1 for t in keep if meta_src.get(t, {}).get("is_etf")),
         "windows": list(WINDOWS),
