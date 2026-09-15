@@ -3,14 +3,21 @@
 const $ = (s) => document.querySelector(s);
 const STATIC = !!window.SUH_DH_STATIC;
 
-// 저장 포맷은 압축돼 있다(티커는 인덱스, 상관은 ×100 정수, 메타는 배열).
-// 파일 하나로 유니버스 전체를 들고 있으면 티커를 바꿀 때 네트워크가 필요 없다.
-let DATA = null;          // {tickers, meta, neighbors, windows, ...}
+// 파일에는 상관이 아니라 **수익률 행렬**이 들어 있다(int16 ×10000, base64).
+// 상관은 여기서 계산한다 — 행 하나와 전체 행렬의 내적이라 3,000종목이어도
+// 수 밀리초다. 그래서 이웃 수 상한이 없다: 유니버스 전체가 표에 들어온다.
+let DATA = null;          // {tickers, meta, returns, market_returns, ...}
 let WINDOWS = [20, 50, 120];
-let ROWS = [];            // 현재 선택 종목의 이웃 행들
+let PREP = null;          // {Z: {"res50": Float32Array, ...}, ok: {...}, n, cols}
+let ROWS = [];            // 현재 선택 종목 대비 유니버스 전체
 let SELF = null;
 let NOISE = {};           // {창: 우연으로도 나오는 상관 수준}
 let sortKey = "resmin", sortDir = -1;
+
+// 표는 정렬·필터를 통과한 위에서부터 이만큼씩 그린다. 계산은 전부 하지만
+// 3,000행 × 14열을 한 번에 DOM 에 넣으면 브라우저가 버벅인다.
+const RENDER_STEP = 300;
+let shown = RENDER_STEP;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -68,30 +75,111 @@ function aboveNoise(r) {
 }
 
 // ---------- 데이터 ----------
+// base64(int16) → Float32Array. 결측(-32768)은 NaN 으로 편다.
+function decodeReturns(b64, rows, cols, scale) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const q = new Int16Array(bytes.buffer, 0, rows * cols);
+  const out = new Float32Array(rows * cols);
+  for (let i = 0; i < out.length; i++) out[i] = q[i] === -32768 ? NaN : q[i] / scale;
+  return out;
+}
+
+// 마지막 win 일을 표준화해 둔다. 그러면 상관은 내적 한 번이다(Z·Z[i]).
+function standardize(M, n, cols, win) {
+  const Z = new Float32Array(n * win);
+  const ok = new Uint8Array(n);
+  const off = cols - win;
+  for (let i = 0; i < n; i++) {
+    let sum = 0, bad = false;
+    for (let t = 0; t < win; t++) {
+      const v = M[i * cols + off + t];
+      if (!isFinite(v)) { bad = true; break; }
+      sum += v;
+    }
+    if (bad) continue;
+    const mean = sum / win;
+    let ss = 0;
+    for (let t = 0; t < win; t++) { const d = M[i * cols + off + t] - mean; ss += d * d; }
+    const sd = Math.sqrt(ss / win) || 1;
+    const k = sd * Math.sqrt(win);
+    for (let t = 0; t < win; t++) Z[i * win + t] = (M[i * cols + off + t] - mean) / k;
+    ok[i] = 1;
+  }
+  return { Z, ok };
+}
+
+// 파일을 받은 직후 한 번만: 수익률 → 잔차 → 창별 표준화.
+function prepare(raw) {
+  const n = raw.tickers.length;
+  const cols = raw.days;
+  const scale = raw.scale || 10000;
+  const R = decodeReturns(raw.returns, n, cols, scale);
+  const mkt = decodeReturns(raw.market_returns, 1, cols, scale);
+  for (let t = 0; t < cols; t++) if (!isFinite(mkt[t])) mkt[t] = 0;
+
+  // 잔차 = 실제 − 베타 × 시장. 베타는 수집 때 1년치로 구한 값을 그대로 쓴다.
+  const E = new Float32Array(n * cols);
+  for (let i = 0; i < n; i++) {
+    const beta = ((raw.meta[i] || [])[3] || 0) / 100;
+    for (let t = 0; t < cols; t++) E[i * cols + t] = R[i * cols + t] - beta * mkt[t];
+  }
+
+  const Z = {}, ok = {};
+  for (const [kind, M] of [["raw", R], ["res", E]]) {
+    for (const w of WINDOWS) {
+      const s = standardize(M, n, cols, w);
+      Z[kind + w] = s.Z; ok[kind + w] = s.ok;
+    }
+  }
+  return { Z, ok, n, cols };
+}
+
+// 선택한 종목과 유니버스 전체의 상관. 이웃을 고르지 않는다 — 전부 준다.
 function expand(ticker) {
   const i = DATA.tickers.indexOf(ticker);
-  if (i < 0) return null;
-  const n = WINDOWS.length;
-  const meta = (j) => DATA.meta[j] || ["", "", "", 0, 0, 0];
+  if (i < 0 || !PREP) return null;
+  const { Z, ok, n } = PREP;
+
+  const corr = {};
+  for (const kind of ["raw", "res"]) {
+    for (const w of WINDOWS) {
+      const key = kind + w, zz = Z[key], okk = ok[key];
+      const out = new Float32Array(n).fill(NaN);
+      if (okk[i]) {
+        const base = i * w;
+        for (let j = 0; j < n; j++) {
+          if (!okk[j]) continue;
+          let acc = 0;
+          for (let t = 0; t < w; t++) acc += zz[j * w + t] * zz[base + t];
+          out[j] = Math.max(-1, Math.min(1, acc));
+        }
+      }
+      corr[key] = out;
+    }
+  }
+
+  const meta = (j) => DATA.meta[j] || ["", "", "", 0, 0, 0, 0];
   const base = (j) => {
     const m = meta(j);
-    // is_etf 를 싣기 전 스냅샷도 산업명으로 알아본다(재수집 전에도 필터가 먹게).
+    // is_etf 를 싣기 전 스냅샷도 산업명으로 알아본다.
     const etf = !!m[6] || m[2] === "Exchange Traded Fund";
-    return { ticker: DATA.tickers[j], name: m[0],
-             // ETF 는 섹터가 전부 Financial 로 붙어 나와 섹터 필터를 망친다.
-             sector: etf ? "ETF" : (m[1] || "—"), industry: m[2] || "—",
-             beta: (m[3] || 0) / 100, market_cap: (m[4] || 0), dollar_volume: (m[5] || 0),
-             isEtf: etf };
-  };
-  const rows = (DATA.neighbors[i] || []).map((p) => {
-    const r = base(p[0]);
-    WINDOWS.forEach((w, k) => {
-      r[`raw${w}`] = p[1 + k] === null ? null : p[1 + k] / 100;
-      r[`res${w}`] = p[1 + n + k] === null ? null : p[1 + n + k] / 100;
-    });
+    const r = { ticker: DATA.tickers[j], name: m[0],
+                // ETF 는 섹터가 전부 Financial 로 붙어 나와 섹터 필터를 망친다.
+                sector: etf ? "ETF" : (m[1] || "—"), industry: m[2] || "—",
+                beta: (m[3] || 0) / 100, market_cap: (m[4] || 0),
+                dollar_volume: (m[5] || 0), isEtf: etf };
+    for (const key of Object.keys(corr)) {
+      const v = corr[key][j];
+      r[key] = isFinite(v) ? v : null;
+    }
     r.resmin = comoveScore(r);
     return r;
-  });
+  };
+
+  const rows = [];
+  for (let j = 0; j < n; j++) if (j !== i) rows.push(base(j));
   return { self: base(i), rows };
 }
 
@@ -106,7 +194,7 @@ function select(ticker) {
     render();
     return;
   }
-  SELF = got.self; ROWS = got.rows;
+  SELF = got.self; ROWS = got.rows; shown = RENDER_STEP;
   $("#q").value = SELF.ticker;
   $("#self").innerHTML = `
     <div class="self-card">
@@ -163,7 +251,8 @@ function filtered() {
 }
 
 // ---------- 그리기 ----------
-function render() {
+function render(keepShown) {
+  if (!keepShown) shown = RENDER_STEP;
   const cols = columns();
   $("#thead").innerHTML = cols.map((c) =>
     `<th class="${c.cls}${c.key === sortKey ? " on" : ""}" data-key="${c.key}">
@@ -171,11 +260,12 @@ function render() {
      </th>`).join("");
 
   const rows = filtered();
+  const view = rows.slice(0, shown);
   $("#f-count").textContent = ROWS.length ? `${rows.length} / ${ROWS.length}종목` : "";
   const lines = WINDOWS.map((w) => NOISE[String(w)] ? `${w}일 ±${NOISE[String(w)].toFixed(2)}` : null)
     .filter(Boolean);
   $("#f-noise").textContent = lines.length ? `잡음선 ${lines.join(" · ")}` : "";
-  $("#tbody").innerHTML = rows.map((r) => `<tr>${cols.map((c) => {
+  $("#tbody").innerHTML = view.map((r) => `<tr>${cols.map((c) => {
     const v = r[c.key];
     if (c.key === "ticker")
       return `<td class="t"><a href="#" data-go="${esc(v)}">${esc(v)}</a>${
@@ -187,6 +277,10 @@ function render() {
     return `<td class="${c.cls}" style="${corrStyle(v, c.win)}">${fmtCorr(v)}</td>`;
   }).join("")}</tr>`).join("");
 
+  // 계산은 전부 하고 그리기만 끊는다 — 3,000행을 한 번에 DOM 에 넣으면 버벅인다.
+  const rest = rows.length - view.length;
+  $("#more").classList.toggle("hidden", rest <= 0);
+  if (rest > 0) $("#more").textContent = `${rest.toLocaleString()}개 더 보기`;
   $("#empty").textContent = !SELF ? "티커를 입력하세요."
     : rows.length ? "" : "조건에 맞는 종목이 없습니다. 필터를 풀어 보세요.";
 }
@@ -223,6 +317,7 @@ document.addEventListener("click", (e) => {
   }
   if (!e.target.closest(".search")) $("#suggest").classList.add("hidden");
 });
+$("#more").addEventListener("click", () => { shown += RENDER_STEP; render(true); });
 $("#thead").addEventListener("click", (e) => {
   const th = e.target.closest("th[data-key]");
   if (!th) return;
@@ -276,10 +371,14 @@ async function load() {
     DATA = raw;
     WINDOWS = raw.windows || WINDOWS;
     NOISE = raw.noise || {};
+    const t0 = performance.now();
+    PREP = prepare(raw);
+    console.info(`correl: ${raw.tickers.length}종목 × ${raw.days}일 준비 ` +
+                 `${(performance.now() - t0).toFixed(0)}ms`);
     $("#demo-badge").classList.toggle("hidden", !raw.demo);
     const when = raw.updated ? new Date(raw.updated).toLocaleString("ko-KR") : "";
     $("#status").textContent =
-      `${raw.tickers.length.toLocaleString()}종목 · 기준일 ${raw.asof || "—"} · 갱신 ${when}`;
+      `${raw.tickers.length.toLocaleString()}종목 전체와 비교 · 기준일 ${raw.asof || "—"} · 갱신 ${when}`;
     let last = null;
     try { last = localStorage.getItem("suh_correl_last"); } catch (_) { /* 무시 */ }
     const initial = new URLSearchParams(location.search).get("t") || last;

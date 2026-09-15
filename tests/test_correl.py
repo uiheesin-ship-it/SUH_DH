@@ -83,37 +83,16 @@ def test_residual_has_no_market_component_left():
         assert abs(np.corrcoef(row, mkt)[0, 1]) < 1e-8
 
 
-# ---------------------------------------------------------------- 상관행렬
-def test_corr_matrix_matches_numpy():
-    X = np.random.default_rng(3).normal(0, 1, (6, 200))
-    assert correl.corr_matrix(X) == pytest.approx(np.corrcoef(X), abs=1e-9)
-
-
-def test_corr_matrix_window_uses_only_recent_days():
-    """창을 줄이면 옛날 구간은 안 봐야 한다 — 앞뒤 관계가 정반대인 데이터로 확인."""
-    a = np.concatenate([np.linspace(-1, 1, 100), np.linspace(-1, 1, 100)])
-    b = np.concatenate([np.linspace(1, -1, 100), np.linspace(-1, 1, 100)])
-    X = np.vstack([a, b])
-    assert correl.corr_matrix(X, window=100)[0, 1] == pytest.approx(1.0, abs=1e-6)
-    assert correl.corr_matrix(X)[0, 1] < 0.6      # 전체 구간은 앞쪽이 상쇄한다
-
-
-def test_corr_matrix_nans_out_thin_pairs():
-    """관측이 며칠뿐인 쌍은 값을 주면 안 된다 — 5일치로 구한 0.98 은 의미가 없다."""
-    X = np.random.default_rng(4).normal(0, 1, (3, 200))
-    X[0, :195] = np.nan
-    C = correl.corr_matrix(X, min_obs=50)
-    assert np.isnan(C[0, 1]) and np.isnan(C[0, 2])
-    assert np.isfinite(C[1, 2])
-
-
-def test_corr_matrix_stays_in_range():
-    X = np.random.default_rng(5).normal(0, 1, (8, 60))
-    C = correl.corr_matrix(X)
-    assert np.nanmin(C) >= -1.0 and np.nanmax(C) <= 1.0
-
-
 # ------------------------------------------- 핵심 주장: 잔차가 테마를 고른다
+def corr_all(M, window=None):
+    """실제 코드가 쓰는 경로로 상관행렬을 만든다(standardized + 내적)."""
+    Z, ok = correl.standardized(M, window=window or M.shape[1])
+    C = np.asarray(Z @ Z.T, dtype=np.float64)
+    C[~ok, :] = np.nan
+    C[:, ~ok] = np.nan
+    return np.clip(C, -1.0, 1.0)
+
+
 def _theme_world(seed=7, T=260):
     """시장 + 테마 + 고유잡음으로 이루어진 합성 시장.
 
@@ -140,14 +119,14 @@ def _theme_world(seed=7, T=260):
 def test_raw_correlation_lets_high_beta_strangers_in():
     """원시 상관에서는 테마 무관 고베타 종목도 꽤 높게 나온다(= 이 페이지의 문제의식)."""
     R, _ = _theme_world()
-    C = correl.corr_matrix(R)
+    C = corr_all(R)
     assert C[0, 3] > 0.2, "고베타 무관 종목이 원시로는 무시 못 할 상관을 갖는다"
 
 
 def test_residual_correlation_ranks_theme_mates_first():
     R, mkt = _theme_world()
     E = correl.residualize(R, mkt)
-    C = correl.corr_matrix(E)
+    C = corr_all(E)
     order = np.argsort(-np.where(np.arange(5) == 0, -9, C[0]))
     assert set(order[:2]) == {1, 2}, f"잔차 상위 2개가 테마 동료가 아니다: {order[:3]}"
     # 무관 종목은 잔차에서 0 부근으로 내려앉는다.
@@ -162,96 +141,12 @@ def test_residual_widens_the_gap_between_theme_mates_and_strangers():
     무관 종목 중 가장 높은 값의 차이가 벌어져야 정렬했을 때 섞이지 않는다.
     """
     R, mkt = _theme_world()
-    raw = correl.corr_matrix(R)
-    res = correl.corr_matrix(correl.residualize(R, mkt))
+    raw = corr_all(R)
+    res = corr_all(correl.residualize(R, mkt))
 
     gap = lambda C: min(C[0, 1], C[0, 2]) - max(C[0, 3], C[0, 4])
     assert gap(res) > gap(raw) + 0.15, (
         f"잔차가 테마/무관을 더 벌려 주지 못했다 (원시 {gap(raw):.2f}, 잔차 {gap(res):.2f})")
-
-
-# ------------------------------------------------------------ 이웃 추리기
-def test_build_pairs_shape_and_self_exclusion():
-    cu = load_builder()
-    R, mkt = _theme_world(seed=9, T=300)
-    E = correl.residualize(R, mkt)
-    pairs = cu.build_pairs(["A", "B", "C", "D", "E"], R, E)
-
-    assert len(pairs) == 5
-    for i, row in enumerate(pairs):
-        assert all(p[0] != i for p in row), "자기 자신은 이웃에 들어가면 안 된다"
-        for p in row:
-            assert len(p) == 1 + 2 * len(correl.WINDOWS)   # [j] + 원시3 + 잔차3
-            for v in p[1:]:
-                assert v is None or -100 <= v <= 100        # ×100 정수로 저장
-
-
-def test_build_pairs_orders_theme_mates_first():
-    cu = load_builder()
-    R, mkt = _theme_world(seed=11, T=300)
-    pairs = cu.build_pairs(list("ABCDE"), R, correl.residualize(R, mkt))
-    assert {p[0] for p in pairs[0][:2]} == {1, 2}
-
-
-def _crowded_world(seed=21, N=300, T=260):
-    """주인공 하나 + 진짜 테마 동료 4 + 정반대 1 + 무관한 잡음 다수.
-
-    무관한 종목을 많이 깔아 두는 게 핵심이다 — 한 기간만 보고 고르면 그중
-    누군가가 우연히 상위권에 앉는다(실제 스냅샷에서 NVDA 의 50일 잔차 상위가
-    유조선·석유주로 찼다). 세 기간을 모두 요구하면 그 우연이 걸러져야 한다.
-    """
-    rng = np.random.default_rng(seed)
-    mkt = rng.normal(0, 0.01, T)
-    theme = rng.normal(0, 0.012, T)
-    rows = [1.5 * mkt + 1.0 * theme + rng.normal(0, 0.008, T)]
-    rows += [1.2 * mkt + 0.9 * theme + rng.normal(0, 0.012, T) for _ in range(4)]
-    rows += [-1.2 * mkt - 0.9 * theme + rng.normal(0, 0.008, T)]
-    rows += [rng.normal(0, 0.02, T) for _ in range(N - 6)]
-    return np.vstack(rows), mkt
-
-
-def test_neighbors_reserve_room_for_hedges():
-    """동행 후보가 넘쳐도 헤지 자리는 남아 있어야 한다.
-
-    첫 스냅샷은 후보를 잔차 내림차순으로 한 번에 잘라서, 이웃이 꽉 찬 종목의
-    68%가 음의 상관 이웃을 하나도 갖지 못했다 — 헤지 탭이 통째로 죽은 셈이다.
-    """
-    cu = load_builder()
-    R, mkt = _crowded_world()
-    pairs = cu.build_pairs([f"T{i}" for i in range(len(R))], R,
-                           correl.residualize(R, mkt))
-    row = pairs[0]
-    assert len(row) == cu.MAX_NEIGHBORS
-    negatives = [p for p in row if p[2] is not None and p[2] < 0]
-    assert negatives, "동행 후보에 밀려 음의 상관 이웃이 전부 잘렸다"
-    assert 5 in {p[0] for p in row}, "정반대로 움직이는 종목이 헤지 자리에 없다"
-
-
-def test_theme_mates_beat_lucky_strangers_across_windows():
-    """세 기간 잔차의 최솟값(동행 점수)으로 줄을 세우면 진짜 동료가 위로 온다.
-
-    상위권이 무관한 종목에게 넘어가지 않는 것이 요점이다. 대신 세 기간 중
-    하나라도 흔들린 동료는 같이 내려간다(엄격한 기준의 대가) — 그 종목은
-    화면에서 해당 기간 열로 정렬하면 여전히 찾을 수 있다.
-    """
-    cu = load_builder()
-    MATES = {1, 2, 3, 4}
-    R, mkt = _crowded_world()
-    pairs = cu.build_pairs([f"T{i}" for i in range(len(R))], R,
-                           correl.residualize(R, mkt))
-
-    def score(p):
-        v = p[4:4 + len(correl.WINDOWS)]
-        return -999 if any(x is None for x in v) else min(v)
-
-    ranked = sorted(pairs[0], key=score, reverse=True)
-    top3 = {p[0] for p in ranked[:3]}
-    assert top3 <= MATES, f"상위권에 무관한 종목 {top3 - MATES} 가 끼었다"
-
-    # 남은 무관한 종목 중 가장 운 좋은 것보다, 살아남은 동료가 확실히 위에 있어야.
-    best_stranger = max(score(p) for p in pairs[0] if p[0] not in MATES)
-    assert min(score(p) for p in ranked[:3]) > best_stranger + 20, (
-        f"동료와 무관한 종목의 간격이 너무 좁다 (무관 최고 {best_stranger})")
 
 
 def _sector_world(seed=3, N=600, T=260, n_sectors=4):
@@ -308,19 +203,6 @@ def test_meta_row_survives_an_old_snapshot_without_etf_flag():
     assert got[:6] == old and got[6] == 0
 
 
-def test_build_pairs_keeps_hedge_candidates():
-    """음의 상관(헤지 후보)도 이웃에 남아야 정렬로 찾을 수 있다."""
-    cu = load_builder()
-    rng = np.random.default_rng(13)
-    T = 300
-    base = rng.normal(0, 0.02, T)
-    R = np.vstack([base, -base + rng.normal(0, 0.002, T)] +
-                  [rng.normal(0, 0.02, T) for _ in range(4)])
-    mkt = np.zeros(T)
-    pairs = cu.build_pairs(list("ABCDEF"), R, R)
-    assert 1 in {p[0] for p in pairs[0]}, "정반대로 움직이는 종목이 빠졌다"
-
-
 # ---------------------------------------------------------------- 유동성
 def test_liquid_columns_filters_thin_and_cheap_names():
     cu = load_builder()
@@ -356,19 +238,6 @@ def snapshot(tmp_path, monkeypatch):
     return path
 
 
-def test_expand_reads_the_compact_format(snapshot):
-    v = correl.get_correl("aaa")          # 소문자도 받아야 한다
-    assert v["ticker"] == "AAA" and v["count"] == 2
-    first = v["rows"][0]
-    assert first["ticker"] == "BBB" and first["sector"] == "Utilities"
-    assert first["raw20"] == pytest.approx(0.70)
-    assert first["res120"] == pytest.approx(0.45)
-    assert first["beta"] == pytest.approx(0.80)
-    assert first["market_cap"] == pytest.approx(12000e6)
-    # 헤지 후보(음수)도 그대로 실린다.
-    assert v["rows"][1]["raw20"] == pytest.approx(-0.30)
-
-
 def test_unknown_ticker_is_a_clear_message(snapshot):
     v = correl.get_correl("ZZZZ")
     assert v["rows"] == [] and "유니버스" in v["error"]
@@ -392,15 +261,6 @@ def test_corrupt_file_is_not_an_exception(tmp_path, monkeypatch):
 def test_universe_lists_tickers_and_names(snapshot):
     u = correl.get_universe()
     assert u["count"] == 3 and u["tickers"][0] == "AAA" and u["names"][1] == "B Inc"
-
-
-def test_schema_matches_window_count():
-    """저장 포맷의 열 수와 WINDOWS 가 어긋나면 화면이 조용히 엉뚱한 값을 읽는다."""
-    assert correl.PAIR_SCHEMA == ["j", "raw20", "raw50", "raw120",
-                                  "res20", "res50", "res120"]
-    assert len(correl.PAIR_SCHEMA) == 1 + 2 * len(correl.WINDOWS)
-    assert len(correl.META_SCHEMA) == 7
-    assert correl.META_SCHEMA[-1] == "is_etf"
 
 
 # ------------------------------------------- 반쪽 스냅샷 방지 (레이트 리밋)
@@ -436,78 +296,6 @@ def test_batch_settings_stay_conservative():
     cu = load_builder()
     assert cu.BATCH <= 200, "Yahoo 레이트 리밋에 걸린 크기(400)로 되돌아갔다"
     assert cu.BATCH_SLEEP > 0 and cu.RETRY_ROUNDS >= 2
-
-
-# --------------------------------------------- 메모리 경로 (standardized)
-# 쌍마다 결측을 따지는 corr_matrix 는 중간 행렬을 9개 만들어 결과의 9배를 쓴다
-# (3,000종목에서 660MB). 창별로 표준화해 두면 상관이 Z@Z.T 한 번이라 37MB 다.
-# 값이 어긋나면 화면 숫자가 조용히 달라지므로 두 경로가 같은지 고정한다.
-def test_standardized_path_matches_corrcoef():
-    X = np.random.default_rng(21).normal(0, 1, (40, 200))
-    Z, ok = correl.standardized(X, window=120)
-    assert ok.all()
-    assert (Z @ Z.T) == pytest.approx(np.corrcoef(X[:, -120:]), abs=1e-4)
-
-
-def test_standardized_excludes_rows_with_gaps_in_the_window():
-    """창 안에 결측이 있는 종목은 그 창에서 값을 주지 않는다."""
-    X = np.random.default_rng(22).normal(0, 1, (5, 200))
-    X[2, -5] = np.nan
-    Z, ok = correl.standardized(X, window=120)
-    assert ok[0] and not ok[2]
-    v = correl.corr_rows(Z, ok, 0, np.array([1, 2, 3]))
-    assert np.isfinite(v[0]) and np.isnan(v[1]) and np.isfinite(v[2])
-
-
-def test_corr_rows_needs_no_full_matrix():
-    """후보가 정해진 뒤에는 행렬 없이 필요한 쌍만 구한다 — 값은 같아야 한다."""
-    X = np.random.default_rng(23).normal(0, 1, (30, 200))
-    Z, ok = correl.standardized(X, window=60)
-    full = Z @ Z.T
-    cols = np.array([3, 7, 11])
-    assert correl.corr_rows(Z, ok, 5, cols) == pytest.approx(full[5, cols], abs=1e-5)
-
-
-def test_build_pairs_survives_a_single_missing_day():
-    """하루 결측으로 이웃이 통째로 사라지면 안 된다.
-
-    실측에서 T0 의 최근 창에 하루 NaN 을 넣었더니 이웃이 60개 → 0개가 됐다.
-    수집기는 가격 단계에서 ffill 로 메우지만, 그래도 결측이 남은 종목이 다른
-    종목들의 이웃 목록까지 망가뜨리지는 않아야 한다.
-    """
-    cu = load_builder()
-    rng = np.random.default_rng(24)
-    N, T = 40, 200
-    mkt = rng.normal(0, 0.01, T)
-    theme = rng.normal(0, 0.015, T)
-    R = np.vstack([rng.uniform(.5, 1.5) * mkt + (0.9 if i < 10 else 0.0) * theme
-                   + rng.normal(0, 0.012, T) for i in range(N)])
-    R[0, -7] = np.nan                      # 0번만 최근 창에 구멍
-    pairs = cu.build_pairs([f"T{i}" for i in range(N)], R, correl.residualize(R, mkt))
-    assert len(pairs) == N
-    # 0번은 그 창에서 빠질 수 있어도, 나머지는 정상적으로 이웃을 갖는다.
-    assert all(len(pairs[i]) > 0 for i in range(1, N))
-
-
-def test_etf_rows_are_labelled_even_in_an_old_snapshot():
-    """ETF 는 섹터가 전부 Financial 로 붙어 나온다 — 섹터 자리를 ETF 로 바꿔 준다.
-
-    성장주 ETF 는 그 종목 자체를 담고 있어 상관이 높은 게 당연하다(테마 동료가
-    아니라 자기 자신이다). 첫 스냅샷에서 NVDA 의 잔차 상위 3개가 전부 ETF 였다.
-    """
-    data = {
-        "tickers": ["NVDA", "FBCG"],
-        # FBCG 는 is_etf 칸이 없던 옛 포맷 — 산업명으로 알아봐야 한다.
-        "meta": [["NVIDIA Corp", "Technology", "Semiconductors", 192, 5122890, 27677],
-                 ["Fidelity Blue Chip Growth ETF", "Financial",
-                  "Exchange Traded Fund", 150, 0, 36]],
-        "neighbors": [[[1, 71, 71, 71, 60, 60, 60]], [[0, 71, 71, 71, 60, 60, 60]]],
-    }
-    view = correl.expand(data, "NVDA")
-    assert view["rows"][0]["is_etf"] is True
-    assert view["rows"][0]["sector"] == "ETF"
-    assert view["self"]["is_etf"] is False
-    assert view["self"]["sector"] == "Technology"
 
 
 # ------------------------------------------- 유니버스에서 종목이 조용히 빠지는 문제
@@ -583,34 +371,144 @@ def _etf_heavy_world(seed=4, N=300, T=260, n_mates=6, n_etf=40):
     return np.vstack(rows), mkt, is_etf, set(range(1, 1 + n_mates))
 
 
-def test_etfs_do_not_eat_the_neighbour_budget():
-    cu = load_builder()
-    R, mkt, is_etf, mates = _etf_heavy_world()
-    E = correl.residualize(R, mkt)
-    row = cu.build_pairs([f"T{i}" for i in range(len(R))], R, E, is_etf=is_etf)[0]
 
-    js = [p[0] for p in row]
-    n_etf = sum(1 for j in js if is_etf[j])
-    assert len(row) == cu.MAX_NEIGHBORS, "ETF 를 걸러내느라 정원이 비었다"
-    assert n_etf <= correl.ETF_SLOTS, f"ETF 가 {n_etf}자리를 먹었다"
-    assert len(js) - n_etf >= cu.MAX_NEIGHBORS - correl.ETF_SLOTS
+# =================================================== 수익률 행렬 저장 포맷
+# 예전엔 상관을 미리 구해 종목당 이웃 60개만 저장했다. 그러면 파일이 5.0MB 인데
+# 이웃은 60개뿐이고, 정원을 헤지·ETF 로 어떻게 나눌지 계속 손보게 된다 — ETF 가
+# 늘자 MU 의 이웃 60개 중 45개가 ETF 로 차서 실제 종목이 15개만 남은 적도 있다.
+# 지금은 원본(수익률 130일치, int16)을 싣고 상관은 조회할 때 계산한다: 0.8MB 에
+# 이웃은 전부. 아래 테스트는 그 포맷과 계산이 맞는지를 본다.
+def _snapshot(R, mkt, is_etf=None, industries=None):
+    """합성 수익률로 실제와 같은 모양의 스냅샷을 만든다."""
+    beta = correl.market_betas(R, mkt)
+    days = min(correl.STORE_DAYS, R.shape[1])
+    n = len(R)
+    return {
+        "tickers": [f"T{i}" for i in range(n)],
+        "meta": [["회사" + str(i),
+                  "Technology",
+                  (industries[i] if industries else "Semis"),
+                  int(round(beta[i] * 100)), 1000, 50,
+                  int(bool(is_etf[i])) if is_etf else 0] for i in range(n)],
+        "windows": list(correl.WINDOWS),
+        "days": days, "scale": correl.RETURN_SCALE,
+        "market_returns": correl.encode_returns(mkt[None, -days:]),
+        "returns": correl.encode_returns(R[:, -days:]),
+    }
 
 
-def test_real_theme_mates_survive_an_etf_flood():
-    """ETF 홍수 속에서도 진짜 동료가 이웃에 남아야 한다.
+def test_returns_round_trip_keeps_gaps_and_clips_extremes():
+    R = np.array([[0.01, -0.02, np.nan, 3.0, -9.9]])
+    back = correl.decode_returns(correl.encode_returns(R), 1, 5)
+    assert back[0, 0] == pytest.approx(0.01)
+    assert back[0, 1] == pytest.approx(-0.02)
+    assert np.isnan(back[0, 2]), "결측이 0으로 바뀌면 그 날 '안 움직였다'가 된다"
+    # int16 은 ±3.2767 까지만 담는다. 잘리더라도 결측(NaN)이 되면 안 된다.
+    assert np.isfinite(back[0, 3]) and np.isfinite(back[0, 4])
 
-    정원을 마지막에 자를 때만 걸면 안 된다 — 후보를 모으는 단계에서 이미 상위
-    30개가 전부 ETF 라, 진짜 동료는 **후보에도 못 들어** 자를 것 자체가 없다.
-    이 테스트는 후보 수집도 ETF 와 실제 종목을 나눠 뽑는지를 본다.
+
+def test_every_ticker_in_the_universe_is_a_neighbour():
+    """이웃 수 상한이 없다 — 유니버스 전체가 표에 들어온다."""
+    rng = np.random.default_rng(2)
+    R = rng.normal(0, 0.02, (120, 150))
+    view = correl.expand(_snapshot(R, rng.normal(0, 0.01, 150)), "T0")
+    assert view["count"] == len(R) - 1, "이웃이 잘렸다"
+    assert all(r["ticker"] != "T0" for r in view["rows"]), "자기 자신이 들어갔다"
+
+
+def test_correlations_match_numpy():
+    """저장·복원·표준화를 거친 값이 numpy 상관과 같아야 한다(양자화 오차 안)."""
+    rng = np.random.default_rng(3)
+    mkt = rng.normal(0, 0.01, 150)
+    R = np.vstack([1.2 * mkt + rng.normal(0, 0.012, 150) for _ in range(40)])
+    view = correl.expand(_snapshot(R, mkt), "T0")
+    got = {r["ticker"]: r["raw50"] for r in view["rows"]}
+
+    X = R[:, -50:]
+    Xc = X - X.mean(axis=1, keepdims=True)
+    truth = (Xc @ Xc[0]) / np.sqrt((Xc ** 2).sum(axis=1) * (Xc[0] ** 2).sum())
+    worst = max(abs(got[f"T{j}"] - truth[j]) for j in range(1, len(R)))
+    # 화면은 소수 2자리로 보여 준다 — 그보다 훨씬 작아야 한다.
+    assert worst < 0.005, f"양자화 오차가 표시 자릿수를 흔든다: {worst}"
+
+
+def test_residual_uses_the_stored_beta():
+    """베타는 수집 때 1년치로 구한 값을 쓴다 — 130일로 다시 구하면 답이 달라진다."""
+    rng = np.random.default_rng(5)
+    mkt = rng.normal(0, 0.01, 150)
+    R = np.vstack([2.0 * mkt + rng.normal(0, 0.005, 150) for _ in range(30)])
+    snap = _snapshot(R, mkt)
+    real_beta = snap["meta"][0][3]
+    assert real_beta > 150, f"이 세계의 베타는 2에 가까워야 한다: {real_beta / 100}"
+
+    # 잔차 상관은 **양쪽** 베타에 달려 있다. 두 종목의 베타를 0 으로 두면
+    # 잔차 = 원시가 되어야 한다 — 저장된 값을 쓰고 있다는 증거다.
+    snap["meta"][0][3] = snap["meta"][1][3] = 0
+    row = next(r for r in correl.expand(snap, "T0")["rows"] if r["ticker"] == "T1")
+    assert abs(row["res50"] - row["raw50"]) < 1e-6, (
+        "베타 0 인데 잔차가 원시와 다르다 — 저장된 베타를 안 쓰고 계산하고 있다")
+
+    # 반대로 진짜 베타를 되돌리면 시장 성분이 빠져 상관이 눈에 띄게 낮아진다.
+    snap["meta"][0][3] = snap["meta"][1][3] = real_beta
+    row2 = next(r for r in correl.expand(snap, "T0")["rows"] if r["ticker"] == "T1")
+    assert row2["res50"] < row2["raw50"] - 0.3, (row2["res50"], row2["raw50"])
+
+
+def test_hedge_candidates_need_no_reserved_slots():
+    """정반대로 움직이는 종목이 그냥 들어 있다 — 자리를 따로 뗄 이유가 없다."""
+    rng = np.random.default_rng(7)
+    base = rng.normal(0, 0.02, 150)
+    R = np.vstack([base, -base + rng.normal(0, 0.002, 150)]
+                  + [rng.normal(0, 0.02, 150) for _ in range(50)])
+    view = correl.expand(_snapshot(R, np.zeros(150)), "T0")
+    opposite = next(r for r in view["rows"] if r["ticker"] == "T1")
+    assert opposite["raw50"] < -0.8, opposite["raw50"]
+
+
+def test_an_etf_flood_cannot_crowd_out_real_mates():
+    """ETF 가 아무리 많아도 진짜 동료가 밀려나지 않는다 — 정원이 없으니까.
+
+    이웃 60개 시절엔 ETF 743개가 늘자 MU 의 자리 45개를 먹어 실제 종목이 15개만
+    남았다. 정원과 후보 수집을 ETF/실제 종목으로 나눠 막아야 했던 문제다.
     """
-    cu = load_builder()
-    R, mkt, is_etf, mates = _etf_heavy_world()
-    E = correl.residualize(R, mkt)
-    names = [f"T{i}" for i in range(len(R))]
+    rng = np.random.default_rng(11)
+    mkt = rng.normal(0, 0.01, 150)
+    theme = rng.normal(0, 0.012, 150)
+    hero = 1.5 * mkt + theme + rng.normal(0, 0.008, 150)
+    mates = [1.2 * mkt + 0.9 * theme + rng.normal(0, 0.012, 150) for _ in range(6)]
+    etfs = [0.9 * hero + rng.normal(0, 0.004, 150) for _ in range(200)]
+    R = np.vstack([hero] + mates + etfs)
+    is_etf = [0] * 7 + [1] * 200
 
-    without = {p[0] for p in cu.build_pairs(names, R, E, is_etf=None)[0]}
-    with_cap = {p[0] for p in cu.build_pairs(names, R, E, is_etf=is_etf)[0]}
+    view = correl.expand(_snapshot(R, mkt, is_etf=is_etf), "T0")
+    names = {r["ticker"] for r in view["rows"]}
+    assert {f"T{i}" for i in range(1, 7)} <= names, "진짜 동료가 빠졌다"
+    # 화면의 "ETF 제외" 체크를 흉내 내면 동료가 상위를 차지해야 한다.
+    stocks = sorted((r for r in view["rows"] if not r["is_etf"]),
+                    key=lambda r: -(r["res50"] or -9))
+    assert {r["ticker"] for r in stocks[:6]} == {f"T{i}" for i in range(1, 7)}
 
-    assert mates <= with_cap, f"진짜 동료 {sorted(mates - with_cap)} 가 빠졌다"
-    assert len(mates & without) < len(mates), (
-        "ETF 를 구분하지 않아도 동료가 다 남는다면 이 세계가 문제를 재현하지 못한 것")
+
+def test_a_gap_in_the_window_yields_none_not_a_crash():
+    """창 안에 결측이 있는 종목은 그 창에서 값을 안 준다. 남은 종목은 멀쩡해야."""
+    rng = np.random.default_rng(13)
+    R = rng.normal(0, 0.02, (30, 150))
+    R[1, -5] = np.nan                      # T1 만 최근 20일 안에 구멍
+    view = correl.expand(_snapshot(R, rng.normal(0, 0.01, 150)), "T0")
+    holed = next(r for r in view["rows"] if r["ticker"] == "T1")
+    assert holed["raw20"] is None and holed["raw120"] is None
+    other = next(r for r in view["rows"] if r["ticker"] == "T2")
+    assert other["raw20"] is not None and other["raw120"] is not None
+
+
+def test_etf_rows_are_labelled_even_without_the_flag():
+    """is_etf 를 싣기 전 스냅샷도 산업명으로 알아본다(섹터가 Financial 로 붙는다)."""
+    rng = np.random.default_rng(17)
+    R = rng.normal(0, 0.02, (5, 150))
+    snap = _snapshot(R, rng.normal(0, 0.01, 150),
+                     industries=["Semis", "Exchange Traded Fund"] + ["Semis"] * 3)
+    snap["meta"][1] = snap["meta"][1][:6]          # 구 포맷(6칸)
+    view = correl.expand(snap, "T0")
+    etf = next(r for r in view["rows"] if r["ticker"] == "T1")
+    assert etf["is_etf"] is True and etf["sector"] == "ETF"
+    assert view["self"]["is_etf"] is False
