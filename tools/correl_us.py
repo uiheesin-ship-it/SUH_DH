@@ -51,7 +51,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.correl import (  # noqa: E402
-    BOTTOM_N, HEDGE_SLOTS, META_SCHEMA, PAIR_SCHEMA, TOP_N, WINDOWS,
+    BOTTOM_N, ETF_SLOTS, HEDGE_SLOTS, META_SCHEMA, PAIR_SCHEMA, TOP_N, WINDOWS,
     corr_rows, daily_returns, market_betas, residualize, standardized,
 )
 
@@ -277,7 +277,7 @@ def _specs():
     return [("raw", w) for w in WINDOWS] + [("res", w) for w in WINDOWS]
 
 
-def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
+def build_pairs(tickers, R, E, is_etf=None, max_neighbors: int = MAX_NEIGHBORS):
     """종목별 이웃 목록. 반환: [[ [j, raw…, res…], … ], …] (티커 순서와 동일)
 
     후보를 한 기준으로만 뽑으면 다른 열로 정렬할 때 편향이 생긴다. 그래서 6개
@@ -288,6 +288,11 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
       헤지 자리를 따로 뺀다 — 잔차 내림차순으로 한 번에 자르면 애써 모은 음의
       상관 후보가 전부 잘린다(첫 스냅샷에서 이웃이 꽉 찬 종목의 68%가 음의 상관
       이웃을 하나도 갖지 못했다). 동행 자리와 헤지 자리를 나눠 각각 채운다.
+
+      ETF 자리도 따로 뺀다 — ETF 는 그 종목을 담고 있어 상관이 높은 게 당연해서
+      자리를 안 나누면 정원을 통째로 먹는다. 유니버스 상한을 풀어 ETF 가 105개
+      에서 743개로 늘자 MU 의 이웃 60개 중 45개가 ETF 가 됐다(실제 종목 15개).
+      ETF_SLOTS 개까지만 받고 나머지는 실제 종목에 준다.
 
       동행 자리는 **세 기간의 잔차 상관 중 최솟값**으로 자른다. 2,200종목 중
       한 기간만 보고 고르면 상위권이 우연으로 채워진다 — 50일 상관의 표준오차가
@@ -306,6 +311,8 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
 
     n = len(tickers)
     mid_w = 50 if 50 in WINDOWS else WINDOWS[len(WINDOWS) // 2]
+    etf_mask = (np.zeros(n, dtype=bool) if is_etf is None
+                else np.asarray(is_etf, dtype=bool))
 
     # 창별 표준화 행렬은 작다(N×window float32) — 전부 들고 있어도 된다.
     Zs = {(kind, w): standardized(R if kind == "raw" else E, window=w)
@@ -321,17 +328,28 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
         np.fill_diagonal(M, np.nan)
         for i in range(n):
             row = M[i]
+            # ETF 를 따로 뽑는다. 섞어서 상위를 고르면 ETF 가 후보를 통째로 먹어
+            # **진짜 동료가 애초에 후보에도 못 든다** — 그 종목을 담은 ETF 는
+            # 상관이 0.9를 넘는 게 당연해서 상위 30개가 전부 ETF 로 찬다.
+            # 정원(ETF_SLOTS)은 마지막에 자를 때도 걸지만, 여기서 안 나누면
+            # 자를 후보 자체가 ETF 뿐이라 소용이 없다.
+            stock_row = np.where(etf_mask, np.nan, row)
+            etf_row = np.where(etf_mask, row, np.nan)
             if kind == "res":
-                cand[i].update(_top_idx(row, TOP_N))          # 테마 동행 후보
+                cand[i].update(_top_idx(stock_row, TOP_N))        # 테마 동행 후보
+                cand[i].update(_top_idx(etf_row, ETF_SLOTS))
             else:
-                cand[i].update(_top_idx(row, TOP_N // 2))     # 같이 움직이는 종목
-                cand[i].update(_top_idx(-row, BOTTOM_N))      # 헤지 후보(음의 상관)
+                cand[i].update(_top_idx(stock_row, TOP_N // 2))   # 같이 움직이는 종목
+                cand[i].update(_top_idx(etf_row, ETF_SLOTS // 2))
+                cand[i].update(_top_idx(-stock_row, BOTTOM_N))    # 헤지 후보(음의 상관)
+                cand[i].update(_top_idx(-etf_row, BOTTOM_N // 2))
         del M
         gc.collect()
 
     # --- 후보 자르기: 동행 자리와 헤지 자리를 따로 채운다 -------------------
     hedge_slots = min(HEDGE_SLOTS, max_neighbors // 2)
     theme_slots = max_neighbors - hedge_slots
+    etf_cap = min(ETF_SLOTS, max_neighbors)
     Zraw, okraw = Zs[("raw", mid_w)]
     keep: list[list[int]] = []
     for i in range(n):
@@ -342,24 +360,39 @@ def build_pairs(tickers, R, E, max_neighbors: int = MAX_NEIGHBORS):
             keep.append([])
             continue
 
+        chosen: list[int] = []
+        taken: set[int] = set()
+        n_etf = 0
+
+        def take(j: int) -> bool:
+            """ETF 정원을 지키며 한 자리 채운다. 채웠으면 True."""
+            nonlocal n_etf
+            if j in taken:
+                return False
+            if etf_mask[j]:
+                if n_etf >= etf_cap:
+                    return False
+                n_etf += 1
+            chosen.append(j)
+            taken.add(j)
+            return True
+
         # 동행 점수 = 세 기간 잔차 상관의 최솟값(한 기간이라도 없으면 탈락).
         score = np.full(len(cols), np.inf, dtype=np.float64)
         for w in WINDOWS:
             Zw, okw = Zs[("res", w)]
             score = np.minimum(score, corr_rows(Zw, okw, i, cols).astype(np.float64))
-        theme = np.argsort(-np.where(np.isfinite(score), score, -9.0))[:theme_slots]
+        for k in np.argsort(-np.where(np.isfinite(score), score, -9.0)):
+            if len(chosen) >= theme_slots:
+                break
+            take(int(cols[k]))
 
-        chosen = [int(cols[k]) for k in theme]
-        taken = set(chosen)
         # 헤지는 실제 손익이 상쇄돼야 하므로 원시 상관 오름차순으로 고른다.
         hv = corr_rows(Zraw, okraw, i, cols)
         for k in np.argsort(np.where(np.isfinite(hv), hv, 9.0)):
             if len(chosen) >= max_neighbors:
                 break
-            j = int(cols[k])
-            if j not in taken:
-                chosen.append(j)
-                taken.add(j)
+            take(int(cols[k]))
         keep.append(chosen)
     del cand
     gc.collect()
@@ -515,7 +548,8 @@ def main() -> None:
     log("상관 계산 중 ...")
     beta = market_betas(R, mkt)
     E = residualize(R, mkt, beta)
-    pairs = build_pairs(keep, R, E)
+    etf_flags = [bool(meta_src.get(t, {}).get("is_etf")) for t in keep]
+    pairs = build_pairs(keep, R, E, is_etf=etf_flags)
 
     # 잡음선 — 이 값 아래는 우연으로도 나온다. 화면에서 흐리게 표시한다.
     noise = {}
