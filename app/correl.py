@@ -57,6 +57,12 @@ BOTTOM_N = 15       # 헤지 후보 (원시 상관 하위)
 # 이웃이 꽉 찬 종목의 68%가 음의 상관 이웃을 하나도 갖지 못했다.
 HEDGE_SLOTS = 15    # 원시 상관 오름차순으로 따로 확보하는 자리
 
+# ETF 가 차지할 수 있는 자리의 상한. ETF 는 그 종목을 담고 있어 상관이 높은 게
+# 당연해서, 자리를 안 나누면 정원을 통째로 먹는다 — 유니버스 상한을 풀어 ETF 가
+# 105개에서 743개로 늘자 MU 의 이웃 60개 중 45개가 ETF 가 됐다(실제 종목 15개).
+# 몇 개는 남겨 둔다: SMH·SOXX 가 같이 뜨면 "섹터 전체가 움직였다"는 정보다.
+ETF_SLOTS = 10
+
 # 저장 포맷 — 파일이 커지지 않게 상관계수는 ×100 정수로, 티커는 인덱스로 쓴다.
 PAIR_SCHEMA = ["j"] + [f"raw{w}" for w in WINDOWS] + [f"res{w}" for w in WINDOWS]
 META_SCHEMA = ["name", "sector", "industry", "beta_x100", "mcap_musd", "dvol_musd",

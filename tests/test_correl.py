@@ -561,3 +561,56 @@ def test_flat_and_turnaround_scan_the_whole_universe():
     assert flat["max_etf_candidates"] == 0
     assert turn_cfg.load()["universe"]["max_candidates"] == 0, (
         "턴어라운드 유니버스가 다시 솎아내고 있다")
+
+
+# ------------------------------------------------- ETF 가 이웃 정원을 먹는 문제
+def _etf_heavy_world(seed=4, N=300, T=260, n_mates=6, n_etf=40):
+    """주인공 + 진짜 동료 몇 + **그 주인공을 담은 ETF** 잔뜩 + 잡음.
+
+    ETF 는 주인공 지분을 들고 있어 상관이 0.9를 넘는 게 당연하다. 실제 스냅샷도
+    이렇게 생겼다 — 유니버스 상한을 풀어 ETF 가 105개에서 743개로 늘자 MU 의
+    이웃 60개 중 45개가 ETF 가 됐다(실제 종목 15개).
+    """
+    rng = np.random.default_rng(seed)
+    mkt = rng.normal(0, 0.01, T)
+    theme = rng.normal(0, 0.012, T)
+    hero = 1.5 * mkt + 1.0 * theme + rng.normal(0, 0.008, T)
+    rows = [hero]
+    rows += [1.2 * mkt + 0.9 * theme + rng.normal(0, 0.012, T) for _ in range(n_mates)]
+    rows += [0.9 * hero + rng.normal(0, 0.004, T) for _ in range(n_etf)]
+    rows += [rng.normal(0, 0.02, T) for _ in range(N - 1 - n_mates - n_etf)]
+    is_etf = [False] * (1 + n_mates) + [True] * n_etf + [False] * (N - 1 - n_mates - n_etf)
+    return np.vstack(rows), mkt, is_etf, set(range(1, 1 + n_mates))
+
+
+def test_etfs_do_not_eat_the_neighbour_budget():
+    cu = load_builder()
+    R, mkt, is_etf, mates = _etf_heavy_world()
+    E = correl.residualize(R, mkt)
+    row = cu.build_pairs([f"T{i}" for i in range(len(R))], R, E, is_etf=is_etf)[0]
+
+    js = [p[0] for p in row]
+    n_etf = sum(1 for j in js if is_etf[j])
+    assert len(row) == cu.MAX_NEIGHBORS, "ETF 를 걸러내느라 정원이 비었다"
+    assert n_etf <= correl.ETF_SLOTS, f"ETF 가 {n_etf}자리를 먹었다"
+    assert len(js) - n_etf >= cu.MAX_NEIGHBORS - correl.ETF_SLOTS
+
+
+def test_real_theme_mates_survive_an_etf_flood():
+    """ETF 홍수 속에서도 진짜 동료가 이웃에 남아야 한다.
+
+    정원을 마지막에 자를 때만 걸면 안 된다 — 후보를 모으는 단계에서 이미 상위
+    30개가 전부 ETF 라, 진짜 동료는 **후보에도 못 들어** 자를 것 자체가 없다.
+    이 테스트는 후보 수집도 ETF 와 실제 종목을 나눠 뽑는지를 본다.
+    """
+    cu = load_builder()
+    R, mkt, is_etf, mates = _etf_heavy_world()
+    E = correl.residualize(R, mkt)
+    names = [f"T{i}" for i in range(len(R))]
+
+    without = {p[0] for p in cu.build_pairs(names, R, E, is_etf=None)[0]}
+    with_cap = {p[0] for p in cu.build_pairs(names, R, E, is_etf=is_etf)[0]}
+
+    assert mates <= with_cap, f"진짜 동료 {sorted(mates - with_cap)} 가 빠졌다"
+    assert len(mates & without) < len(mates), (
+        "ETF 를 구분하지 않아도 동료가 다 남는다면 이 세계가 문제를 재현하지 못한 것")
