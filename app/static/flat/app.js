@@ -60,7 +60,10 @@ async function load() {
     render();
     const when = STATIC ? (data.built ? new Date(data.built).toLocaleString("ko-KR") : "최근")
                         : new Date().toLocaleTimeString("ko-KR");
-    const extra = data.insufficient ? ` · 데이터부족 ${data.insufficient}` : "";
+    // 데이터부족(이력이 짧음)과 수신실패는 원인이 다르다 — 섞어 놓으면 레이트
+    // 리밋에 맞아 결과가 줄어도 "신규 상장이 많았나 보다"로 넘어가게 된다.
+    const extra = (data.insufficient ? ` · 데이터부족 ${data.insufficient}` : "")
+      + (data.nodata ? ` · 수신실패 ${data.nodata}` : "");
     $("#status").textContent =
       `${data.count}개 평평 베이스 (유니버스 ${data.universe_size}${extra}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
   } catch (e) {

@@ -61,7 +61,12 @@ async function load() {
     fillSectors();
     render();
     const built = data.built ? new Date(data.built).toLocaleString("ko-KR") : "-";
-    $("#status").textContent = `${data.count}종목 · 유니버스 ${data.universe_size} · ${built}`;
+    // 수신실패는 따로 보여 준다 — 데이터부족(이력 짧음)과 원인이 다르고,
+    // 섞어 두면 레이트 리밋에 맞아 결과가 줄어도 눈치채지 못한다.
+    const extra = (data.insufficient ? ` · 데이터부족 ${data.insufficient}` : "")
+      + (data.nodata ? ` · 수신실패 ${data.nodata}` : "");
+    $("#status").textContent =
+      `${data.count}종목 · 유니버스 ${data.universe_size}${extra} · ${built}`;
   } catch (e) {
     renderError("데이터를 불러오지 못했습니다.", String(e));
   }

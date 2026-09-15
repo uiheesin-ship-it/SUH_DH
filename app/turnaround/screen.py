@@ -295,20 +295,33 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     records: list[dict] = []
     failures = 0
     insufficient = 0
+    nodata = 0
     demo = _demo()
+
+    # 일봉을 배치로 미리 받아 둔다(평평 쪽 주석 참고).
+    if not demo:
+        pre = basedata.prefetch([c["ticker"] for c in candidates], progress=progress)
+        if progress:
+            print(f"  일봉 배치 수신: {pre['fetched']}종목 수신, "
+                  f"{pre['cached']}종목 캐시 재사용, {pre['missing']}종목 미수신")
+
     for i, cand in enumerate(candidates):
+        cached = demo or basedata.is_cached(cand["ticker"])
         try:
             bars = _fetch_bars(cand["ticker"])
-            rec = _build_record(cand, bars, cfg, spy)
-            if rec is None:
-                pass
-            elif rec.get("_insufficient"):
-                insufficient += 1
+            if not (bars and bars.get("close")):
+                nodata += 1          # 수신 실패. "이력 짧음"과 섞으면 안 된다
             else:
-                records.append(rec)
+                rec = _build_record(cand, bars, cfg, spy)
+                if rec is None:
+                    pass
+                elif rec.get("_insufficient"):
+                    insufficient += 1
+                else:
+                    records.append(rec)
         except Exception:
             failures += 1
-        if not demo:
+        if not cached:
             time.sleep(0.2)
         if progress and (i + 1) % 25 == 0:
             print(f"  ... {i + 1}/{len(candidates)} scanned, {len(records)} bottom bases")
@@ -323,6 +336,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         "universe_size": len(candidates),
         "failures": failures,
         "insufficient": insufficient,
+        "nodata": nodata,
         "demo": demo,
         "market": "US",
         "stocks": records,
