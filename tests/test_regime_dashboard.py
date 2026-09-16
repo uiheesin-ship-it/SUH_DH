@@ -61,11 +61,23 @@ def test_landing_page_embeds_instead_of_telling_users_to_run_locally(client):
     assert 'id="overlay"' in body                                  # 로딩(깨우는 중) 표시
 
     js = client.get("/regime/app.js").text
-    assert "SUH_DH_REGIME_URL" in js                               # 빌드 때 심는 기본 주소
+    assert "SUH_DH_REGIME_URL" in js                               # 저장소/빌드 기본 주소
     assert "localStorage" in js                                    # 브라우저에 기억
     assert "?embed=true" in js                                     # Streamlit 임베드 모드
     cfg = client.get("/regime/config.js").text
     assert "window.SUH_DH_REGIME_URL" in cfg
+
+
+def test_local_backend_wins_over_the_default_remote_url(client):
+    """로컬 대시보드에서는 콜드 스타트 없는 자체 인스턴스를 먼저 쓴다.
+
+    사용자가 직접 지정한 주소(?app= / localStorage)만 그보다 우선한다.
+    """
+    js = client.get("/regime/app.js").text
+    chosen = js.index("const chosen = chosenRemote();")
+    local = js.index("const local = await localBackend();", chosen)
+    fallback = js.index("const fallback = defaultRemote();", chosen)
+    assert chosen < local < fallback
 
 
 def test_status_endpoint_reports_capability(client):
