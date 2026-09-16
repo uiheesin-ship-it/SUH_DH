@@ -130,6 +130,7 @@ table.data td:first-child, table.data th:first-child { text-align: left; }
 .note.ok { border-color: #14532d; background: rgba(20, 83, 45, .35); }
 .note.warn { border-color: #78350f; background: rgba(120, 53, 15, .35); }
 .note.fail { border-color: #7f1d1d; background: rgba(127, 29, 29, .35); }
+.note.info { border-color: #1e3a5f; background: rgba(30, 58, 95, .35); }
 ul.method { font-size: 13px; line-height: 1.8; padding-left: 18px; }
 
 .overlay {

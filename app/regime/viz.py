@@ -84,16 +84,22 @@ def price_chart(market, fs, table: pd.DataFrame, horizons, *, shade_horizon: int
     if table is not None and not table.empty:
         idx = pd.DatetimeIndex(px.index)
         span = int(shade_horizon)
+        # match 이후 horizon 구간을 통째로 음영 처리 — "그 다음에 무슨 일이
+        # 있었나"를 차트에서 바로 보게 한다. add_vrect 를 한 번씩 부르면 호출마다
+        # subplot 축을 다시 훑어서 25개에 0.3초가 넘는다(무료 인스턴스에서는 몇 초).
+        # 같은 shape 를 모아서 한 번에 넣는다 — 그림은 완전히 동일하다.
+        shades = []
         for date in table.index:
             try:
                 start_pos = int(idx.get_loc(date))
             except KeyError:
                 continue
             end = idx[min(len(idx) - 1, start_pos + span)]
-            # match 이후 horizon 구간을 통째로 음영 처리 — "그 다음에 무슨 일이
-            # 있었나"를 차트에서 바로 보게 한다.
-            fig.add_vrect(x0=date, x1=end, fillcolor=SHADE_COLOR, line_width=0,
-                          layer="below", row=1, col=1)
+            shades.append(dict(type="rect", xref="x", yref="y domain",
+                               x0=date, x1=end, y0=0, y1=1,
+                               fillcolor=SHADE_COLOR, line_width=0, layer="below"))
+        if shades:
+            fig.update_layout(shapes=tuple(fig.layout.shapes) + tuple(shades))
         fig.add_trace(go.Scatter(
             x=table.index, y=table["close"], mode="markers", name="Historical match",
             marker=dict(color=MATCH_COLOR, size=8, symbol="diamond",

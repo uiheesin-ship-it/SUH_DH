@@ -5,5 +5,5 @@
 // 공개 URL 이라 비밀값이 아닙니다. 주소가 대시보드 백엔드가 맞는지는 페이지가
 // /api/health 로 확인하고, 아니면 무엇이 잘못됐는지 화면에 알려 줍니다.
 window.SUH_DH_STATIC = false;
-window.SUH_DH_REGIME_API_DEFAULT = "https://suh-dh-regime.onrender.com";
+window.SUH_DH_REGIME_API_DEFAULT = "https://suh-dh.onrender.com";
 window.SUH_DH_API_BASE = "";

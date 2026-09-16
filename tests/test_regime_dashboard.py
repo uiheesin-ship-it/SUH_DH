@@ -11,9 +11,11 @@ Run with:  python -m pytest tests/test_regime_dashboard.py -q
 
 import io
 import os
+import re
 from dataclasses import replace
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
@@ -329,9 +331,60 @@ def test_frontend_verifies_the_backend_url():
     """엉뚱한 주소(예: 옛 Streamlit 서비스)를 넣으면 화면이 먼저 알려 준다."""
     js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
     assert "SUH_DH_REGIME_API_DEFAULT" in js                 # 기본값 폴백
-    assert "probeBackend" in js and '"/api/health"' in js
-    assert 'status !== "ok"' in js                            # 응답 내용까지 확인
+    assert "wakeBackend" in js and '"/api/health"' in js
+    assert 'status === "ok"' in js                            # 응답 내용까지 확인
     assert "#backend-setup" in js                             # 실패하면 주소 입력창을 연다
+    # 살아 있는 다른 서비스(404/405)는 기다릴 이유가 없으니 즉시 '주소가 다르다'
+    assert "res.status === 404" in js and "wrong: true" in js
+
+
+def test_local_dashboard_never_calls_the_hosted_backend():
+    """로컬(STATIC=false)에서는 저장소 기본 주소를 쓰지 않는다 — 같은 서버가 계산한다.
+
+    기본값 폴백이 로컬까지 적용되면 ./run.sh 로 띄운 대시보드가 남의 백엔드로 나간다.
+    (실제로 한 번 그렇게 만들었다가 브라우저 E2E 가 잡아냈다.)
+    """
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert 'STATIC ? normaliseUrl(window.SUH_DH_REGIME_API_DEFAULT || "") : ""' in js
+    cfg = (STATIC / "regime" / "config.js").read_text(encoding="utf-8")
+    assert "window.SUH_DH_STATIC = false;" in cfg              # 저장소 사본은 로컬용
+
+
+def test_frontend_waits_out_a_sleeping_backend():
+    """무료 인스턴스가 깨는 30~60초를 기다린다 — 한 번 찔러 보고 포기하지 않는다."""
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "WAKE_BUDGET_MS" in js and "while (Date.now() - started < WAKE_BUDGET_MS)" in js
+    assert "AbortController" in js                            # 한 번 찌를 때의 타임아웃
+    assert "onTick" in js                                     # 남은 시간을 화면에 알려 준다
+    # 인스턴스가 중간에 잠들었으면 깨우고 한 번 더 보낸다
+    assert "looksOffline" in js and "return await rawPost(path, build());" in js
+    # 재시작으로 업로드 토큰이 날아갔으면 기억해 둔 파일로 다시 올린다
+    assert "reuploadSaved" in js and "업로드 세션이 만료" in js
+    # 진행 중에는 경과 초를 보여 준다(먹통처럼 보이지 않게)
+    assert "busyText" in js and "초" in js
+
+
+def test_stale_stored_backend_url_heals_itself():
+    """브라우저에 저장된 주소가 틀리면 기본 주소로 되돌려 다시 시도한다.
+
+    저장값은 무엇보다 우선하기 때문에, 한 번 잘못 넣어 두면 빌드가 아무리 맞는 주소를
+    들고 있어도 계속 그 주소로 나간다 — 실제로 그렇게 막혀 있었다.
+    """
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "builtinApiBase" in js
+    assert 'storedApiBase() && builtin && builtin !== API_BASE' in js
+    assert 'storeApiBase("");' in js                           # 잘못된 저장값을 버린다
+    assert "기본 주소로 되돌립니다" in js
+
+
+def test_hub_prewarms_the_backend():
+    """대시보드를 여는 순간 백엔드를 한 번 찔러 둔다 — 카드를 누르면 이미 깨어 있다."""
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert "prewarmBackend" in html
+    assert "/api/health" in html
+    assert "suh_dh_regime_api" in html                        # 브라우저에 저장된 주소가 우선
+    assert "SUH_DH_REGIME_API_DEFAULT" in html                # 없으면 저장소 기본값
+    assert ".catch(() => {})" in html                         # 실패해도 대시보드에 영향 없음
 
 
 def test_hosted_config_only_lowers_bootstrap_samples():
@@ -371,3 +424,77 @@ def test_render_blueprint_has_no_separate_streamlit_service():
     assert names == ["suh-dh-api"]                     # 별도 compute 인스턴스 없음
     env = {e["key"]: e["value"] for e in blueprint["services"][0]["envVars"]}
     assert env["SUH_DH_REGIME_CONFIG"] == "deploy/regime_config.render.yaml"
+
+
+# --------------------------------------------------------------------------
+# 응답을 가볍게 — 계산은 그대로, 전송량과 그리는 시간만 줄인다.
+# --------------------------------------------------------------------------
+
+def test_analyze_response_is_compact(analysis):
+    """차트 JSON 에 자정 타임스탬프와 불필요한 밑자리가 남아 있지 않다.
+
+    20년 차트는 trace 4개 × 5,000점이라 표기 방식만으로 수백 KB 가 왔다 갔다 한다.
+    '2006-09-18T00:00:00.000000' → '2006-09-18' 만으로도 1/3 이 줄어든다.
+    """
+    import json
+
+    price = analysis["charts"]["price"]
+    xs = [tr for tr in price["data"] if isinstance(tr.get("x"), list) and tr["x"]]
+    assert xs, "가격 차트에 x 축 배열이 있어야 한다"
+    for tr in xs:
+        assert all("T00:00:00" not in str(v) for v in tr["x"][:50])
+        assert all(len(str(v)) == 10 for v in tr["x"][:50])     # YYYY-MM-DD
+
+    raw = json.dumps(analysis)
+    assert "T00:00:00" not in raw
+    # 소수점 6자리로 맞춰 둔다 — 차트에서는 같은 픽셀이고, 표/통계는 이 경로를 안 탄다.
+    assert not re.search(r"\d\.\d{9,}", json.dumps(price))
+
+
+def test_api_compresses_large_responses(client):
+    """~600KB 의 figure JSON 을 gzip 으로 보낸다 (느린 회선에서 체감 차이가 크다)."""
+    res = client.post("/api/regime/analyze", json={"data": OFFLINE, "params": {}},
+                      headers={"Accept-Encoding": "gzip"})
+    assert res.status_code == 200
+    assert res.headers.get("content-encoding") == "gzip"
+    # httpx 가 풀어 준 본문 기준으로, 압축이 의미 있는 크기인지 확인
+    assert len(res.content) > 100_000
+
+
+def test_match_shading_is_identical_to_add_vrect():
+    """음영 처리를 한 번에 넣도록 바꿨다 — 그림이 예전(add_vrect)과 같은지 직접 비교한다.
+
+    add_vrect 는 호출마다 subplot 축을 다시 훑어서 match 25개에 0.3초 넘게 쓴다
+    (무료 인스턴스에서는 몇 초). 모아서 넣으면 빨라지지만, 결과 figure 가 조금이라도
+    달라지면 안 되므로 여기서 실제로 맞춰 본다.
+    """
+    import json
+
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    from app.regime import viz
+
+    dates = pd.date_range("2020-01-01", periods=40, freq="B")
+
+    def base_fig():
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05,
+                            row_heights=[0.72, 0.28], subplot_titles=("a", "b"))
+        fig.add_trace(go.Scatter(x=dates, y=list(range(40))), row=1, col=1)
+        fig.add_trace(go.Scatter(x=dates, y=list(range(40))), row=2, col=1)
+        return fig
+
+    spans = [(dates[i], dates[i + 5]) for i in range(0, 25, 3)]
+
+    old = base_fig()                                   # 예전 방식
+    for x0, x1 in spans:
+        old.add_vrect(x0=x0, x1=x1, fillcolor=viz.SHADE_COLOR, line_width=0,
+                      layer="below", row=1, col=1)
+
+    new = base_fig()                                   # 지금 방식 (viz.price_chart 와 동일)
+    new.update_layout(shapes=tuple(new.layout.shapes) + tuple(
+        dict(type="rect", xref="x", yref="y domain", x0=x0, x1=x1, y0=0, y1=1,
+             fillcolor=viz.SHADE_COLOR, line_width=0, layer="below")
+        for x0, x1 in spans))
+
+    assert json.loads(old.to_json()) == json.loads(new.to_json())
