@@ -1,0 +1,72 @@
+# Market Regime Lab — 기본 파라미터 (app/regime)
+#
+# 사이드바에서 바꾸는 값들의 "출발점"입니다. 이 파일만 고치면 코드를 건드리지
+# 않고 기본값을 바꿀 수 있고, 일부 키만 적어도 나머지는 코드의 DEFAULTS 로
+# 채워집니다(flat_config.yaml / turnaround_config.yaml 과 같은 방식).
+
+market:
+  ticker: "^IXIC"
+  years: 20
+  # 같은 feature framework 로 확장할 외생 시계열. VIX / credit spread / Fed funds
+  # 등을 추가하려면 여기에 한 줄만 더하면 됩니다(app/regime/data/loader.py 참고).
+  exogenous:
+    - key: "y10"
+      label: "US 10Y Treasury yield"
+      symbol: "^TNX"
+      source: "yahoo"
+      unit: "percent"
+
+features:
+  sma_windows: [20, 50, 100, 200]
+  slope_window: 20            # SMA 기울기 측정 구간(거래일)
+  slope_smas: [50, 200]
+  return_windows: [5, 20, 60, 120]
+  high_window: 252            # 52주 고점 대비 drawdown
+  vol_window: 20              # realized volatility 구간
+  atr_window: 14
+  yield_change_windows: [20, 120]
+  yield_pctile_window: 252
+
+distribution_day:
+  lookback: 25                # 분산일을 세는 구간(거래일)
+  drop_pct: 0.2               # X: 일간 수익률 <= -X%
+  volume_bump_pct: 0.0        # Y: 거래량 >= 전일 * (1 + Y%)
+  clv_max: 0.5                # Z: (Close-Low)/(High-Low) <= Z
+  days_since_cap: 120         # 최근 분산일 이후 경과일 상한(feature 안정화)
+
+similarity:
+  top_n: 25
+  min_gap: 20                 # de-clustering 최소 간격(거래일)
+  episode_pick: "best"        # best | first
+  exclude_recent: 120         # 현재와 너무 가까운 날짜는 후보에서 제외
+  require_full_horizon: false # 최장 horizon 이 다 채워진 날짜만 매칭
+  normalization: "robust"     # robust(중앙값/MAD) | zscore(평균/표준편차)
+  min_history: 250            # 정규화에 필요한 최소 관측 수
+  max_distance: null          # 거리 상한(넘으면 match 에서 제외), null 이면 미사용
+  weights:
+    px_vs_sma50: 1.0
+    px_vs_sma200: 1.0
+    sma_stack: 1.0
+    sma50_slope: 0.5
+    sma200_slope: 0.5
+    ret_20: 1.0
+    ret_60: 0.5
+    dd_52w: 1.5
+    vol_realized: 1.0
+    dd_count: 1.5
+    y10_chg_120d: 0.5
+
+forward:
+  horizons: [5, 20, 60, 120]
+  bootstrap_samples: 2000
+  ci_level: 0.95
+  min_sample_warn: 10
+  seed: 20240101
+
+validation:
+  mode: "fixed"               # fixed | expanding
+  train_end: "2015-12-31"
+  validation_end: "2020-12-31"
+  step: 5                     # 평가 날짜 샘플링 간격(거래일)
+  expanding_start: "2016-01-01"
+  horizon: 20                 # 검증에 쓸 대표 horizon

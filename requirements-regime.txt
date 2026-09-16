@@ -1,0 +1,9 @@
+# Market Regime Lab (app/regime) dependencies. Kept separate from the dashboard
+# requirements.txt so the existing Render deploy stays lean — the lab is a local
+# Streamlit app:  pip install -r requirements-regime.txt && ./run_regime.sh
+pandas>=2.0
+numpy>=1.24
+yfinance>=0.2.54
+streamlit>=1.40
+plotly>=5.20
+pyyaml>=6.0              # regime_config.yaml (없어도 내장 기본값으로 동작)

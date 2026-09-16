@@ -1,15 +1,18 @@
 # SUH_DH 대시보드
 
-투자/리서치 프로그램을 카드로 모아 둔 대시보드입니다. 현재 두 가지 프로그램이 있습니다.
+투자/리서치 프로그램을 카드로 모아 둔 대시보드입니다. 현재 세 가지 프로그램이 있습니다.
 
 1. **미국 52주 신고가** — 매일 미국 증시 마감 후(한국시간 아침) **52주 신고가**를 기록한
    미국 주식을 섹터·소섹터별로 한눈에.
 2. **AI 투자 뉴스** — Reuters·CNBC·Yahoo Finance·DataCenterDynamics·The Register 등
    주요 외신에서 **AI·데이터센터 생태계 뉴스만** 선별해 하루 10~20건, 한국어 1~2줄 요약
    + 원문 링크로(무료 매체 우선).
+3. **Market Regime Lab** — 나스닥 종합(^IXIC) 20년 일봉으로 **현재 시장 상태를 정량화**하고
+   **과거의 유사한 국면**을 찾아 그 이후 5/20/60/120거래일 수익률 분포를 보는 Streamlit 웹앱.
 
 아래 설명은 주로 52주 신고가 프로그램 기준이며, 뉴스 프로그램은
-[AI 투자 뉴스 프로그램](#ai-투자-뉴스-프로그램) 절을 참고하세요.
+[AI 투자 뉴스 프로그램](#ai-투자-뉴스-프로그램) 절을,
+레짐 분석은 [Market Regime Lab](#market-regime-lab) 절을 참고하세요.
 
 **두 가지 방식으로 쓸 수 있습니다:**
 1. **항상 켜져 있는 웹 주소(추천)** — GitHub가 매일 자동으로 갱신. PC를 켜둘 필요 없이
@@ -156,6 +159,14 @@ app/
   cache.py       짧은 TTL 인메모리 캐시
   translate.py   영어 → 한국어 번역(무료 Google, 실패 시 원문)
   demo_data.py   오프라인 샘플 데이터(SUH_DH_DEMO=1)
+  regime/        Market Regime Lab (Streamlit) — 수집/feature/similarity/forward/검증/시각화 분리
+    data/        yfinance·stooq·합성 provider + 거래일 정렬(forward-fill only) + 캐시
+    features/    trend / momentum / volatility / distribution day / macro (builder 레지스트리)
+    similarity.py  as-of 정규화 · 가중 거리 · de-clustering
+    matching.py    strict 조건 매칭
+    forward.py     forward return 통계 + bootstrap 신뢰구간 + baseline 비교
+    validation.py  walk-forward / out-of-sample
+    viz.py, ui.py, streamlit_app.py
   static/
     index.html   대시보드 허브(런처) — 프로그램 카드 목록
     hub.css
@@ -164,6 +175,8 @@ app/
     earnings/    실적 발표 전후 주가 반응 프로그램(HTML/CSS/JS)
     breadth/     미장 마켓 브레스 프로그램(HTML/CSS/JS + TradingView 위젯)
     correl/      티커 상관관계 프로그램(HTML/CSS/JS, 정렬·필터 표)
+run_regime.sh            Market Regime Lab 실행 (--demo 지원)
+regime_config.yaml       Market Regime Lab 기본 파라미터
 tools/
   guidance.py            가이던스 vs 컨센서스 큐레이션 도우미(add/consensus)
   kr_dart_backlog.py     DART에서 한국 수주잔고 수집 → data/kr_backlog.json (백필/증분)
@@ -1000,11 +1013,48 @@ API 예시:
 그런 환경에서 라이브로 쓰려면 해당 호스트를 네트워크 허용 목록에 추가하거나,
 미리보기는 `--demo` 모드를 사용하세요.
 
+## Market Regime Lab
+
+나스닥 종합(^IXIC) 약 20년 일봉 + 미국 10년물 금리로 **지금 시장이 어떤 상태인지**를
+숫자로 정의하고, **과거에 비슷했던 날들**을 찾아 그 이후 무슨 일이 있었는지 보는
+로컬 Streamlit 웹앱입니다. 설계와 계산 방법론은
+[docs/DESIGN_regime_lab.md](docs/DESIGN_regime_lab.md) 에 정리돼 있습니다.
+
+```bash
+pip install -r requirements-regime.txt
+
+./run_regime.sh          # 실시간 데이터 (Yahoo Finance)
+./run_regime.sh --demo   # 네트워크 없이 합성 데이터로 UI/계산 확인
+```
+
+- **시장 상태** — 추세(SMA 이격률·배열·기울기), 모멘텀(5/20/60/120일 수익률, 52주 고점 대비
+  낙폭), 변동성(realized vol / ATR%), **분산일**(하락률 X · 거래량 Y · CLV Z · lookback 모두
+  사이드바에서 조정), 10년물 금리(수준·변화·백분위).
+- **과거 유사 국면** — 조건을 모두 만족하는 날을 찾는 *Strict Match* 와, feature 벡터 거리로
+  순위를 매기는 *Similarity Match* 두 가지. 가중치는 feature 별로 조정하고, 같은 국면이
+  중복 집계되지 않도록 **de-clustering**(최소 간격 5/10/20… 거래일, episode 대표는
+  "유사도 최고" 또는 "가장 먼저") 을 적용합니다.
+- **Forward Return** — 5/20/60/120거래일 수익률의 관측 수·평균·중앙값·승률·사분위·최소/최대·
+  표준편차·구간 내 최대낙폭을, **20년 전체 무조건부 baseline 과 나란히** 보여 주고
+  평균/중앙값에 **bootstrap 95% 신뢰구간**을 붙입니다(표본이 작거나 CI가 0을 포함하면 경고).
+- **차트** — 20년 지수 차트에 match 를 음영으로 표시(hover 시 날짜·유사도·주요 feature·
+  분산일·이후 수익률), x축을 공유하는 하단 패널에 10년물 금리.
+- **통계적 검증** — 파라미터를 고정한 채 평가일 시점 정보만으로 매칭을 다시 수행하는
+  walk-forward(고정 분할 / expanding window). In-Sample 과 Out-of-Sample 을 구분해
+  보여 주고 격차로 과적합을 진단합니다.
+- **확장** — 티커는 사이드바 입력값이며, `regime_config.yaml` 의 `market.exogenous` 에 한 줄
+  추가하면 VIX·크레딧 스프레드·Fed Funds 등이 같은 feature framework 로 들어옵니다.
+
+> 데이터는 Yahoo Finance(무료) 기준이며 결과는 리서치 도구입니다. 투자 권유가 아닙니다.
+
 ## 테스트
 
 ```bash
 python3 -m pytest tests/ -q
 ```
+
+Market Regime Lab 만 따로 돌리려면 `python3 -m pytest tests/test_regime.py -q`
+(네트워크 없이 합성 데이터로 돌며, look-ahead 방지 검증을 포함합니다).
 
 ## 향후 개선 아이디어
 
