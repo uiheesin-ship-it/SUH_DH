@@ -364,6 +364,19 @@ def test_frontend_waits_out_a_sleeping_backend():
     assert "busyText" in js and "초" in js
 
 
+def test_stale_stored_backend_url_heals_itself():
+    """브라우저에 저장된 주소가 틀리면 기본 주소로 되돌려 다시 시도한다.
+
+    저장값은 무엇보다 우선하기 때문에, 한 번 잘못 넣어 두면 빌드가 아무리 맞는 주소를
+    들고 있어도 계속 그 주소로 나간다 — 실제로 그렇게 막혀 있었다.
+    """
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "builtinApiBase" in js
+    assert 'storedApiBase() && builtin && builtin !== API_BASE' in js
+    assert 'storeApiBase("");' in js                           # 잘못된 저장값을 버린다
+    assert "기본 주소로 되돌립니다" in js
+
+
 def test_hub_prewarms_the_backend():
     """대시보드를 여는 순간 백엔드를 한 번 찔러 둔다 — 카드를 누르면 이미 깨어 있다."""
     html = (STATIC / "index.html").read_text(encoding="utf-8")

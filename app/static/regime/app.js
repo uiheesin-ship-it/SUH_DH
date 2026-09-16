@@ -37,13 +37,15 @@ function resolveApiBase() {
     storeApiBase(url);
     return url;
   }
-  const stored = storedApiBase();
-  if (stored) return stored;
-  const built = normaliseUrl(window.SUH_DH_API_BASE || "");
-  if (built) return built;
-  // 저장소 기본값은 파이썬이 없는 정적 사이트에서만 쓴다. 로컬 대시보드(STATIC=false)는
-  // 같은 서버의 /api/regime/* 를 그대로 써야 한다 — 남의 백엔드로 나가면 안 된다.
-  return STATIC ? normaliseUrl(window.SUH_DH_REGIME_API_DEFAULT || "") : "";
+  return storedApiBase() || builtinApiBase();
+}
+
+/** 브라우저에 저장된 값을 뺀, 이 빌드가 원래 가리키는 주소.
+ *  저장소 기본값은 파이썬이 없는 정적 사이트에서만 쓴다 — 로컬 대시보드(STATIC=false)는
+ *  같은 서버의 /api/regime/* 를 써야 하고, 남의 백엔드로 나가면 안 된다. */
+function builtinApiBase() {
+  return normaliseUrl(window.SUH_DH_API_BASE || "")
+    || (STATIC ? normaliseUrl(window.SUH_DH_REGIME_API_DEFAULT || "") : "");
 }
 
 /* --------------------------------------------------------- 백엔드 깨우기
@@ -958,7 +960,7 @@ async function init() {
   });
   $("#api-clear").addEventListener("click", () => {
     storeApiBase("");
-    API_BASE = normaliseUrl(window.SUH_DH_API_BASE || "");
+    API_BASE = builtinApiBase();
     location.reload();
   });
   $("#api-url").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#api-save").click(); });
@@ -973,7 +975,20 @@ async function init() {
     $("#intro-note").innerHTML = note("info",
       "분석 백엔드를 깨우는 중입니다 — 무료 인스턴스는 처음 한 번 30~60초가 걸립니다. " +
       "기다리는 동안 왼쪽에서 파일과 파라미터를 미리 골라 두셔도 됩니다.");
-    const wake = await wakeBackend(API_BASE, (sec) => setStatus(`백엔드를 깨우는 중… ${sec}초`, "warn"));
+    let wake = await wakeBackend(API_BASE, (sec) => setStatus(`백엔드를 깨우는 중… ${sec}초`, "warn"));
+
+    // 브라우저에 저장해 둔 주소가 틀렸을 수 있다(예전에 손으로 넣어 둔 주소 등).
+    // 저장값은 무엇보다 우선하므로, 한 번 실패하면 이 빌드의 기본 주소로 되돌려 본다.
+    const builtin = builtinApiBase();
+    if (!wake.ok && storedApiBase() && builtin && builtin !== API_BASE) {
+      storeApiBase("");
+      API_BASE = builtin;
+      $("#intro-note").innerHTML = note("info",
+        "저장해 둔 백엔드 주소가 응답하지 않아 기본 주소로 되돌립니다 — " +
+        `<code>${esc(builtin)}</code>`);
+      wake = await wakeBackend(API_BASE, (sec) => setStatus(`기본 백엔드를 깨우는 중… ${sec}초`, "warn"));
+    }
+
     if (!wake.ok) {
       setStatus(wake.wrong ? "백엔드 주소를 확인하세요" : "백엔드가 응답하지 않습니다", "bad");
       $("#intro-note").innerHTML = note("warn",
@@ -981,7 +996,7 @@ async function init() {
         "<span class='small'>대시보드 백엔드(FastAPI)의 주소가 필요합니다. Render 라면 " +
         "<code>suh-dh-api</code> 처럼 <code>uvicorn app.main:app</code> 을 띄우는 서비스이고, " +
         "<code>/api/health</code> 를 열었을 때 <code>{\"status\":\"ok\"}</code> 가 보이는 주소입니다. " +
-        "아래에 주소를 넣으면 이 브라우저에 기억됩니다.</span>");
+        "아래에 주소를 넣으면 이 브라우저에 기억되고, <b>지우기</b> 를 누르면 기본 주소로 돌아갑니다.</span>");
       $("#backend-setup").classList.remove("hidden");
       $("#api-url").value = API_BASE;
       return;
