@@ -141,4 +141,18 @@ def test_card_opens_instantly_and_runs_the_analysis(server, sample_csv):
             "document.querySelector('#sources') && document.querySelector('#sources').innerText.includes('Manual Upload')",
             timeout=180_000)
         assert "my_ixic_20y.csv" in page.locator("#sources").inner_text()
+
+        # 6) 다시 열어도 올린 데이터가 그대로 — 파일을 또 고를 필요가 없다
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector('.map[data-kind="price"] select', timeout=60_000)
+        assert page.is_checked('input[name="dmode"][value="manual"]')
+        assert "my_ixic_20y.csv" in page.locator("#saved-box").inner_text()
+        page.click("#run-btn")
+        page.wait_for_function(
+            "document.querySelector('#sources') && document.querySelector('#sources').innerText.includes('my_ixic_20y.csv')",
+            timeout=180_000)
+
+        # 저장 데이터 지우기도 동작한다
+        page.click("#saved-clear")
+        page.wait_for_selector("#saved-box", state="hidden", timeout=15_000)
         browser.close()

@@ -223,6 +223,36 @@ def test_upload_flow_end_to_end(client):
     assert j["matches"]["rows"]
 
 
+def test_single_file_with_volume_is_enough(client):
+    """사용자가 실제로 올리는 형태: 한 파일에 OHLCV 가 다 들어 있고 날짜가 내림차순."""
+    prices = synthetic_prices("^IXIC", "2006-01-01")
+    out = prices.reset_index()
+    out.columns = ["date", "open", "high", "low", "close", "Volume"]   # 소문자 + Volume
+    out = out.iloc[::-1]                                               # 최신 날짜가 위
+    csv = out.to_csv(index=False).encode()
+
+    info = client.post("/api/regime/inspect",
+                       files={"file": ("ixic.csv", io.BytesIO(csv), "text/csv")},
+                       data={"kind": "price"}).json()
+    assert info["mapping"] == {"date": "date", "open": "open", "high": "high",
+                               "low": "low", "close": "close", "volume": "Volume"}
+
+    res = client.post("/api/regime/analyze", json={
+        "params": {}, "data": {"mode": "manual", "offline": True,
+                               "price": {"token": info["token"], "mapping": info["mapping"]}}})
+    assert res.status_code == 200, res.text
+    j = res.json()
+    cols = j["sources"]["columns"]
+    rows = {row[0]: row for row in j["sources"]["rows"]}
+    # 거래량도 같은 파일에서 온다 — 따로 올릴 필요가 없다
+    assert rows["Volume"][cols.index("입력 방식")] == "Manual Upload"
+    assert "ixic.csv" in rows["Volume"][cols.index("파일명 / 제공자")]
+    assert rows["Volume"][cols.index("사용 가능 관측치")] > 4000
+    # 분산일(거래량 조건)이 실제로 계산된다
+    dd = [i for g in j["state"]["groups"] for i in g["items"] if i["key"] == "dd_count"]
+    assert dd and dd[0]["value"] is not None
+
+
 def test_bad_mapping_is_reported_not_crashed(client):
     csv = b"A,B\n1,2\n"
     info = client.post("/api/regime/inspect",

@@ -39,30 +39,44 @@
 
         <div id="upload-box" class="hidden">
           <div class="upload" data-kind="price">
-            <div class="upload-head">① 가격 파일 (OHLCV) <span class="hint">CSV/XLSX · Date, Close 필수</span></div>
+            <div class="upload-head">데이터 파일 (OHLCV)
+              <span class="hint">CSV/XLSX · Date · Open · High · Low · Close · <b>Volume</b> 한 파일이면 충분합니다</span>
+            </div>
             <input type="file" class="file" data-kind="price" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
             <div class="map" data-kind="price"></div>
           </div>
-          <div class="upload" data-kind="volume">
-            <div class="upload-head">② 거래량 파일 (선택) <span class="hint">Date, Volume</span></div>
-            <input type="file" class="file" data-kind="volume" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
-            <div class="map" data-kind="volume"></div>
+
+          <label class="check"><input type="checkbox" id="p-remember" checked />
+            이 브라우저에 데이터 기억 (다음에 열면 자동으로 불러옵니다)</label>
+          <div id="saved-box" class="saved hidden">
+            <span id="saved-text"></span>
+            <button id="saved-clear" class="ghost-btn small">저장 데이터 지우기</button>
           </div>
-          <div class="upload" data-kind="yield">
-            <div class="upload-head">③ 미국 10년물 (선택) <span class="hint">Date, Yield</span></div>
-            <input type="file" class="file" data-kind="yield" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
-            <label class="row">단위
-              <select id="p-yield-unit">
-                <option value="auto">auto (자동 추정)</option>
-                <option value="percent">percent (4.28)</option>
-                <option value="decimal">decimal (0.0428)</option>
-                <option value="basis_points">basis points (428)</option>
-                <option value="tenths">tenths (42.8)</option>
-              </select>
-            </label>
-            <div class="map" data-kind="yield"></div>
-          </div>
-          <p class="hint">업로드한 파일은 분석하는 동안에만 쓰이고 서버나 저장소에 저장되지 않습니다.</p>
+
+          <details class="extra">
+            <summary>다른 출처에서 따로 올리기 (선택)</summary>
+            <div class="upload" data-kind="volume">
+              <div class="upload-head">거래량 파일 <span class="hint">Date, Volume · 가격 파일에 거래량이 없을 때만</span></div>
+              <input type="file" class="file" data-kind="volume" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+              <div class="map" data-kind="volume"></div>
+            </div>
+            <div class="upload" data-kind="yield">
+              <div class="upload-head">미국 10년물 <span class="hint">Date, Yield</span></div>
+              <input type="file" class="file" data-kind="yield" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+              <label class="row">단위
+                <select id="p-yield-unit">
+                  <option value="auto">auto (자동 추정)</option>
+                  <option value="percent">percent (4.28)</option>
+                  <option value="decimal">decimal (0.0428)</option>
+                  <option value="basis_points">basis points (428)</option>
+                  <option value="tenths">tenths (42.8)</option>
+                </select>
+              </label>
+              <div class="map" data-kind="yield"></div>
+            </div>
+          </details>
+          <p class="hint">업로드한 파일은 분석하는 동안에만 서버에서 쓰이고 저장되지 않습니다.
+            '기억'을 켜 두면 파일은 이 브라우저(IndexedDB)에만 보관됩니다.</p>
         </div>
       </details>
 
