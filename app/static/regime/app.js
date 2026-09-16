@@ -237,22 +237,147 @@ function requestBody(useSession) {
   };
 }
 
+/* ------------------------------------------------- 브라우저에 데이터 기억하기
+ *
+ * 20년치 CSV 를 매번 다시 고르는 건 번거롭다. 올린 파일(원본 바이트)과 컬럼 매핑을
+ * IndexedDB 에 담아 두고, 다음에 페이지를 열면 그대로 복원한다. 서버에는 아무것도
+ * 저장하지 않는다 — 브라우저 밖으로 나가지 않는 보관이다.
+ */
+const DB_NAME = "suh_dh_regime";
+const DB_STORE = "uploads";
+
+function idb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error("이 브라우저는 IndexedDB 를 지원하지 않습니다.")); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, value) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).put(value, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readonly");
+    const req = tx.objectStore(DB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idb();
+  return new Promise((resolve) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).delete(key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  });
+}
+
+function remembering() { return $("#p-remember").checked; }
+
+async function remember(kind, file, info) {
+  if (!remembering()) return;
+  try {
+    await idbSet(kind, {
+      name: file.name, type: file.type || "", buffer: await file.arrayBuffer(),
+      mapping: info.mapping, rows: info.rows, savedAt: new Date().toISOString(),
+      unit: kind === "yield" ? $("#p-yield-unit").value : undefined,
+    });
+    renderSaved();
+  } catch (err) {
+    setStatus("이 브라우저에 저장하지 못했습니다 (분석은 그대로 됩니다)", "warn");
+  }
+}
+
+async function savedSummary() {
+  const out = [];
+  for (const kind of ["price", "volume", "yield"]) {
+    try {
+      const rec = await idbGet(kind);
+      if (rec) out.push({ kind, ...rec });
+    } catch (err) { /* 저장소를 못 열면 없는 것으로 본다 */ }
+  }
+  return out;
+}
+
+async function renderSaved() {
+  const saved = await savedSummary();
+  const box = $("#saved-box");
+  if (!saved.length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  $("#saved-text").innerHTML = "이 브라우저에 저장됨 — " + saved.map((r) =>
+    `<b>${esc(r.name)}</b> (${(r.rows || 0).toLocaleString()}행)`).join(" · ");
+}
+
+async function clearSaved() {
+  for (const kind of ["price", "volume", "yield"]) await idbDel(kind);
+  ["price", "volume", "yield"].forEach((kind) => { UPLOADS[kind] = null; renderMapping(kind, null); });
+  SESSION = null;
+  renderSaved();
+  setStatus("저장된 데이터를 지웠습니다");
+}
+
+/** 저장해 둔 파일을 서버에 다시 올려(세션 토큰만 새로 받아) 매핑까지 복원한다. */
+async function restoreSaved() {
+  const saved = await savedSummary();
+  if (!saved.length) return false;
+  let restored = 0;
+  for (const rec of saved) {
+    try {
+      const file = new File([rec.buffer], rec.name, { type: rec.type || "text/csv" });
+      const info = await inspectFile(rec.kind, file);
+      if (rec.mapping) {
+        info.mapping = { ...info.mapping, ...rec.mapping };
+        renderMapping(rec.kind, info);
+      }
+      if (rec.kind === "yield" && rec.unit) $("#p-yield-unit").value = rec.unit;
+      restored += 1;
+    } catch (err) { /* 파일이 깨졌거나 백엔드가 없으면 조용히 넘어간다 */ }
+  }
+  if (restored) {
+    document.querySelector('input[name="dmode"][value="manual"]').checked = true;
+    $("#upload-box").classList.remove("hidden");
+    $("#params details").open = true;
+    setStatus(`저장된 데이터 ${restored}개를 복원했습니다 — 분석 실행을 누르세요`);
+  }
+  renderSaved();
+  return restored > 0;
+}
+
 /* ------------------------------------------------------------- file upload */
+
+async function inspectFile(kind, file) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("kind", kind);
+  const res = await fetch(api("/api/regime/inspect"), { method: "POST", body: form });
+  const json = await res.json();
+  if (!res.ok || json.error) throw new Error(json.error + (json.detail ? " — " + json.detail : ""));
+  UPLOADS[kind] = json;
+  SESSION = null;                         // 데이터가 바뀌면 세션을 새로 만든다
+  renderMapping(kind, json);
+  return json;
+}
 
 async function onFile(kind, file) {
   if (!file) return;
   busy(true, `${file.name} 읽는 중…`);
   try {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("kind", kind);
-    const res = await fetch(api("/api/regime/inspect"), { method: "POST", body: form });
-    const json = await res.json();
-    if (!res.ok || json.error) throw new Error(json.error + (json.detail ? " — " + json.detail : ""));
-    UPLOADS[kind] = json;
-    SESSION = null;                       // 데이터가 바뀌면 세션을 새로 만든다
-    renderMapping(kind, json);
-    setStatus(`${json.name} · ${json.rows.toLocaleString()}행 읽음`);
+    const json = await inspectFile(kind, file);
+    await remember(kind, file, json);
+    const hasVolume = kind === "price" && json.mapping && json.mapping.volume;
+    setStatus(`${json.name} · ${json.rows.toLocaleString()}행 읽음` +
+              (hasVolume ? " (거래량 포함)" : ""));
   } catch (err) {
     UPLOADS[kind] = null;
     renderMapping(kind, null, String(err.message || err));
@@ -534,6 +659,8 @@ async function init() {
     $("#strict-box").classList.toggle("hidden", !strict);
     $("#weights").classList.toggle("hidden", strict);
   }));
+  $("#saved-clear").addEventListener("click", clearSaved);
+  $("#p-remember").addEventListener("change", () => { if (!remembering()) clearSaved(); });
   $("#strict-add").addEventListener("click", () =>
     $("#strict-list").appendChild(strictRow(FEATURES[0] && FEATURES[0].key)));
 
@@ -590,6 +717,8 @@ async function init() {
   $("#strict-list").appendChild(strictRow("dd_52w"));
 
   setStatus("준비됨 — 분석 실행을 누르세요");
+  await renderSaved();
+  await restoreSaved();       // 이전에 올린 파일이 있으면 그대로 되살린다
 }
 
 init();
