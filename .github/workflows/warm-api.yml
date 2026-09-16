@@ -1,0 +1,54 @@
+# 백엔드 깨워 두기 — Market Regime Lab 이 쓰는 FastAPI(무료 Render 인스턴스)는
+# 15분 유휴 후 잠들고, 그 뒤 첫 요청은 깨어나느라 30~60초가 걸립니다. 10분마다
+# /api/health 를 한 번 쳐서 깨어 있는 상태를 유지합니다.
+#
+# 시간대: 12:00~23:59 UTC (= 21:00~08:59 KST) — 미국 장 시간과 한국 저녁, 즉 실제로
+# 대시보드를 보는 시간대만 깨워 둡니다. 24시간 유지하려면 cron 을 "*/10 * * * *" 로
+# 바꾸면 됩니다(공개 저장소라 Actions 사용량은 무료).
+#
+# 주소는 ① repo Variable SUH_DH_API_BASE → ② app/static/regime/config.js 의
+# SUH_DH_API_BASE 순으로 찾습니다. 둘 다 없으면 아무 것도 하지 않고 안내만 남깁니다.
+name: Keep API awake
+
+on:
+  schedule:
+    - cron: "*/10 12-23 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: warm-api
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve backend URL
+        id: url
+        run: |
+          URL="${{ vars.SUH_DH_API_BASE }}"
+          if [ -z "$URL" ]; then
+            URL=$(sed -n 's/.*SUH_DH_API_BASE *= *"\([^"]*\)".*/\1/p' app/static/regime/config.js | head -1)
+          fi
+          echo "url=${URL%/}" >> "$GITHUB_OUTPUT"
+
+      - name: Ping /api/health
+        run: |
+          URL="${{ steps.url.outputs.url }}"
+          if [ -z "$URL" ]; then
+            echo "::notice::백엔드 주소가 없습니다 — repo Variable SUH_DH_API_BASE 를 설정하거나 app/static/regime/config.js 에 적어 주세요."
+            exit 0
+          fi
+          # 잠든 인스턴스는 첫 응답까지 오래 걸리므로 넉넉히 기다린다.
+          start=$(date +%s)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 --retry 2 --retry-all-errors "$URL/api/health" || echo "000")
+          echo "GET $URL/api/health -> $code ($(( $(date +%s) - start ))s)"
+          if [ "$code" != "200" ]; then
+            echo "::warning::백엔드가 응답하지 않았습니다 ($code) — Render 서비스 상태를 확인하세요."
+          fi
