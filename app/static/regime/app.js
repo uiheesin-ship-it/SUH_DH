@@ -72,9 +72,18 @@ function setStatus(text, cls) {
   el.textContent = text;
   el.className = "status" + (cls ? " " + cls : "");
 }
+let wakeTimer = null;
 function busy(on, text) {
   $("#overlay").classList.toggle("hidden", !on);
   $("#overlay-text").textContent = text || "";
+  if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = null; }
+  if (on && API_BASE) {
+    // 무료 백엔드는 쉬고 있다 깨어나느라 첫 요청이 오래 걸린다 — 그때 알려 준다.
+    wakeTimer = setTimeout(() => {
+      $("#overlay-text").textContent =
+        (text || "") + "  (백엔드를 깨우는 중일 수 있습니다 — 최대 1분)";
+    }, 8000);
+  }
 }
 function tableHtml(frame, decimals = 2) {
   if (!frame || !frame.columns || !frame.columns.length) return '<p class="muted small">표시할 내용이 없습니다.</p>';
@@ -235,12 +244,8 @@ function readData(useSession) {
   if (mode === "manual") {
     ["price", "volume", "yield"].forEach((kind) => {
       const up = UPLOADS[kind];
-      if (!up) return;
-      const mapping = {};
-      $$(`.map[data-kind="${kind}"] select`).forEach((sel) => {
-        mapping[sel.dataset.field] = sel.value || null;
-      });
-      data[kind] = { token: up.token, mapping };
+      if (!up || !up.token) return;
+      data[kind] = { token: up.token, mapping: readMapping(kind) };
       if (kind === "yield") data[kind].unit = $("#p-yield-unit").value;
     });
   }
@@ -360,11 +365,20 @@ async function restoreSaved() {
   for (const rec of saved) {
     try {
       const file = new File([rec.buffer], rec.name, { type: rec.type || "text/csv" });
-      const info = await inspectFile(rec.kind, file);
-      if (rec.mapping) {
-        info.mapping = { ...info.mapping, ...rec.mapping };
-        renderMapping(rec.kind, info);
+      // 저장된 매핑으로 화면부터 즉시 되살리고, 서버 업로드(토큰)는 뒤에서 진행한다.
+      const quick = await quickInspect(rec.kind, file);
+      if (quick) {
+        quick.mapping = { ...quick.mapping, ...(rec.mapping || {}) };
+        UPLOADS[rec.kind] = quick;
+        renderMapping(rec.kind, quick);
       }
+      PENDING[rec.kind] = inspectFile(rec.kind, file).then((info) => {
+        info.mapping = { ...info.mapping, ...(rec.mapping || {}) };
+        renderMapping(rec.kind, info);
+        PENDING[rec.kind] = null;
+        return info;
+      }).catch((err) => { PENDING[rec.kind] = null; throw err; });
+      if (!quick) await PENDING[rec.kind];          // XLSX 는 서버 응답이 필요하다
       if (rec.kind === "yield" && rec.unit) $("#p-yield-unit").value = rec.unit;
       restored += 1;
     } catch (err) { /* 파일이 깨졌거나 백엔드가 없으면 조용히 넘어간다 */ }
@@ -379,7 +393,87 @@ async function restoreSaved() {
   return restored > 0;
 }
 
-/* ------------------------------------------------------------- file upload */
+/* ------------------------------------------------------------- file upload
+ *
+ * 파일을 고르면 **브라우저에서 헤더만 먼저 읽어** 컬럼 매핑을 즉시 보여 주고,
+ * 서버 업로드(토큰 확보)는 그동안 뒤에서 진행한다. 무료 백엔드가 잠들어 있으면
+ * 첫 요청이 30~60초 걸리는데, 그 시간을 사용자가 매핑을 확인하는 데 쓰게 하는 것이다.
+ * XLSX 는 브라우저에서 못 읽으므로 서버 응답을 기다린다.
+ */
+
+// 파이썬 upload.ALIASES 와 같은 별칭 — 화면에 먼저 보여 주기 위한 것이고,
+// 서버 응답이 오면 그쪽 추정으로 맞춰 준다(최종 매핑은 사용자가 확정).
+const ALIASES = {
+  date: ["date", "날짜", "일자", "기준일", "datetime", "time", "timestamp", "일시",
+         "tradedate", "dt", "index", "observationdate", "period"],
+  open: ["open", "시가", "openprice", "시작가", "o"],
+  high: ["high", "고가", "highprice", "h"],
+  low: ["low", "저가", "lowprice", "l"],
+  close: ["close", "종가", "closelast", "adjclose", "adjustedclose", "last",
+          "lastprice", "closeprice", "price", "c", "settle"],
+  volume: ["volume", "거래량", "vol", "totalvolume", "shares", "v", "거래수량"],
+  yield: ["yield", "금리", "수익률", "rate", "dgs10", "value", "close", "종가",
+          "10y", "tnx", "yieldpct", "국채금리"],
+};
+const FIELDS = { price: ["date", "open", "high", "low", "close", "volume"],
+                 volume: ["date", "volume"], yield: ["date", "yield"] };
+const PENDING = {};              // kind → 서버 업로드 Promise
+
+function normKey(name) {
+  return String(name || "").toLowerCase().replace(/[^0-9a-z가-힣]/g, "");
+}
+function suggestMappingLocal(columns, fields) {
+  const norm = columns.map(normKey);
+  const used = new Set();
+  const out = {};
+  fields.forEach((field) => {
+    const aliases = ALIASES[field] || [field];
+    let pick = null;
+    for (const alias of aliases) {                       // 1) 정확히 일치
+      const i = norm.findIndex((n, idx) => n === alias && !used.has(columns[idx]));
+      if (i >= 0) { pick = columns[i]; break; }
+    }
+    if (!pick) {                                         // 2) 부분 일치 (3글자 이상만)
+      for (const alias of aliases.filter((a) => a.length >= 3)) {
+        const i = norm.findIndex((n, idx) => n.includes(alias) && !used.has(columns[idx]));
+        if (i >= 0) { pick = columns[i]; break; }
+      }
+    }
+    if (pick) used.add(pick);
+    out[field] = pick || null;
+  });
+  return out;
+}
+function splitLine(line, delim) {
+  const out = [];
+  let cur = "", quoted = false;
+  for (const ch of line) {
+    if (ch === '"') { quoted = !quoted; continue; }
+    if (ch === delim && !quoted) { out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((c) => c.replace(/^\ufeff/, "").trim());
+}
+
+/** CSV 한정: 브라우저에서 헤더를 읽어 즉시 매핑 후보를 만든다. */
+async function quickInspect(kind, file) {
+  if (!/\.(csv|txt|tsv)$/i.test(file.name)) return null;
+  try {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
+    if (!lines.length) return null;
+    const delim = [",", "\t", ";"].reduce((best, d) =>
+      (lines[0].split(d).length > lines[0].split(best).length ? d : best), ",");
+    const columns = splitLine(lines[0], delim);
+    if (columns.length < 2) return null;
+    const fields = FIELDS[kind] || FIELDS.price;
+    return { name: file.name, rows: lines.length - 1, columns, fields,
+             mapping: suggestMappingLocal(columns, fields), local: true };
+  } catch (err) {
+    return null;                                          // 못 읽으면 서버에 맡긴다
+  }
+}
 
 async function inspectFile(kind, file) {
   const form = new FormData();
@@ -396,13 +490,35 @@ async function inspectFile(kind, file) {
 
 async function onFile(kind, file) {
   if (!file) return;
-  busy(true, `${file.name} 읽는 중…`);
-  try {
-    const json = await inspectFile(kind, file);
+  const quick = await quickInspect(kind, file);
+  if (quick) {
+    // 서버를 기다리지 않고 바로 컬럼 매핑을 보여 준다.
+    UPLOADS[kind] = quick;
+    SESSION = null;
+    renderMapping(kind, quick);
+    const hasVolume = kind === "price" && quick.mapping.volume;
+    setStatus(`${quick.name} · ${quick.rows.toLocaleString()}행 인식` +
+              (hasVolume ? " (거래량 포함)" : "") + " · 업로드 중…");
+  } else {
+    busy(true, `${file.name} 읽는 중…`);
+  }
+
+  const upload = inspectFile(kind, file).then(async (json) => {
+    if (quick) {
+      // 사용자가 고른 값은 유지하고, 서버 추정은 비어 있는 칸만 채운다.
+      const chosen = readMapping(kind);
+      json.mapping = { ...json.mapping, ...Object.fromEntries(
+        Object.entries(chosen).filter(([, v]) => v)) };
+      renderMapping(kind, json);
+    }
     await remember(kind, file, json);
-    const hasVolume = kind === "price" && json.mapping && json.mapping.volume;
-    setStatus(`${json.name} · ${json.rows.toLocaleString()}행 읽음` +
-              (hasVolume ? " (거래량 포함)" : ""));
+    setStatus(`${json.name} · ${json.rows.toLocaleString()}행 준비됨`);
+    return json;
+  });
+  PENDING[kind] = upload;
+
+  try {
+    await upload;
   } catch (err) {
     UPLOADS[kind] = null;
     const backendMissing = !API_BASE && STATIC;
@@ -411,8 +527,15 @@ async function onFile(kind, file) {
       : String(err.message || err));
     setStatus("파일을 읽지 못했습니다", "bad");
   } finally {
+    PENDING[kind] = null;
     busy(false);
   }
+}
+
+function readMapping(kind) {
+  const out = {};
+  $$(`.map[data-kind="${kind}"] select`).forEach((sel) => { out[sel.dataset.field] = sel.value || null; });
+  return out;
 }
 
 function renderMapping(kind, info, error) {
@@ -594,9 +717,14 @@ function renderValidation(v) {
 async function run() {
   const btn = $("#run-btn");
   btn.disabled = true;
-  busy(true, "분석 중… (데이터 로드 → feature → 유사 국면 → forward return)");
-  setStatus("분석 중…");
   try {
+    const pending = Object.values(PENDING).filter(Boolean);
+    if (pending.length) {
+      busy(true, "파일 업로드를 마치는 중…");
+      await Promise.all(pending).catch(() => {});
+    }
+    busy(true, "분석 중… (데이터 로드 → feature → 유사 국면 → forward return)");
+    setStatus("분석 중…");
     const json = await post("/api/regime/analyze", requestBody(false));
     renderAll(json);
   } catch (err) {
@@ -704,6 +832,9 @@ async function init() {
   $("#p-remember").addEventListener("change", () => { if (!remembering()) clearSaved(); });
   $("#strict-add").addEventListener("click", () =>
     $("#strict-list").appendChild(strictRow(FEATURES[0] && FEATURES[0].key)));
+
+  // 페이지를 여는 순간 백엔드를 깨워 둔다(무료 인스턴스 콜드 스타트 완화).
+  if (API_BASE) { fetch(api("/api/health"), { cache: "no-store" }).catch(() => {}); }
 
   setStatus("설정을 불러오는 중…");
   try {

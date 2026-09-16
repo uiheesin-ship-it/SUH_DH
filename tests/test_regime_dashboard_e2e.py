@@ -131,11 +131,19 @@ def test_card_opens_instantly_and_runs_the_analysis(server, sample_csv):
         audit = page.locator("#audit-body").inner_text()
         assert "원본 OHLCV" in audit and "거리" in audit
 
+        # 4-1) 컬럼 인식은 브라우저에서 바로 한다 (서버 왕복 없이 매핑이 뜨는 근거)
+        mapping = page.evaluate(
+            "suggestMappingLocal(['date','open','high','low','close','Volume'],"
+            " ['date','open','high','low','close','volume'])")
+        assert mapping == {"date": "date", "open": "open", "high": "high",
+                           "low": "low", "close": "close", "volume": "Volume"}
+
         # 5) 업로드 경로 — 같은 화면 안에서 파일을 올려 다시 분석
         page.evaluate("document.querySelector('#params details').open = true")  # 데이터 섹션 펼치기
         page.check('input[name="dmode"][value="manual"]')
         page.set_input_files('.file[data-kind="price"]', str(sample_csv))
-        page.wait_for_selector('.map[data-kind="price"] select', timeout=60_000)
+        # 매핑은 서버를 기다리지 않고 즉시 나타나야 한다
+        page.wait_for_selector('.map[data-kind="price"] select', timeout=5_000)
         page.click("#run-btn")
         page.wait_for_function(
             "document.querySelector('#sources') && document.querySelector('#sources').innerText.includes('Manual Upload')",
