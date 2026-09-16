@@ -125,6 +125,28 @@ def test_build_injects_the_deployed_regime_url(tmp_path):
     assert build.write_regime_url(tmp_path, "   ") == ""            # 값이 없으면 아무것도 안 쓴다
     assert cfg.read_text() == before
 
+    # 빌드 변수가 없으면 저장소에 커밋해 둔 기본값을 쓴다
+    assert build.write_regime_url(tmp_path, "", fallback="https://fallback.example/") == \
+        "https://fallback.example"
+    assert 'window.SUH_DH_REGIME_URL = "https://fallback.example";' in cfg.read_text()
+    # 빌드 변수가 있으면 그쪽이 이긴다
+    assert build.write_regime_url(tmp_path, "https://env.example",
+                                  fallback="https://fallback.example") == "https://env.example"
+
+
+def test_repo_regime_url_reads_the_committed_default(tmp_path, monkeypatch):
+    import build
+
+    static = tmp_path / "static"
+    (static / "regime").mkdir(parents=True)
+    cfg = static / "regime" / "config.js"
+    monkeypatch.setattr(build, "STATIC", static)
+
+    cfg.write_text('window.SUH_DH_REGIME_URL = "";\n', encoding="utf-8")
+    assert build.repo_regime_url() == ""
+    cfg.write_text('window.SUH_DH_REGIME_URL = "https://lab.example.com/";\n', encoding="utf-8")
+    assert build.repo_regime_url() == "https://lab.example.com"
+
 
 def test_render_blueprint_deploys_the_streamlit_lab():
     """항상 켜져 있는 인스턴스가 있어야 Pages 에서 임베드가 가능하다."""
