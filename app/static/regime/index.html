@@ -30,7 +30,8 @@
       <details open>
         <summary>1. 데이터</summary>
         <label class="row">티커 <input type="text" id="p-ticker" value="^IXIC" /></label>
-        <label class="row">기간(년) <input type="number" id="p-years" min="5" max="25" value="20" /></label>
+        <label class="row">기간(년) <input type="number" id="p-years" min="5" max="30" value="20" /></label>
+        <p class="hint">업로드 파일이 더 길어도 이 기간(최근 N년)만 사용합니다.</p>
         <div class="seg" id="data-mode">
           <label><input type="radio" name="dmode" value="auto" checked /> Auto Download</label>
           <label><input type="radio" name="dmode" value="manual" /> Manual Upload</label>
@@ -177,6 +178,21 @@
           계산은 대시보드 백엔드(<code>/api/regime/*</code>)에서 기존 분석 엔진이 그대로 수행합니다.
         </p>
         <div id="intro-note" class="muted small"></div>
+        <div id="backend-setup" class="hidden">
+          <h3>분석 백엔드 주소</h3>
+          <p class="muted small">
+            정적 사이트(GitHub Pages)에는 파이썬이 없어 계산을 할 수 없습니다. 배포해 둔 대시보드
+            백엔드 주소를 한 번만 입력하면 이 브라우저에 기억되고, 이후에는 바로 동작합니다.
+            (저장소 <code>app/static/regime/config.js</code> 의 <code>SUH_DH_API_BASE</code> 를 채워
+            두면 모든 방문자에게 기본값으로 적용됩니다.)
+          </p>
+          <div class="setup-row">
+            <input id="api-url" type="url" spellcheck="false" autocomplete="off"
+                   placeholder="https://suh-dh-api.onrender.com" />
+            <button id="api-save" class="primary-btn">연결</button>
+            <button id="api-clear" class="ghost-btn">지우기</button>
+          </div>
+        </div>
       </section>
 
       <section id="data-review" class="card hidden">

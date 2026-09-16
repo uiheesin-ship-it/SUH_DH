@@ -66,9 +66,10 @@ def test_static_program_has_the_dashboard_shape(client):
     assert "cdn.plot.ly" in body                                  # 다른 프로그램과 같은 차트 라이브러리
     for asset in ("style.css", "app.js", "config.js"):
         assert client.get(f"/regime/{asset}").status_code == 200
-    # 분석 UI 가 즉시 있는지 (iframe/외부 서비스로 넘기지 않는다)
+    # 분석 UI 가 즉시 있는지 (iframe 으로 외부 서비스에 떠넘기지 않는다)
     assert "<iframe" not in body
-    assert "onrender.com" not in body
+    # 외부 주소는 백엔드 입력칸의 placeholder 예시로만 등장해야 한다
+    assert body.count("onrender.com") <= 1 and 'placeholder="https://suh-dh-api.onrender.com"' in body
     for marker in ('id="run-btn"', 'id="params"', 'id="tabs"', 'data-tab="state"',
                    'data-tab="audit"', 'data-tab="validation"', 'class="file"'):
         assert marker in body, marker
@@ -253,6 +254,32 @@ def test_single_file_with_volume_is_enough(client):
     assert dd and dd[0]["value"] is not None
 
 
+def test_long_history_is_trimmed_to_the_configured_window(client):
+    """30년치를 올려도 설정한 기간(기본 20년)만 쓰고, 그것 때문에 죽지 않는다."""
+    prices = synthetic_prices("^IXIC", "1996-01-01")          # ~30년, 7,700행
+    out = prices.reset_index()
+    out.columns = ["date", "open", "high", "low", "close", "Volume"]
+    csv = out.iloc[::-1].to_csv(index=False).encode()
+    assert len(out) > 7000
+
+    info = client.post("/api/regime/inspect",
+                       files={"file": ("ixic30.csv", io.BytesIO(csv), "text/csv")},
+                       data={"kind": "price"}).json()
+    assert info["rows"] == len(out)
+
+    res = client.post("/api/regime/analyze", json={
+        "params": {}, "data": {"mode": "manual", "offline": True,
+                               "price": {"token": info["token"], "mapping": info["mapping"]}}})
+    assert res.status_code == 200, res.text
+    j = res.json()
+    cols, rows = j["sources"]["columns"], {r[0]: r for r in j["sources"]["rows"]}
+    used = rows["Price (OHLC)"][cols.index("행 수")]
+    assert 4900 <= used <= 5100, used                          # 20년치만 사용
+    period = rows["Price (OHLC)"][cols.index("기간")]
+    assert period.startswith("2006-"), period
+    assert j["matches"]["rows"]
+
+
 def test_bad_mapping_is_reported_not_crashed(client):
     csv = b"A,B\n1,2\n"
     info = client.post("/api/regime/inspect",
@@ -265,6 +292,21 @@ def test_bad_mapping_is_reported_not_crashed(client):
 
 
 # ---------------- 호스팅 설정 ----------------
+
+def test_build_carries_the_repo_backend_url(tmp_path, monkeypatch):
+    """빌드 변수가 없어도 저장소에 적어 둔 백엔드 주소를 정적 빌드가 이어받는다."""
+    import build
+
+    static = tmp_path / "static"
+    (static / "regime").mkdir(parents=True)
+    cfg = static / "regime" / "config.js"
+    monkeypatch.setattr(build, "STATIC", static)
+
+    cfg.write_text('window.SUH_DH_API_BASE = "";\n', encoding="utf-8")
+    assert build.repo_regime_api_base() == ""
+    cfg.write_text('window.SUH_DH_API_BASE = "https://suh-dh-api.onrender.com/";\n', encoding="utf-8")
+    assert build.repo_regime_api_base() == "https://suh-dh-api.onrender.com"
+
 
 def test_hosted_config_only_lowers_bootstrap_samples():
     hosted = Params.from_config(load_config(ROOT / "deploy" / "regime_config.render.yaml"))

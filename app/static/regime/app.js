@@ -14,8 +14,33 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 const STATIC = !!window.SUH_DH_STATIC;
-const API_BASE = (window.SUH_DH_API_BASE || "").replace(/\/+$/, "");
-const api = (path) => (STATIC && API_BASE ? API_BASE + path : path);
+const API_STORE_KEY = "suh_dh_regime_api";
+
+/** 분석 백엔드 주소: ?api=<url> → 브라우저에 저장된 값 → 빌드/저장소 기본값.
+ *  로컬 대시보드에서는 셋 다 비어 있어 같은 서버(/api/...)를 그대로 쓴다. */
+function normaliseUrl(url) {
+  const trimmed = (url || "").trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : "https://" + trimmed;
+}
+function storedApiBase() {
+  try { return localStorage.getItem(API_STORE_KEY) || ""; } catch (e) { return ""; }
+}
+function storeApiBase(url) {
+  try { url ? localStorage.setItem(API_STORE_KEY, url) : localStorage.removeItem(API_STORE_KEY); }
+  catch (e) { /* 프라이빗 모드 — 이번 세션만 쓰인다 */ }
+}
+function resolveApiBase() {
+  const fromQuery = new URLSearchParams(location.search).get("api");
+  if (fromQuery) {
+    const url = normaliseUrl(fromQuery);
+    storeApiBase(url);
+    return url;
+  }
+  return storedApiBase() || normaliseUrl(window.SUH_DH_API_BASE || "");
+}
+let API_BASE = resolveApiBase();
+const api = (path) => (API_BASE ? API_BASE + path : path);
 
 const SMA_CHOICES = [10, 20, 50, 100, 150, 200];
 const RET_CHOICES = [5, 10, 20, 60, 120, 250];
@@ -380,7 +405,10 @@ async function onFile(kind, file) {
               (hasVolume ? " (거래량 포함)" : ""));
   } catch (err) {
     UPLOADS[kind] = null;
-    renderMapping(kind, null, String(err.message || err));
+    const backendMissing = !API_BASE && STATIC;
+    renderMapping(kind, null, backendMissing
+      ? "분석 백엔드 주소가 연결되지 않아 파일을 읽을 수 없습니다 — 화면 위의 '분석 백엔드 주소'에 주소를 넣어 주세요."
+      : String(err.message || err));
     setStatus("파일을 읽지 못했습니다", "bad");
   } finally {
     busy(false);
@@ -659,6 +687,19 @@ async function init() {
     $("#strict-box").classList.toggle("hidden", !strict);
     $("#weights").classList.toggle("hidden", strict);
   }));
+  $("#api-save").addEventListener("click", () => {
+    const url = normaliseUrl($("#api-url").value);
+    if (!url) return;
+    storeApiBase(url);
+    API_BASE = url;
+    location.reload();
+  });
+  $("#api-clear").addEventListener("click", () => {
+    storeApiBase("");
+    API_BASE = normaliseUrl(window.SUH_DH_API_BASE || "");
+    location.reload();
+  });
+  $("#api-url").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#api-save").click(); });
   $("#saved-clear").addEventListener("click", clearSaved);
   $("#p-remember").addEventListener("change", () => { if (!remembering()) clearSaved(); });
   $("#strict-add").addEventListener("click", () =>
@@ -672,11 +713,15 @@ async function init() {
     DEFAULTS = json.config;
     FEATURES = json.features;
   } catch (err) {
-    setStatus("백엔드에 연결하지 못했습니다", "bad");
-    $("#intro-note").innerHTML = note("fail",
-      "분석 백엔드에 연결하지 못했습니다. 정적 사이트에서 보고 있다면 " +
-      "<code>SUH_DH_API_BASE</code> 가 설정된 빌드가 필요합니다. 로컬에서는 <code>./run.sh</code> 로 " +
-      "대시보드를 띄우면 바로 동작합니다.<br><span class='small'>" + esc(err.message || err) + "</span>");
+    setStatus("백엔드 주소가 필요합니다", "warn");
+    $("#intro-note").innerHTML = note("warn",
+      (API_BASE
+        ? `<b>${esc(API_BASE)}</b> 에 연결하지 못했습니다. 주소가 맞는지, 서버가 깨어났는지 확인하세요 ` +
+          "(무료 인스턴스는 첫 요청에 30~60초 걸릴 수 있습니다)."
+        : "이 페이지는 정적 사이트라 계산을 직접 할 수 없습니다. 분석 백엔드 주소를 한 번만 연결해 주세요.") +
+      "<br><span class='small'>" + esc(err.message || err) + "</span>");
+    $("#backend-setup").classList.remove("hidden");
+    $("#api-url").value = API_BASE || "";
     return;
   }
 
