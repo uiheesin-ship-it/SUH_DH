@@ -127,14 +127,28 @@ def should_scan(group: str, force_env: str, repo_path: Path, groups: frozenset) 
     )
 
 
-def write_regime_url(site: Path, url: str) -> str:
+def repo_regime_url() -> str:
+    """저장소에 커밋해 둔 Regime Lab 기본 주소 (app/static/regime/config.js).
+
+    빌드 변수(SUH_DH_REGIME_URL)를 설정하지 않아도 배포 주소가 공개 사이트에
+    적용되도록, 공개 URL 은 저장소에 그대로 적어 둘 수 있게 한다(비밀값이 아니다).
+    """
+    try:
+        text = (STATIC / "regime" / "config.js").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(r'SUH_DH_REGIME_URL\s*=\s*"([^"]*)"', text)
+    return (m.group(1) if m else "").strip().rstrip("/")
+
+
+def write_regime_url(site: Path, url: str, fallback: str = "") -> str:
     """Point the static Regime Lab page at a deployed Streamlit instance.
 
     GitHub Pages cannot run Python, so the card's page embeds a hosted instance
-    (Render 등) in an iframe. The URL is injected here at build time; without it
-    the page asks for the address once and remembers it in that browser.
+    (Render 등) in an iframe. 주소는 빌드 변수 → 저장소 기본값 순으로 쓰고, 둘 다
+    없으면 페이지가 주소를 한 번 물어본 뒤 그 브라우저에 기억한다.
     """
-    clean = (url or "").strip().rstrip("/")
+    clean = ((url or "").strip() or (fallback or "").strip()).rstrip("/")
     if not clean:
         return ""
     cfg = site / "regime" / "config.js"
@@ -173,7 +187,7 @@ def main() -> None:
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
-    write_regime_url(SITE, os.environ.get("SUH_DH_REGIME_URL", ""))
+    write_regime_url(SITE, os.environ.get("SUH_DH_REGIME_URL", ""), fallback=repo_regime_url())
 
     # 에셋 캐시 무효화 — config.js 를 다 쓴 다음에 한 번만.
     stamp = built.replace("-", "").replace(":", "").replace("+0000", "")[:15]
