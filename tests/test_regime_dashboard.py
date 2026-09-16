@@ -307,6 +307,32 @@ def test_build_carries_the_repo_backend_url(tmp_path, monkeypatch):
     cfg.write_text('window.SUH_DH_API_BASE = "https://suh-dh-api.onrender.com/";\n', encoding="utf-8")
     assert build.repo_regime_api_base() == "https://suh-dh-api.onrender.com"
 
+    # SUH_DH_API_BASE 가 비어 있으면 기본값(REGIME_API_DEFAULT)을 이어받는다.
+    # 정적 빌드는 config.js 를 새로 쓰기 때문에 여기서 주소를 못 찾으면 사이트가 백엔드를 잃는다.
+    cfg.write_text(
+        'window.SUH_DH_REGIME_API_DEFAULT = "https://suh-dh-regime.onrender.com";\n'
+        'window.SUH_DH_API_BASE = "";\n',
+        encoding="utf-8")
+    assert build.repo_regime_api_base() == "https://suh-dh-regime.onrender.com"
+
+
+def test_repo_config_ships_a_working_default_backend():
+    """저장소 config.js 에 적힌 기본 주소가 빌드까지 그대로 전달된다."""
+    import build
+
+    cfg = (ROOT / "app" / "static" / "regime" / "config.js").read_text(encoding="utf-8")
+    assert "SUH_DH_REGIME_API_DEFAULT" in cfg
+    assert build.repo_regime_api_base().startswith("https://")
+
+
+def test_frontend_verifies_the_backend_url():
+    """엉뚱한 주소(예: 옛 Streamlit 서비스)를 넣으면 화면이 먼저 알려 준다."""
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "SUH_DH_REGIME_API_DEFAULT" in js                 # 기본값 폴백
+    assert "probeBackend" in js and '"/api/health"' in js
+    assert 'status !== "ok"' in js                            # 응답 내용까지 확인
+    assert "#backend-setup" in js                             # 실패하면 주소 입력창을 연다
+
 
 def test_hosted_config_only_lowers_bootstrap_samples():
     hosted = Params.from_config(load_config(ROOT / "deploy" / "regime_config.render.yaml"))
@@ -331,6 +357,9 @@ def test_keep_warm_workflow_pings_the_backend():
     # 주소는 repo Variable → 저장소 config.js 순으로 찾는다
     assert "vars.SUH_DH_API_BASE" in script
     assert "app/static/regime/config.js" in script
+    assert "SUH_DH_REGIME_API_DEFAULT" in script              # config.js 의 기본값까지 폴백
+    # 200 이어도 응답이 대시보드 백엔드가 아니면 경고를 남긴다
+    assert '\'"status"\'' in script
     # 응답이 없어도 잡을 실패시키지 않고 경고만 남긴다 (알림 소음 방지)
     assert "::warning::" in script
 

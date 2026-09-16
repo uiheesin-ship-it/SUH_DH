@@ -37,7 +37,27 @@ function resolveApiBase() {
     storeApiBase(url);
     return url;
   }
-  return storedApiBase() || normaliseUrl(window.SUH_DH_API_BASE || "");
+  return storedApiBase()
+    || normaliseUrl(window.SUH_DH_API_BASE || "")
+    || normaliseUrl(window.SUH_DH_REGIME_API_DEFAULT || "");
+}
+
+/** 주소가 정말 대시보드 백엔드인지 확인한다.
+ *  (예전 Streamlit 서비스 주소처럼 엉뚱한 곳을 넣으면 여기서 걸린다.) */
+async function probeBackend(base) {
+  if (!base) return { ok: true };                      // 로컬: 같은 서버를 쓴다
+  try {
+    const res = await fetch(base + "/api/health", { cache: "no-store" });
+    if (!res.ok) return { ok: false, why: `/api/health 가 ${res.status} 를 돌려줬습니다.` };
+    const body = await res.json().catch(() => null);
+    if (!body || body.status !== "ok") {
+      return { ok: false, why: "이 주소는 대시보드 백엔드가 아닌 것 같습니다 (/api/health 응답이 예상과 다릅니다)." };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, why: "연결하지 못했습니다 — 주소가 맞는지, 서버가 살아 있는지 확인하세요. " +
+                             "(무료 인스턴스는 첫 요청에 30~60초 걸릴 수 있습니다.)" };
+  }
 }
 let API_BASE = resolveApiBase();
 const api = (path) => (API_BASE ? API_BASE + path : path);
@@ -833,8 +853,22 @@ async function init() {
   $("#strict-add").addEventListener("click", () =>
     $("#strict-list").appendChild(strictRow(FEATURES[0] && FEATURES[0].key)));
 
-  // 페이지를 여는 순간 백엔드를 깨워 둔다(무료 인스턴스 콜드 스타트 완화).
-  if (API_BASE) { fetch(api("/api/health"), { cache: "no-store" }).catch(() => {}); }
+  // 주소가 대시보드 백엔드가 맞는지 먼저 확인한다(겸사겸사 인스턴스도 깨운다).
+  if (API_BASE) {
+    setStatus("백엔드 확인 중…");
+    const probe = await probeBackend(API_BASE);
+    if (!probe.ok) {
+      setStatus("백엔드 주소를 확인하세요", "warn");
+      $("#intro-note").innerHTML = note("warn",
+        `<b>${esc(API_BASE)}</b> — ${esc(probe.why)}<br>` +
+        "<span class='small'>대시보드 백엔드(FastAPI)의 주소가 필요합니다. Render 라면 " +
+        "<code>suh-dh-api</code> 서비스의 주소이고, <code>/api/health</code> 를 열었을 때 " +
+        "<code>{\"status\":\"ok\"}</code> 가 보이는 주소입니다.</span>");
+      $("#backend-setup").classList.remove("hidden");
+      $("#api-url").value = API_BASE;
+      return;
+    }
+  }
 
   setStatus("설정을 불러오는 중…");
   try {

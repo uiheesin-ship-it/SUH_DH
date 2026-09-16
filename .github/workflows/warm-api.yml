@@ -34,7 +34,11 @@ jobs:
         run: |
           URL="${{ vars.SUH_DH_API_BASE }}"
           if [ -z "$URL" ]; then
-            URL=$(sed -n 's/.*SUH_DH_API_BASE *= *"\([^"]*\)".*/\1/p' app/static/regime/config.js | head -1)
+            # 저장소 기본값: SUH_DH_API_BASE 가 비어 있으면 REGIME_API_DEFAULT 를 쓴다.
+            URL=$(sed -n 's/.*SUH_DH_API_BASE *= *"\([^"]\+\)".*/\1/p' app/static/regime/config.js | head -1)
+          fi
+          if [ -z "$URL" ]; then
+            URL=$(sed -n 's/.*SUH_DH_REGIME_API_DEFAULT *= *"\([^"]*\)".*/\1/p' app/static/regime/config.js | head -1)
           fi
           echo "url=${URL%/}" >> "$GITHUB_OUTPUT"
 
@@ -47,8 +51,12 @@ jobs:
           fi
           # 잠든 인스턴스는 첫 응답까지 오래 걸리므로 넉넉히 기다린다.
           start=$(date +%s)
-          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 --retry 2 --retry-all-errors "$URL/api/health" || echo "000")
-          echo "GET $URL/api/health -> $code ($(( $(date +%s) - start ))s)"
+          body=$(curl -sS --max-time 120 --retry 2 --retry-all-errors -w '\n%{http_code}' "$URL/api/health" || printf '\n000')
+          code=$(printf '%s' "$body" | tail -n1)
+          payload=$(printf '%s' "$body" | sed '$d')
+          echo "GET $URL/api/health -> $code ($(( $(date +%s) - start ))s): $payload"
           if [ "$code" != "200" ]; then
             echo "::warning::백엔드가 응답하지 않았습니다 ($code) — Render 서비스 상태를 확인하세요."
+          elif ! printf '%s' "$payload" | grep -q '"status"'; then
+            echo "::warning::$URL 은 대시보드 백엔드(FastAPI)가 아닌 것 같습니다 — /api/health 응답이 예상과 다릅니다."
           fi
