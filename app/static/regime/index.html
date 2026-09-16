@@ -15,13 +15,13 @@
     </div>
     <div class="controls">
       <a id="newtab" class="ghost-btn hidden" href="app/" target="_blank" rel="noopener">새 창에서 열기 ↗</a>
-      <button id="restart" class="ghost-btn hidden" title="Streamlit 프로세스를 다시 시작합니다">다시 시작</button>
+      <button id="settings-btn" class="ghost-btn hidden" title="Regime Lab 서버 주소 변경">서버 주소</button>
       <span id="status" class="status">상태 확인 중…</span>
     </div>
   </header>
 
   <main id="content">
-    <!-- 실행 전/오류 안내 패널 -->
+    <!-- 상태/오류 안내 (로컬 대시보드에서 실행할 때만 쓰인다) -->
     <section id="panel" class="panel hidden">
       <h2 id="panel-title">Market Regime Lab</h2>
       <p id="panel-desc" class="muted"></p>
@@ -29,9 +29,38 @@
       <pre id="panel-code" class="code hidden"></pre>
     </section>
 
-    <!-- 대시보드 안에서 그대로 열리는 분석 화면 -->
-    <iframe id="lab" class="lab hidden" title="Market Regime Lab"
-            src="about:blank" allow="clipboard-write"></iframe>
+    <!-- 원격 인스턴스 주소 설정 (정적 호스팅에서 최초 1회) -->
+    <section id="setup" class="panel hidden">
+      <h2>Regime Lab 서버 주소</h2>
+      <p class="muted">
+        이 페이지는 배포된 Market Regime Lab 을 <b>이 화면 안에</b> 그대로 띄웁니다.
+        아직 주소가 설정되지 않았습니다 — Render 등에 배포한 주소를 한 번만 입력하면
+        이 브라우저에 기억되고, 다음부터는 바로 열립니다.
+        (저장소 빌드 변수 <code>SUH_DH_REGIME_URL</code> 을 설정하면 모든 사용자에게 기본값으로 적용됩니다.)
+      </p>
+      <div class="setup-row">
+        <input id="regime-url" type="url" spellcheck="false" autocomplete="off"
+               placeholder="https://suh-dh-regime.onrender.com" />
+        <button id="setup-save" class="primary-btn">연결</button>
+        <button id="setup-clear" class="ghost-btn">지우기</button>
+      </div>
+      <p id="setup-error" class="err"></p>
+      <p class="muted small">
+        배포 방법은 저장소의 <code>render.yaml</code> 주석을 참고하세요. 업로드한 파일은
+        분석하는 동안에만 쓰이고 저장소에 커밋되지 않습니다.
+      </p>
+    </section>
+
+    <!-- 실제 분석 화면: 대시보드를 벗어나지 않고 여기서 바로 쓴다 -->
+    <div id="lab-wrap">
+      <div id="overlay" class="overlay hidden">
+        <div class="spinner"></div>
+        <p id="overlay-text">Market Regime Lab 을 불러오는 중…</p>
+        <p id="overlay-note" class="muted small"></p>
+      </div>
+      <iframe id="lab" class="lab hidden" title="Market Regime Lab"
+              src="about:blank" allow="clipboard-write"></iframe>
+    </div>
   </main>
 
   <script src="config.js"></script>

@@ -127,6 +127,24 @@ def should_scan(group: str, force_env: str, repo_path: Path, groups: frozenset) 
     )
 
 
+def write_regime_url(site: Path, url: str) -> str:
+    """Point the static Regime Lab page at a deployed Streamlit instance.
+
+    GitHub Pages cannot run Python, so the card's page embeds a hosted instance
+    (Render 등) in an iframe. The URL is injected here at build time; without it
+    the page asks for the address once and remembers it in that browser.
+    """
+    clean = (url or "").strip().rstrip("/")
+    if not clean:
+        return ""
+    cfg = site / "regime" / "config.js"
+    if not cfg.parent.exists():
+        return ""
+    with cfg.open("a", encoding="utf-8") as f:
+        f.write(f'window.SUH_DH_REGIME_URL = "{clean}";\n')
+    return clean
+
+
 def main() -> None:
     if SITE.exists():
         shutil.rmtree(SITE)
@@ -154,6 +172,8 @@ def main() -> None:
         for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
+
+    write_regime_url(SITE, os.environ.get("SUH_DH_REGIME_URL", ""))
 
     # 에셋 캐시 무효화 — config.js 를 다 쓴 다음에 한 번만.
     stamp = built.replace("-", "").replace(":", "").replace("+0000", "")[:15]

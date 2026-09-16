@@ -1020,12 +1020,33 @@ API 예시:
 로컬 Streamlit 웹앱입니다. 설계와 계산 방법론은
 [docs/DESIGN_regime_lab.md](docs/DESIGN_regime_lab.md) 에 정리돼 있습니다.
 
-**대시보드에서 바로 열기 (권장)** — 허브의 **미장 → 기타 → Market Regime Lab** 카드를 누르면
-대시보드 안에서 그대로 열립니다. 대시보드가 필요할 때 Streamlit 프로세스를 띄우고
-`/regime/app/**` 로 프록시하므로, 별도 주소나 포트를 기억할 필요가 없습니다(ngrok 등
-터널을 쓰는 경우에도 같은 주소로 열립니다).
+**허브 카드에서 바로 열기** — **미장 → 기타 → Market Regime Lab** 을 누르면 그 화면 안에서
+앱이 그대로 뜹니다. 페이지를 벗어나지 않고 CSV/XLSX 업로드부터 분석까지 끝납니다.
+동작 방식은 어디서 여느냐에 따라 둘로 갈립니다.
+
+| 여는 곳 | 앱이 도는 곳 |
+|---|---|
+| **항상 켜져 있는 웹 주소(GitHub Pages)** | 배포해 둔 Streamlit 인스턴스(Render 등)를 iframe 으로 임베드 |
+| **로컬 대시보드(`./run.sh`)** | 대시보드가 필요할 때 Streamlit 을 띄우고 `/regime/app/**` 로 프록시 |
+
+정적 사이트는 파이썬을 돌릴 수 없으므로, 공개 주소에서 쓰려면 앱을 한 번 배포해야 합니다
+(무료, 5분):
+
+1. [Render](https://dashboard.render.com) → **New → Blueprint** → 이 저장소 연결 → **Apply**
+   (저장소의 `render.yaml` 이 `suh-dh-regime` 서비스를 정의합니다).
+2. 배포된 주소를 복사합니다 — 예: `https://suh-dh-regime.onrender.com`
+3. GitHub → **Settings → Secrets and variables → Actions → Variables** →
+   **New repository variable** `SUH_DH_REGIME_URL` = 그 주소
+4. **Actions → "Build & deploy dashboard" → Run workflow** (다음 정기 빌드를 기다려도 됩니다).
+
+3~4번을 건너뛰고 싶으면, 카드 화면 오른쪽 위 **서버 주소** 버튼에 주소를 한 번 넣어도 됩니다
+(그 브라우저에만 기억됩니다). 빌드 변수는 모든 방문자에게 적용되는 기본값입니다.
+
+> 무료 인스턴스는 15분 유휴 후 잠들기 때문에, 오랜만에 열면 깨어나는 데 30~60초가 걸립니다
+> (화면이 로딩 상태를 보여 줍니다).
 
 ```bash
+# 로컬에서 쓰는 경우
 pip install -r requirements.txt -r requirements-regime.txt
 ./run.sh                 # 대시보드 → http://127.0.0.1:8000 → 미장 → 기타 → Market Regime Lab
 ```
