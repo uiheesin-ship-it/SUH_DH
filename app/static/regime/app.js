@@ -5,12 +5,13 @@
  *
  *   1) ?app=<url>          — 주소창으로 한 번 지정(그 브라우저에 저장된다)
  *   2) localStorage        — 이전에 지정한 주소
- *   3) SUH_DH_REGIME_URL   — 빌드 때 심어 둔 기본 주소 (GitHub Pages 배포용)
- *   4) 같은 서버의 백엔드   — 로컬 대시보드(./run.sh)가 Streamlit 을 띄우고 프록시
+ *   3) 같은 서버의 백엔드   — 로컬 대시보드(./run.sh)가 Streamlit 을 띄우고 프록시
+ *   4) SUH_DH_REGIME_URL   — 저장소/빌드에 심어 둔 기본 주소 (GitHub Pages 배포용)
  *
- * 1~3 은 GitHub Pages 처럼 파이썬을 돌릴 수 없는 곳에서 원격 인스턴스를 붙이는
- * 경로이고, 4 는 로컬에서 대시보드를 띄웠을 때의 경로다. 어느 쪽이든 사용자는
- * 이 페이지를 떠나지 않는다.
+ * 사용자가 직접 지정한 주소(1·2)가 가장 우선이고, 그다음은 지금 열고 있는 서버가
+ * 직접 띄울 수 있으면 그것(3) — 로컬에서는 콜드 스타트 없이 바로 뜨고 네트워크도
+ * 필요 없다. 정적 호스팅에는 백엔드가 없으므로 자연히 원격 기본 주소(4)로 간다.
+ * 어느 쪽이든 사용자는 이 페이지를 떠나지 않는다.
  */
 const $ = (id) => document.getElementById(id);
 const statusEl = $("status");
@@ -73,14 +74,20 @@ function normalise(url) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : "https://" + trimmed;
 }
 
-function resolveRemote() {
+/** 사용자가 이 브라우저에서 직접 지정한 주소 (없으면 빈 문자열). */
+function chosenRemote() {
   const fromQuery = new URLSearchParams(location.search).get("app");
   if (fromQuery) {
     const url = normalise(fromQuery);
     storeUrl(url);
     return url;
   }
-  return storedUrl() || normalise(window.SUH_DH_REGIME_URL || "");
+  return storedUrl();
+}
+
+/** 저장소/빌드에 심어 둔 기본 주소. */
+function defaultRemote() {
+  return normalise(window.SUH_DH_REGIME_URL || "");
 }
 
 /** iframe 으로 실제 앱을 이 자리에 띄운다. */
@@ -163,8 +170,8 @@ async function localBackend() {
 /* ---------- 진입 ---------- */
 
 async function boot() {
-  const remote = resolveRemote();
-  if (remote) { showLab(remote + "/?embed=true", remote); return; }
+  const chosen = chosenRemote();
+  if (chosen) { showLab(chosen + "/?embed=true", chosen); return; }
 
   const local = await localBackend();
   if (local && local.available) {
@@ -179,6 +186,9 @@ async function boot() {
        button("원격 주소 사용", () => showSetup(), "ghost-btn")]);
     return;
   }
+  const fallback = defaultRemote();
+  if (fallback) { showLab(fallback + "/?embed=true", fallback); return; }
+
   if (local && !local.available) {
     showPanel("필요한 패키지가 설치되어 있지 않습니다",
       "이 대시보드에 Streamlit 이 없습니다: <b>" + (local.missing || []).join(", ") + "</b>. " +
