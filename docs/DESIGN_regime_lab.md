@@ -365,7 +365,9 @@ Regime Lab 은 Streamlit 앱이라 다른 프로그램처럼 정적 페이지로
 * 주소는 ① `?app=<url>` 쿼리 → ② localStorage → ③ 빌드 때 심은 `SUH_DH_REGIME_URL`
   (`build.write_regime_url`, 워크플로의 repo Variable) 순으로 찾습니다. 셋 다 없으면
   화면에서 주소를 한 번 입력받고 그 브라우저에 기억합니다.
-* 배포는 `render.yaml` 의 `suh-dh-regime` 서비스(무료 플랜)가 담당합니다.
+* 배포는 `render.yaml` 의 `suh-dh-regime` 서비스(무료 플랜)가 담당합니다. 대안으로
+  Streamlit Community Cloud 에 `app/regime/streamlit_app.py` 를 올려도 되며, 그때는
+  같은 디렉터리의 `app/regime/requirements.txt` 가 쓰입니다.
   `--server.enableCORS false --server.enableXsrfProtection false` 로 띄우는데, 다른
   오리진의 iframe 안에서는 XSRF 쿠키가 서드파티 쿠키로 취급돼 **파일 업로드가 막히기**
   때문입니다. 읽기 전용 분석 도구라 세션에 보호할 상태가 없고 업로드 파일도 서버에
