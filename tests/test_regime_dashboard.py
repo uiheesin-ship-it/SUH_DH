@@ -317,6 +317,24 @@ def test_hosted_config_only_lowers_bootstrap_samples():
     assert hosted.features == repo.features
 
 
+def test_keep_warm_workflow_pings_the_backend():
+    """무료 인스턴스가 잠들지 않도록 주기적으로 /api/health 를 친다."""
+    yaml = pytest.importorskip("yaml")
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "warm-api.yml").read_text(encoding="utf-8"))
+    on = wf.get("on") or wf.get(True)                    # YAML 의 on: 은 True 로 파싱된다
+    crons = [c["cron"] for c in on["schedule"]]
+    assert crons and all(c.startswith("*/10") for c in crons)   # 10분 간격 (Render 는 15분 유휴)
+    assert "workflow_dispatch" in on
+    steps = wf["jobs"]["ping"]["steps"]
+    script = " ".join(str(s.get("run", "")) for s in steps)
+    assert "/api/health" in script
+    # 주소는 repo Variable → 저장소 config.js 순으로 찾는다
+    assert "vars.SUH_DH_API_BASE" in script
+    assert "app/static/regime/config.js" in script
+    # 응답이 없어도 잡을 실패시키지 않고 경고만 남긴다 (알림 소음 방지)
+    assert "::warning::" in script
+
+
 def test_render_blueprint_has_no_separate_streamlit_service():
     yaml = pytest.importorskip("yaml")
     blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))

@@ -1039,6 +1039,11 @@ pip install -r requirements.txt
 업로드 파일이 20년보다 길어도(예: 30년치 7,700행) **설정한 기간만** 사용합니다 —
 기간은 왼쪽 `기간(년)`에서 5~30년으로 조정합니다.
 
+무료 Render 인스턴스는 15분 유휴 후 잠들어 첫 요청이 30~60초 걸리므로,
+`.github/workflows/warm-api.yml` 이 **10분마다 `/api/health` 를 쳐서 깨워 둡니다**
+(기본 12:00~23:59 UTC = 21:00~08:59 KST. 24시간 유지하려면 cron 을 `*/10 * * * *` 로).
+주소는 repo Variable `SUH_DH_API_BASE` → `app/static/regime/config.js` 순으로 찾습니다.
+
 **선택: Streamlit 단독 실행** — 같은 분석 엔진을 쓰는 Streamlit 화면도 그대로 남아 있습니다.
 
 ```bash
