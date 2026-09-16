@@ -1029,8 +1029,15 @@ pip install -r requirements.txt
 ./run.sh                 # 대시보드 → http://127.0.0.1:8000 → 미장 → 기타 → Market Regime Lab
 ```
 
-정적 GitHub Pages 사이트에서 쓰려면 다른 프로그램과 같은 방식으로 호스팅된 백엔드가 필요합니다
-(`render.yaml` 의 `suh-dh-api` 배포 후 repo Variable `SUH_DH_API_BASE` 설정).
+정적 GitHub Pages 사이트에는 파이썬이 없으므로 **호스팅된 백엔드 주소**가 필요합니다
+(`render.yaml` 의 `suh-dh-api` 배포). 주소는 세 곳 중 하나로 지정합니다 —
+① 화면 위 "분석 백엔드 주소" 입력칸(그 브라우저에 기억), ② 저장소
+`app/static/regime/config.js` 의 `SUH_DH_API_BASE`(모든 방문자 기본값),
+③ repo Variable `SUH_DH_API_BASE`(전체 프로그램 공통). 주소가 없으면 화면이
+입력칸을 띄워 안내합니다.
+
+업로드 파일이 20년보다 길어도(예: 30년치 7,700행) **설정한 기간만** 사용합니다 —
+기간은 왼쪽 `기간(년)`에서 5~30년으로 조정합니다.
 
 **선택: Streamlit 단독 실행** — 같은 분석 엔진을 쓰는 Streamlit 화면도 그대로 남아 있습니다.
 

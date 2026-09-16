@@ -78,6 +78,13 @@ button.small { padding: 4px 10px; font-size: 12px; }
 .map { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .map label { font-size: 11.5px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
 .map select { max-width: 100%; }
+.setup-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+#api-url {
+  flex: 1; min-width: 260px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; font-size: 13.5px;
+}
+#api-url:focus { outline: none; border-color: var(--accent); }
+
 .saved {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   border: 1px solid #14532d; background: rgba(20, 83, 45, .3);

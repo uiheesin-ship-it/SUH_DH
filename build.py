@@ -127,6 +127,21 @@ def should_scan(group: str, force_env: str, repo_path: Path, groups: frozenset) 
     )
 
 
+def repo_regime_api_base() -> str:
+    """저장소에 적어 둔 Regime Lab 백엔드 주소 (app/static/regime/config.js).
+
+    빌드 변수(SUH_DH_API_BASE)를 설정하지 않아도 공개 사이트에서 분석이 되도록,
+    공개 URL 은 저장소에 그대로 둘 수 있게 한다(비밀값이 아니다). 다른 프로그램의
+    동작은 건드리지 않고 regime 페이지에만 적용한다.
+    """
+    try:
+        text = (STATIC / "regime" / "config.js").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(r'SUH_DH_API_BASE\s*=\s*"([^"]*)"', text)
+    return (m.group(1) if m else "").strip().rstrip("/")
+
+
 def main() -> None:
     if SITE.exists():
         shutil.rmtree(SITE)
@@ -155,6 +170,13 @@ def main() -> None:
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
+
+    # 빌드 변수가 없으면 저장소에 적어 둔 Regime Lab 백엔드 주소를 그대로 쓴다.
+    if not api_base:
+        regime_api = repo_regime_api_base()
+        if regime_api:
+            with (SITE / "regime" / "config.js").open("a", encoding="utf-8") as f:
+                f.write(f'window.SUH_DH_API_BASE = "{regime_api}";\n')
 
     # 에셋 캐시 무효화 — config.js 를 다 쓴 다음에 한 번만.
     stamp = built.replace("-", "").replace(":", "").replace("+0000", "")[:15]
