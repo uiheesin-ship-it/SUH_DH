@@ -1046,9 +1046,17 @@ python3 -m app.regime.quality --ticker '^IXIC' --no-cache   # 캐시 무시하�
   **유효 표본수 `n_eff`** 와 독립 에피소드 수, 그리고 "단순 i.i.d. 였다면 신뢰구간이 몇 %
   좁았을지"를 함께 표시합니다. horizon 별로 최소 간격을 5/20/60/120일로 다시 강제하는
   **완전 비중첩 표본 모드**도 선택할 수 있습니다.
+- **데이터 입력 (Auto / Manual)** — 자동 내려받기 외에 **CSV·XLSX 직접 업로드**를 지원합니다.
+  가격(OHLCV) 파일, 거래량 파일, 10년물 파일을 각각 올릴 수 있고(거래량은 Date 기준 정확 매칭으로
+  병합), 헤더 이름이 달라도 **컬럼 매핑**을 사이드바에서 고를 수 있습니다. 10년물은 %/decimal/bp
+  단위를 자동 추정하고 직접 지정할 수도 있습니다. 업로드가 있으면 자동 내려받기보다 **우선** 적용되며,
+  지금 무엇으로 분석 중인지가 화면 최상단에 항상 표시됩니다. 지수 거래량 대신 QQQ 같은 **proxy 를
+  쓰려면 사용자가 명시적으로 선택**해야 하고, 그때는 `Volume Source: QQQ proxy — not Nasdaq
+  Composite volume` 경고가 계속 붙습니다. 샘플 파일은 [`docs/samples/`](docs/samples/).
 - **데이터 품질** — 기간·중복 날짜·공백·결측·최신성, OHLC 정합성, **거래량이 분산일 판정에
   쓸 수 있는 데이터인지**(결측·0·단위 변경 감지 + 대체 소스 제안), **10년물이 진짜 yield 인지와
-  단위(%/bp)** 를 검사해 상단 배너와 전용 탭에 요약합니다. 터미널에서도 같은 검사를 돌립니다.
+  단위(%/bp)**, 업로드 시 **병합 커버리지**까지 검사해 상단 배너와 전용 탭(Data Source Summary 포함)에
+  요약합니다. 터미널에서도 같은 검사를 돌립니다.
 - **계산 감사** — match 한 날짜를 고르면 원본 OHLCV → SMA·이격률 → 분산일 3조건 판정 →
   feature 별 raw/표준화 값·가중치·거리 기여도 → 최종 distance·score → de-clustering 포함 여부 →
   forward return 의 시작/종료 가격까지 전 과정을 표로 펼쳐 확인할 수 있습니다.
@@ -1069,9 +1077,9 @@ python3 -m pytest tests/ -q
 ```
 
 Market Regime Lab 만 따로 돌리려면
-`python3 -m pytest tests/test_regime.py tests/test_regime_audit.py -q`
-(네트워크 없이 합성 데이터로 돌며, look-ahead 방지 검증과 감사 화면 값의
-독립 재계산 검증을 포함합니다).
+`python3 -m pytest tests/test_regime*.py -q`
+(네트워크 없이 돌며, look-ahead 방지 검증, 감사 화면 값의 독립 재계산,
+샘플 CSV/XLSX 업로드 경로 검증을 포함합니다).
 
 ## 향후 개선 아이디어
 

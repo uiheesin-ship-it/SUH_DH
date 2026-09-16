@@ -7,3 +7,4 @@ yfinance>=0.2.54
 streamlit>=1.40
 plotly>=5.20
 pyyaml>=6.0              # regime_config.yaml (없어도 내장 기본값으로 동작)
+openpyxl>=3.1            # Manual Upload 의 XLSX 읽기 (CSV 만 쓸 거면 없어도 됩니다)

@@ -18,6 +18,10 @@ The checks exist because three things silently break this kind of analysis:
   crash anything; it just makes the macro feature meaningless.
 * **Calendar** — duplicated dates, missing weeks and a stale last bar all look
   like ordinary data until a forward return is measured across the hole.
+
+The same checks run whether the data was downloaded or uploaded by hand — the
+loader normalises both into one schema — and a separate source summary states,
+per stream, where the numbers actually came from.
 """
 
 from __future__ import annotations
@@ -38,6 +42,13 @@ VOLUME_OK_RATIO = 0.98
 VOLUME_WARN_RATIO = 0.90
 # 10년물 수익률의 상식적인 범위(2006~현재 실제 범위는 약 0.5%~5.3%).
 YIELD_SANE_RANGE = (0.2, 10.0)
+
+# proxy 거래량 경고에서 "무엇의 거래량이 아닌지"를 분명히 쓰기 위한 이름표.
+INDEX_NAMES = {
+    "^IXIC": "Nasdaq Composite", "^GSPC": "S&P 500", "^DJI": "Dow Jones",
+    "^RUT": "Russell 2000", "^NDX": "Nasdaq 100",
+}
+KIND_LABELS = {"auto": "Auto Download", "upload": "Manual Upload", "proxy": "Proxy (사용자 지정)"}
 
 
 @dataclass(frozen=True)
@@ -60,7 +71,9 @@ class QualityReport:
 
     @property
     def status(self) -> str:
-        return max((c.status for c in self.checks), key=lambda s: STATUS_ORDER[s], default="ok")
+        """Worst status in the report. ``info`` notes never set the verdict."""
+        worst = max((c.status for c in self.checks), key=lambda s: STATUS_ORDER[s], default="ok")
+        return "ok" if worst == "info" else worst
 
     def problems(self) -> list[Check]:
         return [c for c in self.checks if c.status in ("warn", "fail")]
@@ -306,20 +319,85 @@ def check_distribution_day(market, params) -> list[Check]:
                   f"현재 조건: r ≤ -{dp.drop_pct}% · V ≥ 전일×{1 + dp.volume_bump_pct / 100:.2f} · CLV ≤ {dp.clv_max}")]
 
 
+def check_sources(market, params) -> list[Check]:
+    """Where each stream came from — and, for a proxy volume, a loud warning."""
+    srcs = market.meta.get("sources", {}) or {}
+    ticker = market.ticker
+    name = INDEX_NAMES.get(ticker.upper(), ticker)
+    out: list[Check] = []
+
+    price = srcs.get("price", {})
+    out.append(Check("price_source", "가격 데이터 소스", "info",
+                     f"{KIND_LABELS.get(price.get('kind'), price.get('kind'))} · {price.get('name')}",
+                     f"{price.get('first')} ~ {price.get('last')} · {price.get('rows', 0):,}행"))
+
+    vol = srcs.get("volume", {})
+    kind = vol.get("kind")
+    if kind == "proxy":
+        out.append(Check("volume_source", "거래량 데이터 소스", "warn",
+                         f"Volume Source: {vol.get('name')} — not {name} volume",
+                         f"{vol.get('usable', 0):,}개 사용 가능",
+                         "대용 거래량입니다. 분산일 개수는 지수 자체의 거래량이 아니라 "
+                         "이 종목의 거래량으로 계산됩니다 — 해석에 반드시 반영하세요."))
+    else:
+        out.append(Check("volume_source", "거래량 데이터 소스", "info",
+                         f"{KIND_LABELS.get(kind, kind)} · {vol.get('name')}",
+                         f"{vol.get('usable', 0):,}개 사용 가능"))
+
+    merge = (vol.get("merge") or {})
+    if merge:
+        cov = float(merge.get("coverage", 0))
+        status = "ok" if cov >= 0.98 else ("warn" if cov >= 0.9 else "fail")
+        out.append(Check("volume_merge", "가격·거래량 병합 커버리지", status,
+                         f"가격 {merge.get('price_rows', 0):,}행 중 {merge.get('matched', 0):,}행에 "
+                         f"거래량이 붙었습니다 (거래량 없는 날 {merge.get('price_without_volume', 0):,}행, "
+                         f"쓰이지 않은 거래량 행 {merge.get('volume_unused', 0):,}행)",
+                         f"{cov * 100:.1f}%",
+                         "" if status == "ok" else
+                         "날짜 기준 정확 매칭만 합니다(거래량은 forward-fill 하지 않음). "
+                         "두 파일의 날짜 형식·기간이 같은지 확인하세요."))
+    return out
+
+
+def data_source_summary(market) -> pd.DataFrame:
+    """One table: what fed the price, the volume and each macro series."""
+    srcs = market.meta.get("sources", {}) or {}
+    rows = []
+
+    def add(label: str, entry: dict) -> None:
+        if not entry:
+            return
+        rows.append({
+            "스트림": label,
+            "입력 방식": KIND_LABELS.get(entry.get("kind"), entry.get("kind")),
+            "파일명 / 제공자": entry.get("name"),
+            "기간": f"{entry.get('first')} ~ {entry.get('last')}",
+            "행 수": entry.get("rows", 0),
+            "사용 가능 관측치": entry.get("usable", 0),
+        })
+
+    add("Price (OHLC)", srcs.get("price", {}))
+    add("Volume", srcs.get("volume", {}))
+    for key, entry in srcs.items():
+        if str(key).startswith("exog:"):
+            add(f"Macro · {str(key).split(':', 1)[1]}", entry)
+    return pd.DataFrame(rows)
+
+
 def run_checks(market, params) -> list[QualityReport]:
     """Full data-quality sweep for one loaded market snapshot."""
     reports: list[QualityReport] = []
 
     price = QualityReport(series=market.ticker)
+    price.add(*check_sources(market, params))
     price.add(*check_calendar(market.ticker, market.prices, params.years))
     price.add(*check_prices(market.prices))
     price.add(*check_volume(market.prices, market.ticker))
     price.add(*check_distribution_day(market, params))
     meta = market.meta.get("series", {}).get(market.ticker, {})
-    price.add(Check("source", "데이터 출처", "ok" if meta.get("source") not in ("synthetic",) else "warn",
-                    f"{meta.get('source')}" + (" — 합성 데이터이므로 실제 시장이 아닙니다"
-                                               if meta.get("source") == "synthetic" else ""),
-                    str(meta.get("source"))))
+    if meta.get("source") == "synthetic":
+        price.add(Check("source", "데이터 출처", "warn",
+                        "synthetic — 합성 데이터이므로 실제 시장이 아닙니다", "synthetic"))
     reports.append(price)
 
     for spec in params.exogenous or ():
@@ -349,7 +427,8 @@ def summary_frame(reports: list[QualityReport]) -> pd.DataFrame:
 
 
 def overall_status(reports: list[QualityReport]) -> str:
-    return max((r.status for r in reports), key=lambda s: STATUS_ORDER[s], default="ok")
+    worst = max((r.status for r in reports), key=lambda s: STATUS_ORDER[s], default="ok")
+    return "ok" if worst == "info" else worst
 
 
 def main(argv=None) -> int:

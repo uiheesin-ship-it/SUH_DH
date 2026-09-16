@@ -17,8 +17,9 @@ app/regime/
   config.py            파라미터 dataclass + regime_config.yaml 로딩
   data/
     sources.py         yfinance / stooq / 오프라인 합성 — 세 provider, 한 시그니처
+    upload.py          Manual Upload (CSV/XLSX) 파싱 · 컬럼 매핑 · 단위 추정
     align.py           거래일 달력 정렬 (forward-fill only)
-    loader.py          MarketData 조립 + 디스크 캐시
+    loader.py          MarketData 조립 + 디스크 캐시 + DataOverrides(업로드 우선)
   features/
     base.py            FeatureSpec / FeatureSet / builder 레지스트리
     trend.py           SMA 이격률, 배열, 기울기
@@ -56,10 +57,40 @@ load_market ──> build_features ──> similarity / strict match ──> for
 |---|---|
 | 가격 | `^IXIC` 일봉 OHLCV, 기본 20년 (`auto_adjust=True`) |
 | 금리 | 미국 10년물 `^TNX` (퍼센트 단위로 정규화) |
+| 입력 방식 | **Auto Download** 또는 **Manual Upload** (사이드바에서 선택) |
 | 1차 소스 | Yahoo Finance (yfinance) |
 | 폴백 | Stooq CSV → 디스크 캐시(만료 무시) → 합성 데이터(데모) |
 | 캐시 | `data/regime/<symbol>.csv`, 기본 TTL 6시간 (`SUH_DH_REGIME_TTL`) |
-| 표시 | 시리즈별 **최종 업데이트 날짜 · 출처 · 행 수 · 지연일**을 화면 상단에 노출 |
+| 표시 | 화면 최상단에 **Price / Volume / 10Y 각각의 입력 방식과 파일명(또는 제공자)** 을 항상 표기 |
+
+### Manual Upload (`app/regime/data/upload.py`)
+
+내려받기가 막혀 있거나, 공급자마다 정의가 다른 거래량을 직접 통제하고 싶을 때
+쓰는 경로입니다. 업로드된 파일은 **다운로드 결과와 완전히 같은 스키마**로
+정규화되어, 그 아래(feature / similarity / forward / audit / validation)는 어느
+쪽에서 왔는지 알 수 없습니다.
+
+| 파일 | 최소 컬럼 | 비고 |
+|---|---|---|
+| ① 가격 (OHLCV) | `Date, Close` (+ `Open/High/Low/Volume`) | CSV·XLSX. O/H/L 이 없으면 종가로 대체하고 경고(CLV·ATR 무의미) |
+| ② 거래량 (선택) | `Date, Volume` | 별도 파일을 **Date 기준 정확 매칭**으로 병합 (forward-fill 하지 않음) |
+| ③ 미국 10년물 (선택) | `Date, Yield` | 단위 자동 추정(% / decimal / bp / tenths) + 사용자 override |
+
+* **컬럼 매핑** — 헤더 이름이 달라도 자동 추정한 매핑을 사이드바에서 직접 고칠 수
+  있습니다 (`날짜`, `Close/Last`, `Vol.`, `DGS10`, `observation_date` 등 인식).
+* **값 파싱** — `$1,234.56`, `2,345,678`, `1.2M`, `(123)`(음수), Excel serial 날짜,
+  `DD/MM/YYYY`, cp949 한글 헤더, 탭·세미콜론 구분자.
+* **조용히 버리지 않음** — 해석 불가 행·필수값 결측·중복 날짜는 **개수를 화면에 보고**한
+  뒤 처리합니다(중복은 마지막 값 유지).
+* **Proxy 거래량** — 지수 거래량이 쓸 수 없을 때 QQQ 등으로 대체할 수 있지만,
+  **자동 대체는 없습니다.** 사용자가 종목을 지정하고 동의 체크박스를 눌러야만 적용되며,
+  적용되면 화면 상단과 품질 탭에
+  `Volume Source: QQQ proxy — not Nasdaq Composite volume` 경고가 항상 표시됩니다.
+* **Data Source Summary** — Price / Volume / 각 매크로 시리즈별로 입력 방식 ·
+  파일명(제공자) · 기간 · 행 수 · 사용 가능 관측치를 한 표로 보여 줍니다. 가격과
+  거래량을 따로 올린 경우 **병합 커버리지**(붙은 행 수, 거래량 없는 날, 쓰이지 않은
+  거래량 행)도 함께 검사합니다.
+* 샘플 파일: `docs/samples/` (가격·거래량·10년물 각 1개, 300거래일).
 
 ### Data Quality Check (`app/regime/quality.py`)
 
@@ -89,6 +120,11 @@ python3 -m app.regime.quality --ticker '^IXIC' --no-cache
 | 금리 값 범위 | 0.2~10% 밖 비율 → "가격 지수를 받아온 것 아닌지" |
 | 금리 일간 변동 | 하루 50bp 초과 급변 횟수 |
 | 정렬 커버리지 | 거래일 중 값이 있는 비율, forward-fill 비중 |
+| 입력 방식 / 소스 | Price·Volume 이 Auto Download / Manual Upload / Proxy 중 무엇인지 |
+| 병합 커버리지 | 가격과 거래량을 따로 올렸을 때 날짜가 얼마나 맞물리는지 |
+
+같은 검사가 **업로드 데이터에도 그대로** 적용됩니다 — 로더가 두 경로를 한 스키마로
+정규화하기 때문에 품질 검사 쪽에는 분기 자체가 없습니다.
 
 거래량이 분산일 판정에 부적합하면(결측·0 비율이 높으면) **대체 소스를 함께
 제안**합니다: ① QQQ/ONEQ 등 추종 ETF 거래량, ② Stooq(^ndq) 등 다른 소스,
@@ -314,6 +350,8 @@ fold 별로 평가 횟수 · 신호 평균 · 실현 평균 · 같은 기간 무
 ## 8. 확장
 
 * **임의 티커** — 사이드바 입력. 아래 계층은 티커를 모릅니다.
+* **입력 방식** — Auto Download 와 Manual Upload 는 `loader.DataOverrides` 에서만
+  갈라지고, 그 아래로는 동일한 `MarketData` 하나만 흐릅니다.
 * **새 시계열(VIX, credit spread, Fed Funds, breadth)** — `regime_config.yaml`
   `market.exogenous` 에 한 줄. 수준/변화/백분위 feature 가 자동 생성됩니다.
 * **새 feature 계열** — `app/regime/features/` 에 builder 를 하나 만들고

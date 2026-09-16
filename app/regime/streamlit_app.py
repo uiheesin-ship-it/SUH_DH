@@ -36,8 +36,12 @@ st.set_page_config(page_title="Market Regime Lab", page_icon="📈", layout="wid
 
 # ---------------------------------------------------------------- data caching
 @st.cache_data(ttl=3600, show_spinner="시장 데이터를 불러오는 중…")
-def _load(ticker: str, years: int, exog_json: str, source: str):
-    return load_market(ticker, years, json.loads(exog_json), source=source)
+def _load(ticker: str, years: int, exog_json: str, source: str, data_key: str = "auto",
+          _overrides=None):
+    """``data_key`` is the cache key for a manual upload (file bytes + mapping
+    digest); the overrides object itself is skipped by the hasher."""
+    return load_market(ticker, years, json.loads(exog_json), source=source,
+                       overrides=_overrides)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -53,14 +57,26 @@ def _signature_params(signature: str) -> Params:
 _PARAM_CACHE: dict[str, Params] = {}
 
 
-def _feature_signature(params: Params) -> str:
+def _feature_signature(params: Params, data_id: str = "") -> str:
+    """Cache key for anything derived from (parameters × dataset).
+
+    ``data_id`` is what makes switching Auto Download → Manual Upload safe:
+    without it a cached FeatureSet from the previous dataset would be served
+    against a different trading calendar.
+    """
     sig = json.dumps({
         "ticker": params.ticker, "years": params.years,
         "features": params.features.__dict__, "distribution": params.distribution.__dict__,
         "exog": [e.get("key") for e in params.exogenous],
+        "data": data_id,
     }, default=str, sort_keys=True)
     _PARAM_CACHE[sig] = params
     return sig
+
+
+def _data_id(market, data_key: str) -> str:
+    last = market.last_date
+    return f"{data_key}|{market.ticker}|{len(market.prices)}|{'' if last is None else last.date()}"
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -87,9 +103,26 @@ def _ci(pair, digits: int = 2) -> str:
     return f"[{lo:+.{digits}f}, {hi:+.{digits}f}]"
 
 
+def source_line(market) -> None:
+    """어떤 데이터로 지금 분석하고 있는지 — 화면 최상단에 항상 명시."""
+    srcs = market.meta.get("sources", {}) or {}
+    price, vol = srcs.get("price", {}), srcs.get("volume", {})
+    exog = [(k.split(":", 1)[1], v) for k, v in srcs.items() if str(k).startswith("exog:")]
+    kind = quality.KIND_LABELS
+    bits = [f"**Price** {kind.get(price.get('kind'), '–')} · `{price.get('name')}`",
+            f"**Volume** {kind.get(vol.get('kind'), '–')} · `{vol.get('name')}`"]
+    bits += [f"**{k}** {kind.get(v.get('kind'), '–')} · `{v.get('name')}`" for k, v in exog]
+    st.markdown("데이터 소스 — " + "  |  ".join(bits))
+    if vol.get("kind") == "proxy":
+        name = quality.INDEX_NAMES.get(market.ticker.upper(), market.ticker)
+        st.warning(f"**Volume Source: {vol.get('name')} — not {name} volume** · "
+                   "분산일 개수는 지수 자체의 거래량이 아니라 대용 종목의 거래량으로 계산됩니다.")
+
+
 def header(market, params: Params) -> None:
     st.title("📈 Market Regime Lab")
     st.caption(f"{market.ticker} · 현재 시장 상태를 정량화하고, 과거의 비슷한 국면과 그 이후 수익률을 찾아봅니다.")
+    source_line(market)
     cols = st.columns(max(2, len(market.meta.get("series", {}))))
     for col, (symbol, info) in zip(cols, market.meta.get("series", {}).items()):
         stale = info.get("stale_days")
@@ -318,12 +351,16 @@ def audit_tab(market, fs, params: Params, anchor, scored, matches, mode: str) ->
 
 
 def quality_tab(market, fs, params: Params, reports) -> None:
+    st.subheader("Data Source Summary")
+    st.dataframe(quality.data_source_summary(market), width="stretch", hide_index=True)
+    st.caption("업로드 데이터와 자동 수신 데이터는 같은 스키마로 정규화되어 동일한 분석 로직을 탑니다.")
+
     st.subheader("데이터 품질 요약 (Data Quality Summary)")
     status = quality.overall_status(reports)
-    {"fail": st.error, "warn": st.warning, "ok": st.success}[status](
+    {"fail": st.error, "warn": st.warning, "ok": st.success}.get(status, st.info)(
         {"fail": "치명적 문제가 있습니다 — 아래 항목을 먼저 해결하세요.",
          "warn": "주의할 항목이 있습니다.",
-         "ok": "모든 검사를 통과했습니다."}[status])
+         "ok": "모든 검사를 통과했습니다."}.get(status, "검사 결과를 확인하세요."))
     st.dataframe(quality.summary_frame(reports), width="stretch", hide_index=True)
     sugg = [(r.series, c) for r in reports for c in (r.problems() + r.notes()) if c.suggestion]
     if sugg:
@@ -399,18 +436,24 @@ def data_tab(market, fs, params: Params) -> None:
 
 def main() -> None:
     defaults = Params.from_config(load_config())
-    ticker, years, source = ui.data_section(defaults)
-    market = _load(ticker, years, json.dumps(list(defaults.exogenous)), source)
+    data_in = ui.data_section(defaults)
+    ticker, years = data_in.ticker, data_in.years
+    market = _load(ticker, years, json.dumps(list(defaults.exogenous)), data_in.source,
+                   data_in.key, _overrides=data_in.overrides)
+    for level, message in data_in.notes:
+        {"fail": st.error, "warn": st.warning, "info": st.info}.get(level, st.info)(message)
     if market.empty:
-        st.error(f"`{ticker}` 데이터를 가져오지 못했습니다. 티커를 확인하거나, 네트워크가 막힌 환경이라면 "
-                 "사이드바의 **오프라인 데모 데이터**를 켜고 UI/계산을 먼저 확인해 보세요.")
+        st.error(f"`{ticker}` 데이터를 가져오지 못했습니다. Manual Upload 를 쓰는 중이라면 컬럼 매핑을, "
+                 "Auto Download 라면 티커를 확인하세요. 네트워크가 막힌 환경이라면 사이드바의 "
+                 "**오프라인 데모 데이터**로 UI/계산을 먼저 확인할 수 있습니다.")
         st.stop()
 
+    data_id = _data_id(market, data_in.key)
     features, distribution = ui.feature_section(defaults)
     params = ui.apply(defaults, ticker=ticker, years=years, features=features,
                       distribution=distribution, similarity=defaults.similarity,
                       forward=defaults.forward, validation=defaults.validation)
-    signature = _feature_signature(params)
+    signature = _feature_signature(params, data_id)
     fs = _features(market, signature)
 
     mode, sim, conditions = ui.match_section(defaults, fs)
@@ -420,7 +463,7 @@ def main() -> None:
     params = ui.apply(params, ticker=ticker, years=years, features=features,
                       distribution=distribution, similarity=sim, forward=fwd_params,
                       validation=val_params)
-    signature = _feature_signature(params)
+    signature = _feature_signature(params, data_id)
 
     header(market, params)
     valid = fs.valid_mask()
@@ -435,7 +478,7 @@ def main() -> None:
     anchor = prior.max() if len(prior) else usable.max()
 
     state = ui.UIState(params=params, mode=mode, conditions=conditions, anchor=anchor,
-                       shade_horizon=shade, log_scale=log_scale, show_sma=show_sma, source=source)
+                       shade_horizon=shade, log_scale=log_scale, show_sma=show_sma, source=data_in.source)
 
     max_h = int(max(params.forward.horizons))
     if mode == "similarity":

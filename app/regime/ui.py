@@ -7,6 +7,7 @@ be swapped (or scripted around) without touching a single calculation.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field, replace
 
 import pandas as pd
@@ -14,6 +15,7 @@ import streamlit as st
 
 from .config import (DistributionParams, FeatureParams, ForwardParams, Params,
                      SimilarityParams, ValidationParams)
+from .data import loader, upload
 from .matching import Condition
 
 SMA_CHOICES = [10, 20, 50, 100, 150, 200]
@@ -21,6 +23,27 @@ RETURN_CHOICES = [5, 10, 20, 60, 120, 250]
 HORIZON_CHOICES = [5, 10, 20, 60, 120, 250]
 GAP_CHOICES = [1, 5, 10, 20, 40, 60]
 STRICT_OPS = ["<=", "<", ">=", ">", "between"]
+
+
+NONE_LABEL = "(없음)"
+UNIT_CHOICES = ["auto (자동 추정)", "percent (4.28)", "decimal (0.0428)",
+                "basis_points (428)", "tenths (42.8)"]
+UNIT_KEYS = {"auto (자동 추정)": "auto", "percent (4.28)": "percent",
+             "decimal (0.0428)": "decimal", "basis_points (428)": "basis_points",
+             "tenths (42.8)": "tenths"}
+
+
+@dataclass
+class DataInput:
+    """What the data section resolved to — the only thing the app needs to load."""
+
+    ticker: str = "^IXIC"
+    years: int = 20
+    source: str = "auto"                 # auto | synthetic
+    mode: str = "auto"                   # auto | manual
+    overrides: object | None = None      # loader.DataOverrides
+    notes: list[tuple[str, str]] = field(default_factory=list)
+    key: str = ""                        # 캐시 키 (파일 내용 + 매핑 해시)
 
 
 @dataclass
@@ -36,19 +59,140 @@ class UIState:
     hist_horizon: int = 20
 
 
-def data_section(defaults: Params) -> tuple[str, int, str]:
+def _file_bytes(f) -> bytes:
+    return f.getvalue() if hasattr(f, "getvalue") else f.read()
+
+
+def _mapping_widgets(columns, fields, prefix: str, required: tuple[str, ...]) -> dict:
+    """Column mapping selectboxes, pre-filled with the auto-detected guess."""
+    guess = upload.suggest_mapping(columns, fields)
+    options = [NONE_LABEL] + list(columns)
+    mapping: dict[str, str | None] = {}
+    cols = st.columns(2)
+    for i, fld in enumerate(fields):
+        default = guess.get(fld)
+        idx = options.index(default) if default in options else 0
+        label = fld.capitalize() + (" *" if fld in required else "")
+        picked = cols[i % 2].selectbox(label, options, index=idx, key=f"{prefix}_{fld}")
+        mapping[fld] = None if picked == NONE_LABEL else picked
+    return mapping
+
+
+def _read_upload(f, prefix: str):
+    """Uploaded file → raw DataFrame (+ sheet picker for workbooks)."""
+    data = _file_bytes(f)
+    sheet = 0
+    names = upload.sheet_names(data, f.name)
+    if names:
+        sheet = st.selectbox("시트", names, key=f"{prefix}_sheet")
+    return upload.read_table(data, f.name, sheet=sheet), data
+
+
+def data_section(defaults: Params) -> DataInput:
     st.sidebar.header("1. 데이터")
     ticker = st.sidebar.text_input(
         "티커", value=defaults.ticker,
-        help="^IXIC(나스닥 종합), ^GSPC, QQQ, AAPL … 야후 파이낸스 심볼이면 무엇이든 동일하게 분석합니다.")
+        help="^IXIC(나스닥 종합), ^GSPC, QQQ, AAPL … Auto Download 시 야후 파이낸스 심볼. "
+             "Manual Upload 에서는 화면 표기용 이름으로만 쓰입니다.")
     years = st.sidebar.slider("기간 (년)", 5, 25, int(defaults.years))
-    offline = st.sidebar.checkbox(
-        "오프라인 데모 데이터", value=False,
-        help="네트워크가 막힌 환경에서 UI/계산을 확인할 때 쓰는 합성 시계열입니다. 실제 시장 데이터가 아닙니다.")
+    mode = st.sidebar.radio("데이터 입력 방식", ["Auto Download", "Manual Upload"], index=0,
+                            help="Manual Upload 를 고르면 업로드한 파일이 Auto Download 보다 "
+                                 "우선 사용됩니다.")
     if st.sidebar.button("데이터 새로고침 (캐시 비우기)"):
         st.cache_data.clear()
         st.rerun()
-    return ticker.strip() or defaults.ticker, years, ("synthetic" if offline else "auto")
+
+    if mode == "Auto Download":
+        offline = st.sidebar.checkbox(
+            "오프라인 데모 데이터", value=False,
+            help="네트워크가 막힌 환경에서 UI/계산을 확인할 때 쓰는 합성 시계열입니다. 실제 시장 데이터가 아닙니다.")
+        return DataInput(ticker=ticker.strip() or defaults.ticker, years=years,
+                         source="synthetic" if offline else "auto", mode="auto",
+                         key="auto:synthetic" if offline else "auto")
+
+    notes: list[tuple[str, str]] = []
+    digest = hashlib.sha1()
+    ov = loader.DataOverrides()
+
+    with st.sidebar.expander("① 가격 파일 (OHLCV)", expanded=True):
+        st.caption("CSV / XLSX · 최소 컬럼: Date, Close (Open/High/Low/Volume 있으면 함께)")
+        f = st.file_uploader("가격 파일", type=["csv", "txt", "tsv", "xlsx", "xlsm", "xls"],
+                             key="price_file")
+        if f is not None:
+            raw, data = _read_upload(f, "price")
+            digest.update(data)
+            mapping = _mapping_widgets(raw.columns, upload.PRICE_FIELDS, "pm", ("date", "close"))
+            digest.update(str(sorted(mapping.items())).encode())
+            res = upload.build_prices(raw, mapping, f.name)
+            notes += [(i.level, f"[가격 {f.name}] {i.message}") for i in res.issues]
+            if res.ok:
+                ov.prices, ov.price_label = res.frame, f.name
+                st.success(f"{res.stats['rows']:,}행 · {res.stats['first']} ~ {res.stats['last']}")
+            else:
+                st.error(" / ".join(i.message for i in res.failed) or "파일을 해석하지 못했습니다.")
+
+    with st.sidebar.expander("② 거래량 (선택)", expanded=False):
+        st.caption("가격 파일에 Volume 이 없거나, 다른 출처의 거래량을 쓰고 싶을 때만.")
+        vol_mode = st.radio("거래량 소스", ["가격 파일 그대로", "별도 파일 업로드", "다른 종목의 거래량(proxy)"],
+                            index=0, key="vol_mode")
+        if vol_mode == "별도 파일 업로드":
+            vf = st.file_uploader("거래량 파일", type=["csv", "txt", "tsv", "xlsx", "xlsm", "xls"],
+                                  key="volume_file")
+            if vf is not None:
+                raw, data = _read_upload(vf, "vol")
+                digest.update(data)
+                mapping = _mapping_widgets(raw.columns, ("date", "volume"), "vm", ("date", "volume"))
+                digest.update(str(sorted(mapping.items())).encode())
+                res = upload.build_volume(raw, mapping, vf.name)
+                notes += [(i.level, f"[거래량 {vf.name}] {i.message}") for i in res.issues]
+                if res.ok:
+                    ov.volume, ov.volume_label, ov.volume_kind = res.series, vf.name, "upload"
+                    st.success(f"{res.stats['rows']:,}행 · {res.stats['first']} ~ {res.stats['last']}")
+                else:
+                    st.error(" / ".join(i.message for i in res.failed))
+        elif vol_mode == "다른 종목의 거래량(proxy)":
+            proxy = st.text_input("Proxy 종목", value="QQQ", key="proxy_symbol")
+            st.warning(f"Volume Source: {proxy} proxy — 지수 자체의 거래량이 아닙니다. "
+                       "분산일 개수는 이 종목 거래량으로 계산됩니다.")
+            if st.checkbox(f"{proxy} 거래량을 대용으로 사용하는 데 동의", key="proxy_ack"):
+                start = (pd.Timestamp.today().normalize()
+                         - pd.DateOffset(years=int(years))).strftime("%Y-%m-%d")
+                df, prov = loader.fetch_symbol(proxy, start)
+                if len(df):
+                    ov.volume = df["volume"]
+                    ov.volume_label, ov.volume_kind = f"{proxy} proxy", "proxy"
+                    digest.update(f"proxy:{proxy}:{prov}:{len(df)}".encode())
+                    st.success(f"{proxy} 거래량 {len(df):,}행 ({prov})")
+                else:
+                    st.error(f"{proxy} 거래량을 받지 못했습니다 ({prov}).")
+
+    with st.sidebar.expander("③ 미국 10년물 (선택)", expanded=False):
+        st.caption("CSV / XLSX · 최소 컬럼: Date, Yield")
+        yf_ = st.file_uploader("10년물 파일", type=["csv", "txt", "tsv", "xlsx", "xlsm", "xls"],
+                               key="yield_file")
+        unit_label = st.selectbox("단위", UNIT_CHOICES, index=0, key="yield_unit",
+                                  help="auto 는 값의 중앙값으로 추정합니다. 결과가 이상하면 직접 지정하세요.")
+        if yf_ is not None:
+            raw, data = _read_upload(yf_, "y10")
+            digest.update(data)
+            mapping = _mapping_widgets(raw.columns, upload.YIELD_FIELDS, "ym", ("date", "yield"))
+            digest.update((str(sorted(mapping.items())) + unit_label).encode())
+            res = upload.build_yield(raw, mapping, yf_.name, unit=UNIT_KEYS[unit_label])
+            notes += [(i.level, f"[10Y {yf_.name}] {i.message}") for i in res.issues]
+            if res.ok:
+                key = str((defaults.exogenous[0].get("key") if defaults.exogenous else "y10"))
+                ov.exog[key] = res.series
+                ov.exog_labels[key] = yf_.name
+                st.success(f"{res.stats['rows']:,}행 · 단위 {res.stats['applied_unit']} "
+                           f"(추정 {res.stats['detected_unit']}) · 중앙값 {res.stats['median']:.2f}%")
+            else:
+                st.error(" / ".join(i.message for i in res.failed))
+
+    if not ov.has_prices():
+        st.sidebar.info("가격 파일을 올리기 전까지는 Auto Download 결과를 보여 줍니다.")
+    return DataInput(ticker=ticker.strip() or defaults.ticker, years=years, source="auto",
+                     mode="manual", overrides=ov, notes=notes,
+                     key="manual:" + digest.hexdigest())
 
 
 def feature_section(defaults: Params) -> tuple[FeatureParams, DistributionParams]:

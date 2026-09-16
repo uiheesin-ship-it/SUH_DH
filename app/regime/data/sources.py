@@ -73,6 +73,12 @@ def _tidy(df: pd.DataFrame) -> pd.DataFrame:
     return out.dropna(subset=["close"])
 
 
+def tidy_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Public alias of the provider normaliser — manual uploads go through the
+    exact same shaping as a download, so the two are indistinguishable later."""
+    return _tidy(df)
+
+
 def fetch_yahoo(symbol: str, start: str | datetime) -> pd.DataFrame:
     """Daily bars from Yahoo. ``auto_adjust=True`` so moving averages and
     returns are split/dividend-consistent for ordinary tickers (indices are

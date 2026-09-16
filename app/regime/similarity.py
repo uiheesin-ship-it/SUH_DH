@@ -152,6 +152,9 @@ def decluster(scored: pd.DataFrame, index: pd.DatetimeIndex, min_gap: int,
     ``pick="first"`` — greedy in calendar order within a generous score pool:
     the first day of an episode represents it (신호가 처음 켜진 날 기준).
     """
+    # 달력에 없는 날짜(다른 데이터셋에서 넘어온 잔여물)는 조용히 버린다 — 여기서
+    # KeyError 로 죽으면 데이터 소스를 바꾼 직후 화면 전체가 멈춘다.
+    scored = scored[scored.index.isin(index)]
     if scored.empty or min_gap <= 1:
         out = scored.sort_values("score", ascending=False)
         return out.head(top_n) if top_n else out
