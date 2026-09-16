@@ -1020,50 +1020,25 @@ API 예시:
 로컬 Streamlit 웹앱입니다. 설계와 계산 방법론은
 [docs/DESIGN_regime_lab.md](docs/DESIGN_regime_lab.md) 에 정리돼 있습니다.
 
-**허브 카드에서 바로 열기** — **미장 → 기타 → Market Regime Lab** 을 누르면 그 화면 안에서
-앱이 그대로 뜹니다. 페이지를 벗어나지 않고 CSV/XLSX 업로드부터 분석까지 끝납니다.
-동작 방식은 어디서 여느냐에 따라 둘로 갈립니다.
-
-| 여는 곳 | 앱이 도는 곳 |
-|---|---|
-| **항상 켜져 있는 웹 주소(GitHub Pages)** | 배포해 둔 Streamlit 인스턴스(Render 등)를 iframe 으로 임베드 |
-| **로컬 대시보드(`./run.sh`)** | 대시보드가 필요할 때 Streamlit 을 띄우고 `/regime/app/**` 로 프록시 |
-
-정적 사이트는 파이썬을 돌릴 수 없으므로, 공개 주소에서 쓰려면 앱을 한 번 배포해야 합니다
-(무료, 5분):
-
-1. [Render](https://dashboard.render.com) → **New → Blueprint** → 이 저장소 연결 → **Apply**
-   (저장소의 `render.yaml` 이 `suh-dh-regime` 서비스를 정의합니다).
-2. 배포된 주소를 복사합니다 — 예: `https://suh-dh-regime.onrender.com`
-3. GitHub → **Settings → Secrets and variables → Actions → Variables** →
-   **New repository variable** `SUH_DH_REGIME_URL` = 그 주소
-4. **Actions → "Build & deploy dashboard" → Run workflow** (다음 정기 빌드를 기다려도 됩니다).
-
-3~4번을 건너뛰고 싶으면, 카드 화면 오른쪽 위 **서버 주소** 버튼에 주소를 한 번 넣어도 됩니다
-(그 브라우저에만 기억됩니다). 빌드 변수는 모든 방문자에게 적용되는 기본값입니다.
-
-Render 대신 [Streamlit Community Cloud](https://share.streamlit.io) 를 써도 됩니다 —
-앱 경로를 `app/regime/streamlit_app.py` 로 지정하면 옆에 있는 `app/regime/requirements.txt`
-를 읽어 그대로 배포됩니다. 배포 후 주소는 위 3번(또는 **서버 주소** 버튼)에 넣으면 됩니다.
-
-> 무료 인스턴스는 15분 유휴 후 잠들기 때문에, 오랜만에 열면 깨어나는 데 30~60초가 걸립니다
-> (화면이 로딩 상태를 보여 줍니다).
+**허브 카드에서 바로 열기** — **미장 → 기타 → Market Regime Lab** 을 누르면 다른 프로그램과
+똑같이 페이지가 곧바로 뜹니다(별도 서비스·대기 없음). 화면에서 파라미터를 고르고 **분석 실행**을
+누르면 대시보드 백엔드(`/api/regime/*`)가 기존 분석 엔진을 그대로 돌려 결과를 돌려줍니다.
 
 ```bash
-# 로컬에서 쓰는 경우
-pip install -r requirements.txt -r requirements-regime.txt
+pip install -r requirements.txt
 ./run.sh                 # 대시보드 → http://127.0.0.1:8000 → 미장 → 기타 → Market Regime Lab
 ```
 
-**단독 실행 / 터미널 점검**
+정적 GitHub Pages 사이트에서 쓰려면 다른 프로그램과 같은 방식으로 호스팅된 백엔드가 필요합니다
+(`render.yaml` 의 `suh-dh-api` 배포 후 repo Variable `SUH_DH_API_BASE` 설정).
+
+**선택: Streamlit 단독 실행** — 같은 분석 엔진을 쓰는 Streamlit 화면도 그대로 남아 있습니다.
 
 ```bash
-./run_regime.sh          # 실시간 데이터 (Yahoo Finance)
-./run_regime.sh --demo   # 네트워크 없이 합성 데이터로 UI/계산 확인
-
-# 앱을 띄우지 않고 데이터 품질만 먼저 확인 (실데이터 검증용)
-python3 -m app.regime.quality --ticker '^IXIC'
-python3 -m app.regime.quality --ticker '^IXIC' --no-cache   # 캐시 무시하고 새로 받기
+pip install -r requirements-regime.txt
+./run_regime.sh          # 실시간 데이터
+./run_regime.sh --demo   # 네트워크 없이 합성 데이터
+python3 -m app.regime.quality --ticker '^IXIC'   # 앱 없이 데이터 품질만 확인
 ```
 
 - **시장 상태** — 추세(SMA 이격률·배열·기울기), 모멘텀(5/20/60/120일 수익률, 52주 고점 대비
@@ -1081,10 +1056,10 @@ python3 -m app.regime.quality --ticker '^IXIC' --no-cache   # 캐시 무시하�
   **유효 표본수 `n_eff`** 와 독립 에피소드 수, 그리고 "단순 i.i.d. 였다면 신뢰구간이 몇 %
   좁았을지"를 함께 표시합니다. horizon 별로 최소 간격을 5/20/60/120일로 다시 강제하는
   **완전 비중첩 표본 모드**도 선택할 수 있습니다.
-- **한 화면에서 끝나는 데이터 단계** — 페이지 상단 `① 데이터`에서 입력 방식을 고르고, Manual Upload 를
-  선택하면 업로더가 바로 나타납니다. **업로드 → 컬럼 자동 인식/매핑 → `② 데이터 확인`(파일명·기간·행 수·
-  Price/Volume/10Y 소스·품질 결과) → `분석 실행`** 순서로 이어지며, 문제가 있으면 실행 전에 어떤 데이터가
-  왜 문제인지 먼저 알려 줍니다. 올린 파일은 **그 세션에서만** 쓰이고 서버나 저장소에 저장·커밋되지 않습니다.
+- **한 화면에서 끝나는 데이터 단계** — 왼쪽 `1. 데이터`에서 입력 방식을 고르고, Manual Upload 를
+  선택하면 업로더가 바로 나타납니다. **업로드 → 컬럼 자동 인식/매핑 → 데이터 확인(파일명·기간·행 수·
+  Price/Volume/10Y 소스·품질 결과) → 분석 실행** 순서로 이어지며, 문제가 있으면 무엇이 왜 문제인지
+  먼저 알려 줍니다. 올린 파일은 **그 요청에서만** 쓰이고 디스크나 저장소에 저장·커밋되지 않습니다.
 - **데이터 입력 (Auto / Manual)** — 자동 내려받기 외에 **CSV·XLSX 직접 업로드**를 지원합니다.
   가격(OHLCV) 파일, 거래량 파일, 10년물 파일을 각각 올릴 수 있고(거래량은 Date 기준 정확 매칭으로
   병합), 헤더 이름이 달라도 **컬럼 매핑**을 사이드바에서 고를 수 있습니다. 10년물은 %/decimal/bp
@@ -1118,7 +1093,8 @@ python3 -m pytest tests/ -q
 Market Regime Lab 만 따로 돌리려면
 `python3 -m pytest tests/test_regime*.py -q`
 (네트워크 없이 돌며, look-ahead 방지 검증, 감사 화면 값의 독립 재계산,
-샘플 CSV/XLSX 업로드 경로, 대시보드 연결(카드·라우팅·프록시) 검증을 포함합니다).
+샘플 CSV/XLSX 업로드 경로, 그리고 **API 결과가 분석 엔진을 직접 호출한 값과
+같은지**를 확인하는 회귀 테스트를 포함합니다).
 
 브라우저로 전체 흐름(허브 카드 → 랩 실행 → CSV 업로드 → 품질 확인 → 분석 실행)을
 확인하려면:

@@ -9,3 +9,6 @@ pyyaml>=6.0
 finance-datareader>=0.9.50
 deep-translator>=1.11
 feedparser>=6.0
+# Market Regime Lab (app/regime) — 대시보드가 /api/regime/* 로 분석을 서빙합니다.
+plotly>=5.20             # 차트 figure JSON 생성 (브라우저가 그대로 렌더)
+openpyxl>=3.1            # Manual Upload 의 XLSX 읽기

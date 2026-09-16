@@ -127,38 +127,6 @@ def should_scan(group: str, force_env: str, repo_path: Path, groups: frozenset) 
     )
 
 
-def repo_regime_url() -> str:
-    """저장소에 커밋해 둔 Regime Lab 기본 주소 (app/static/regime/config.js).
-
-    빌드 변수(SUH_DH_REGIME_URL)를 설정하지 않아도 배포 주소가 공개 사이트에
-    적용되도록, 공개 URL 은 저장소에 그대로 적어 둘 수 있게 한다(비밀값이 아니다).
-    """
-    try:
-        text = (STATIC / "regime" / "config.js").read_text(encoding="utf-8")
-    except OSError:
-        return ""
-    m = re.search(r'SUH_DH_REGIME_URL\s*=\s*"([^"]*)"', text)
-    return (m.group(1) if m else "").strip().rstrip("/")
-
-
-def write_regime_url(site: Path, url: str, fallback: str = "") -> str:
-    """Point the static Regime Lab page at a deployed Streamlit instance.
-
-    GitHub Pages cannot run Python, so the card's page embeds a hosted instance
-    (Render 등) in an iframe. 주소는 빌드 변수 → 저장소 기본값 순으로 쓰고, 둘 다
-    없으면 페이지가 주소를 한 번 물어본 뒤 그 브라우저에 기억한다.
-    """
-    clean = ((url or "").strip() or (fallback or "").strip()).rstrip("/")
-    if not clean:
-        return ""
-    cfg = site / "regime" / "config.js"
-    if not cfg.parent.exists():
-        return ""
-    with cfg.open("a", encoding="utf-8") as f:
-        f.write(f'window.SUH_DH_REGIME_URL = "{clean}";\n')
-    return clean
-
-
 def main() -> None:
     if SITE.exists():
         shutil.rmtree(SITE)
@@ -171,8 +139,8 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    # regime 은 로컬 전용(Streamlit)이라 정적 모드에서는 실행 안내만 뜬다 —
-    # 카드/페이지는 그대로 두고 config.js 만 정적으로 뒤집는다.
+    # regime 은 다른 프로그램과 같은 구조(정적 UI + /api/regime/*)라, 정적 빌드에서는
+    # SUH_DH_API_BASE 로 호스팅된 백엔드를 호출한다.
     for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai", "regime"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
@@ -183,11 +151,10 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai", "regime"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
-    write_regime_url(SITE, os.environ.get("SUH_DH_REGIME_URL", ""), fallback=repo_regime_url())
 
     # 에셋 캐시 무효화 — config.js 를 다 쓴 다음에 한 번만.
     stamp = built.replace("-", "").replace(":", "").replace("+0000", "")[:15]

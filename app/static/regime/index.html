@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Market Regime Lab · SUH_DH</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
   <header class="topbar">
@@ -14,54 +15,231 @@
       <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
     </div>
     <div class="controls">
-      <a id="newtab" class="ghost-btn hidden" href="app/" target="_blank" rel="noopener">새 창에서 열기 ↗</a>
-      <button id="settings-btn" class="ghost-btn hidden" title="Regime Lab 서버 주소 변경">서버 주소</button>
-      <span id="status" class="status">상태 확인 중…</span>
+      <label class="inline">기준일
+        <input type="date" id="anchor" />
+      </label>
+      <button id="run-btn" class="primary-btn">분석 실행</button>
+      <button id="csv-btn" class="ghost-btn" title="매칭 결과를 CSV로 저장">CSV ↓</button>
+      <span id="status" class="status">준비됨</span>
     </div>
   </header>
 
-  <main id="content">
-    <!-- 상태/오류 안내 (로컬 대시보드에서 실행할 때만 쓰인다) -->
-    <section id="panel" class="panel hidden">
-      <h2 id="panel-title">Market Regime Lab</h2>
-      <p id="panel-desc" class="muted"></p>
-      <div id="panel-actions" class="panel-actions"></div>
-      <pre id="panel-code" class="code hidden"></pre>
-    </section>
+  <div class="layout">
+    <!-- ------------------------------ 파라미터 ------------------------------ -->
+    <aside class="params" id="params">
+      <details open>
+        <summary>1. 데이터</summary>
+        <label class="row">티커 <input type="text" id="p-ticker" value="^IXIC" /></label>
+        <label class="row">기간(년) <input type="number" id="p-years" min="5" max="25" value="20" /></label>
+        <div class="seg" id="data-mode">
+          <label><input type="radio" name="dmode" value="auto" checked /> Auto Download</label>
+          <label><input type="radio" name="dmode" value="manual" /> Manual Upload</label>
+        </div>
+        <label class="check"><input type="checkbox" id="p-offline" /> 오프라인 데모 데이터</label>
 
-    <!-- 원격 인스턴스 주소 설정 (정적 호스팅에서 최초 1회) -->
-    <section id="setup" class="panel hidden">
-      <h2>Regime Lab 서버 주소</h2>
-      <p class="muted">
-        이 페이지는 배포된 Market Regime Lab 을 <b>이 화면 안에</b> 그대로 띄웁니다.
-        아직 주소가 설정되지 않았습니다 — Render 등에 배포한 주소를 한 번만 입력하면
-        이 브라우저에 기억되고, 다음부터는 바로 열립니다.
-        (저장소 빌드 변수 <code>SUH_DH_REGIME_URL</code> 을 설정하면 모든 사용자에게 기본값으로 적용됩니다.)
-      </p>
-      <div class="setup-row">
-        <input id="regime-url" type="url" spellcheck="false" autocomplete="off"
-               placeholder="https://suh-dh-regime.onrender.com" />
-        <button id="setup-save" class="primary-btn">연결</button>
-        <button id="setup-clear" class="ghost-btn">지우기</button>
-      </div>
-      <p id="setup-error" class="err"></p>
-      <p class="muted small">
-        배포 방법은 저장소의 <code>render.yaml</code> 주석을 참고하세요. 업로드한 파일은
-        분석하는 동안에만 쓰이고 저장소에 커밋되지 않습니다.
-      </p>
-    </section>
+        <div id="upload-box" class="hidden">
+          <div class="upload" data-kind="price">
+            <div class="upload-head">① 가격 파일 (OHLCV) <span class="hint">CSV/XLSX · Date, Close 필수</span></div>
+            <input type="file" class="file" data-kind="price" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+            <div class="map" data-kind="price"></div>
+          </div>
+          <div class="upload" data-kind="volume">
+            <div class="upload-head">② 거래량 파일 (선택) <span class="hint">Date, Volume</span></div>
+            <input type="file" class="file" data-kind="volume" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+            <div class="map" data-kind="volume"></div>
+          </div>
+          <div class="upload" data-kind="yield">
+            <div class="upload-head">③ 미국 10년물 (선택) <span class="hint">Date, Yield</span></div>
+            <input type="file" class="file" data-kind="yield" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+            <label class="row">단위
+              <select id="p-yield-unit">
+                <option value="auto">auto (자동 추정)</option>
+                <option value="percent">percent (4.28)</option>
+                <option value="decimal">decimal (0.0428)</option>
+                <option value="basis_points">basis points (428)</option>
+                <option value="tenths">tenths (42.8)</option>
+              </select>
+            </label>
+            <div class="map" data-kind="yield"></div>
+          </div>
+          <p class="hint">업로드한 파일은 분석하는 동안에만 쓰이고 서버나 저장소에 저장되지 않습니다.</p>
+        </div>
+      </details>
 
-    <!-- 실제 분석 화면: 대시보드를 벗어나지 않고 여기서 바로 쓴다 -->
-    <div id="lab-wrap">
-      <div id="overlay" class="overlay hidden">
-        <div class="spinner"></div>
-        <p id="overlay-text">Market Regime Lab 을 불러오는 중…</p>
-        <p id="overlay-note" class="muted small"></p>
-      </div>
-      <iframe id="lab" class="lab hidden" title="Market Regime Lab"
-              src="about:blank" allow="clipboard-write"></iframe>
-    </div>
-  </main>
+      <details>
+        <summary>2. 시장 상태 정의</summary>
+        <div class="sub">추세</div>
+        <div class="row" id="p-sma"></div>
+        <label class="row">기울기 구간 <input type="number" id="p-slope" min="5" max="120" step="5" value="20" /></label>
+        <div class="sub">모멘텀 / 위치</div>
+        <div class="row" id="p-rets"></div>
+        <label class="row">고점 구간 <input type="number" id="p-high" min="60" max="500" value="252" /></label>
+        <div class="sub">변동성</div>
+        <label class="row">실현변동성 <input type="number" id="p-vol" min="5" max="120" value="20" /></label>
+        <label class="row">ATR <input type="number" id="p-atr" min="5" max="60" value="14" /></label>
+        <div class="sub">분산일 (Distribution Day)</div>
+        <label class="row">Lookback <input type="number" id="p-dd-lb" min="5" max="120" value="25" /></label>
+        <label class="row">X: 하락률 ≥ (%) <input type="number" id="p-dd-drop" min="0" max="3" step="0.05" value="0.2" /></label>
+        <label class="row">Y: 거래량 증가 ≥ (%) <input type="number" id="p-dd-vol" min="-20" max="100" step="1" value="0" /></label>
+        <label class="row">Z: CLV ≤ <input type="number" id="p-dd-clv" min="0" max="1" step="0.05" value="0.5" /></label>
+      </details>
+
+      <details>
+        <summary>3. 과거 유사 국면</summary>
+        <div class="seg" id="match-mode">
+          <label><input type="radio" name="mmode" value="similarity" checked /> Similarity</label>
+          <label><input type="radio" name="mmode" value="strict" /> Strict</label>
+        </div>
+        <label class="row">상위 N개 <input type="number" id="p-topn" min="5" max="100" value="25" /></label>
+        <label class="row">De-clustering 간격
+          <select id="p-gap"><option>1</option><option>5</option><option>10</option>
+            <option selected>20</option><option>40</option><option>60</option></select>
+        </label>
+        <label class="row">episode 대표
+          <select id="p-pick"><option value="best">유사도 최고</option><option value="first">가장 먼저</option></select>
+        </label>
+        <label class="row">최근 N일 제외 <input type="number" id="p-exclude" min="0" max="250" step="5" value="120" /></label>
+        <label class="row">정규화
+          <select id="p-norm"><option value="robust">robust (중앙값/MAD)</option><option value="zscore">zscore</option></select>
+        </label>
+        <label class="check"><input type="checkbox" id="p-fullh" /> 최장 horizon 이 채워진 날짜만</label>
+        <div id="weights" class="weights"></div>
+        <div id="strict-box" class="hidden">
+          <div class="sub">조건 (모두 AND)</div>
+          <div id="strict-list"></div>
+          <button id="strict-add" class="ghost-btn small">조건 추가</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>4. Forward Return</summary>
+        <div class="row" id="p-horizons"></div>
+        <label class="row">Bootstrap 반복
+          <select id="p-boot"><option>500</option><option>1000</option><option selected>2000</option><option>5000</option></select>
+        </label>
+        <label class="row">신뢰수준
+          <select id="p-ci"><option>0.80</option><option>0.90</option><option selected>0.95</option><option>0.99</option></select>
+        </label>
+        <label class="row">표본 경고 기준 <input type="number" id="p-warn" min="3" max="100" value="10" /></label>
+        <label class="row">표본 독립성
+          <select id="p-indep">
+            <option value="all">전체 사용 (겹침은 CI 에 반영)</option>
+            <option value="horizon">horizon 별 독립 표본</option>
+          </select>
+        </label>
+        <label class="row">CI 재표본
+          <select id="p-cimethod"><option value="cluster">cluster</option><option value="iid">iid (비교용)</option></select>
+        </label>
+      </details>
+
+      <details>
+        <summary>5. 통계적 검증</summary>
+        <label class="row">방식
+          <select id="p-val-mode"><option value="fixed">고정 분할</option><option value="expanding">Expanding window</option></select>
+        </label>
+        <label class="row">Training 종료 <input type="date" id="p-val-train" value="2015-12-31" /></label>
+        <label class="row">Validation 종료 <input type="date" id="p-val-valid" value="2020-12-31" /></label>
+        <label class="row">평가 간격 <input type="number" id="p-val-step" min="1" max="20" value="5" /></label>
+        <label class="row">검증 horizon
+          <select id="p-val-h"><option>5</option><option selected>20</option><option>60</option><option>120</option></select>
+        </label>
+      </details>
+
+      <details>
+        <summary>6. 차트</summary>
+        <label class="row">Match 음영 <select id="p-shade"></select></label>
+        <label class="check"><input type="checkbox" id="p-log" checked /> 로그 스케일</label>
+        <div class="row" id="p-showsma"></div>
+      </details>
+    </aside>
+
+    <!-- -------------------------------- 결과 -------------------------------- -->
+    <main id="content">
+      <section id="intro" class="card">
+        <h2>현재 시장 상태를 정량화하고, 과거의 비슷한 국면을 찾습니다</h2>
+        <p class="muted">
+          왼쪽에서 데이터와 파라미터를 고른 뒤 <b>분석 실행</b>을 누르세요. 자동 내려받기 대신
+          CSV/XLSX 를 직접 올릴 수도 있고, 업로드한 파일은 분석하는 동안에만 쓰입니다.
+          계산은 대시보드 백엔드(<code>/api/regime/*</code>)에서 기존 분석 엔진이 그대로 수행합니다.
+        </p>
+        <div id="intro-note" class="muted small"></div>
+      </section>
+
+      <section id="data-review" class="card hidden">
+        <h2>데이터 확인</h2>
+        <div id="sources"></div>
+        <div id="quality-banner"></div>
+        <div id="quality-problems"></div>
+      </section>
+
+      <nav id="tabs" class="tabs hidden">
+        <button class="tab active" data-tab="state">① 현재 시장 상태</button>
+        <button class="tab" data-tab="matches">② 과거 유사 국면</button>
+        <button class="tab" data-tab="forward">③ Forward Return</button>
+        <button class="tab" data-tab="audit">④ 계산 감사</button>
+        <button class="tab" data-tab="validation">⑤ 통계적 검증</button>
+        <button class="tab" data-tab="quality">⑥ 데이터 품질</button>
+        <button class="tab" data-tab="method">⑦ 방법론</button>
+      </nav>
+
+      <section id="panel-state" class="panel card hidden"></section>
+
+      <section id="panel-matches" class="panel card hidden">
+        <div id="match-summary" class="muted small"></div>
+        <div id="chart-price" class="chart"></div>
+        <div id="match-table"></div>
+      </section>
+
+      <section id="panel-forward" class="panel card hidden">
+        <div id="forward-tables"></div>
+        <div id="chart-forward" class="chart"></div>
+        <label class="row inline">분포를 볼 horizon <select id="hist-h"></select></label>
+        <div id="chart-dist" class="chart"></div>
+        <div id="forward-warnings"></div>
+      </section>
+
+      <section id="panel-audit" class="panel card hidden">
+        <label class="row inline">감사할 날짜 <select id="audit-date"></select>
+          <button id="audit-btn" class="ghost-btn small">불러오기</button></label>
+        <div id="audit-body"></div>
+      </section>
+
+      <section id="panel-validation" class="panel card hidden">
+        <p class="muted small">
+          파라미터를 고정한 채 평가일마다 그 시점 정보로만 매칭을 다시 수행해, 매칭된 날들의
+          +H일 수익률 중앙값을 신호로 삼고 실제 실현 수익률과 비교합니다. 전 구간을 다시 계산하므로
+          수십 초 걸립니다.
+        </p>
+        <button id="val-btn" class="primary-btn">검증 실행</button>
+        <div id="val-body"></div>
+      </section>
+
+      <section id="panel-quality" class="panel card hidden"></section>
+
+      <section id="panel-method" class="panel card hidden">
+        <h2>방법론 요약</h2>
+        <ul class="method">
+          <li><b>Look-ahead 차단</b> — 외생 시계열은 forward-fill 로만 정렬(5거래일 초과 공백은 결측),
+            유사도 정규화(중앙값/MAD)는 기준일까지의 데이터로만 추정, 검증에서는 forward 구간이
+            끝나지 않은 날을 후보에서 제외합니다.</li>
+          <li><b>유사도</b> — 가중 유클리드 거리 d = √(Σwᵢ(zᵢ−zᵢ*)²/Σwᵢ), 점수 100·exp(−d²/2).
+            de-clustering 으로 같은 국면의 중복을 제거합니다.</li>
+          <li><b>분산일</b> — r ≤ −X% ∧ V ≥ 전일×(1+Y%) ∧ CLV ≤ Z, lookback 안의 개수와 경과일.</li>
+          <li><b>표본 독립성</b> — 유효 표본수 n_eff = n²/Σ max(0, 1−|Δt|/h) 와 독립 에피소드 수를
+            함께 보여 주고, 기본 신뢰구간은 에피소드 단위 cluster bootstrap 입니다.</li>
+          <li><b>검증</b> — walk-forward(고정 분할 / expanding window), In-Sample 과 Out-of-Sample 을
+            구분해 과적합을 진단합니다.</li>
+        </ul>
+        <p class="muted small">
+          자세한 설계·계산 방법론: <code>docs/DESIGN_regime_lab.md</code>. 결과는 리서치 도구이며
+          투자 권유가 아닙니다.
+        </p>
+        <button id="feat-csv-btn" class="ghost-btn">전체 feature CSV ↓</button>
+      </section>
+
+      <div id="overlay" class="overlay hidden"><div class="spinner"></div><p id="overlay-text"></p></div>
+    </main>
+  </div>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
