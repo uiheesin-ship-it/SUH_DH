@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,6 +31,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Regime Lab 의 분석 응답은 Plotly figure JSON 이라 한 번에 ~1MB 나간다. 숫자 배열은
+# 잘 압축돼서(≈270KB) 느린 회선에서 체감 차이가 크다. 작은 응답은 건드리지 않는다.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Earnings-AI subsystem (conference-call analysis → investment themes). Mounted
 # under /api/eai/* as a separate bounded context; kept optional so a missing

@@ -211,6 +211,34 @@
           <div class="cols">${cols}</div>
         </section>`;
     }).join("");
+
+    /* 백엔드 미리 깨우기 ------------------------------------------------------
+     *
+     * Market Regime Lab 은 계산을 호스팅된 FastAPI 백엔드에서 한다. 무료 인스턴스는
+     * 15분만 놀아도 잠들어서, 카드를 누른 뒤에야 깨우기 시작하면 첫 화면에서 30~60초를
+     * 기다리게 된다. 대시보드를 여는 순간 한 번 찔러 두면 카드를 고르는 동안 깨어난다.
+     * 응답은 쓰지 않고(실패해도 무시), 다른 프로그램에는 아무 영향이 없다.
+     */
+    (function prewarmBackend() {
+      let base = "";
+      try { base = localStorage.getItem("suh_dh_regime_api") || ""; } catch (e) { /* 프라이빗 모드 */ }
+      const ping = (url) => {
+        if (!url) return;
+        fetch(url.replace(/\/+$/, "") + "/api/health", { cache: "no-store", mode: "no-cors" })
+          .catch(() => {});
+      };
+      if (base) { ping(base); return; }
+      // 저장된 주소가 없으면 regime 프로그램의 설정에서 기본 주소를 읽어 온다.
+      fetch("regime/config.js", { cache: "no-store" })
+        .then((r) => (r.ok ? r.text() : ""))
+        .then((text) => {
+          for (const name of ["SUH_DH_API_BASE", "SUH_DH_REGIME_API_DEFAULT"]) {
+            const m = text.match(new RegExp(name + '\\s*=\\s*"([^"]+)"'));
+            if (m && m[1]) { ping(m[1]); return; }
+          }
+        })
+        .catch(() => {});
+    })();
   </script>
 </body>
 </html>

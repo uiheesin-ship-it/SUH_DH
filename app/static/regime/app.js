@@ -37,27 +37,73 @@ function resolveApiBase() {
     storeApiBase(url);
     return url;
   }
-  return storedApiBase()
-    || normaliseUrl(window.SUH_DH_API_BASE || "")
-    || normaliseUrl(window.SUH_DH_REGIME_API_DEFAULT || "");
+  const stored = storedApiBase();
+  if (stored) return stored;
+  const built = normaliseUrl(window.SUH_DH_API_BASE || "");
+  if (built) return built;
+  // 저장소 기본값은 파이썬이 없는 정적 사이트에서만 쓴다. 로컬 대시보드(STATIC=false)는
+  // 같은 서버의 /api/regime/* 를 그대로 써야 한다 — 남의 백엔드로 나가면 안 된다.
+  return STATIC ? normaliseUrl(window.SUH_DH_REGIME_API_DEFAULT || "") : "";
 }
 
-/** 주소가 정말 대시보드 백엔드인지 확인한다.
- *  (예전 Streamlit 서비스 주소처럼 엉뚱한 곳을 넣으면 여기서 걸린다.) */
-async function probeBackend(base) {
-  if (!base) return { ok: true };                      // 로컬: 같은 서버를 쓴다
-  try {
-    const res = await fetch(base + "/api/health", { cache: "no-store" });
-    if (!res.ok) return { ok: false, why: `/api/health 가 ${res.status} 를 돌려줬습니다.` };
-    const body = await res.json().catch(() => null);
-    if (!body || body.status !== "ok") {
-      return { ok: false, why: "이 주소는 대시보드 백엔드가 아닌 것 같습니다 (/api/health 응답이 예상과 다릅니다)." };
+/* --------------------------------------------------------- 백엔드 깨우기
+ *
+ * 무료 인스턴스는 15분만 놀아도 잠든다. 잠든 동안 오는 요청은 (a) 그냥 오래 매달려
+ * 있거나 (b) Render 의 "waking up" HTML 안내 페이지를 받거나 (c) 502/503 을 받는다.
+ * 셋 다 "주소가 틀렸다"가 아니라 "아직 일어나는 중"이다 — 그래서 한 번 찔러 보고
+ * 포기하지 않고, 깨어날 때까지(최대 WAKE_BUDGET_MS) 짧게 되물으며 기다린다.
+ *
+ * 반대로 살아 있는 엉뚱한 서비스(예: 옛 Streamlit)는 /api/health 에 곧바로 404 를
+ * 준다 — 그건 기다릴 이유가 없으니 즉시 "주소가 다르다"고 알려 준다.
+ */
+const WAKE_BUDGET_MS = 150000;        // 최대 2분 30초 (Render 무료는 보통 30~60초)
+const WAKE_PROBE_MS = 25000;          // 한 번 찌를 때 기다리는 시간
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function fetchTimeout(url, ms, opts) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, { cache: "no-store", signal: ctl.signal, ...(opts || {}) })
+    .finally(() => clearTimeout(timer));
+}
+
+let BACKEND_READY = false;
+
+/** 백엔드가 응답할 때까지 기다린다. onTick(초) 으로 진행 상황을 알려 준다. */
+async function wakeBackend(base, onTick) {
+  if (!base) { BACKEND_READY = true; return { ok: true }; }   // 로컬: 같은 서버를 쓴다
+  const started = Date.now();
+  const elapsed = () => Math.round((Date.now() - started) / 1000);
+  let lastWhy = "연결하지 못했습니다.";
+  let sawServer = false;                 // 서버는 살아 있는데 응답이 우리 것이 아니다
+  while (Date.now() - started < WAKE_BUDGET_MS) {
+    if (onTick) onTick(elapsed());
+    try {
+      const res = await fetchTimeout(base + "/api/health", WAKE_PROBE_MS);
+      if (res.status === 404 || res.status === 405 || res.status === 403) {
+        return { ok: false, wrong: true,
+                 why: `/api/health 가 ${res.status} 를 돌려줬습니다 — 서버는 살아 있지만 대시보드 백엔드가 아닙니다.` };
+      }
+      if (res.ok) {
+        const text = await res.text();
+        let body = null;
+        try { body = JSON.parse(text); } catch (e) { /* Render 안내 페이지(HTML) */ }
+        if (body && body.status === "ok") {
+          BACKEND_READY = true;
+          return { ok: true, seconds: elapsed() };
+        }
+        sawServer = true;                // 200 인데 JSON 이 아니다 — 깨는 중이거나 다른 서비스
+        lastWhy = "응답이 대시보드 백엔드의 것이 아닙니다 (/api/health 가 JSON 을 주지 않습니다).";
+      } else {
+        lastWhy = `/api/health 가 ${res.status} 를 돌려줬습니다.`;   // 502/503 = 깨는 중
+      }
+    } catch (err) {
+      lastWhy = "연결하지 못했습니다 — 주소가 맞는지, 서버가 살아 있는지 확인하세요.";
     }
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, why: "연결하지 못했습니다 — 주소가 맞는지, 서버가 살아 있는지 확인하세요. " +
-                             "(무료 인스턴스는 첫 요청에 30~60초 걸릴 수 있습니다.)" };
+    await sleep(3000);
   }
+  return { ok: false, wrong: sawServer,
+           why: lastWhy + ` (${elapsed()}초 기다렸습니다)` };
 }
 let API_BASE = resolveApiBase();
 const api = (path) => (API_BASE ? API_BASE + path : path);
@@ -92,18 +138,33 @@ function setStatus(text, cls) {
   el.textContent = text;
   el.className = "status" + (cls ? " " + cls : "");
 }
-let wakeTimer = null;
+let busyTimer = null;
+let busyLabel = "";
+
+/** 오버레이 문구만 바꾼다(경과 시간 표시는 그대로 이어진다). */
+function busyText(text) {
+  busyLabel = text || "";
+  const el = $("#overlay-text");
+  if (el) el.textContent = busyLabel;
+}
+
+/** 진행 중에는 경과 초를 세어 준다 — 멈춘 것인지 도는 것인지 보이게 한다.
+ *  무료 인스턴스는 잠에서 깨는 데만 30~60초가 걸려서, 이게 없으면 '먹통'처럼 보인다. */
 function busy(on, text) {
   $("#overlay").classList.toggle("hidden", !on);
-  $("#overlay-text").textContent = text || "";
-  if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = null; }
-  if (on && API_BASE) {
-    // 무료 백엔드는 쉬고 있다 깨어나느라 첫 요청이 오래 걸린다 — 그때 알려 준다.
-    wakeTimer = setTimeout(() => {
-      $("#overlay-text").textContent =
-        (text || "") + "  (백엔드를 깨우는 중일 수 있습니다 — 최대 1분)";
-    }, 8000);
-  }
+  if (busyTimer) { clearInterval(busyTimer); busyTimer = null; }
+  busyText(text);
+  if (!on) return;
+  const started = Date.now();
+  busyTimer = setInterval(() => {
+    const sec = Math.round((Date.now() - started) / 1000);
+    const el = $("#overlay-text");
+    if (!el) return;
+    let line = busyLabel;
+    if (sec >= 3) line += `  ·  ${sec}초`;
+    if (sec >= 10 && API_BASE && !BACKEND_READY) line += " (백엔드를 깨우는 중 — 최대 1분)";
+    el.textContent = line;
+  }, 1000);
 }
 function tableHtml(frame, decimals = 2) {
   if (!frame || !frame.columns || !frame.columns.length) return '<p class="muted small">표시할 내용이 없습니다.</p>';
@@ -134,14 +195,67 @@ function plot(el, fig) {
 }
 function metric(k, v) { return `<div class="metric"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`; }
 
-async function post(path, body) {
-  const res = await fetch(api(path), {
+const REQUEST_TIMEOUT_MS = 300000;      // 5분 — 잠든 인스턴스가 깨서 계산까지 하는 시간
+
+async function rawPost(path, body) {
+  const res = await fetchTimeout(api(path), REQUEST_TIMEOUT_MS, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({ error: "응답을 읽지 못했습니다." }));
   if (!res.ok || json.error) throw new Error((json.error || "요청 실패") + (json.detail ? " — " + json.detail : ""));
   return json;
+}
+
+function looksOffline(err) {
+  const msg = String((err && err.message) || err);
+  return (err && (err.name === "TypeError" || err.name === "AbortError"))
+    || /Failed to fetch|NetworkError|network|aborted|Load failed/i.test(msg);
+}
+
+/** 요청을 '되살려 가며' 보낸다. 무료 백엔드에서 실제로 일어나는 두 가지를 덮는다:
+ *   1) 그 사이 인스턴스가 잠들었다 → 깨우고 한 번 더 보낸다.
+ *   2) 인스턴스가 재시작돼 업로드 토큰이 사라졌다 → 기억해 둔 파일을 다시 올리고 한 번 더.
+ *  makeBody 를 함수로 주면 재시도할 때 새 토큰으로 본문을 다시 만든다. */
+async function post(path, makeBody) {
+  const build = () => (typeof makeBody === "function" ? makeBody() : makeBody);
+  try {
+    return await rawPost(path, build());
+  } catch (err) {
+    const msg = String((err && err.message) || err);
+
+    if (looksOffline(err) && API_BASE) {
+      const wake = await wakeBackend(API_BASE, (sec) =>
+        busyText(`백엔드가 잠들어 있었습니다 — 깨우는 중… ${sec}초`));
+      if (!wake.ok) throw new Error(wake.why);
+      busyText("다시 요청하는 중…");
+      return await rawPost(path, build());
+    }
+
+    if (/업로드 세션이 만료|세션이 만료/.test(msg)) {
+      busyText("백엔드가 다시 시작돼 파일을 다시 올리는 중…");
+      if (await reuploadSaved()) return await rawPost(path, build());
+      throw new Error(msg + " ('이 브라우저에 데이터 기억'을 켜 두면 다음부터는 자동으로 다시 올립니다.)");
+    }
+    throw err;
+  }
+}
+
+/** IndexedDB 에 기억해 둔 파일을 조용히 다시 올려 새 토큰을 받는다. */
+async function reuploadSaved() {
+  const saved = await savedSummary();
+  if (!saved.length) return false;
+  let done = 0;
+  for (const rec of saved) {
+    try {
+      const file = new File([rec.buffer], rec.name, { type: rec.type || "text/csv" });
+      const info = await inspectFile(rec.kind, file);
+      info.mapping = { ...info.mapping, ...(rec.mapping || {}) };
+      renderMapping(rec.kind, info);
+      done += 1;
+    } catch (err) { /* 하나라도 실패하면 아래에서 false 로 떨어진다 */ }
+  }
+  return done > 0;
 }
 
 function download(name, text, type = "text/csv;charset=utf-8") {
@@ -745,7 +859,7 @@ async function run() {
     }
     busy(true, "분석 중… (데이터 로드 → feature → 유사 국면 → forward return)");
     setStatus("분석 중…");
-    const json = await post("/api/regime/analyze", requestBody(false));
+    const json = await post("/api/regime/analyze", () => requestBody(false));
     renderAll(json);
   } catch (err) {
     setStatus("분석 실패", "bad");
@@ -762,7 +876,7 @@ async function runAudit() {
   if (!date) return;
   busy(true, "계산 과정을 불러오는 중…");
   try {
-    renderAudit(await post("/api/regime/audit", { ...requestBody(true), date }));
+    renderAudit(await post("/api/regime/audit", () => ({ ...requestBody(true), date })));
   } catch (err) {
     $("#audit-body").innerHTML = note("fail", esc(err.message || err));
   } finally {
@@ -775,7 +889,7 @@ async function runValidation() {
   btn.disabled = true;
   busy(true, "Walk-forward 검증 실행 중… 수십 초 걸립니다");
   try {
-    renderValidation(await post("/api/regime/validation", requestBody(true)));
+    renderValidation(await post("/api/regime/validation", () => requestBody(true)));
   } catch (err) {
     $("#val-body").innerHTML = note("fail", esc(err.message || err));
   } finally {
@@ -796,7 +910,7 @@ function downloadMatches() {
 async function downloadFeatures() {
   busy(true, "feature 표를 만드는 중…");
   try {
-    const json = await post("/api/regime/features.csv", requestBody(true));
+    const json = await post("/api/regime/features.csv", () => requestBody(true));
     download("regime_features.csv", json.csv);
   } catch (err) {
     setStatus(String(err.message || err), "bad");
@@ -853,26 +967,32 @@ async function init() {
   $("#strict-add").addEventListener("click", () =>
     $("#strict-list").appendChild(strictRow(FEATURES[0] && FEATURES[0].key)));
 
-  // 주소가 대시보드 백엔드가 맞는지 먼저 확인한다(겸사겸사 인스턴스도 깨운다).
+  // 백엔드를 깨운다. 무료 인스턴스는 30~60초 걸리는데, 그동안 화면이 멈춘 것처럼
+  // 보이지 않도록 남은 초를 계속 알려 준다(파일 고르기·파라미터 조정은 그동안도 된다).
   if (API_BASE) {
-    setStatus("백엔드 확인 중…");
-    const probe = await probeBackend(API_BASE);
-    if (!probe.ok) {
-      setStatus("백엔드 주소를 확인하세요", "warn");
+    $("#intro-note").innerHTML = note("info",
+      "분석 백엔드를 깨우는 중입니다 — 무료 인스턴스는 처음 한 번 30~60초가 걸립니다. " +
+      "기다리는 동안 왼쪽에서 파일과 파라미터를 미리 골라 두셔도 됩니다.");
+    const wake = await wakeBackend(API_BASE, (sec) => setStatus(`백엔드를 깨우는 중… ${sec}초`, "warn"));
+    if (!wake.ok) {
+      setStatus(wake.wrong ? "백엔드 주소를 확인하세요" : "백엔드가 응답하지 않습니다", "bad");
       $("#intro-note").innerHTML = note("warn",
-        `<b>${esc(API_BASE)}</b> — ${esc(probe.why)}<br>` +
+        `<b>${esc(API_BASE)}</b> — ${esc(wake.why)}<br>` +
         "<span class='small'>대시보드 백엔드(FastAPI)의 주소가 필요합니다. Render 라면 " +
-        "<code>suh-dh-api</code> 서비스의 주소이고, <code>/api/health</code> 를 열었을 때 " +
-        "<code>{\"status\":\"ok\"}</code> 가 보이는 주소입니다.</span>");
+        "<code>suh-dh-api</code> 처럼 <code>uvicorn app.main:app</code> 을 띄우는 서비스이고, " +
+        "<code>/api/health</code> 를 열었을 때 <code>{\"status\":\"ok\"}</code> 가 보이는 주소입니다. " +
+        "아래에 주소를 넣으면 이 브라우저에 기억됩니다.</span>");
       $("#backend-setup").classList.remove("hidden");
       $("#api-url").value = API_BASE;
       return;
     }
+    $("#intro-note").innerHTML = "";
+    if (wake.seconds >= 5) setStatus(`백엔드 준비 완료 (${wake.seconds}초)`);
   }
 
   setStatus("설정을 불러오는 중…");
   try {
-    const res = await fetch(api("/api/regime/defaults"), { cache: "no-store" });
+    const res = await fetchTimeout(api("/api/regime/defaults"), REQUEST_TIMEOUT_MS);
     const json = await res.json();
     if (!res.ok || json.error) throw new Error(json.error || "기본 설정을 불러오지 못했습니다.");
     DEFAULTS = json.config;

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 import uuid
@@ -178,8 +179,33 @@ def _frame(df, index_label: str | None = None) -> dict:
     return {"columns": columns, "rows": rows}
 
 
+# '2006-09-18T00:00:00.000000' → '2006-09-18' (자정 타임스탬프만).
+_MIDNIGHT = re.compile(r"^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?$")
+
+
+def _slim(node):
+    """figure JSON 을 가볍게 만든다 — 그림은 그대로, 전송량만 줄인다.
+
+    20년 차트는 trace 4개 × 5,000점이라 그대로 보내면 ~940KB 다. 대부분이 숫자
+    표기 길이다: 2113.9599609375 처럼 부동소수점 밑자리까지 찍히고, 날짜는
+    '2005-01-03T00:00:00' 로 나간다. 소수점 6자리면 차트에서는 완전히 같은 픽셀이고
+    (가격 5,000 기준 1e-6, 수익률 기준 0.0001%), 자정 타임스탬프는 날짜만 남겨도
+    Plotly 가 똑같이 읽는다. 계산 결과 자체(표·통계)는 이 함수를 거치지 않는다.
+    """
+    if isinstance(node, float):
+        return round(node, 6)
+    if isinstance(node, str):
+        m = _MIDNIGHT.match(node)
+        return m.group(1) if m else node
+    if isinstance(node, list):
+        return [_slim(v) for v in node]
+    if isinstance(node, dict):
+        return {k: _slim(v) for k, v in node.items()}
+    return node
+
+
 def _figure(fig) -> dict:
-    return json.loads(fig.to_json())
+    return _slim(json.loads(fig.to_json()))
 
 
 def _quality_payload(reports) -> dict:
