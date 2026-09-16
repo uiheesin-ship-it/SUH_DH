@@ -103,6 +103,10 @@ jobs:
           # Optional: set this repo Variable to your hosted backend URL (e.g. a
           # Render service) so the static earnings page can query any ticker.
           SUH_DH_API_BASE: ${{ vars.SUH_DH_API_BASE }}
+          # Optional: set this repo Variable to the deployed Market Regime Lab
+          # (Streamlit) URL — e.g. https://suh-dh-regime.onrender.com — so the
+          # 미장 > 기타 > Market Regime Lab 카드가 정적 사이트에서도 앱을 바로 띄운다.
+          SUH_DH_REGIME_URL: ${{ vars.SUH_DH_REGIME_URL }}
           # Base rescan (the heaviest step) runs ONLY on the twice-daily base
           # cron (0 12,22) and on manual dispatch. Every other scheduled run —
           # the 6-hourly news cron and the 30-min intraday highs cron — skips it

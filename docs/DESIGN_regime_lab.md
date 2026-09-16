@@ -352,7 +352,33 @@ fold 별로 평가 횟수 · 신호 평균 · 실현 평균 · 같은 기간 무
 ## 7-1. 기존 대시보드와의 통합
 
 Regime Lab 은 Streamlit 앱이라 다른 프로그램처럼 정적 페이지로 만들 수 없습니다. 로직을
-두 번 구현하는 대신, 대시보드가 **띄우고 중계**합니다.
+두 번 구현하는 대신, **어디서 열든 카드 화면 안에 실제 앱을 띄웁니다.**
+
+### (a) 공개 사이트 (GitHub Pages) — 원격 인스턴스를 임베드
+
+```
+브라우저 ─► Pages  /                허브 (미장 → 기타 → Market Regime Lab 카드)
+                   /regime/         진입 화면 (대시보드 헤더 + iframe)
+                      └─ iframe ─► https://suh-dh-regime.onrender.com/?embed=true
+```
+
+* 주소는 ① `?app=<url>` 쿼리 → ② localStorage → ③ 빌드 때 심은 `SUH_DH_REGIME_URL`
+  (`build.write_regime_url`, 워크플로의 repo Variable) 순으로 찾습니다. 셋 다 없으면
+  화면에서 주소를 한 번 입력받고 그 브라우저에 기억합니다.
+* 배포는 `render.yaml` 의 `suh-dh-regime` 서비스(무료 플랜)가 담당합니다. 대안으로
+  Streamlit Community Cloud 에 `app/regime/streamlit_app.py` 를 올려도 되며, 그때는
+  같은 디렉터리의 `app/regime/requirements.txt` 가 쓰입니다.
+  `--server.enableCORS false --server.enableXsrfProtection false` 로 띄우는데, 다른
+  오리진의 iframe 안에서는 XSRF 쿠키가 서드파티 쿠키로 취급돼 **파일 업로드가 막히기**
+  때문입니다. 읽기 전용 분석 도구라 세션에 보호할 상태가 없고 업로드 파일도 서버에
+  저장되지 않습니다.
+* Streamlit 은 `X-Frame-Options` 나 CSP `frame-ancestors` 를 보내지 않아 임베드가
+  가능합니다(실측 확인). 무료 인스턴스는 유휴 후 깨어나는 데 30~60초가 걸려, 페이지가
+  그동안 로딩 오버레이를 보여 줍니다.
+* 512MB 인스턴스에 맞춰 `deploy/regime_config.render.yaml` 이 bootstrap 반복수만 500 으로
+  낮춥니다(분석 한 번의 최대 메모리 ~350MB → ~175MB). 계산 방법과 다른 파라미터는 동일합니다.
+
+### (b) 로컬 대시보드 — 대시보드가 직접 띄우고 중계
 
 ```
 브라우저 ─► FastAPI  /                 허브 (미장 → 기타 → Market Regime Lab 카드)
@@ -369,8 +395,9 @@ Regime Lab 은 Streamlit 앱이라 다른 프로그램처럼 정적 페이지로
   그것을 그대로 씁니다.
 * Streamlit 이나 httpx 가 설치돼 있지 않으면 대시보드는 그대로 뜨고, 이 카드만 설치 방법을 안내합니다.
   정적 빌드(GitHub Pages)에서는 로컬 실행 방법을 안내합니다.
-* 화면 흐름은 `① 데이터`(입력 방식 · 업로드 · 컬럼 매핑) → `② 데이터 확인`(소스 요약 · 품질 검사)
-  → `분석 실행` → `③ 분석`(7개 탭) 순서이고, 업로드 파일은 세션 메모리에만 존재합니다.
+* 화면 흐름은 (a)·(b) 모두 같습니다: `① 데이터`(입력 방식 · 업로드 · 컬럼 매핑) →
+  `② 데이터 확인`(소스 요약 · 품질 검사) → `분석 실행` → `③ 분석`(7개 탭). 업로드 파일은
+  앱 인스턴스의 세션 메모리에만 존재하며 디스크나 저장소에 남지 않습니다.
 
 ## 8. 확장
 

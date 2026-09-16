@@ -1,0 +1,13 @@
+# Streamlit Community Cloud 용 의존성.
+#
+# Cloud 는 "저장소 루트" 또는 "앱 파일과 같은 디렉터리"의 requirements.txt 를 읽습니다.
+# 루트 requirements.txt 는 FastAPI 대시보드용이라 Streamlit 이 없으므로, 앱 옆에
+# 하나 둬서 Cloud 배포(앱 경로: app/regime/streamlit_app.py)가 그대로 되게 합니다.
+# Render 로 배포할 때는 requirements-regime.txt 를 씁니다(render.yaml 참고).
+pandas>=2.0
+numpy>=1.24
+yfinance>=0.2.54
+streamlit>=1.40
+plotly>=5.20
+pyyaml>=6.0
+openpyxl>=3.1

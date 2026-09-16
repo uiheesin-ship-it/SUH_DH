@@ -52,6 +52,22 @@ def test_landing_page_is_served_and_dashboard_styled(client):
         assert client.get(f"/regime/{asset}").status_code == 200
 
 
+def test_landing_page_embeds_instead_of_telling_users_to_run_locally(client):
+    """정적 호스팅에서도 이 화면 안에서 앱이 열려야 한다 — '로컬에서 실행하세요'로
+    끝내는 안내 화면은 없어야 한다."""
+    body = client.get("/regime/").text
+    assert "로컬 대시보드에서 실행하세요" not in body
+    assert 'id="setup"' in body and 'id="regime-url"' in body      # 원격 주소 입력
+    assert 'id="overlay"' in body                                  # 로딩(깨우는 중) 표시
+
+    js = client.get("/regime/app.js").text
+    assert "SUH_DH_REGIME_URL" in js                               # 빌드 때 심는 기본 주소
+    assert "localStorage" in js                                    # 브라우저에 기억
+    assert "?embed=true" in js                                     # Streamlit 임베드 모드
+    cfg = client.get("/regime/config.js").text
+    assert "window.SUH_DH_REGIME_URL" in cfg
+
+
 def test_status_endpoint_reports_capability(client):
     body = client.get("/api/regime/status").json()
     assert set(body) >= {"available", "missing", "running", "port", "path", "script"}
@@ -91,6 +107,57 @@ def test_start_is_reported_not_crashed_when_dependencies_missing(monkeypatch):
     result = regime_host.start(timeout=1)
     assert result["ok"] is False and result["running"] is False
     assert "streamlit" in result["missing"]
+
+
+def test_build_injects_the_deployed_regime_url(tmp_path):
+    """정적 빌드가 배포된 Streamlit 주소를 config.js 에 심어야 카드가 바로 열린다."""
+    import build
+
+    (tmp_path / "regime").mkdir()
+    cfg = tmp_path / "regime" / "config.js"
+    cfg.write_text("window.SUH_DH_STATIC = true;\n", encoding="utf-8")
+
+    assert build.write_regime_url(tmp_path, "https://suh-dh-regime.onrender.com/") == \
+        "https://suh-dh-regime.onrender.com"
+    assert 'window.SUH_DH_REGIME_URL = "https://suh-dh-regime.onrender.com";' in cfg.read_text()
+
+    before = cfg.read_text()
+    assert build.write_regime_url(tmp_path, "   ") == ""            # 값이 없으면 아무것도 안 쓴다
+    assert cfg.read_text() == before
+
+
+def test_render_blueprint_deploys_the_streamlit_lab():
+    """항상 켜져 있는 인스턴스가 있어야 Pages 에서 임베드가 가능하다."""
+    yaml = pytest.importorskip("yaml")
+    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
+    names = [s["name"] for s in blueprint["services"]]
+    assert "suh-dh-regime" in names
+    svc = next(s for s in blueprint["services"] if s["name"] == "suh-dh-regime")
+    assert "requirements-regime.txt" in svc["buildCommand"]
+    start = " ".join(svc["startCommand"].split())
+    assert "streamlit run app/regime/streamlit_app.py" in start
+    assert "--server.port $PORT" in start and "--server.address 0.0.0.0" in start
+    # 다른 오리진의 iframe 안에서 파일 업로드가 막히지 않도록 끈다
+    assert "--server.enableXsrfProtection false" in start
+    assert "--server.enableCORS false" in start
+    assert svc["healthCheckPath"] == "/_stcore/health"
+    env = {e["key"]: e["value"] for e in svc["envVars"]}
+    assert env["SUH_DH_REGIME_CONFIG"] == "deploy/regime_config.render.yaml"
+    assert (ROOT / env["SUH_DH_REGIME_CONFIG"]).exists()
+
+
+def test_hosted_config_only_lowers_bootstrap_samples():
+    """호스팅용 설정은 메모리 때문에 반복수만 낮추고 계산 방법은 그대로여야 한다."""
+    from app.regime.config import Params, load_config
+
+    hosted = Params.from_config(load_config(ROOT / "deploy" / "regime_config.render.yaml"))
+    repo = Params.from_config(load_config())
+    assert hosted.forward.bootstrap_samples == 500
+    assert hosted.forward.horizons == repo.forward.horizons
+    assert hosted.forward.ci_level == repo.forward.ci_level
+    assert hosted.similarity.weights == repo.similarity.weights
+    assert hosted.distribution == repo.distribution
+    assert hosted.features == repo.features
 
 
 def test_stop_without_owned_process_is_safe(monkeypatch):
