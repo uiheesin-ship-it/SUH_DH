@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:  # `streamlit run` 은 스크립트로 실행하므로 경로를 잡아 준다.
     sys.path.insert(0, str(ROOT))
 
-from app.regime import matching, similarity, ui, validation, viz  # noqa: E402
+from app.regime import audit, matching, quality, similarity, ui, validation, viz  # noqa: E402
 from app.regime.config import Params, load_config  # noqa: E402
 from app.regime.data import load_market  # noqa: E402
 from app.regime.features import build_features  # noqa: E402
@@ -63,6 +63,11 @@ def _feature_signature(params: Params) -> str:
     return sig
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _quality(_market, signature: str):
+    return quality.run_checks(_market, _PARAM_CACHE[signature])
+
+
 @st.cache_data(ttl=3600, show_spinner="Walk-forward 검증 실행 중…")
 def _walk_forward(_values, _close, _valid, weights_json: str, sim_json: str, signature: str):
     params = _PARAM_CACHE[signature]
@@ -93,6 +98,21 @@ def header(market, params: Params) -> None:
             note += f" · {stale}일 지연"
         col.metric(f"{info.get('label', symbol)} 최종 업데이트", info.get("last_date") or "–", help=note)
         col.caption(f"{info.get('first_date')} ~ {info.get('last_date')} · {info.get('rows', 0):,}행 · {note}")
+
+
+def quality_banner(reports) -> None:
+    status = quality.overall_status(reports)
+    problems = [(r.series, c) for r in reports for c in r.problems()]
+    if status == "fail":
+        st.error("데이터 품질 검사에서 **치명적 문제**가 발견됐습니다 — " +
+                 " / ".join(f"[{sr}] {c.label}: {c.detail}" for sr, c in problems[:3]) +
+                 "  ⟶ ⑥ 데이터 품질 탭에서 전체 확인")
+    elif status == "warn":
+        st.warning("데이터 품질 경고 " + str(len(problems)) + "건 — " +
+                   " / ".join(f"[{sr}] {c.label}" for sr, c in problems[:4]) +
+                   "  ⟶ ⑥ 데이터 품질 탭에서 확인")
+    else:
+        st.success("데이터 품질 검사 통과 (기간·중복·공백·결측·최신성·거래량·금리 단위)")
 
 
 def state_tab(market, fs, params: Params, anchor) -> None:
@@ -168,6 +188,10 @@ def matches_tab(market, fs, params: Params, state: ui.UIState, matches, info, ta
 def forward_tab(market, fs, params: Params, matches, results) -> None:
     horizons = sorted(results)
     st.subheader("Forward Return — 매칭 표본 vs 전체 기간")
+    indep_label = ("전체 사용 (겹침은 CI 에 반영)" if params.forward.independence == "all"
+                   else "horizon 별 독립 표본")
+    st.caption(f"표본 독립성: {indep_label} · 신뢰구간 재표본: {params.forward.ci_method} "
+               f"· bootstrap {params.forward.bootstrap_samples:,}회")
     rows = []
     for h in horizons:
         r = results[h]
@@ -182,6 +206,24 @@ def forward_tab(market, fs, params: Params, matches, results) -> None:
                 f"중앙값 {int(params.forward.ci_level * 100)}% CI": _ci(stats["ci_median"]),
             })
     st.dataframe(pd.DataFrame(rows).round(2), width="stretch", hide_index=True)
+
+    st.markdown("**표본 독립성 진단** — 겹치는 forward 구간을 n 그대로 세면 안 됩니다")
+    indep = pd.DataFrame([{
+        "Horizon": f"+{h}일",
+        "사용 표본 n": results[h].matched["n"],
+        "독립 에피소드 수": results[h].matched.get("n_episodes", 0),
+        "유효 표본수 n_eff": results[h].ess,
+        "n_eff / n": (results[h].ess / results[h].matched["n"]) if results[h].matched["n"] else np.nan,
+        "제외된 match": results[h].dropped,
+        "CI 방식": results[h].matched.get("ci_method", "–"),
+        "평균 CI 폭 (%p)": results[h].ci_width,
+        "i.i.d. CI 폭 (%p)": results[h].ci_width_iid,
+        "i.i.d. 과소추정 (%)": ((1 - results[h].ci_width_iid / results[h].ci_width) * 100
+                                if results[h].ci_width else np.nan),
+    } for h in horizons]).round(2)
+    st.dataframe(indep, width="stretch", hide_index=True)
+    st.caption("n_eff = n² / Σᵢⱼ max(0, 1 − |tᵢ−tⱼ|/h) — forward 구간이 얼마나 겹치는지로 n 을 할인한 값. "
+               "'i.i.d. 과소추정'이 양수면, 단순 i.i.d. bootstrap 을 썼을 때 신뢰구간이 그만큼 좁게 나왔다는 뜻입니다.")
 
     st.markdown("**Baseline 대비 초과/부족**")
     diff = pd.DataFrame([{
@@ -206,8 +248,90 @@ def forward_tab(market, fs, params: Params, matches, results) -> None:
     for h in horizons:
         for msg in results[h].warnings:
             st.warning(f"+{h}일: {msg}")
-    st.caption("Baseline CI 는 forward 구간이 겹치는 특성을 반영해 block bootstrap (블록 길이 = horizon) 으로, "
-               "matched CI 는 de-clustering 된 표본에 대해 i.i.d. bootstrap 으로 계산합니다.")
+    st.caption("Baseline CI 는 block bootstrap(블록 길이 = horizon), matched CI 는 기본적으로 "
+               "cluster bootstrap(겹치는 match 들을 한 에피소드로 묶어 에피소드 단위로 재표본)으로 계산합니다. "
+               "사이드바에서 horizon 별 독립 표본 모드나 i.i.d. 재표본으로 바꿔 비교할 수 있습니다.")
+
+
+def audit_tab(market, fs, params: Params, anchor, scored, matches, mode: str) -> None:
+    st.subheader("계산 감사 (Calculation Audit)")
+    st.caption("선택한 날짜 하나에 대해 원본 OHLCV부터 최종 similarity score, forward return 까지 "
+               "모든 중간값을 펼쳐 보여 줍니다. 표의 숫자만으로 결과를 손으로 재현할 수 있어야 합니다.")
+    if matches is None or matches.empty:
+        st.info("매칭된 날짜가 없습니다.")
+        return
+
+    options = list(matches.index)
+    col1, col2 = st.columns([2, 1])
+    picked = col1.selectbox("감사할 match 날짜", options,
+                            format_func=lambda d: f"{pd.Timestamp(d).date()}  ·  유사도 "
+                                                  f"{matches.loc[d, 'score']:.1f}")
+    free = col2.checkbox("다른 날짜 직접 조회")
+    if free:
+        cal = market.calendar
+        d = col2.date_input("날짜", value=pd.Timestamp(picked).date(),
+                            min_value=cal.min().date(), max_value=cal.max().date())
+        prior = cal[cal <= pd.Timestamp(d)]
+        picked = prior.max() if len(prior) else picked
+
+    res = audit.audit_match(market, fs, params, anchor, picked,
+                            weights=params.similarity.weights, scored=scored, matches=matches,
+                            horizons=params.forward.horizons)
+
+    c = st.columns(4)
+    c[0].metric("기준일(현재)", str(pd.Timestamp(anchor).date()))
+    c[1].metric("감사 대상일", str(pd.Timestamp(picked).date()))
+    c[2].metric("거리 d", f"{res.distance['거리 d = √(Σw·Δz²/Σw)']:.4f}")
+    c[3].metric("유사도 score", f"{res.distance['점수 100·exp(−d²/2)']:.2f}")
+
+    st.markdown("**① 원본 OHLCV** (전일·당일·익일)")
+    st.dataframe(res.ohlcv.round(2), width="stretch")
+
+    st.markdown("**② 이동평균과 이격률** — 저장된 값 vs 해당 날짜까지의 종가로 다시 계산한 값")
+    st.dataframe(res.trend.round(4), width="stretch", hide_index=True)
+
+    st.markdown("**③ 분산일 판정 근거** — 세 조건 모두 통과해야 분산일")
+    st.dataframe(res.distribution.round(4), width="stretch", hide_index=True)
+    st.caption(f"lookback {params.distribution.lookback}거래일 안의 분산일 "
+               f"{len(res.dd_days)}일 (= feature `dd_count`)")
+    if len(res.dd_days):
+        st.dataframe(res.dd_days.round(3), width="stretch")
+
+    st.markdown("**④ feature 별 raw → 표준화 → 거리 기여도**")
+    st.dataframe(res.features.round(4), width="stretch", hide_index=True)
+    st.caption("z = (raw − center) / scale, center·scale 은 기준일까지의 중앙값·MAD(또는 평균·표준편차). "
+               "기여도 = weight × (z차이)², 거리 = √(기여도 합 / 가중치 합).")
+    summary = {k: v for k, v in res.distance.items() if k != "제외된 feature"}
+    st.dataframe(pd.DataFrame([summary]).round(6), width="stretch", hide_index=True)
+
+    st.markdown("**⑤ de-clustering 전후 포함 여부**")
+    st.dataframe(pd.DataFrame([{k: str(v) for k, v in res.declustering.items()}]).T
+                 .rename(columns={0: "값"}), width="stretch")
+
+    st.markdown("**⑥ forward return 계산에 쓰인 시작·종료 가격**")
+    st.dataframe(res.forward.round(4), width="stretch", hide_index=True)
+
+    for note in res.notes:
+        st.caption("· " + note)
+    st.download_button("이 날짜 feature 감사표 CSV", res.features.to_csv(index=False).encode("utf-8-sig"),
+                       file_name=f"regime_audit_{pd.Timestamp(picked).date()}.csv", mime="text/csv")
+
+
+def quality_tab(market, fs, params: Params, reports) -> None:
+    st.subheader("데이터 품질 요약 (Data Quality Summary)")
+    status = quality.overall_status(reports)
+    {"fail": st.error, "warn": st.warning, "ok": st.success}[status](
+        {"fail": "치명적 문제가 있습니다 — 아래 항목을 먼저 해결하세요.",
+         "warn": "주의할 항목이 있습니다.",
+         "ok": "모든 검사를 통과했습니다."}[status])
+    st.dataframe(quality.summary_frame(reports), width="stretch", hide_index=True)
+    sugg = [(r.series, c) for r in reports for c in (r.problems() + r.notes()) if c.suggestion]
+    if sugg:
+        st.markdown("**제안**")
+        for series, c in sugg:
+            st.markdown(f"- `{series}` · **{c.label}** — {c.suggestion}")
+    st.caption("터미널에서도 같은 검사를 돌릴 수 있습니다:  "
+               "`python3 -m app.regime.quality --ticker '^IXIC'` (오프라인 확인은 `--demo`)")
 
 
 def validation_tab(market, fs, params: Params, weights: dict, signature: str) -> None:
@@ -247,7 +371,7 @@ def validation_tab(market, fs, params: Params, weights: dict, signature: str) ->
 
 
 def data_tab(market, fs, params: Params) -> None:
-    st.subheader("데이터 / 방법론")
+    st.subheader("데이터 원본 / 방법론")
     meta = pd.DataFrame(market.meta.get("series", {})).T
     st.dataframe(meta, width="stretch")
     st.markdown(f"""
@@ -315,21 +439,32 @@ def main() -> None:
 
     max_h = int(max(params.forward.horizons))
     if mode == "similarity":
-        matches, info = similarity.find_similar(fs.values, anchor, params.similarity.weights,
-                                                params.similarity, valid=valid, max_horizon=max_h)
+        scored, info = similarity.candidate_scores(fs.values, anchor, params.similarity.weights,
+                                                   params.similarity, valid=valid, max_horizon=max_h)
+        matches = similarity.decluster(scored, market.calendar, params.similarity.min_gap,
+                                       pick=params.similarity.episode_pick,
+                                       top_n=params.similarity.top_n)
     else:
-        matches, info = matching.strict_match(fs.values, conditions, anchor, params.similarity,
-                                              weights=params.similarity.weights, max_horizon=max_h,
-                                              valid=valid)
-        matches = matches.head(params.similarity.top_n)
+        scored, info = matching.strict_candidates(fs.values, conditions, anchor, params.similarity,
+                                                  weights=params.similarity.weights,
+                                                  max_horizon=max_h, valid=valid)
+        matches = similarity.decluster(scored.fillna({"score": 0.0}), market.calendar,
+                                       params.similarity.min_gap,
+                                       pick=params.similarity.episode_pick if params.similarity.weights else "first",
+                                       top_n=None)
+        matches = matches.sort_values("score", ascending=False).head(params.similarity.top_n)
 
     table = viz.build_match_table(matches, fs, market.prices["close"], params.forward.horizons,
                                   keys=info.used_keys or list(fs.values.columns)[:6])
-    results = analyze(market.prices["close"], matches.index, params.forward,
-                      baseline_mask=valid, min_gap=params.similarity.min_gap)
+    results = analyze(market.prices["close"], matches, params.forward,
+                      baseline_mask=valid, min_gap=params.similarity.min_gap,
+                      index=market.calendar, episode_pick=params.similarity.episode_pick)
+
+    reports = _quality(market, signature)
+    quality_banner(reports)
 
     tabs = st.tabs(["① 현재 시장 상태", "② 과거 유사 국면", "③ Forward Return",
-                    "④ 통계적 검증", "⑤ 데이터 / 방법론"])
+                    "④ 계산 감사", "⑤ 통계적 검증", "⑥ 데이터 품질", "⑦ 원본 / 방법론"])
     with tabs[0]:
         state_tab(market, fs, params, anchor)
     with tabs[1]:
@@ -340,8 +475,12 @@ def main() -> None:
         else:
             forward_tab(market, fs, params, matches, results)
     with tabs[3]:
-        validation_tab(market, fs, params, params.similarity.weights, signature)
+        audit_tab(market, fs, params, anchor, scored, matches, mode)
     with tabs[4]:
+        validation_tab(market, fs, params, params.similarity.weights, signature)
+    with tabs[5]:
+        quality_tab(market, fs, params, reports)
+    with tabs[6]:
         data_tab(market, fs, params)
 
 

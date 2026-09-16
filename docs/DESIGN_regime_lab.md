@@ -26,15 +26,18 @@ app/regime/
     volatility.py      realized volatility, ATR%
     distribution.py    분산일 판정 · 개수 · 경과일
     macro.py           외생 시계열(현재 10년물) 수준/변화/백분위 — 자동 생성
+  quality.py           데이터 품질 검사 (CLI 겸용)
   similarity.py        as-of 정규화 · 가중 거리 · de-clustering
   matching.py          strict 조건 매칭
-  forward.py           forward return 통계 · bootstrap CI · baseline 비교
+  forward.py           forward return 통계 · cluster bootstrap · 유효표본수 · baseline 비교
+  audit.py             한 날짜의 계산 과정을 전부 펼쳐 보여 주는 감사 뷰
   validation.py        walk-forward / out-of-sample
   viz.py               Plotly figure (Streamlit 비의존)
   ui.py                사이드바 위젯 → 파라미터 dataclass
   streamlit_app.py     화면 조립 (얇게)
 regime_config.yaml     모든 기본값
-tests/test_regime.py   오프라인 단위 테스트 (look-ahead 검증 포함)
+tests/test_regime.py         오프라인 단위 테스트 (look-ahead 검증 포함)
+tests/test_regime_audit.py   감사 화면 값의 독립 재계산 + 품질/독립성 테스트
 ```
 
 데이터 흐름은 한 방향입니다:
@@ -57,6 +60,78 @@ load_market ──> build_features ──> similarity / strict match ──> for
 | 폴백 | Stooq CSV → 디스크 캐시(만료 무시) → 합성 데이터(데모) |
 | 캐시 | `data/regime/<symbol>.csv`, 기본 TTL 6시간 (`SUH_DH_REGIME_TTL`) |
 | 표시 | 시리즈별 **최종 업데이트 날짜 · 출처 · 행 수 · 지연일**을 화면 상단에 노출 |
+
+### Data Quality Check (`app/regime/quality.py`)
+
+화면 상단에 종합 판정 배너, **⑥ 데이터 품질 탭**에 전체 표가 뜨고, 같은 검사를
+터미널에서도 돌릴 수 있습니다.
+
+```bash
+python3 -m app.regime.quality --ticker '^IXIC'          # 실데이터
+python3 -m app.regime.quality --ticker '^IXIC' --demo   # 네트워크 없이 파이프라인만
+python3 -m app.regime.quality --ticker '^IXIC' --no-cache
+```
+
+| 검사 | 보는 것 |
+|---|---|
+| 기간 / 거래일 수 | 시작·종료일, 행 수, 연 거래일(미국 ≈252) |
+| 중복 날짜 | 같은 날짜가 두 번 들어왔는지 |
+| 연속성 | 5영업일 넘는 공백과 그 위치 |
+| 결측치 | 컬럼별 NaN 개수 |
+| 최신성 | 마지막 봉이 며칠 전인지 (캐시 정체 감지) |
+| OHLC 정합성 | high<low, 종가가 범위 밖, 0 이하 |
+| **거래량 사용 가능성** | 결측·0 비율, 최근 60봉 상태 → 분산일 판정 가능 여부 |
+| **거래량 단위 일관성** | 60일 중앙값이 5배 이상 급변(주↔천주 등 단위 변경) |
+| 거래량 배수 분포 | 전일 대비 배수의 중앙값이 1 근처인지 |
+| 거래량 정의 | 지수는 composite(구성종목 합산)임을 명시 (ℹ️ 정보) |
+| 분산일 검출 빈도 | 현재 임계값으로 연 몇 회 잡히는지 (0회·과다 모두 경고) |
+| **금리 단위** | 중앙값으로 percent / tenths / bp / decimal 추정 + 적용된 변환 |
+| 금리 값 범위 | 0.2~10% 밖 비율 → "가격 지수를 받아온 것 아닌지" |
+| 금리 일간 변동 | 하루 50bp 초과 급변 횟수 |
+| 정렬 커버리지 | 거래일 중 값이 있는 비율, forward-fill 비중 |
+
+거래량이 분산일 판정에 부적합하면(결측·0 비율이 높으면) **대체 소스를 함께
+제안**합니다: ① QQQ/ONEQ 등 추종 ETF 거래량, ② Stooq(^ndq) 등 다른 소스,
+③ 지수 대신 ETF 자체를 티커로 분석, ④ 거래량 조건(Y)을 끄고 하락률·CLV 두
+조건으로 분산일 정의.
+
+#### 실행 절차 (로컬에서 실데이터로 검증할 때)
+
+```bash
+pip install -r requirements-regime.txt
+
+# 1) 데이터 품질만 먼저 (앱을 띄우지 않음, 종료코드 0=ok/warn, 1=fail, 2=수신 실패)
+python3 -m app.regime.quality --ticker '^IXIC' --no-cache
+
+# 2) 통과하면 앱 실행 → 상단 배너와 ⑥ 데이터 품질 탭에서 같은 표를 확인
+./run_regime.sh
+```
+
+출력 형태 (아래는 `--demo` 합성 데이터 예시이며, 실데이터도 같은 표가 나옵니다):
+
+```
+     시리즈                항목                       값                                   판정
+ ✅ ^IXIC                기간  2006-09-18 ~ 2026-09-16 · 5,032행       20.0년치 · 연 252거래일
+ ✅ ^IXIC          연간 거래일 수                 251.7일/년       미국 거래일(약 252일) 범위 안
+ ✅ ^IXIC             중복 날짜                        0개                              중복 없음
+ ✅ ^IXIC           연속성(공백)                 최대 3영업일                 5영업일 넘는 공백 없음
+ ✅ ^IXIC               결측치                        0개                                  없음
+ ✅ ^IXIC               최신성                 2026-09-16                   마지막 봉이 0영업일 전
+ ✅ ^IXIC          OHLC 정합성                        0건              고가≥저가, 종가가 범위 안
+ ✅ ^IXIC     거래량 사용 가능성                 유효 100.0%   결측·0 거래량이 사실상 없음 — 사용 가능
+ ✅ ^IXIC     거래량 단위 일관성    중앙값 변화 배수 0.85~1.11              전 구간 단위가 일관됩니다
+ ℹ️ ^IXIC            거래량 정의                  composite   지수 거래량은 구성종목 합산(composite)
+ ✅ ^IXIC         분산일 검출 빈도                   총 561일        연 28.1회 — 신호로 쓸 만한 빈도
+ ✅  ^TNX      10Y yield 단위     중앙값 3.37 · 범위 2.04~4.43   추정 단위 percent · 로더 처리: 변환 없음
+ ✅  ^TNX     10Y yield 값 범위                 2.04~4.43%   100.0% 가 0.2~10.0% 안 — yield 로 보임
+ ✅  ^TNX    10Y yield 일간 변동                   최대 21bp          하루 50bp 초과 0일 — 정상 범위
+ ✅  ^TNX    10Y yield 정렬 커버리지                   100.0%   거래일의 100.0% 에 값 있음(ffill 3.5%)
+
+종합 판정: ✅ OK
+```
+
+거래량이나 금리 단위에 문제가 있으면 마지막에 `제안` 열의 내용이 목록으로 함께
+출력됩니다 (예: "^IXIC 의 거래량이 분산일 판정에 부적합합니다. 대안: ① QQQ/ONEQ …").
 
 ### 거래일 정렬과 결측치 (look-ahead 방지)
 
@@ -153,14 +228,34 @@ horizon 별로 **관측 수 / 평균 / 중앙값 / 승률 / 25·75 분위 / 최�
 표준편차 / 평균 최대낙폭**을 매칭 표본과 **전체 20년 무조건부(baseline)** 양쪽에
 대해 계산하고, 차이(%p)와 baseline 분포 내 백분위를 함께 보여 줍니다.
 
-### 불확실성
-* 평균·중앙값에 대해 **percentile bootstrap 95% CI**(반복 수·신뢰수준 조정 가능).
-* **baseline 은 block bootstrap**(블록 길이 = horizon). 겹치는 forward 구간은
-  자기상관이 강해서 i.i.d. bootstrap 을 쓰면 구간이 실제보다 좁게 나옵니다.
-* **matched 는 de-clustering 된 표본이므로 i.i.d.** bootstrap. 단, 최소 간격이
-  horizon 보다 짧으면 구간이 겹치므로 화면에 경고를 띄웁니다.
-* 표본이 기준치(기본 10개) 미만이면 경고, 평균 CI 가 0을 포함하면 "방향성 결론
-  불가"를 명시합니다.
+### 표본 독립성과 불확실성
+
+de-clustering 간격을 20거래일로 두면 5D·20D 는 겹치지 않지만 **60D·120D 는 여전히
+크게 겹칩니다.** n=25 로 보이는 표본이 실제로는 몇 개 국면일 뿐인 상황이라, 다음
+세 가지를 함께 제공합니다.
+
+1. **유효 표본수 (effective sample size)**
+
+   `n_eff = n² / Σᵢⱼ max(0, 1 − |tᵢ−tⱼ|/h)`
+
+   두 match 가 horizon 의 절반만큼 떨어져 있으면 forward 구간의 절반을 공유하므로
+   2개가 아니라 약 1.5개의 정보량입니다. 이를 모두 더해 n 을 할인한 값으로,
+   화면에 `n`, `독립 에피소드 수`, `n_eff`, `n_eff/n` 을 나란히 표시합니다.
+2. **Cluster bootstrap (기본값)** — forward 구간이 겹치는 match 들을 하나의
+   **에피소드**로 묶고(단일 연결: 0·15·30일은 h=20에서 한 에피소드), 관측치가
+   아니라 **에피소드를 통째로 재표본**합니다. 표본을 버리지 않으면서 종속성을
+   반영하는 방법이며, 같은 화면에 i.i.d. bootstrap 의 구간 폭도 함께 보여 줘
+   **"단순 i.i.d. 를 썼다면 구간이 몇 % 좁게 나왔을지"** 를 바로 확인할 수 있습니다.
+   (합성 데이터 실측: h=120, n=25 → n_eff 11.5, 에피소드 9개, cluster CI 폭 12.3%p
+   vs i.i.d. 8.8%p — i.i.d. 가 약 29% 좁게 나옵니다.)
+3. **Horizon 별 독립 표본 모드 (선택)** — 5D→5일, 20D→20일, 60D→60일, 120D→120일
+   간격을 horizon 마다 다시 강제해 **완전히 겹치지 않는 표본**만 사용합니다. 겹침이
+   0이 되는 대신 표본이 줄어드므로(25 → 11 수준) 기본값은 1·2번이고, 이 모드는
+   사이드바에서 켭니다. 제외된 개수는 결과에 함께 표시됩니다.
+
+baseline 은 시계열 전체가 겹치는 구간이므로 그대로 **moving-block bootstrap**
+(블록 길이 = horizon) 을 씁니다. 표본이 기준치(기본 10개) 미만, 평균 CI 가 0을
+포함, n_eff 가 n 의 80% 미만인 경우 각각 경고가 뜹니다.
 
 ---
 
@@ -174,6 +269,25 @@ horizon 별로 **관측 수 / 평균 / 중앙값 / 승률 / 25·75 분위 / 최�
 * matched vs baseline 평균 막대그래프(오차막대 = bootstrap CI), 분포 히스토그램.
 
 ---
+
+## 6-1. 계산 감사 (Calculation Audit)
+
+**④ 계산 감사 탭**에서 match 한 날짜를 고르면 그 날짜의 계산 전 과정을 펼쳐 봅니다.
+
+1. 원본 OHLCV (전일·당일·익일)
+2. SMA 값과 이격률 — 저장된 값과 "그 날짜까지의 종가로 다시 계산한 값"을 나란히
+3. 분산일 판정 근거 — 세 조건의 값·임계값·비교연산자·통과 여부, lookback 안의 분산일 목록
+4. feature 별 raw / center / scale / z(과거일) / z(기준일) / z차이 / weight /
+   가중 기여 `w·Δz²` / 기여 비중(%)
+5. 거리 `d = √(Σw·Δz² / Σw)` 와 점수 `100·exp(−d²/2)`, 그리고 엔진이 계산한 거리와의
+   차이(검산 — 실측 0.00e+00)
+6. de-clustering 전 순위·후보 총수·최종 선택 여부, 탈락했다면 **어느 날짜에 자리를
+   내줬는지**(간격·점수 포함)
+7. 5/20/60/120D forward return 의 시작일·시작 종가·종료일·종료 종가·재계산 수익률·
+   구간 최대낙폭·구간 최저 종가일
+
+`tests/test_regime_audit.py` 는 임의의 과거 5개 날짜에 대해 위 값들을 **plain
+pandas 로 독립 재계산**해 감사 화면 값과 일치하는지 검증합니다.
 
 ## 7. 통계적 검증 (Out-of-Sample / Walk-forward)
 
@@ -214,6 +328,8 @@ fold 별로 평가 횟수 · 신호 평균 · 실현 평균 · 같은 기간 무
   겹치면 신뢰구간이 넓어지며, 이는 화면에 그대로 드러납니다.
 * 20년(약 5,000거래일) 안에 진짜로 독립적인 하락 국면은 손에 꼽습니다.
   de-clustering 후 n=10~30 은 흔하고, 그때의 평균은 몇 개 episode 가 좌우합니다.
-* 지수 거래량(^IXIC)은 구성종목 합산 거래량이며, 개별 종목에서는 분할일에
-  거래량 배수가 일시적으로 왜곡될 수 있습니다.
+* 지수 거래량(^IXIC)은 구성종목 합산(composite) 거래량이며, 개별 종목에서는 분할일에
+  거래량 배수가 일시적으로 왜곡될 수 있습니다. 데이터 품질 탭이 이를 항상 명시합니다.
+* 60D·120D 통계는 표본이 겹칩니다. n 대신 `n_eff` 와 에피소드 수를 함께 읽어야 하며,
+  i.i.d. bootstrap 구간은 (비교용으로만 표시되고) 실제보다 좁습니다.
 * 결과는 리서치 도구이며 투자 권유가 아닙니다.

@@ -208,13 +208,18 @@ class SimilarityParams:
 
 @dataclass(frozen=True)
 class ForwardParams:
-    """Forward-return horizons and bootstrap settings."""
+    """Forward-return horizons, sample-independence handling and bootstrap."""
 
     horizons: tuple[int, ...] = (5, 20, 60, 120)
     bootstrap_samples: int = 2000
     ci_level: float = 0.95
     min_sample_warn: int = 10
     seed: int = 20240101
+    # all     : 모든 match 사용 + 겹침을 cluster bootstrap 으로 반영 (기본)
+    # horizon : horizon 별로 최소 h거래일 간격을 다시 강제해 완전 비중첩 표본 사용
+    independence: str = "all"
+    # cluster : 에피소드 단위 재표본 (겹침 반영) / iid : 단순 재표본(비교용)
+    ci_method: str = "cluster"
 
     @classmethod
     def from_config(cls, cfg: dict) -> "ForwardParams":
@@ -225,6 +230,8 @@ class ForwardParams:
             ci_level=float(f.get("ci_level", 0.95)),
             min_sample_warn=int(f.get("min_sample_warn", 10)),
             seed=int(f.get("seed", 20240101)),
+            independence=str(f.get("independence", "all")),
+            ci_method=str(f.get("ci_method", "cluster")),
         )
 
 

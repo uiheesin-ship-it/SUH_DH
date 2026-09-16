@@ -62,32 +62,37 @@ def apply_conditions(values: pd.DataFrame, conditions) -> pd.Series:
     return mask
 
 
-def strict_match(values: pd.DataFrame, conditions, asof, sim_params,
-                 weights: dict[str, float] | None = None, max_horizon: int = 0,
-                 valid: pd.Series | None = None) -> tuple[pd.DataFrame, similarity.ScaleInfo]:
-    """Days satisfying every condition, de-clustered like the similarity path.
+def strict_candidates(values: pd.DataFrame, conditions, asof, sim_params,
+                      weights: dict[str, float] | None = None, max_horizon: int = 0,
+                      valid: pd.Series | None = None) -> tuple[pd.DataFrame, similarity.ScaleInfo]:
+    """Eligible days that satisfy every condition, before de-clustering.
 
-    Scores are still computed when weights are supplied — a strict match is
-    ranked by how close it also is to today, which is what the table sorts on.
+    Scores are still computed when weights are supplied — a strict match is also
+    ranked by how close it is to today, which is what the table sorts on.
     """
     index = pd.DatetimeIndex(values.index)
+    cond_mask = apply_conditions(values, conditions)
+    if weights:
+        return similarity.candidate_scores(values, asof, weights, sim_params, valid=valid,
+                                           max_horizon=max_horizon, extra_mask=cond_mask)
     if valid is None:
         valid = similarity._default_valid(values)
     mask = similarity.candidate_mask(index, asof, valid=valid,
                                      exclude_recent=sim_params.exclude_recent,
                                      require_full_horizon=sim_params.require_full_horizon,
-                                     max_horizon=max_horizon)
-    mask &= apply_conditions(values, conditions)
+                                     max_horizon=max_horizon) & cond_mask
+    hits = index[mask.reindex(index).fillna(False)]
+    return (pd.DataFrame({"distance": np.nan, "score": np.nan}, index=hits),
+            similarity.ScaleInfo(pd.Series(dtype=float), pd.Series(dtype=float)))
 
-    info = similarity.ScaleInfo(pd.Series(dtype=float), pd.Series(dtype=float))
-    if weights:
-        scored, info = similarity.score_days(values, asof, weights,
-                                             mode=sim_params.normalization,
-                                             min_history=sim_params.min_history, mask=mask)
-    else:
-        hits = index[mask.reindex(index).fillna(False)]
-        scored = pd.DataFrame({"distance": np.nan, "score": np.nan}, index=hits)
 
+def strict_match(values: pd.DataFrame, conditions, asof, sim_params,
+                 weights: dict[str, float] | None = None, max_horizon: int = 0,
+                 valid: pd.Series | None = None) -> tuple[pd.DataFrame, similarity.ScaleInfo]:
+    """Days satisfying every condition, de-clustered like the similarity path."""
+    index = pd.DatetimeIndex(values.index)
+    scored, info = strict_candidates(values, conditions, asof, sim_params, weights=weights,
+                                     max_horizon=max_horizon, valid=valid)
     pick = sim_params.episode_pick if weights else "first"
     matches = similarity.decluster(scored.fillna({"score": 0.0}), index, sim_params.min_gap,
                                    pick=pick, top_n=None)

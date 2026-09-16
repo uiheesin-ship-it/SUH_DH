@@ -1025,6 +1025,10 @@ pip install -r requirements-regime.txt
 
 ./run_regime.sh          # 실시간 데이터 (Yahoo Finance)
 ./run_regime.sh --demo   # 네트워크 없이 합성 데이터로 UI/계산 확인
+
+# 앱을 띄우지 않고 데이터 품질만 먼저 확인 (실데이터 검증용)
+python3 -m app.regime.quality --ticker '^IXIC'
+python3 -m app.regime.quality --ticker '^IXIC' --no-cache   # 캐시 무시하고 새로 받기
 ```
 
 - **시장 상태** — 추세(SMA 이격률·배열·기울기), 모멘텀(5/20/60/120일 수익률, 52주 고점 대비
@@ -1037,6 +1041,17 @@ pip install -r requirements-regime.txt
 - **Forward Return** — 5/20/60/120거래일 수익률의 관측 수·평균·중앙값·승률·사분위·최소/최대·
   표준편차·구간 내 최대낙폭을, **20년 전체 무조건부 baseline 과 나란히** 보여 주고
   평균/중앙값에 **bootstrap 95% 신뢰구간**을 붙입니다(표본이 작거나 CI가 0을 포함하면 경고).
+- **표본 독립성** — 60D·120D 는 match 들의 forward 구간이 겹칩니다. 기본값은 겹치는 match 를
+  하나의 에피소드로 묶어 **에피소드 단위로 재표본하는 cluster bootstrap** 이고, 화면에
+  **유효 표본수 `n_eff`** 와 독립 에피소드 수, 그리고 "단순 i.i.d. 였다면 신뢰구간이 몇 %
+  좁았을지"를 함께 표시합니다. horizon 별로 최소 간격을 5/20/60/120일로 다시 강제하는
+  **완전 비중첩 표본 모드**도 선택할 수 있습니다.
+- **데이터 품질** — 기간·중복 날짜·공백·결측·최신성, OHLC 정합성, **거래량이 분산일 판정에
+  쓸 수 있는 데이터인지**(결측·0·단위 변경 감지 + 대체 소스 제안), **10년물이 진짜 yield 인지와
+  단위(%/bp)** 를 검사해 상단 배너와 전용 탭에 요약합니다. 터미널에서도 같은 검사를 돌립니다.
+- **계산 감사** — match 한 날짜를 고르면 원본 OHLCV → SMA·이격률 → 분산일 3조건 판정 →
+  feature 별 raw/표준화 값·가중치·거리 기여도 → 최종 distance·score → de-clustering 포함 여부 →
+  forward return 의 시작/종료 가격까지 전 과정을 표로 펼쳐 확인할 수 있습니다.
 - **차트** — 20년 지수 차트에 match 를 음영으로 표시(hover 시 날짜·유사도·주요 feature·
   분산일·이후 수익률), x축을 공유하는 하단 패널에 10년물 금리.
 - **통계적 검증** — 파라미터를 고정한 채 평가일 시점 정보만으로 매칭을 다시 수행하는
@@ -1053,8 +1068,10 @@ pip install -r requirements-regime.txt
 python3 -m pytest tests/ -q
 ```
 
-Market Regime Lab 만 따로 돌리려면 `python3 -m pytest tests/test_regime.py -q`
-(네트워크 없이 합성 데이터로 돌며, look-ahead 방지 검증을 포함합니다).
+Market Regime Lab 만 따로 돌리려면
+`python3 -m pytest tests/test_regime.py tests/test_regime_audit.py -q`
+(네트워크 없이 합성 데이터로 돌며, look-ahead 방지 검증과 감사 화면 값의
+독립 재계산 검증을 포함합니다).
 
 ## 향후 개선 아이디어
 

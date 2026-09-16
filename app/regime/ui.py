@@ -170,9 +170,20 @@ def forward_section(defaults: Params) -> ForwardParams:
                                       value=int(fwd.bootstrap_samples))
     ci = st.sidebar.select_slider("신뢰수준", options=[0.80, 0.90, 0.95, 0.99], value=float(fwd.ci_level))
     warn = st.sidebar.number_input("표본 경고 기준 (개)", 3, 100, int(fwd.min_sample_warn))
+    indep = st.sidebar.radio(
+        "표본 독립성", ["전체 사용 (겹침은 CI 에 반영)", "horizon 별 독립 표본"],
+        index=0 if fwd.independence == "all" else 1,
+        help="전체 사용: 모든 match 를 쓰고 겹침을 cluster bootstrap·유효표본수로 반영합니다. "
+             "horizon 별 독립: 5/20/60/120일 각각에 대해 최소 간격을 그 horizon 만큼 다시 강제해 "
+             "구간이 겹치지 않는 표본만 씁니다(표본 수는 줄어듭니다).")
+    ci_method = st.sidebar.selectbox(
+        "신뢰구간 재표본 방식", ["cluster (겹치는 에피소드 단위)", "iid (단순 — 비교용)"],
+        index=0 if fwd.ci_method == "cluster" else 1)
     return ForwardParams(horizons=tuple(sorted(horizons or fwd.horizons)),
                          bootstrap_samples=int(n_boot), ci_level=float(ci),
-                         min_sample_warn=int(warn), seed=fwd.seed)
+                         min_sample_warn=int(warn), seed=fwd.seed,
+                         independence="all" if indep.startswith("전체") else "horizon",
+                         ci_method="cluster" if ci_method.startswith("cluster") else "iid")
 
 
 def validation_section(defaults: Params, index: pd.DatetimeIndex) -> ValidationParams:

@@ -176,9 +176,14 @@ def decluster(scored: pd.DataFrame, index: pd.DatetimeIndex, min_gap: int,
     return out.head(top_n) if top_n else out
 
 
-def find_similar(values: pd.DataFrame, asof, weights: dict[str, float], sim_params,
-                 *, valid: pd.Series | None = None, max_horizon: int = 0) -> tuple[pd.DataFrame, ScaleInfo]:
-    """score_days → candidate filter → de-cluster → top N, in one call."""
+def candidate_scores(values: pd.DataFrame, asof, weights: dict[str, float], sim_params,
+                     *, valid: pd.Series | None = None, max_horizon: int = 0,
+                     extra_mask: pd.Series | None = None) -> tuple[pd.DataFrame, ScaleInfo]:
+    """Every *eligible* past day with its distance and score, before de-clustering.
+
+    The audit screen needs this pool (to show a match's rank among candidates),
+    and both the similarity and strict paths build on it.
+    """
     index = pd.DatetimeIndex(values.index)
     if valid is None:
         valid = _default_valid(values)
@@ -186,10 +191,20 @@ def find_similar(values: pd.DataFrame, asof, weights: dict[str, float], sim_para
                           exclude_recent=sim_params.exclude_recent,
                           require_full_horizon=sim_params.require_full_horizon,
                           max_horizon=max_horizon)
+    if extra_mask is not None:
+        mask &= extra_mask.reindex(index).fillna(False)
     scored, info = score_days(values, asof, weights, mode=sim_params.normalization,
                               min_history=sim_params.min_history, mask=mask)
     if sim_params.max_distance is not None and not scored.empty:
         scored = scored[scored["distance"] <= float(sim_params.max_distance)]
-    matches = decluster(scored, index, sim_params.min_gap, pick=sim_params.episode_pick,
-                        top_n=sim_params.top_n)
+    return scored, info
+
+
+def find_similar(values: pd.DataFrame, asof, weights: dict[str, float], sim_params,
+                 *, valid: pd.Series | None = None, max_horizon: int = 0) -> tuple[pd.DataFrame, ScaleInfo]:
+    """candidate_scores → de-cluster → top N, in one call."""
+    scored, info = candidate_scores(values, asof, weights, sim_params, valid=valid,
+                                    max_horizon=max_horizon)
+    matches = decluster(scored, pd.DatetimeIndex(values.index), sim_params.min_gap,
+                        pick=sim_params.episode_pick, top_n=sim_params.top_n)
     return matches, info
