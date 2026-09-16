@@ -99,6 +99,12 @@ def _deep_merge(base: dict, over: dict) -> dict:
     return out
 
 
+def deep_merge(base: dict, over: dict) -> dict:
+    """Public alias of the config merger — API/UI 레이어가 사용자가 보낸 파라미터를
+    기본 설정 위에 얹을 때 씁니다(계산 로직과 무관한 설정 병합)."""
+    return _deep_merge(base, over)
+
+
 def load_config(path: Path | str | None = None) -> dict[str, Any]:
     """DEFAULTS deep-merged with regime_config.yaml. A missing or broken file
     never breaks the app — we fall back to the built-in defaults."""

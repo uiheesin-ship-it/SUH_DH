@@ -338,17 +338,18 @@ def global_news():
 
 
 # Static dashboard (index.html at "/"). Mounted last so /api/* wins.
-# Market Regime Lab (Streamlit) — 대시보드 안에서 열리도록 /regime/app/** 을 프록시.
-# StaticFiles catch-all 보다 먼저 등록해야 프록시 경로가 잡힌다. Streamlit 이
-# 없어도 대시보드는 그대로 뜨고, 해당 카드만 안내 문구를 보여 준다.
+# Market Regime Lab — 정적 UI(app/static/regime)가 쓰는 분석 API.
+# 다른 프로그램과 같은 구조: 정적 페이지 + /api/regime/* 백엔드. 라우터는
+# StaticFiles catch-all 보다 먼저 등록한다. pandas/plotly 같은 의존성이 없으면
+# 대시보드는 그대로 뜨고 이 프로그램만 비활성으로 남는다.
 try:
-    from . import regime_host
+    from .regime_api import router as regime_router
 
-    regime_host.attach(app)
+    app.include_router(regime_router)
 except Exception as _regime_err:  # pragma: no cover - surfaces as a log line only
     import logging
 
-    logging.getLogger(__name__).warning("regime lab not mounted: %s", _regime_err)
+    logging.getLogger(__name__).warning("regime lab API not mounted: %s", _regime_err)
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 

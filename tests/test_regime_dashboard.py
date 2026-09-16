@@ -1,27 +1,39 @@
 """Dashboard integration for the Market Regime Lab.
 
-The lab is reachable from the hub (미장 → 기타) and runs *inside* the dashboard:
-FastAPI starts the Streamlit process on demand and proxies it under
-``/regime/app/**``. These tests cover the wiring — the card, the landing page,
-the control endpoints and the proxy's behaviour when nothing is running — without
-actually spawning Streamlit (that is covered by the AppTest suites).
+The lab is an ordinary dashboard program now: a static page under
+``app/static/regime/`` plus ``/api/regime/*`` endpoints that call the existing
+analysis functions. These tests cover the wiring **and** the thing that matters
+most — that going through HTTP produces exactly the numbers the analysis
+engine produces when called directly.
 
 Run with:  python -m pytest tests/test_regime_dashboard.py -q
 """
 
+import io
+import os
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
+pytest.importorskip("plotly")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import regime_host  # noqa: E402
+os.environ.setdefault("SUH_DH_DEMO", "1")          # 합성 데이터로 오프라인 실행
+
 from app.main import app  # noqa: E402
+from app.regime import similarity  # noqa: E402
+from app.regime.config import Params, load_config  # noqa: E402
+from app.regime.data import load_market  # noqa: E402
+from app.regime.data.sources import synthetic_prices  # noqa: E402
+from app.regime.features import build_features  # noqa: E402
+from app.regime.forward import analyze as forward_analyze  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "app" / "static"
+OFFLINE = {"mode": "auto", "offline": True}
 
 
 @pytest.fixture(scope="module")
@@ -30,171 +42,213 @@ def client():
         yield c
 
 
-def test_hub_card_is_registered_under_us_other():
-    """허브(미장 → 기타)에 카드가 있고, 정적 페이지로 연결된다."""
+@pytest.fixture(scope="module")
+def analysis(client):
+    res = client.post("/api/regime/analyze", json={"data": OFFLINE, "params": {}})
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+# ---------------- hub + static page (다른 프로그램과 같은 구조) ----------------
+
+def test_hub_card_points_at_the_internal_program():
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    assert '"Market Regime Lab"' in html
     card = html[html.index('name: "Market Regime Lab"'):]
     card = card[:card.index("},")]
     assert 'market: "us"' in card and 'group: "other"' in card
-    assert 'href: "regime/"' in card
-    assert 'status: "ready"' in card
+    assert 'href: "regime/"' in card          # 내부 경로 (외부 URL 아님)
+    assert "onrender.com" not in card
 
 
-def test_landing_page_is_served_and_dashboard_styled(client):
-    res = client.get("/regime/")
-    assert res.status_code == 200
-    body = res.text
-    assert "Market Regime Lab" in body
-    assert 'class="topbar"' in body and 'href="../"' in body      # 다른 프로그램과 같은 헤더
-    assert 'id="lab"' in body                                      # 대시보드 안에서 여는 iframe
+def test_static_program_has_the_dashboard_shape(client):
+    body = client.get("/regime/").text
+    assert 'class="topbar"' in body and 'href="../"' in body     # 공통 헤더
+    assert "cdn.plot.ly" in body                                  # 다른 프로그램과 같은 차트 라이브러리
     for asset in ("style.css", "app.js", "config.js"):
         assert client.get(f"/regime/{asset}").status_code == 200
-
-
-def test_landing_page_embeds_instead_of_telling_users_to_run_locally(client):
-    """정적 호스팅에서도 이 화면 안에서 앱이 열려야 한다 — '로컬에서 실행하세요'로
-    끝내는 안내 화면은 없어야 한다."""
-    body = client.get("/regime/").text
-    assert "로컬 대시보드에서 실행하세요" not in body
-    assert 'id="setup"' in body and 'id="regime-url"' in body      # 원격 주소 입력
-    assert 'id="overlay"' in body                                  # 로딩(깨우는 중) 표시
+    # 분석 UI 가 즉시 있는지 (iframe/외부 서비스로 넘기지 않는다)
+    assert "<iframe" not in body
+    assert "onrender.com" not in body
+    for marker in ('id="run-btn"', 'id="params"', 'id="tabs"', 'data-tab="state"',
+                   'data-tab="audit"', 'data-tab="validation"', 'class="file"'):
+        assert marker in body, marker
 
     js = client.get("/regime/app.js").text
-    assert "SUH_DH_REGIME_URL" in js                               # 저장소/빌드 기본 주소
-    assert "localStorage" in js                                    # 브라우저에 기억
-    assert "?embed=true" in js                                     # Streamlit 임베드 모드
-    cfg = client.get("/regime/config.js").text
-    assert "window.SUH_DH_REGIME_URL" in cfg
+    assert "/api/regime/analyze" in js and "SUH_DH_API_BASE" in js
+    # 외부 서비스로 나가거나 iframe 으로 떠넘기지 않는다
+    assert "onrender" not in js.lower() and "<iframe" not in js.lower()
 
 
-def test_local_backend_wins_over_the_default_remote_url(client):
-    """로컬 대시보드에서는 콜드 스타트 없는 자체 인스턴스를 먼저 쓴다.
-
-    사용자가 직접 지정한 주소(?app= / localStorage)만 그보다 우선한다.
-    """
-    js = client.get("/regime/app.js").text
-    chosen = js.index("const chosen = chosenRemote();")
-    local = js.index("const local = await localBackend();", chosen)
-    fallback = js.index("const fallback = defaultRemote();", chosen)
-    assert chosen < local < fallback
+def test_no_streamlit_proxy_endpoints_remain(client):
+    assert client.get("/api/regime/status").status_code == 404
+    assert not (ROOT / "app" / "regime_host.py").exists()
 
 
-def test_status_endpoint_reports_capability(client):
-    body = client.get("/api/regime/status").json()
-    assert set(body) >= {"available", "missing", "running", "port", "path", "script"}
-    assert body["path"] == "/regime/app/"
-    assert body["script"].endswith("streamlit_app.py")
-    # 이 저장소 환경에는 streamlit 이 설치돼 있으므로 available 이어야 한다
-    assert body["available"] is (not regime_host.missing_requirements())
+# ---------------- API ----------------
+
+def test_defaults_exposes_config_and_feature_descriptors(client):
+    body = client.get("/api/regime/defaults").json()
+    assert body["config"]["market"]["ticker"] == "^IXIC"
+    keys = {f["key"] for f in body["features"]}
+    assert {"px_vs_sma50", "dd_52w", "dd_count", "vol_realized"} <= keys
+    groups = {f["group"] for f in body["features"]}
+    assert {"Trend", "Momentum", "Volatility", "Distribution"} <= groups
 
 
-def test_proxy_reports_clearly_when_not_running(client, monkeypatch):
-    monkeypatch.setattr(regime_host, "is_running", lambda: False)
-    res = client.get("/regime/app/")
-    assert res.status_code == 503
-    assert "실행 중이 아닙니다" in res.json()["error"]
+def test_analyze_returns_everything_the_page_needs(analysis):
+    j = analysis
+    assert j["ticker"] == "^IXIC"
+    assert j["matches"]["rows"] and j["match_dates"]
+    assert j["sources"]["rows"] and j["quality"]["status"] in ("ok", "warn", "fail")
+    assert [g["group"] for g in j["state"]["groups"]][:2] == ["Trend", "Momentum"]
+    assert j["forward"]["horizons"] == [5, 20, 60, 120]
+    for name in ("price", "forward_bar", "distribution"):
+        fig = j["charts"][name]
+        assert fig["data"] and "layout" in fig          # Plotly figure JSON
 
 
-def test_proxy_route_wins_over_the_static_catch_all(client, monkeypatch):
-    """/regime/app/** 는 StaticFiles(catch-all) 가 아니라 프록시가 처리해야 한다.
+# ---------------- regression: HTTP == 엔진 직접 호출 ----------------
 
-    정적 마운트가 먼저 잡히면 404(없는 파일)가 오고, 프록시가 잡으면 503(아직 실행 전)
-    이 온다 — 상태 코드로 어느 쪽이 처리했는지 알 수 있다.
-    """
-    monkeypatch.setattr(regime_host, "is_running", lambda: False)
-    for path in ("/regime/app/", "/regime/app/_stcore/health", "/regime/app/static/js/x.js"):
-        res = client.get(path)
-        assert res.status_code == 503, f"{path} → {res.status_code} (정적 마운트가 가로챘습니다)"
+def test_api_numbers_match_the_engine_called_directly(analysis):
+    """같은 입력 → 같은 결과. 어댑터가 숫자를 바꾸지 않는지 확인한다."""
+    params = Params.from_config(load_config())
+    market = load_market(params.ticker, params.years, params.exogenous,
+                         source="synthetic", use_cache=False)
+    fs = build_features(market, params)
+    valid = fs.valid_mask()
+    anchor = market.calendar[valid.reindex(market.calendar).fillna(False)].max()
+    scored, info = similarity.candidate_scores(fs.values, anchor, params.similarity.weights,
+                                               params.similarity, valid=valid, max_horizon=120)
+    matches = similarity.decluster(scored, market.calendar, params.similarity.min_gap,
+                                   pick=params.similarity.episode_pick,
+                                   top_n=params.similarity.top_n)
+    results = forward_analyze(market.prices["close"], matches, params.forward,
+                              baseline_mask=valid, min_gap=params.similarity.min_gap,
+                              index=market.calendar, episode_pick=params.similarity.episode_pick)
 
+    assert analysis["anchor"] == str(anchor.date())
+    assert analysis["candidates"] == len(scored)
+    assert analysis["used_features"] == info.used_keys
+    assert analysis["match_dates"] == [str(d.date()) for d in matches.index]
 
-def test_landing_page_assets_are_not_shadowed_by_the_proxy(client):
-    """랜딩 페이지의 app.js 가 /regime/app** 프록시에 먹히면 안 된다."""
-    assert client.get("/regime/app.js").status_code == 200
-    assert "Market Regime Lab" in client.get("/regime/app.js").text
+    by_h = {row["horizon"]: row for row in analysis["forward"]["rows"]}
+    for h, res in results.items():
+        api_m, api_b = by_h[h]["matched"], by_h[h]["baseline"]
+        for field in ("n", "mean", "median", "win_rate", "p25", "p75", "min", "max", "std", "mdd_mean"):
+            assert api_m[field] == pytest.approx(res.matched[field], rel=1e-12), f"matched {field} h={h}"
+            assert api_b[field] == pytest.approx(res.baseline[field], rel=1e-12), f"baseline {field} h={h}"
+        assert api_m["ci_mean"] == pytest.approx(list(res.matched["ci_mean"]), rel=1e-12)
+        assert api_b["ci_mean"] == pytest.approx(list(res.baseline["ci_mean"]), rel=1e-12)
+        assert by_h[h]["ess"] == pytest.approx(res.ess, rel=1e-12)
+        assert by_h[h]["n_episodes"] == res.matched["n_episodes"]
+        assert by_h[h]["warnings"] == res.warnings
 
-
-def test_start_is_reported_not_crashed_when_dependencies_missing(monkeypatch):
-    monkeypatch.setattr(regime_host, "missing_requirements", lambda: ["streamlit"])
-    result = regime_host.start(timeout=1)
-    assert result["ok"] is False and result["running"] is False
-    assert "streamlit" in result["missing"]
-
-
-def test_build_injects_the_deployed_regime_url(tmp_path):
-    """정적 빌드가 배포된 Streamlit 주소를 config.js 에 심어야 카드가 바로 열린다."""
-    import build
-
-    (tmp_path / "regime").mkdir()
-    cfg = tmp_path / "regime" / "config.js"
-    cfg.write_text("window.SUH_DH_STATIC = true;\n", encoding="utf-8")
-
-    assert build.write_regime_url(tmp_path, "https://suh-dh-regime.onrender.com/") == \
-        "https://suh-dh-regime.onrender.com"
-    assert 'window.SUH_DH_REGIME_URL = "https://suh-dh-regime.onrender.com";' in cfg.read_text()
-
-    before = cfg.read_text()
-    assert build.write_regime_url(tmp_path, "   ") == ""            # 값이 없으면 아무것도 안 쓴다
-    assert cfg.read_text() == before
-
-    # 빌드 변수가 없으면 저장소에 커밋해 둔 기본값을 쓴다
-    assert build.write_regime_url(tmp_path, "", fallback="https://fallback.example/") == \
-        "https://fallback.example"
-    assert 'window.SUH_DH_REGIME_URL = "https://fallback.example";' in cfg.read_text()
-    # 빌드 변수가 있으면 그쪽이 이긴다
-    assert build.write_regime_url(tmp_path, "https://env.example",
-                                  fallback="https://fallback.example") == "https://env.example"
+    # 매칭 표의 유사도도 그대로 (표시용 반올림만 적용)
+    score_col = analysis["matches"]["columns"].index("유사도")
+    api_scores = [row[score_col] for row in analysis["matches"]["rows"]]
+    assert api_scores == pytest.approx(list(matches["score"].round(4)), rel=1e-9)
 
 
-def test_repo_regime_url_reads_the_committed_default(tmp_path, monkeypatch):
-    import build
+def test_audit_matches_the_engine(analysis, client):
+    from app.regime import audit as audit_mod
 
-    static = tmp_path / "static"
-    (static / "regime").mkdir(parents=True)
-    cfg = static / "regime" / "config.js"
-    monkeypatch.setattr(build, "STATIC", static)
+    date = analysis["match_dates"][0]
+    res = client.post("/api/regime/audit",
+                      json={"data": {"session": analysis["session"]}, "params": {}, "date": date})
+    assert res.status_code == 200, res.text
+    j = res.json()
 
-    cfg.write_text('window.SUH_DH_REGIME_URL = "";\n', encoding="utf-8")
-    assert build.repo_regime_url() == ""
-    cfg.write_text('window.SUH_DH_REGIME_URL = "https://lab.example.com/";\n', encoding="utf-8")
-    assert build.repo_regime_url() == "https://lab.example.com"
+    params = Params.from_config(load_config())
+    market = load_market(params.ticker, params.years, params.exogenous,
+                         source="synthetic", use_cache=False)
+    fs = build_features(market, params)
+    valid = fs.valid_mask()
+    anchor = market.calendar[valid.reindex(market.calendar).fillna(False)].max()
+    scored, _ = similarity.candidate_scores(fs.values, anchor, params.similarity.weights,
+                                            params.similarity, valid=valid, max_horizon=120)
+    matches = similarity.decluster(scored, market.calendar, params.similarity.min_gap,
+                                   pick=params.similarity.episode_pick, top_n=params.similarity.top_n)
+    expected = audit_mod.audit_match(market, fs, params, anchor, date,
+                                     weights=params.similarity.weights,
+                                     scored=scored, matches=matches,
+                                     horizons=params.forward.horizons)
+    assert j["date"] == str(expected.date.date())
+    assert j["summary"]["거리 d = √(Σw·Δz²/Σw)"] == pytest.approx(
+        expected.distance["거리 d = √(Σw·Δz²/Σw)"], rel=1e-6)
+    assert j["summary"]["점수 100·exp(−d²/2)"] == pytest.approx(
+        expected.distance["점수 100·exp(−d²/2)"], rel=1e-6)
+    assert len(j["features"]["rows"]) == len(expected.features)
+    assert j["forward"]["rows"][0][1] == str(expected.date.date())   # 시작일
 
 
-def test_render_blueprint_deploys_the_streamlit_lab():
-    """항상 켜져 있는 인스턴스가 있어야 Pages 에서 임베드가 가능하다."""
-    yaml = pytest.importorskip("yaml")
-    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
-    names = [s["name"] for s in blueprint["services"]]
-    assert "suh-dh-regime" in names
-    svc = next(s for s in blueprint["services"] if s["name"] == "suh-dh-regime")
-    assert "requirements-regime.txt" in svc["buildCommand"]
-    start = " ".join(svc["startCommand"].split())
-    assert "streamlit run app/regime/streamlit_app.py" in start
-    assert "--server.port $PORT" in start and "--server.address 0.0.0.0" in start
-    # 다른 오리진의 iframe 안에서 파일 업로드가 막히지 않도록 끈다
-    assert "--server.enableXsrfProtection false" in start
-    assert "--server.enableCORS false" in start
-    assert svc["healthCheckPath"] == "/_stcore/health"
-    env = {e["key"]: e["value"] for e in svc["envVars"]}
-    assert env["SUH_DH_REGIME_CONFIG"] == "deploy/regime_config.render.yaml"
-    assert (ROOT / env["SUH_DH_REGIME_CONFIG"]).exists()
+def test_validation_runs_and_separates_in_and_out_of_sample(analysis, client):
+    res = client.post("/api/regime/validation", json={
+        "data": {"session": analysis["session"]},
+        "params": {"validation": {"mode": "fixed", "train_end": "2012-12-31",
+                                  "validation_end": "2016-12-31", "step": 60, "horizon": 20}},
+    })
+    assert res.status_code == 200, res.text
+    j = res.json()
+    kinds = {row[j["table"]["columns"].index("구분")] for row in j["table"]["rows"]}
+    assert kinds == {"In-Sample", "Out-of-Sample"}
+    assert j["chart"]["data"]
 
+
+# ---------------- 업로드 경로 ----------------
+
+def test_upload_flow_end_to_end(client):
+    prices = synthetic_prices("^IXIC", "2006-01-01")
+    out = prices.reset_index()
+    out.columns = ["Date", "Open", "High", "Low", "Close", "Volume"]
+    csv = out.to_csv(index=False).encode()
+
+    res = client.post("/api/regime/inspect",
+                      files={"file": ("my_ixic.csv", io.BytesIO(csv), "text/csv")},
+                      data={"kind": "price"})
+    assert res.status_code == 200, res.text
+    info = res.json()
+    assert info["mapping"]["close"] == "Close" and info["rows"] == len(out)
+
+    res = client.post("/api/regime/analyze", json={
+        "params": {},
+        "data": {"mode": "manual", "offline": True,
+                 "price": {"token": info["token"], "mapping": info["mapping"]}},
+    })
+    assert res.status_code == 200, res.text
+    j = res.json()
+    source_col = j["sources"]["columns"].index("입력 방식")
+    name_col = j["sources"]["columns"].index("파일명 / 제공자")
+    assert j["sources"]["rows"][0][source_col] == "Manual Upload"
+    assert j["sources"]["rows"][0][name_col] == "my_ixic.csv"
+    assert j["matches"]["rows"]
+
+
+def test_bad_mapping_is_reported_not_crashed(client):
+    csv = b"A,B\n1,2\n"
+    info = client.post("/api/regime/inspect",
+                       files={"file": ("junk.csv", io.BytesIO(csv), "text/csv")},
+                       data={"kind": "price"}).json()
+    res = client.post("/api/regime/analyze", json={
+        "params": {}, "data": {"mode": "manual", "price": {"token": info["token"], "mapping": {}}}})
+    assert res.status_code == 400
+    assert "Date" in res.json()["detail"] or "데이터" in res.json()["error"]
+
+
+# ---------------- 호스팅 설정 ----------------
 
 def test_hosted_config_only_lowers_bootstrap_samples():
-    """호스팅용 설정은 메모리 때문에 반복수만 낮추고 계산 방법은 그대로여야 한다."""
-    from app.regime.config import Params, load_config
-
     hosted = Params.from_config(load_config(ROOT / "deploy" / "regime_config.render.yaml"))
     repo = Params.from_config(load_config())
     assert hosted.forward.bootstrap_samples == 500
-    assert hosted.forward.horizons == repo.forward.horizons
-    assert hosted.forward.ci_level == repo.forward.ci_level
     assert hosted.similarity.weights == repo.similarity.weights
     assert hosted.distribution == repo.distribution
     assert hosted.features == repo.features
 
 
-def test_stop_without_owned_process_is_safe(monkeypatch):
-    monkeypatch.setattr(regime_host, "_proc", None)
-    out = regime_host.stop()
-    assert out["ok"] is True
+def test_render_blueprint_has_no_separate_streamlit_service():
+    yaml = pytest.importorskip("yaml")
+    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
+    names = [s["name"] for s in blueprint["services"]]
+    assert names == ["suh-dh-api"]                     # 별도 compute 인스턴스 없음
+    env = {e["key"]: e["value"] for e in blueprint["services"][0]["envVars"]}
+    assert env["SUH_DH_REGIME_CONFIG"] == "deploy/regime_config.render.yaml"

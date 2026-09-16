@@ -351,55 +351,38 @@ fold 별로 평가 횟수 · 신호 평균 · 실현 평균 · 같은 기간 무
 
 ## 7-1. 기존 대시보드와의 통합
 
-Regime Lab 은 Streamlit 앱이라 다른 프로그램처럼 정적 페이지로 만들 수 없습니다. 로직을
-두 번 구현하는 대신, **어디서 열든 카드 화면 안에 실제 앱을 띄웁니다.**
-
-### (a) 공개 사이트 (GitHub Pages) — 원격 인스턴스를 임베드
+Regime Lab 은 대시보드의 다른 프로그램과 **같은 구조**입니다: 정적 UI + FastAPI 엔드포인트.
 
 ```
-브라우저 ─► Pages  /                허브 (미장 → 기타 → Market Regime Lab 카드)
-                   /regime/         진입 화면 (대시보드 헤더 + iframe)
-                      └─ iframe ─► https://suh-dh-regime.onrender.com/?embed=true
+브라우저 ─► FastAPI  /                허브 (미장 → 기타 → Market Regime Lab 카드)
+                     /regime/         정적 UI (index.html · app.js · style.css · config.js)
+                     /api/regime/*    분석 API — 기존 엔진을 그대로 호출
 ```
 
-* 주소는 ① `?app=<url>` 쿼리 → ② localStorage → ③ 빌드 때 심은 `SUH_DH_REGIME_URL`
-  (`build.write_regime_url`, 워크플로의 repo Variable) 순으로 찾습니다. 셋 다 없으면
-  화면에서 주소를 한 번 입력받고 그 브라우저에 기억합니다.
-* 배포는 `render.yaml` 의 `suh-dh-regime` 서비스(무료 플랜)가 담당합니다. 대안으로
-  Streamlit Community Cloud 에 `app/regime/streamlit_app.py` 를 올려도 되며, 그때는
-  같은 디렉터리의 `app/regime/requirements.txt` 가 쓰입니다.
-  `--server.enableCORS false --server.enableXsrfProtection false` 로 띄우는데, 다른
-  오리진의 iframe 안에서는 XSRF 쿠키가 서드파티 쿠키로 취급돼 **파일 업로드가 막히기**
-  때문입니다. 읽기 전용 분석 도구라 세션에 보호할 상태가 없고 업로드 파일도 서버에
-  저장되지 않습니다.
-* Streamlit 은 `X-Frame-Options` 나 CSP `frame-ancestors` 를 보내지 않아 임베드가
-  가능합니다(실측 확인). 무료 인스턴스는 유휴 후 깨어나는 데 30~60초가 걸려, 페이지가
-  그동안 로딩 오버레이를 보여 줍니다.
-* 512MB 인스턴스에 맞춰 `deploy/regime_config.render.yaml` 이 bootstrap 반복수만 500 으로
-  낮춥니다(분석 한 번의 최대 메모리 ~350MB → ~175MB). 계산 방법과 다른 파라미터는 동일합니다.
+* 카드를 누르면 HTML/CSS/JS 가 바로 뜹니다. 별도 서비스도, 프로세스 기동 대기도 없습니다.
+* **분석 실행**을 눌렀을 때만 계산이 돌고, 그동안 화면 안에 로딩 표시만 뜹니다.
+* 엔드포인트(`app/regime_api.py`)는 어댑터일 뿐 계산을 하지 않습니다.
 
-### (b) 로컬 대시보드 — 대시보드가 직접 띄우고 중계
+| 엔드포인트 | 하는 일 (호출하는 기존 함수) |
+|---|---|
+| `GET /api/regime/defaults` | `load_config` + `build_features` 로 파라미터 기본값과 feature 설명 제공 |
+| `POST /api/regime/inspect` | `upload.read_table` · `upload.suggest_mapping` — 업로드 파일의 컬럼 추정 |
+| `POST /api/regime/analyze` | `load_market` → `build_features` → `candidate_scores`/`strict_candidates` → `decluster` → `forward.analyze` → `quality.run_checks` → `viz.*` |
+| `POST /api/regime/audit` | `audit.audit_match` |
+| `POST /api/regime/validation` | `validation.walk_forward` · `summary_table` |
+| `POST /api/regime/features.csv` | feature 표 내보내기 |
 
-```
-브라우저 ─► FastAPI  /                 허브 (미장 → 기타 → Market Regime Lab 카드)
-                     /regime/          진입 화면 (대시보드 스타일 헤더 + iframe)
-                     /api/regime/*     상태 / 시작 / 중지
-                     /regime/app/**  ─► 127.0.0.1:8501 Streamlit (HTTP + WebSocket 프록시)
-```
+* 차트는 `viz.py` 가 만든 **Plotly figure JSON** 을 그대로 내려보내 브라우저가 렌더합니다 —
+  Streamlit 판과 같은 그림입니다.
+* 업로드 파일은 메모리에서만 파싱되고, 로드된 데이터는 30분 TTL 인프로세스 세션에 담아
+  감사·검증 호출이 재업로드/재다운로드 없이 같은 데이터를 쓰게 합니다. 디스크에 쓰지 않습니다.
+* 호스팅(정적 사이트)에서는 다른 프로그램과 같은 `SUH_DH_API_BASE` 백엔드를 씁니다.
+  무료 인스턴스(512MB) 메모리에 맞춰 `deploy/regime_config.render.yaml` 이 bootstrap 반복수만
+  낮춥니다(계산 방법 동일).
+* `app/regime/streamlit_app.py` 는 같은 엔진을 쓰는 **단독 실행용**으로 남아 있습니다
+  (`./run_regime.sh`). 대시보드는 여기에 의존하지 않습니다.
 
-* Streamlit 은 `--server.baseUrlPath regime/app` 으로 실행되어 모든 URL 이 이미 접두사를
-  갖습니다 — 그래서 접두사를 보존하는 단순 프록시로 충분하고, 브라우저 입장에서는 **대시보드와
-  같은 오리진**이라 ngrok 같은 터널에서도 그대로 열립니다.
-* 프로세스는 카드를 눌러 **분석 화면 열기**를 누를 때 시작합니다(대시보드 기동 시 자동 실행 없음,
-  `SUH_DH_REGIME_AUTOSTART=1` 로 변경 가능). 이미 `./run_regime.sh` 로 띄워 둔 서버가 있으면
-  그것을 그대로 씁니다.
-* Streamlit 이나 httpx 가 설치돼 있지 않으면 대시보드는 그대로 뜨고, 이 카드만 설치 방법을 안내합니다.
-  정적 빌드(GitHub Pages)에서는 로컬 실행 방법을 안내합니다.
-* 화면 흐름은 (a)·(b) 모두 같습니다: `① 데이터`(입력 방식 · 업로드 · 컬럼 매핑) →
-  `② 데이터 확인`(소스 요약 · 품질 검사) → `분석 실행` → `③ 분석`(7개 탭). 업로드 파일은
-  앱 인스턴스의 세션 메모리에만 존재하며 디스크나 저장소에 남지 않습니다.
-
-## 8. 확장
+## 8. 확장## 8. 확장
 
 * **임의 티커** — 사이드바 입력. 아래 계층은 티커를 모릅니다.
 * **입력 방식** — Auto Download 와 Manual Upload 는 `loader.DataOverrides` 에서만

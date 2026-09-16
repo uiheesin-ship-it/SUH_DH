@@ -1,26 +1,18 @@
-# Render Blueprint — 두 개의 무료 web service 를 띄웁니다.
-#
-#   suh-dh-api     FastAPI 백엔드. 정적 GitHub Pages 사이트가 임의 티커를 조회할 때 사용.
-#   suh-dh-regime  Market Regime Lab (Streamlit). Pages 는 파이썬을 못 돌리므로,
-#                  허브 카드에서 들어간 화면이 이 인스턴스를 iframe 으로 띄웁니다.
+# Render Blueprint — SUH_DH FastAPI 백엔드 하나를 무료 web service 로 띄웁니다.
+# 정적 GitHub Pages 사이트가 임의 티커 조회와 Market Regime Lab 분석(/api/regime/*)에
+# 이 백엔드를 사용합니다.
 #
 # One-time setup:
 #   1) Push this file (already in the repo).
 #   2) https://dashboard.render.com → New → Blueprint → connect this repo → Apply.
-#      (이미 blueprint 를 쓰고 있다면 해당 blueprint 에서 다시 Sync/Apply.)
-#   3) 두 서비스의 URL 을 복사합니다 — 예: https://suh-dh-api.onrender.com,
-#      https://suh-dh-regime.onrender.com
+#   3) 배포된 URL 을 복사합니다 — 예: https://suh-dh-api.onrender.com
 #   4) In GitHub: Settings → Secrets and variables → Actions → Variables →
-#        SUH_DH_API_BASE   = https://suh-dh-api.onrender.com     (선택)
-#        SUH_DH_REGIME_URL = https://suh-dh-regime.onrender.com  (Regime Lab 임베드)
+#        SUH_DH_API_BASE = https://suh-dh-api.onrender.com
 #   5) Actions → "Build & deploy dashboard" → Run workflow.
-#      이제 Pages 의 미장 > 기타 > Market Regime Lab 카드에서 앱이 바로 열립니다.
-#
-# 급하면 4~5 없이도 됩니다: 카드 안 "서버 주소" 버튼에 URL 을 한 번 넣으면 그
-# 브라우저에 기억됩니다(빌드 변수는 모든 방문자에게 적용되는 기본값).
 #
 # Note: the free plan sleeps after ~15 min idle, so the first request after idle
-# takes ~30-60s to wake (두 페이지 모두 로딩 상태를 보여 줍니다).
+# takes ~30-60s to wake (pages show a loading state). 로컬에서 ./run.sh 로 띄우면
+# 이 서비스 없이 곧바로 동작합니다.
 services:
   - type: web
     name: suh-dh-api
@@ -31,28 +23,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
-
-  # Market Regime Lab (Streamlit). 업로드한 CSV/XLSX 는 이 인스턴스의 메모리에서만
-  # 쓰이고 디스크나 저장소에 남지 않습니다.
-  - type: web
-    name: suh-dh-regime
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements-regime.txt
-    # enableCORS / enableXsrfProtection 를 끄는 이유: 이 앱은 다른 오리진(GitHub
-    # Pages)의 iframe 안에서 돌고, XSRF 쿠키는 그 상황에서 서드파티 쿠키로 취급돼
-    # 파일 업로드가 막히는 일이 있습니다. 읽기 전용 분석 도구라 세션에 보호할
-    # 상태가 없고, 업로드 파일도 서버에 저장되지 않습니다.
-    startCommand: >-
-      streamlit run app/regime/streamlit_app.py
-      --server.port $PORT --server.address 0.0.0.0
-      --server.headless true --browser.gatherUsageStats false
-      --server.enableCORS false --server.enableXsrfProtection false
-      --server.fileWatcherType none --server.maxUploadSize 50
-    healthCheckPath: /_stcore/health
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11"
-      # 무료 인스턴스(512MB)에 맞춘 bootstrap 반복수 — 계산 방법은 동일합니다.
+      # Market Regime Lab 분석은 이 백엔드에서 돌아갑니다. 무료 인스턴스(512MB)에
+      # 맞춰 bootstrap 반복수만 낮춘 설정을 씁니다 — 계산 방법은 동일합니다.
       - key: SUH_DH_REGIME_CONFIG
         value: deploy/regime_config.render.yaml
+
