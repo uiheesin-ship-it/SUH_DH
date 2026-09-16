@@ -119,9 +119,14 @@ def source_line(market) -> None:
                    "분산일 개수는 지수 자체의 거래량이 아니라 대용 종목의 거래량으로 계산됩니다.")
 
 
-def header(market, params: Params) -> None:
+def page_title() -> None:
     st.title("📈 Market Regime Lab")
-    st.caption(f"{market.ticker} · 현재 시장 상태를 정량화하고, 과거의 비슷한 국면과 그 이후 수익률을 찾아봅니다.")
+    st.caption("현재 시장 상태를 정량화하고, 과거의 비슷한 국면과 그 이후 수익률을 찾아봅니다. "
+               "데이터는 자동 내려받기 또는 이 화면에서의 직접 업로드 중에서 고를 수 있습니다 "
+               "(업로드 파일은 이 세션에서만 쓰이고 서버나 저장소에 저장되지 않습니다).")
+
+
+def header(market, params: Params) -> None:
     source_line(market)
     cols = st.columns(max(2, len(market.meta.get("series", {}))))
     for col, (symbol, info) in zip(cols, market.meta.get("series", {}).items()):
@@ -131,6 +136,58 @@ def header(market, params: Params) -> None:
             note += f" · {stale}일 지연"
         col.metric(f"{info.get('label', symbol)} 최종 업데이트", info.get("last_date") or "–", help=note)
         col.caption(f"{info.get('first_date')} ~ {info.get('last_date')} · {info.get('rows', 0):,}행 · {note}")
+
+
+def data_review(market, params: Params, reports, data_in) -> str:
+    """② 데이터 확인 — 무엇을 읽었고, 쓸 만한 데이터인지.
+
+    Returns the overall quality status so the caller can gate the analysis.
+    """
+    st.subheader("② 데이터 확인")
+    header(market, params)
+    st.dataframe(quality.data_source_summary(market), width="stretch", hide_index=True)
+
+    status = quality.overall_status(reports)
+    problems = [(r.series, c) for r in reports for c in r.problems()]
+    if status == "fail":
+        st.error("데이터에 치명적인 문제가 있습니다 — 아래 항목을 고치고 다시 올려 주세요.")
+    elif status == "warn":
+        st.warning(f"주의 항목 {len(problems)}건 — 내용을 확인한 뒤 진행하세요.")
+    else:
+        st.success("데이터 품질 검사 통과 (기간 · 중복 · 공백 · 결측 · 최신성 · OHLC · 거래량 · 금리 단위)")
+    if problems:
+        rows = [{"": quality.STATUS_ICON[c.status], "시리즈": sr, "항목": c.label,
+                 "값": c.value, "판정": c.detail, "제안": c.suggestion}
+                for sr, c in problems]
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    with st.expander("전체 데이터 품질 검사 결과"):
+        st.dataframe(quality.summary_frame(reports), width="stretch", hide_index=True)
+    return status
+
+
+def run_gate(data_in, status: str) -> bool:
+    """Manual Upload 는 품질을 확인한 뒤 '분석 실행'을 눌러야 계산이 시작된다.
+
+    Auto Download 는 예전처럼 바로 계산한다. 업로드 파일이나 매핑이 바뀌면
+    (= data key 가 바뀌면) 게이트가 다시 닫혀 새 데이터로 다시 확인하게 된다.
+    """
+    if data_in.mode != "manual":
+        return True
+    if st.session_state.get("regime_run_key") == data_in.key:
+        return True
+
+    proceed = True
+    if status == "fail":
+        proceed = st.checkbox("문제를 확인했고 그대로 진행합니다", value=False,
+                              help="치명적 문제가 있는 데이터로도 계산은 되지만, 결과는 신뢰할 수 없습니다.")
+    col1, col2 = st.columns([1, 4])
+    clicked = col1.button("분석 실행", type="primary", disabled=not proceed)
+    col2.caption("업로드 → 컬럼 매핑 → 데이터 품질 확인까지 끝났습니다. 버튼을 누르면 "
+                 "feature 계산 · 유사 국면 검색 · forward return 분석이 실행됩니다.")
+    if clicked:
+        st.session_state["regime_run_key"] = data_in.key
+        return True
+    return False
 
 
 def quality_banner(reports) -> None:
@@ -436,7 +493,10 @@ def data_tab(market, fs, params: Params) -> None:
 
 def main() -> None:
     defaults = Params.from_config(load_config())
-    data_in = ui.data_section(defaults)
+    page_title()
+
+    # ① 데이터 입력 — 업로드는 화면 안에서 끝나고 파일은 세션에만 머문다.
+    data_in = ui.data_section(defaults, host=st)
     ticker, years = data_in.ticker, data_in.years
     market = _load(ticker, years, json.dumps(list(defaults.exogenous)), data_in.source,
                    data_in.key, _overrides=data_in.overrides)
@@ -444,8 +504,8 @@ def main() -> None:
         {"fail": st.error, "warn": st.warning, "info": st.info}.get(level, st.info)(message)
     if market.empty:
         st.error(f"`{ticker}` 데이터를 가져오지 못했습니다. Manual Upload 를 쓰는 중이라면 컬럼 매핑을, "
-                 "Auto Download 라면 티커를 확인하세요. 네트워크가 막힌 환경이라면 사이드바의 "
-                 "**오프라인 데모 데이터**로 UI/계산을 먼저 확인할 수 있습니다.")
+                 "Auto Download 라면 티커를 확인하세요. 네트워크가 막힌 환경이라면 위의 "
+                 "**오프라인 데모 데이터**로 UI/계산을 먼저 확인하거나, CSV/XLSX 를 직접 올리세요.")
         st.stop()
 
     data_id = _data_id(market, data_in.key)
@@ -455,7 +515,14 @@ def main() -> None:
                       forward=defaults.forward, validation=defaults.validation)
     signature = _feature_signature(params, data_id)
     fs = _features(market, signature)
+    reports = _quality(market, signature)
 
+    # ② 데이터 확인 → 문제가 있으면 분석 전에 알린다.
+    status = data_review(market, params, reports, data_in)
+    if not run_gate(data_in, status):
+        st.stop()
+
+    st.subheader("③ 분석")
     mode, sim, conditions = ui.match_section(defaults, fs)
     fwd_params = ui.forward_section(defaults)
     val_params = ui.validation_section(defaults, market.calendar)
@@ -465,11 +532,11 @@ def main() -> None:
                       validation=val_params)
     signature = _feature_signature(params, data_id)
 
-    header(market, params)
     valid = fs.valid_mask()
     usable = market.calendar[valid.reindex(market.calendar).fillna(False)]
     if len(usable) == 0:
-        st.error("feature 를 계산할 수 있는 날짜가 없습니다. 기간을 늘리거나 window 를 줄여 보세요.")
+        st.error("feature 를 계산할 수 있는 날짜가 없습니다. 기간을 늘리거나 window 를 줄여 보세요. "
+                 "(업로드 데이터라면 행 수가 너무 적을 수 있습니다 — SMA200·52주 고점에는 최소 250거래일이 필요합니다.)")
         st.stop()
 
     anchor_date = st.sidebar.date_input("기준일 (기본: 최신 거래일)", value=usable.max().date(),
@@ -478,7 +545,8 @@ def main() -> None:
     anchor = prior.max() if len(prior) else usable.max()
 
     state = ui.UIState(params=params, mode=mode, conditions=conditions, anchor=anchor,
-                       shade_horizon=shade, log_scale=log_scale, show_sma=show_sma, source=data_in.source)
+                       shade_horizon=shade, log_scale=log_scale, show_sma=show_sma,
+                       source=data_in.source)
 
     max_h = int(max(params.forward.horizons))
     if mode == "similarity":
@@ -502,9 +570,6 @@ def main() -> None:
     results = analyze(market.prices["close"], matches, params.forward,
                       baseline_mask=valid, min_gap=params.similarity.min_gap,
                       index=market.calendar, episode_pick=params.similarity.episode_pick)
-
-    reports = _quality(market, signature)
-    quality_banner(reports)
 
     tabs = st.tabs(["① 현재 시장 상태", "② 과거 유사 국면", "③ Forward Return",
                     "④ 계산 감사", "⑤ 통계적 검증", "⑥ 데이터 품질", "⑦ 원본 / 방법론"])

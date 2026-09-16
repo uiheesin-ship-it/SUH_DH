@@ -88,22 +88,41 @@ def _read_upload(f, prefix: str):
     return upload.read_table(data, f.name, sheet=sheet), data
 
 
-def data_section(defaults: Params) -> DataInput:
-    st.sidebar.header("1. 데이터")
-    ticker = st.sidebar.text_input(
+def data_section(defaults: Params, host=None) -> DataInput:
+    """Data input step.
+
+    ``host`` is any Streamlit container: ``st.sidebar`` keeps the old sidebar
+    layout, ``st`` puts the whole step at the top of the page — which is what
+    the dashboard-embedded flow uses (업로드 → 매핑 → 품질 → 분석 실행이 한 화면에서
+    이어지도록).
+    """
+    host = host or st.sidebar
+    inline = host is not st.sidebar
+
+    if inline:
+        host.subheader("① 데이터")
+    else:
+        host.header("1. 데이터")
+    top = host.columns([2, 1, 2]) if inline else None
+    tbox = top[0] if inline else host
+    ybox = top[1] if inline else host
+    mbox = top[2] if inline else host
+
+    ticker = tbox.text_input(
         "티커", value=defaults.ticker,
         help="^IXIC(나스닥 종합), ^GSPC, QQQ, AAPL … Auto Download 시 야후 파이낸스 심볼. "
              "Manual Upload 에서는 화면 표기용 이름으로만 쓰입니다.")
-    years = st.sidebar.slider("기간 (년)", 5, 25, int(defaults.years))
-    mode = st.sidebar.radio("데이터 입력 방식", ["Auto Download", "Manual Upload"], index=0,
-                            help="Manual Upload 를 고르면 업로드한 파일이 Auto Download 보다 "
-                                 "우선 사용됩니다.")
-    if st.sidebar.button("데이터 새로고침 (캐시 비우기)"):
+    years = ybox.slider("기간 (년)", 5, 25, int(defaults.years))
+    mode = mbox.radio("데이터 입력 방식", ["Auto Download", "Manual Upload"], index=0,
+                      horizontal=inline,
+                      help="Manual Upload 를 고르면 업로드한 파일이 Auto Download 보다 "
+                           "우선 사용됩니다. 업로드한 파일은 이 세션에서만 쓰이고 저장되지 않습니다.")
+    if host.button("데이터 새로고침 (캐시 비우기)"):
         st.cache_data.clear()
         st.rerun()
 
     if mode == "Auto Download":
-        offline = st.sidebar.checkbox(
+        offline = host.checkbox(
             "오프라인 데모 데이터", value=False,
             help="네트워크가 막힌 환경에서 UI/계산을 확인할 때 쓰는 합성 시계열입니다. 실제 시장 데이터가 아닙니다.")
         return DataInput(ticker=ticker.strip() or defaults.ticker, years=years,
@@ -114,7 +133,7 @@ def data_section(defaults: Params) -> DataInput:
     digest = hashlib.sha1()
     ov = loader.DataOverrides()
 
-    with st.sidebar.expander("① 가격 파일 (OHLCV)", expanded=True):
+    with host.expander("① 가격 파일 (OHLCV)", expanded=True):
         st.caption("CSV / XLSX · 최소 컬럼: Date, Close (Open/High/Low/Volume 있으면 함께)")
         f = st.file_uploader("가격 파일", type=["csv", "txt", "tsv", "xlsx", "xlsm", "xls"],
                              key="price_file")
@@ -131,7 +150,7 @@ def data_section(defaults: Params) -> DataInput:
             else:
                 st.error(" / ".join(i.message for i in res.failed) or "파일을 해석하지 못했습니다.")
 
-    with st.sidebar.expander("② 거래량 (선택)", expanded=False):
+    with host.expander("② 거래량 (선택)", expanded=False):
         st.caption("가격 파일에 Volume 이 없거나, 다른 출처의 거래량을 쓰고 싶을 때만.")
         vol_mode = st.radio("거래량 소스", ["가격 파일 그대로", "별도 파일 업로드", "다른 종목의 거래량(proxy)"],
                             index=0, key="vol_mode")
@@ -166,7 +185,7 @@ def data_section(defaults: Params) -> DataInput:
                 else:
                     st.error(f"{proxy} 거래량을 받지 못했습니다 ({prov}).")
 
-    with st.sidebar.expander("③ 미국 10년물 (선택)", expanded=False):
+    with host.expander("③ 미국 10년물 (선택)", expanded=False):
         st.caption("CSV / XLSX · 최소 컬럼: Date, Yield")
         yf_ = st.file_uploader("10년물 파일", type=["csv", "txt", "tsv", "xlsx", "xlsm", "xls"],
                                key="yield_file")
@@ -189,7 +208,8 @@ def data_section(defaults: Params) -> DataInput:
                 st.error(" / ".join(i.message for i in res.failed))
 
     if not ov.has_prices():
-        st.sidebar.info("가격 파일을 올리기 전까지는 Auto Download 결과를 보여 줍니다.")
+        host.info("가격 파일을 올리기 전까지는 Auto Download 결과를 보여 줍니다. "
+                  "CSV 또는 XLSX 를 올리면 컬럼을 자동 인식하고, 매핑을 확인한 뒤 분석을 실행합니다.")
     return DataInput(ticker=ticker.strip() or defaults.ticker, years=years, source="auto",
                      mode="manual", overrides=ov, notes=notes,
                      key="manual:" + digest.hexdigest())

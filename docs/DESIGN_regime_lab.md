@@ -34,8 +34,10 @@ app/regime/
   audit.py             한 날짜의 계산 과정을 전부 펼쳐 보여 주는 감사 뷰
   validation.py        walk-forward / out-of-sample
   viz.py               Plotly figure (Streamlit 비의존)
-  ui.py                사이드바 위젯 → 파라미터 dataclass
+  ui.py                입력 위젯 → 파라미터 dataclass (사이드바/본문 어디든 렌더)
   streamlit_app.py     화면 조립 (얇게)
+app/regime_host.py     대시보드(FastAPI)가 Streamlit 을 띄우고 /regime/app/** 로 프록시
+app/static/regime/     허브에서 여는 진입 화면(대시보드 스타일 + iframe)
 regime_config.yaml     모든 기본값
 tests/test_regime.py         오프라인 단위 테스트 (look-ahead 검증 포함)
 tests/test_regime_audit.py   감사 화면 값의 독립 재계산 + 품질/독립성 테스트
@@ -346,6 +348,29 @@ fold 별로 평가 횟수 · 신호 평균 · 실현 평균 · 같은 기간 무
 * **Expanding window** — 2016, 2017, 2018 … 연도별로 이어서 평가
 
 ---
+
+## 7-1. 기존 대시보드와의 통합
+
+Regime Lab 은 Streamlit 앱이라 다른 프로그램처럼 정적 페이지로 만들 수 없습니다. 로직을
+두 번 구현하는 대신, 대시보드가 **띄우고 중계**합니다.
+
+```
+브라우저 ─► FastAPI  /                 허브 (미장 → 기타 → Market Regime Lab 카드)
+                     /regime/          진입 화면 (대시보드 스타일 헤더 + iframe)
+                     /api/regime/*     상태 / 시작 / 중지
+                     /regime/app/**  ─► 127.0.0.1:8501 Streamlit (HTTP + WebSocket 프록시)
+```
+
+* Streamlit 은 `--server.baseUrlPath regime/app` 으로 실행되어 모든 URL 이 이미 접두사를
+  갖습니다 — 그래서 접두사를 보존하는 단순 프록시로 충분하고, 브라우저 입장에서는 **대시보드와
+  같은 오리진**이라 ngrok 같은 터널에서도 그대로 열립니다.
+* 프로세스는 카드를 눌러 **분석 화면 열기**를 누를 때 시작합니다(대시보드 기동 시 자동 실행 없음,
+  `SUH_DH_REGIME_AUTOSTART=1` 로 변경 가능). 이미 `./run_regime.sh` 로 띄워 둔 서버가 있으면
+  그것을 그대로 씁니다.
+* Streamlit 이나 httpx 가 설치돼 있지 않으면 대시보드는 그대로 뜨고, 이 카드만 설치 방법을 안내합니다.
+  정적 빌드(GitHub Pages)에서는 로컬 실행 방법을 안내합니다.
+* 화면 흐름은 `① 데이터`(입력 방식 · 업로드 · 컬럼 매핑) → `② 데이터 확인`(소스 요약 · 품질 검사)
+  → `분석 실행` → `③ 분석`(7개 탭) 순서이고, 업로드 파일은 세션 메모리에만 존재합니다.
 
 ## 8. 확장
 

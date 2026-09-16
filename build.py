@@ -139,7 +139,9 @@ def main() -> None:
         "window.SUH_DH_STATIC = true;\n"
         f'window.SUH_DH_BUILT = "{built}";\n'
     )
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai"):
+    # regime 은 로컬 전용(Streamlit)이라 정적 모드에서는 실행 안내만 뜬다 —
+    # 카드/페이지는 그대로 두고 config.js 만 정적으로 뒤집는다.
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai", "regime"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so

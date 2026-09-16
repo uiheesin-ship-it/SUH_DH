@@ -71,14 +71,32 @@ def _run(files, **env):
     os.environ.update(env)
     at = AppTest.from_file(str(files["script"]), default_timeout=900)
     at.run()
-    radio = [r for r in at.sidebar.radio if r.label == "데이터 입력 방식"][0]
+    # 데이터 입력 방식은 사이드바가 아니라 페이지 상단(① 데이터)에 있다.
+    radio = [r for r in at.radio if r.label == "데이터 입력 방식"][0]
     radio.set_value("Manual Upload").run()
+    return at
+
+
+def _start_analysis(at):
+    """Manual Upload 는 품질 확인 후 '분석 실행'을 눌러야 계산이 시작된다."""
+    run = [b for b in at.button if b.label == "분석 실행"]
+    if run:
+        run[0].click().run()
     return at
 
 
 def test_uploaded_csv_drives_the_whole_page(files):
     at = _run(files, TEST_PRICE_FILE=str(files["price"]), TEST_YIELD_FILE=str(files["yield"]))
     assert not at.exception, at.exception
+
+    # 업로드 직후에는 데이터 확인 단계에서 멈춰 있어야 한다 (분석은 아직 실행 전).
+    assert [h.value for h in at.subheader][:2] == ["① 데이터", "② 데이터 확인"]
+    assert [b.label for b in at.button if b.label == "분석 실행"], "분석 실행 버튼이 없습니다"
+    assert not at.tabs, "품질 확인 전에 분석 결과가 먼저 보이면 안 됩니다"
+
+    _start_analysis(at)
+    assert not at.exception, at.exception
+    assert at.tabs and len(at.tabs) == 7
 
     source_lines = [m.value for m in at.markdown if m.value.startswith("데이터 소스")]
     assert source_lines, "데이터 소스 표기가 없습니다"
@@ -101,10 +119,10 @@ def test_uploaded_csv_drives_the_whole_page(files):
     assert frame.loc[1, "사용 가능 관측치"] > 4000
 
 
-def test_yield_unit_override_is_applied_from_the_sidebar(files):
+def test_yield_unit_override_is_applied(files):
     """decimal(0.04…) 파일을 percent 로 잘못 지정하면 경고가 뜬다."""
     at = _run(files, TEST_PRICE_FILE=str(files["price"]), TEST_YIELD_FILE=str(files["yield"]))
-    unit = [s for s in at.sidebar.selectbox if s.label == "단위"][0]
+    unit = [s for s in at.selectbox if s.label == "단위"][0]
     unit.set_value("percent (4.28)").run()
     assert not at.exception
     warnings = " ".join(w.value for w in at.warning)
@@ -113,7 +131,7 @@ def test_yield_unit_override_is_applied_from_the_sidebar(files):
 
 def test_proxy_volume_requires_explicit_consent(files):
     at = _run(files, TEST_PRICE_FILE=str(files["price"]))
-    vol_mode = [r for r in at.sidebar.radio if r.label == "거래량 소스"][0]
+    vol_mode = [r for r in at.radio if r.label == "거래량 소스"][0]
     vol_mode.set_value("다른 종목의 거래량(proxy)").run()
     assert not at.exception
     # 동의 체크박스를 누르기 전에는 proxy 가 적용되지 않는다

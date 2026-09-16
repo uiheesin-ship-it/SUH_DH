@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Regime Lab · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🧪 Market Regime Lab</h1>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <a id="newtab" class="ghost-btn hidden" href="app/" target="_blank" rel="noopener">새 창에서 열기 ↗</a>
+      <button id="restart" class="ghost-btn hidden" title="Streamlit 프로세스를 다시 시작합니다">다시 시작</button>
+      <span id="status" class="status">상태 확인 중…</span>
+    </div>
+  </header>
+
+  <main id="content">
+    <!-- 실행 전/오류 안내 패널 -->
+    <section id="panel" class="panel hidden">
+      <h2 id="panel-title">Market Regime Lab</h2>
+      <p id="panel-desc" class="muted"></p>
+      <div id="panel-actions" class="panel-actions"></div>
+      <pre id="panel-code" class="code hidden"></pre>
+    </section>
+
+    <!-- 대시보드 안에서 그대로 열리는 분석 화면 -->
+    <iframe id="lab" class="lab hidden" title="Market Regime Lab"
+            src="about:blank" allow="clipboard-write"></iframe>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

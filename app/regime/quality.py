@@ -246,8 +246,10 @@ def check_yield(series: pd.Series, symbol: str, label: str,
     out: list[Check] = []
     s = series.dropna()
     if s.empty:
-        return [Check("yield_data", label, "fail", "데이터를 받지 못했습니다.", "–",
-                      f"{symbol} 을(를) 받을 수 없으면 매크로 feature 는 자동으로 제외됩니다.")]
+        # 매크로는 선택 입력이다 — 없으면 해당 feature 만 빠지고 분석은 그대로 돈다.
+        # 분석을 막는 fail 이 아니라 warn 으로 둔다.
+        return [Check("yield_data", label, "warn", "데이터를 받지 못했습니다 — 매크로 feature 없이 분석합니다.",
+                      "–", f"{symbol} 을(를) 자동 수신할 수 없다면 10년물 CSV/XLSX 를 직접 업로드하세요.")]
 
     med = float(s.median())
     if med < 0.2:
@@ -286,7 +288,10 @@ def check_yield(series: pd.Series, symbol: str, label: str,
 def check_alignment(calendar: pd.DatetimeIndex, aligned: pd.Series, label: str) -> list[Check]:
     """How much of the aligned macro column is real vs forward-filled."""
     if aligned is None or aligned.dropna().empty:
-        return [Check("align", f"{label} 정렬", "fail", "거래일 달력에 맞춘 값이 없습니다.", "0%")]
+        # 매크로가 통째로 비어 있는 것은 "분석 불가"가 아니라 "이 feature 없이 진행".
+        return [Check("align", f"{label} 정렬", "warn",
+                      "거래일 달력에 맞춘 값이 없습니다 — 매크로 feature 없이 분석합니다.", "0%",
+                      "10년물 CSV/XLSX 를 직접 올리면 매크로 feature 가 함께 계산됩니다.")]
     coverage = float(aligned.notna().mean())
     # forward-fill 로 채워진 날 = 값은 있으나 직전 값과 완전히 같은 날의 상한 추정
     filled = float((aligned.diff() == 0).mean())
@@ -406,7 +411,9 @@ def run_checks(market, params) -> list[QualityReport]:
         rep = QualityReport(series=symbol)
         aligned = market.exog[key] if (market.exog is not None and key in market.exog.columns) else None
         if aligned is None:
-            rep.add(Check("missing_series", label, "fail", "시리즈를 받지 못했습니다 — 매크로 feature 제외", "–"))
+            rep.add(Check("missing_series", label, "warn",
+                          "시리즈를 받지 못했습니다 — 매크로 feature 없이 분석합니다.", "–",
+                          f"{symbol} 을(를) 자동 수신할 수 없다면 파일로 직접 올릴 수 있습니다."))
         else:
             rep.add(*check_yield(aligned, symbol, label, str(spec.get("unit", ""))))
             rep.add(*check_alignment(market.calendar, aligned, label))
