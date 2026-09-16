@@ -138,8 +138,12 @@ def repo_regime_api_base() -> str:
         text = (STATIC / "regime" / "config.js").read_text(encoding="utf-8")
     except OSError:
         return ""
-    m = re.search(r'SUH_DH_API_BASE\s*=\s*"([^"]*)"', text)
-    return (m.group(1) if m else "").strip().rstrip("/")
+    for name in ("SUH_DH_API_BASE", "SUH_DH_REGIME_API_DEFAULT"):
+        m = re.search(name + r'\s*=\s*"([^"]*)"', text)
+        url = (m.group(1) if m else "").strip().rstrip("/")
+        if url:
+            return url
+    return ""
 
 
 def main() -> None:
