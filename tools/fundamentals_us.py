@@ -211,6 +211,8 @@ def main() -> None:
             shown = f"{v:,.2f}" if abs(v) < 1000 else f"{v:,.0f}"
             log(f"   {label:12} {m['count']:2}분기 · 최근 {last['end']} "
                 f"{shown}  YoY {yoy}  QoQ {qoq}   ({m['source']})")
+            if m.get("warning"):
+                log(f"   {'':12} ⚠ {m['warning']}")
         time.sleep(PAUSE)
 
     if len(cik_map) > before:

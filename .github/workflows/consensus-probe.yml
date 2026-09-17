@@ -1,0 +1,31 @@
+name: Consensus source probe
+
+# 12M forward PER 에 필요한 컨센을 무료로 얼마나 받을 수 있는지 실측한다.
+# 측정 전용 — 스냅샷을 만들지도, 커밋하지도, 배포를 막지도 않는다.
+on:
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "확인할 티커(공백 구분). 비우면 기본 8종목"
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: consensus-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install --quiet yfinance pandas curl_cffi
+      - name: Probe
+        run: python tools/consensus_probe.py ${{ github.event.inputs.tickers }}

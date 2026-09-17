@@ -132,11 +132,14 @@ def test_ebitda_is_labelled_as_computed_not_adjusted():
 
 
 # --------------------------------------------------------------- 은행 처리
-def test_bank_revenue_falls_back_to_interest_plus_noninterest():
-    """은행은 매출 태그가 없다(실측 JPM 0개). 이자+비이자로 총수익을 만든다."""
+def test_bank_revenue_falls_back_to_net_interest_plus_noninterest():
+    """은행은 매출 태그가 없다(실측 JPM 0개). 총수익 = 순이자이익 + 비이자이익.
+
+    이자 쪽은 **순액**이어야 한다. 총이자수익을 더하면 이자비용을 빼지 않아
+    매출이 부풀고, 그 태그는 회사가 중간에 버리는 일도 잦다.
+    """
     f = facts_of(
-        InterestAndDividendIncomeOperating=[
-            fact("2025-01-01", "2025-03-31", 300, "2025-05-01")],
+        InterestIncomeExpenseNet=[fact("2025-01-01", "2025-03-31", 300, "2025-05-01")],
         NoninterestIncome=[fact("2025-01-01", "2025-03-31", 200, "2025-05-01")],
         NetIncomeLoss=[fact("2025-01-01", "2025-03-31", 120, "2025-05-01")],
     )
@@ -274,3 +277,144 @@ def test_the_committed_seed_map_looks_sane():
     assert m["AAPL"] == "0000320193"
     assert m["MU"] == "0000723125"
     assert all(len(v) == 10 and v.isdigit() for v in list(m.values())[:200])
+
+
+# ------------------------------------------- 태그를 갈아탄 회사 (PLD·CEG 실측)
+def test_a_tag_switch_does_not_truncate_the_series():
+    """회사가 중간에 태그를 바꾸면 예전 코드는 옛 태그에서 멈춰 버렸다.
+
+    PLD 는 감가상각이 2015년에서 끊겨 EBITDA 최근값이 2015-12-31 로 찍혔고,
+    CEG 는 매출이 14분기만 나왔다. 우선순위는 지키되 빈 분기는 메워야 한다.
+    """
+    f = facts_of(
+        Revenues=[                                   # 옛 태그 — 2016년까지만
+            fact("2016-01-01", "2016-03-31", 100, "2016-05-01"),
+            fact("2016-04-01", "2016-06-30", 110, "2016-08-01"),
+        ],
+        RevenueFromContractWithCustomerExcludingAssessedTax=[   # 새 태그 — 이후
+            fact("2025-01-01", "2025-03-31", 900, "2025-05-01"),
+            fact("2025-04-01", "2025-06-30", 950, "2025-08-01"),
+        ],
+    )
+    q = F.collect(f, F.REVENUE_TAGS, *F.QUARTER_DAYS)
+    assert sorted(q) == ["2016-03-31", "2016-06-30", "2025-03-31", "2025-06-30"]
+
+
+def test_the_higher_priority_tag_wins_on_a_shared_quarter():
+    """둘 다 값을 낸 분기는 앞 태그가 이긴다 — 메우는 건 빈 자리뿐이다."""
+    f = facts_of(
+        Revenues=[fact("2025-01-01", "2025-03-31", 100, "2025-05-01")],
+        RevenueFromContractWithCustomerExcludingAssessedTax=[
+            fact("2025-01-01", "2025-03-31", 999, "2025-05-01")],
+    )
+    q = F.collect(f, F.REVENUE_TAGS, *F.QUARTER_DAYS)
+    assert q["2025-03-31"]["val"] == 999          # 목록에서 앞선 쪽
+    assert q["2025-03-31"]["tag"] == "RevenueFromContractWithCustomerExcludingAssessedTax"
+
+
+def test_ytd_differences_never_mix_two_tags():
+    """누적 차분은 태그별로 따로 해야 한다 — 섞어 빼면 값이 엉킨다."""
+    f = facts_of(
+        DepreciationDepletionAndAmortization=[
+            fact("2025-01-01", "2025-03-31", 30, "2025-05-01"),
+            fact("2025-01-01", "2025-06-30", 65, "2025-08-01"),
+        ],
+        DepreciationAndAmortization=[
+            fact("2025-01-01", "2025-09-30", 5000, "2025-11-01"),   # 다른 계열
+        ],
+    )
+    q = F.quarterly_from_ytd(f, F.DA_TAGS)
+    assert q["2025-06-30"]["val"] == 35            # 65 − 30, 5000 과 무관
+    assert q["2025-09-30"]["val"] == 5000          # 제 계열의 첫 누적
+
+
+# ------------------------------------------------ 평균 항목의 Q4 (SMCI 실측)
+def _three_quarters(val):
+    return {
+        "2025-09-30": {"end": "2025-09-30", "start": "2025-07-01", "val": val,
+                       "first_val": val, "first_filed": "2024-11-01",
+                       "last_filed": "2024-11-01"},
+        "2025-12-31": {"end": "2025-12-31", "start": "2025-10-01", "val": val,
+                       "first_val": val, "first_filed": "2025-02-01",
+                       "last_filed": "2025-02-01"},
+        "2026-03-31": {"end": "2026-03-31", "start": "2026-01-01", "val": val,
+                       "first_val": val, "first_filed": "2025-05-01",
+                       "last_filed": "2025-05-01"},
+    }
+
+
+def test_share_count_q4_is_never_negative():
+    """가중평균주식수는 평균이라 연간 − 3분기 로 빼면 −2A 가 나온다."""
+    quarters = _three_quarters(676_000_000)
+    annual = {"2026-06-30": {"end": "2026-06-30", "start": "2025-07-01",
+                             "val": 680_000_000, "first_val": 680_000_000,
+                             "first_filed": "2026-08-01", "last_filed": "2026-08-01",
+                             "form": "10-K"}}
+    naive = F.derive_q4(quarters, annual)["2026-06-30"]["val"]
+    assert naive < 0                                   # 예전 동작 — 이래서 터졌다
+
+    out = F.derive_q4(quarters, annual, mode="mean")["2026-06-30"]
+    assert out["val"] > 0
+    assert out["val"] == 4 * 680_000_000 - 3 * 676_000_000
+    assert out["derived"] == "4×연평균−3분기"
+
+
+def test_build_metrics_gives_a_positive_share_count():
+    """조립까지 거쳐도 주식수는 양수여야 한다."""
+    f = facts_of(WeightedAverageNumberOfDilutedSharesOutstanding=[
+        fact("2025-07-01", "2025-09-30", 676_000_000, "2025-11-01"),
+        fact("2025-10-01", "2025-12-31", 676_000_000, "2026-02-01"),
+        fact("2026-01-01", "2026-03-31", 676_000_000, "2026-05-01"),
+        fact("2025-07-01", "2026-06-30", 680_000_000, "2026-08-01", "10-K"),
+    ])
+    qs = F.build_metrics(f)["가중평균주식수"]["quarters"]
+    assert all(q["val"] > 0 for q in qs)
+
+
+def test_a_mean_mode_q4_that_goes_nonpositive_is_dropped():
+    """근사가 깨지면(음수가 나오면) 값을 지어내지 않고 버린다."""
+    quarters = _three_quarters(676_000_000)
+    annual = {"2026-06-30": {"end": "2026-06-30", "start": "2025-07-01",
+                             "val": 400_000_000, "first_val": 400_000_000,
+                             "first_filed": "2026-08-01", "last_filed": "2026-08-01"}}
+    assert "2026-06-30" not in F.derive_q4(quarters, annual, mode="mean")
+
+
+# ------------------------------------------------------------ 끊긴 항목 경고
+def test_a_metric_stuck_in_the_past_is_flagged():
+    """한 항목만 옛날에서 멈추면 그 값을 '최근'이라 부르면 안 된다."""
+    f = facts_of(
+        Revenues=[fact("2026-01-01", "2026-03-31", 100, "2026-05-01")],
+        NetIncomeLoss=[fact("2015-01-01", "2015-03-31", 9, "2015-05-01")],
+    )
+    m = F.build_metrics(f)
+    assert "warning" not in m["매출"]
+    assert m["순이익"]["stale_days"] > 200
+    assert "2015-03-31" in m["순이익"]["warning"]
+
+
+def test_a_bank_total_revenue_tag_beats_the_parts_when_it_reaches_further():
+    """조각 합계가 옛날에서 끊기면 총수익 태그를 쓴다 — JPM 이 2014년에서 멈췄다."""
+    f = facts_of(
+        InterestIncomeExpenseNet=[fact("2014-10-01", "2014-12-31", 300, "2015-02-01")],
+        NoninterestIncome=[fact("2014-10-01", "2014-12-31", 200, "2015-02-01")],
+        RevenuesNetOfInterestExpense=[
+            fact("2026-04-01", "2026-06-30", 4500, "2026-08-01")],
+        NetIncomeLoss=[fact("2026-04-01", "2026-06-30", 1200, "2026-08-01")],
+    )
+    m = F.build_metrics(f)
+    assert m["매출"]["quarters"][-1]["end"] == "2026-06-30"
+    assert m["매출"]["quarters"][-1]["val"] == 4500
+    assert "warning" not in m["매출"]
+
+
+def test_gross_interest_income_is_never_added_to_noninterest_income():
+    """총이자수익 + 비이자수익은 매출이 아니다 — 이자비용이 빠지지 않는다."""
+    f = facts_of(
+        InterestAndDividendIncomeOperating=[
+            fact("2026-04-01", "2026-06-30", 9000, "2026-08-01")],
+        NoninterestIncome=[fact("2026-04-01", "2026-06-30", 200, "2026-08-01")],
+        NetIncomeLoss=[fact("2026-04-01", "2026-06-30", 120, "2026-08-01")],
+    )
+    m = F.build_metrics(f)
+    assert all(q["val"] != 9200 for q in m["매출"]["quarters"])
