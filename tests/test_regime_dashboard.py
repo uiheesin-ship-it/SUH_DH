@@ -755,8 +755,10 @@ def test_hub_groups_analysis_tools_separately():
     for name in ("AI 투자 뉴스", "실적 컨콜 투자 테마"):
         assert cards[name] == "other", f"{name} 은 기타로 남아야 합니다"
 
-    # 카드가 없는 열은 그리지 않는다 (국장에는 기타가 없다)
-    assert 'if (!cards.length) return "";' in html
+    # 열은 시장마다 네 개를 그대로 둔다 — 국장의 기타는 아직 비어 있어도 자리를 지킨다
+    assert 'if (!cards.length) return "";' not in html
+    assert '<p class="col-empty">아직 없습니다</p>' in html
+    assert ".col-empty" in (STATIC / "hub.css").read_text(encoding="utf-8")
     # 안내 문구도 같이 갱신
     assert "신고가·스크리너·분석Tool·기타" in html
     assert "<code>tool</code>" in html

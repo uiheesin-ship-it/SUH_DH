@@ -197,13 +197,16 @@
     document.getElementById("board").innerHTML = MARKETS.map((m) => {
       const mine = VISIBLE.filter((a) => keyOf(a.market, MARKETS, "us") === m.key);
       if (!mine.length) return "";
-      // 카드가 하나도 없는 열은 그리지 않는다 — '기타 0' 같은 빈 칸을 남기지 않기 위해.
+      // 열은 시장마다 네 개를 그대로 둔다 — 미장·국장의 자리가 같아야 눈이 덜 헤맨다.
+      // 아직 카드가 없는 열은 비워 두되, 고장 난 것처럼 보이지 않게 자리만 표시한다.
       const cols = GROUPS.map((g) => {
         const cards = mine.filter((a) => keyOf(a.group, GROUPS, "other") === g.key);
-        if (!cards.length) return "";
+        const body = cards.length
+          ? cards.map(cardHtml).join("")
+          : '<p class="col-empty">아직 없습니다</p>';
         return `<section class="col">
             <h3 class="col-head">${g.label}<span class="col-count">${cards.length}</span></h3>
-            <div class="col-cards">${cards.map(cardHtml).join("")}</div>
+            <div class="col-cards">${body}</div>
           </section>`;
       }).join("");
       return `<section class="market market-${m.key}">
