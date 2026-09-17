@@ -30,8 +30,7 @@ async function load(ticker) {
 
   if (STATIC && !API_BASE) {
     fail("이 페이지는 티커를 입력받은 뒤에 EDGAR·야후에서 직접 받아 옵니다. " +
-         "정적 사이트에서는 백엔드가 필요합니다 — SUH_DH_API_BASE 를 연결하거나 " +
-         "로컬에서 ./run.sh 로 실행해 주세요.");
+         "그래서 서버가 필요합니다 — 왼쪽 위 '💻 로컬 실행법' 버튼을 눌러 보세요.");
     return;
   }
   try {
@@ -58,8 +57,9 @@ function explain(r, j) {
   if (r.status === 404 && !j.error && j.detail === "Not Found") {
     return ["백엔드에 이 기능이 아직 배포되지 않았습니다.",
             `${API_BASE || location.origin} 는 살아 있지만 /api/fundamentals 경로를 ` +
-            "모릅니다 — 서버가 옛 코드로 돌고 있습니다. Render 라면 " +
-            "Manual Deploy → Deploy latest commit, 로컬이라면 git pull 후 재시작"];
+            "모릅니다 — 서버가 옛 코드로 돌고 있습니다. 로컬이라면 서버를 끄고(Ctrl+C) " +
+            "git pull 후 다시 띄우세요(왼쪽 위 '💻 로컬 실행법'). 배포된 백엔드라면 " +
+            "Render 에서 Manual Deploy → Deploy latest commit"];
   }
   if (r.status === 404) return [j.error || `${$("q").value.trim().toUpperCase()} 를 찾지 못했습니다.`, j.detail];
   if (r.status === 502) return [j.error || "실적을 불러오지 못했습니다.", j.detail];
@@ -244,6 +244,66 @@ function drawChart(per) {
 
 /* --------------------------------------------------------------------- 모달 */
 const MODALS = {
+  local: ["내 컴퓨터에서 띄우는 법", `
+<div class="warn">
+<b>⚠ 검은 창(Git Bash)을 닫으면 서버가 꺼집니다.</b> 그 창이 곧 서버입니다.
+페이지를 보는 동안에는 <b>계속 열어 두세요.</b> 최소화는 괜찮습니다.
+</div>
+
+<h4>왜 서버가 필요한가</h4>
+이 페이지는 다른 화면들과 다릅니다. 신고가·평평·상관관계는 밤에 미리 계산해 둔
+파일을 내려받기만 하면 되지만, 여기는 <b>티커를 입력받은 그 순간</b> EDGAR 와
+야후에 물어봅니다. 브라우저가 직접 물어볼 수는 없습니다 —
+<code>data.sec.gov</code> 가 브라우저에서 오는 요청을 거부하고(CORS), 야후는 애초에
+공개 API 가 아니라 파이썬이 필요합니다. 그 심부름을 해 주는 게 서버입니다.
+
+<h4>띄우기</h4>
+<b>Git Bash</b> 를 열고(폴더에서 우클릭 → Git Bash Here), 이 두 줄:
+<pre>cd ~/OneDrive/Desktop/주식/코딩/SUH_DH
+./run.sh</pre>
+이렇게 찍히면 성공입니다:
+<pre>INFO:  Application startup complete.
+INFO:  Uvicorn running on http://127.0.0.1:8000</pre>
+
+<h4>열기 — <code>http://</code> 를 꼭 붙이세요</h4>
+<pre>http://localhost:8000/quarterly/</pre>
+<div class="warn">
+주소창에 <code>localhost:8000</code> 만 치면 요즘 브라우저가 <b>자동으로
+<code>https://</code> 로 바꿉니다.</b> 우리 서버는 <code>http</code> 라 그러면 무조건
+실패합니다. 즐겨찾기에 넣어 두시는 게 제일 편합니다.
+</div>
+
+<h4>끝낼 때</h4>
+검은 창에서 <b>Ctrl+C</b>. 그냥 창을 닫아도 됩니다 — 어차피 서버가 같이 꺼집니다.
+
+<h4>코드가 업데이트됐을 때</h4>
+서버를 끄고(<b>Ctrl+C</b>), 받고, 다시 띄웁니다. <b>받기만 하면 안 됩니다</b> —
+이미 떠 있는 서버는 옛 코드를 메모리에 들고 있습니다.
+<pre>git pull
+./run.sh</pre>
+
+<h4>안 들어가질 때</h4>
+<ol>
+  <li><b>검은 창이 아직 열려 있나</b> — 제일 흔한 원인입니다.</li>
+  <li><b><code>http://</code> 를 붙였나</b> — 두 번째로 흔합니다.</li>
+  <li>창을 <b>하나 더</b> 열어 <code>curl http://127.0.0.1:8000/api/health</code>.
+      <code>{"status":"ok"}</code> 가 나오면 서버는 멀쩡하고 브라우저 문제입니다.</li>
+  <li><code>127.0.0.1</code> 대신 <code>localhost</code> 로도 해 보세요.</li>
+  <li>회사 PC·VPN 이면 프록시일 수 있습니다 — Windows 설정 → 네트워크 및 인터넷 →
+      프록시 → <b>"로컬 주소에 프록시 서버 사용 안 함"</b> 체크.</li>
+  <li><code>Address already in use</code> 가 뜨면 이미 떠 있는 겁니다. 다른 창을
+      찾아 쓰거나, 다 닫고 다시 띄우세요.</li>
+</ol>
+
+<h4>참고로 무시해도 되는 것</h4>
+시작할 때 <code>eai subsystem not mounted: No module named 'sqlalchemy'</code> 가
+찍힙니다. 실적 컨콜 프로그램만 안 뜨는 것이고 <b>이 페이지와는 무관합니다.</b>
+
+<h4>배포된 사이트(GitHub Pages)에서는</h4>
+백엔드가 연결돼 있으면 로컬 실행 없이 그대로 됩니다. 무료 서버라 15분 쉬면
+잠들기 때문에 <b>첫 조회가 30~60초</b> 걸릴 수 있습니다 — 멈춘 게 아니라 깨는
+중입니다.
+`],
   per: ["12M Forward PER 을 어떻게 구하나", `
 <h4>정의</h4>
 어떤 과거 시점 T 의 12M forward PER 은 <code>T 시점 주가 ÷ (T 이후 4개 분기 EPS 합)</code>
@@ -325,6 +385,7 @@ $("go").addEventListener("click", () => load($("q").value));
 $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") load($("q").value); });
 $("per-btn").addEventListener("click", () => openModal("per"));
 $("src-btn").addEventListener("click", () => openModal("src"));
+$("local-btn").addEventListener("click", () => openModal("local"));
 $("modal-close").addEventListener("click", () => $("modal").classList.add("hidden"));
 $("modal").addEventListener("click", (e) => {
   if (e.target === $("modal")) $("modal").classList.add("hidden");
