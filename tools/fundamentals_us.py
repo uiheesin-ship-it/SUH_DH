@@ -45,12 +45,7 @@ def _get(url, timeout=45):
 
 
 def load_cik_map() -> dict[str, str]:
-    """티커 → CIK. www.sec.gov 가 403 이라 저장소에 둔 목록을 쓴다.
-
-    가능할 때 새로고침하고(refresh_cik_map), 안 되면 커밋된 것을 그대로 쓴다 —
-    상장 목록은 하루 사이에 크게 바뀌지 않는다. 평평 유니버스·국장 유니버스에
-    이미 쓰는 것과 같은 패턴이다.
-    """
+    """이미 찾아 둔 티커 → CIK. 처음 찾은 것만 쌓이는 **자라는 캐시**다."""
     if not CIK_FILE.exists():
         return {}
     try:
@@ -59,19 +54,51 @@ def load_cik_map() -> dict[str, str]:
         return {}
 
 
+def save_cik_map(m: dict[str, str]) -> None:
+    CIK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CIK_FILE.write_text(
+        json.dumps({"count": len(m), "map": dict(sorted(m.items()))},
+                   ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
 def refresh_cik_map() -> dict[str, str]:
-    """www.sec.gov 가 열리면 목록을 갱신한다(대개 403 이라 실패해도 정상)."""
+    """전체 목록은 www.sec.gov 에 있는데 거기가 403 이다. 열리면 받아 둔다."""
     try:
         raw = json.loads(_get("https://www.sec.gov/files/company_tickers.json", timeout=30))
     except Exception as e:  # noqa: BLE001
-        log(f"  CIK 목록 갱신 실패({type(e).__name__}) — 커밋된 목록을 씁니다")
+        log(f"  전체 CIK 목록 없음({type(e).__name__}) — 티커별로 찾습니다")
         return {}
     m = {v["ticker"].upper(): f"{int(v['cik_str']):010d}" for v in raw.values()}
-    CIK_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CIK_FILE.write_text(json.dumps({"count": len(m), "map": m}, separators=(",", ":")),
-                        encoding="utf-8")
-    log(f"  CIK 목록 갱신 {len(m):,}개")
+    save_cik_map(m)
+    log(f"  전체 CIK 목록 갱신 {len(m):,}개")
     return m
+
+
+def resolve_cik(ticker: str) -> str | None:
+    """티커 하나의 CIK 를 EDGAR 전문검색으로 찾는다.
+
+    전체 목록(www.sec.gov/files/company_tickers.json)이 403 이라 쓸 수 없다.
+    efts.sec.gov 는 열리고, 검색 결과에 "Apple Inc. (AAPL) (CIK 0000320193)"
+    꼴의 display_names 가 들어 있다. 거기서 괄호 안 티커가 정확히 일치하는
+    항목만 받는다 — 본문에 그 글자가 우연히 있는 문서를 잡으면 안 된다.
+    """
+    import re
+    import urllib.parse
+
+    q = urllib.parse.quote(f'"{ticker}"')
+    url = f"https://efts.sec.gov/LATEST/search-index?q={q}&forms=10-Q,10-K"
+    try:
+        hits = json.loads(_get(url, timeout=25)).get("hits", {}).get("hits", [])
+    except Exception as e:  # noqa: BLE001
+        log(f"    전문검색 실패: {type(e).__name__}")
+        return None
+    pat = re.compile(r"\((" + re.escape(ticker.upper()) + r")\)\s*\(CIK\s*(\d{10})\)", re.I)
+    for h in hits:
+        for name in (h.get("_source") or {}).get("display_names") or []:
+            m = pat.search(name)
+            if m:
+                return m.group(2)
+    return None
 
 
 def companyfacts(cik: str) -> dict:
@@ -88,7 +115,12 @@ def fetch(ticker: str, cik_map: dict[str, str], quarters: int = 20) -> dict:
     t = ticker.upper().strip()
     cik = cik_map.get(t)
     if not cik:
-        return {"ticker": t, "error": "CIK 를 찾지 못했습니다(data/sec_cik.json)"}
+        cik = resolve_cik(t)
+        if cik:
+            cik_map[t] = cik          # 다음부터는 캐시에서 바로
+            time.sleep(PAUSE)
+    if not cik:
+        return {"ticker": t, "error": "CIK 를 찾지 못했습니다"}
     try:
         meta = company_meta(cik)
         time.sleep(PAUSE)
@@ -108,10 +140,8 @@ def main() -> None:
     tickers = argv or ["AAPL"]
 
     cik_map = refresh_cik_map() or load_cik_map()
-    if not cik_map:
-        log("CIK 목록이 없습니다. www.sec.gov 가 열리는 곳에서 한 번 갱신해야 합니다.")
-        return
-    log(f"CIK 목록 {len(cik_map):,}개")
+    log(f"CIK 캐시 {len(cik_map):,}개")
+    before = len(cik_map)
 
     results = []
     for t in tickers:
@@ -132,6 +162,10 @@ def main() -> None:
             log(f"   {label:12} {m['count']:2}분기 · 최근 {last['end']} "
                 f"{last['val']:,.0f}  YoY {yoy}  QoQ {qoq}   ({m['source']})")
         time.sleep(PAUSE)
+
+    if len(cik_map) > before:
+        save_cik_map(cik_map)
+        log(f"\nCIK 캐시에 {len(cik_map) - before}개 추가 → {CIK_FILE.name}")
 
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
