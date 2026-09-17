@@ -48,7 +48,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add data/dart_cb.json
-            git commit -m "data(dart): collect convertible-bond disclosures"
+            git commit -m "data(dart): collect convertible-bond disclosures [skip render]"
             for i in 1 2 3 4 5; do
               git push origin HEAD:claude/funny-carson-ent3s7 && break
               git fetch origin claude/funny-carson-ent3s7

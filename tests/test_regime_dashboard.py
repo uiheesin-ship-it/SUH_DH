@@ -552,3 +552,25 @@ def test_health_reports_whether_the_regime_api_is_mounted(client):
 
     js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
     assert "body.regime.ok === false" in js        # 화면이 그 이유를 그대로 보여 준다
+
+def test_automated_data_commits_do_not_trigger_render_builds():
+    """자동 데이터 커밋은 Render 배포를 건너뛴다 — 안 그러면 빌드 시간이 말라 버린다.
+
+    실제로 그렇게 됐다: 기본 브랜치에 하루 50번 넘게 커밋이 올라가고, Render 가
+    매번 pip install 부터 다시 하다가 workspace 의 pipeline minutes 를 다 써서
+    "Build blocked — Your workspace has run out of pipeline minutes" 로 막혔다.
+    그동안 백엔드는 9월 13일 빌드에 멈춰 있었고, Regime Lab API 는 한 번도
+    배포되지 못했다.
+
+    Render 는 커밋 메시지의 [skip render] 를 보고 자동 배포를 건너뛴다
+    (https://render.com/docs/deploys). 워크플로가 새로 생겨도 빠뜨리지 않도록
+    여기서 전부 확인한다.
+    """
+    import re
+
+    missing = []
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for msg in re.findall(r'git commit -m "([^"]*)"', wf.read_text(encoding="utf-8")):
+            if "[skip render]" not in msg:
+                missing.append(f"{wf.name}: {msg}")
+    assert not missing, "자동 커밋에 [skip render] 가 빠졌습니다:\n" + "\n".join(missing)
