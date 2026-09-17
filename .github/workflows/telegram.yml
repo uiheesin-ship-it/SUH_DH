@@ -55,7 +55,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add state/telegram_sent.json
-            git commit -m "chore: update telegram sent-state"
+            git commit -m "chore: update telegram sent-state [skip render]"
             git push origin HEAD:claude/funny-carson-ent3s7
           else
             echo "No state change."
