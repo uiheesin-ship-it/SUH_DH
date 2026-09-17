@@ -405,7 +405,8 @@ def test_backend_is_not_rebuilt_by_data_commits():
     yaml = pytest.importorskip("yaml")
     blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
     ignored = blueprint["services"][0]["buildFilter"]["ignoredPaths"]
-    assert "data/**" in ignored
+    # 자동 커밋이 실제로 건드리는 경로를 모두 덮는다 (git log 로 확인한 목록)
+    assert "data/**" in ignored and "state/**" in ignored
 
 
 def test_hub_prewarms_the_backend():
