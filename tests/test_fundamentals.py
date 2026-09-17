@@ -418,3 +418,21 @@ def test_gross_interest_income_is_never_added_to_noninterest_income():
     )
     m = F.build_metrics(f)
     assert all(q["val"] != 9200 for q in m["매출"]["quarters"])
+
+
+def test_a_stale_generic_revenue_tag_loses_to_a_fresh_bank_total():
+    """은행은 일반 매출 태그를 옛날에 잠깐 쓰다 버린다 — 거기서 멈추면 안 된다.
+
+    실측: JPM 2014-12-31, WFC 2020-09-30, MS 2018-03-31 에서 끊겨 있었다.
+    """
+    f = facts_of(
+        Revenues=[fact("2018-01-01", "2018-03-31", 5910, "2018-05-01")],
+        RevenuesNetOfInterestExpense=[
+            fact("2026-01-01", "2026-03-31", 17000, "2026-05-01"),
+            fact("2026-04-01", "2026-06-30", 18000, "2026-08-01")],
+        NetIncomeLoss=[fact("2026-04-01", "2026-06-30", 5581, "2026-08-01")],
+    )
+    m = F.build_metrics(f)
+    assert m["매출"]["quarters"][-1]["end"] == "2026-06-30"
+    assert m["매출"]["source"] == "보고값(총수익)"
+    assert "warning" not in m["매출"]
