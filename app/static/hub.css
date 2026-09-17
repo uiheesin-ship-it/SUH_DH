@@ -29,9 +29,8 @@ body {
 .market-kr .col-head { border-left-color: var(--kr); }
 
 /* --- three category columns: 신고가 | 스크리너 | 기타 ---------------- */
-/* 신고가 · 스크리너 · 분석Tool · 기타 — 카드가 없는 열은 아예 빠지므로
-   auto-fit 으로 남은 열이 폭을 나눠 갖게 한다(국장에는 기타가 없다). */
-.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+/* 신고가 · 스크리너 · 분석Tool · 기타 — 시장마다 네 열을 같은 자리에 둔다. */
+.cols { display: grid; grid-template-columns: repeat(4, 1fr);
         gap: 16px; align-items: start; }
 .col { min-width: 0; }
 .col-head {
@@ -85,4 +84,11 @@ body {
   .cols { grid-template-columns: 1fr; gap: 20px; }
   .card-desc { -webkit-line-clamp: 3; }
   #board { padding: 8px 16px 24px; }
+}
+
+/* 아직 카드가 없는 열 — 자리는 지키되 조용히. */
+.col-empty {
+  margin: 0; padding: 18px 12px; text-align: center;
+  color: var(--muted); font-size: 12px;
+  border: 1px dashed var(--border); border-radius: 12px;
 }
