@@ -217,3 +217,60 @@ def test_cik_resolution_survives_a_network_failure(monkeypatch):
 
     monkeypatch.setattr(U, "_get", boom)
     assert U.resolve_cik("MU") is None          # 예외가 새면 수집 전체가 죽는다
+
+
+# ------------------------------------------- 씨앗 CIK 목록은 힌트일 뿐이다
+# data/sec_cik.json 은 SEC 원본이 403 이라 공개 미러에서 받아 온 것이다.
+# 틀린 CIK 를 그대로 믿으면 **엉뚱한 회사의 재무제표**를 보여 주게 된다.
+def _fetch_with(monkeypatch, *, meta_tickers, resolved=None):
+    import tools.fundamentals_us as U
+
+    calls = {"search": 0}
+    monkeypatch.setattr(U.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(U, "company_meta", lambda cik: {
+        "name": "X", "tickers": meta_tickers, "sic": "s", "fiscal_year_end": "1231"})
+    monkeypatch.setattr(U, "companyfacts", lambda cik: facts_of())
+
+    def search(t):
+        calls["search"] += 1
+        return resolved
+
+    monkeypatch.setattr(U, "resolve_cik", search)
+    return U, calls
+
+
+def test_a_wrong_seed_cik_is_caught_by_the_sec_response(monkeypatch):
+    """submissions 가 돌려준 tickers 와 안 맞으면 그 CIK 를 쓰지 않는다."""
+    U, calls = _fetch_with(monkeypatch, meta_tickers=["ZZZZ"], resolved=None)
+    r = U.fetch("MU", {"MU": "0000000999"})
+    assert "error" in r, "틀린 CIK 로 남의 재무제표를 내놓았다"
+    assert calls["search"] == 1, "전문검색으로 다시 찾지 않았다"
+
+
+def test_a_correct_seed_cik_costs_no_extra_request(monkeypatch):
+    """맞으면 전문검색을 부르지 않는다 — 확인은 어차피 부르는 호출로 끝난다."""
+    U, calls = _fetch_with(monkeypatch, meta_tickers=["MU"])
+    r = U.fetch("MU", {"MU": "0000723125"})
+    assert r.get("cik") == "0000723125" and "error" not in r
+    assert calls["search"] == 0
+
+
+def test_ticker_missing_from_the_seed_falls_back_to_search(monkeypatch):
+    """씨앗에 없는 신규 상장은 전문검색으로 찾는다."""
+    U, calls = _fetch_with(monkeypatch, meta_tickers=["NEW"], resolved="0000001234")
+    r = U.fetch("NEW", {})
+    assert r.get("cik") == "0000001234" and calls["search"] == 1
+
+
+def test_the_committed_seed_map_looks_sane():
+    """커밋된 씨앗이 실제로 쓸 만한지 — EDGAR 가 서빙한 값과 대조한다."""
+    import json
+    from pathlib import Path
+
+    p = Path(__file__).resolve().parents[1] / "data" / "sec_cik.json"
+    m = json.loads(p.read_text(encoding="utf-8"))["map"]
+    assert len(m) > 5000, f"씨앗이 너무 작다: {len(m)}"
+    # 이 둘은 실제 EDGAR 수집이 성공한 CIK 다(2026-09-17 실행 로그).
+    assert m["AAPL"] == "0000320193"
+    assert m["MU"] == "0000723125"
+    assert all(len(v) == 10 and v.isdigit() for v in list(m.values())[:200])
