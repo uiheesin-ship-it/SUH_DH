@@ -239,13 +239,20 @@ def build_metrics(facts: dict, quarters: int = 20) -> dict:
     eps = metric(EPS_TAGS, "희석EPS")
     shares = metric(SHARES_TAGS, "가중평균주식수")
 
-    # D&A 는 분기 태그가 드물다 — 누적을 차분해 만든다.
-    da = collect(facts, DA_TAGS, *QUARTER_DAYS)
-    da_source = "보고값"
-    if len(da) < 4:
-        ytd = quarterly_from_ytd(facts, DA_TAGS)
-        if len(ytd) > len(da):
-            da, da_source = ytd, "계산값(누적 차분)"
+    # D&A 는 분기 태그가 드물다(실측 21분기 중 6~10개). 보고된 분기값을 먼저
+    # 깔고 **빈 자리만** 누적 차분으로 메운다 — 둘 중 하나만 쓰면 EBITDA 가
+    # 짧아진다(AAPL 은 보고값이 6개뿐이라 EBITDA 가 9분기에서 끊겼다).
+    reported = collect(facts, DA_TAGS, *QUARTER_DAYS)
+    ytd = quarterly_from_ytd(facts, DA_TAGS)
+    da = {**ytd, **reported}            # 겹치면 보고값이 이긴다
+    if reported and ytd:
+        da_source = "보고값+누적 차분"
+    elif reported:
+        da_source = "보고값"
+    elif ytd:
+        da_source = "누적 차분"
+    else:
+        da_source = "없음"
 
     # EBITDA = 영업이익 + 감가상각. **Adjusted EBITDA 가 아니다** — 비GAAP 이라
     # XBRL 에 없고(실측 4종목 전부 고유 태그 0개), 회사마다 정의가 다르다.
