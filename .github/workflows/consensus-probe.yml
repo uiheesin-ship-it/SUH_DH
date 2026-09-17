@@ -28,4 +28,10 @@ jobs:
       - name: Install deps
         run: pip install --quiet yfinance pandas curl_cffi
       - name: Probe
+        # 영업이익·순이익 컨센은 야후에 없다. 이 저장소가 이미 들고 있는 두 키로
+        # FMP·Alpha Vantage 를 열어 본다(실적 컨콜 수집에 쓰던 키다). 키가 없으면
+        # 그 부분만 건너뛴다. 키 자체는 로그에 찍지 않는다.
+        env:
+          EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
+          EAI_ALPHAVANTAGE_API_KEY: ${{ secrets.EAI_ALPHAVANTAGE_API_KEY }}
         run: python tools/consensus_probe.py ${{ github.event.inputs.tickers }}

@@ -87,7 +87,52 @@ def build(ticker: str) -> dict:
         out["notes"].append(
             "컨센을 못 받아 추정 구간(점선)이 없습니다. 마지막 확정 분기까지만 그립니다.")
     out["per"] = _chart(series, windows, quarters, con, est)
+    _attach_forecast(out, con, quarters, _fy_ends(facts))
     return out
+
+
+def _attach_forecast(out: dict, con: dict, quarters: list[dict],
+                     fy_ends: list[str]) -> None:
+    """항목마다 컨센 칸을 붙인다 — 확정 실적 오른쪽에 이어 붙을 것들.
+
+    기간 이름을 야후는 0q/+1q/0y/+1y 라는 **상대 이름**으로만 준다. 실제
+    날짜는 EDGAR 쪽에서 만들어 넘긴다: 분기는 마지막 확정 분기 다음 둘,
+    연간은 아직 안 끝난 회계연도부터 셋.
+    """
+    last_end = quarters[-1]["end"] if quarters else None
+    q_ends = forwardper.project_ends(last_end, len(consensus.Q_KEYS)) if last_end else []
+    first_future = forwardper._d(q_ends[0]) if q_ends else None
+    y_ends = [e for e in fy_ends
+              if first_future and forwardper._d(e) and forwardper._d(e) >= first_future]
+    y_ends = y_ends[:consensus.YEAR_SLOTS]
+
+    shares = None
+    qs = out["metrics"].get("가중평균주식수", {}).get("quarters") or []
+    if qs and qs[-1].get("val"):
+        shares = qs[-1]["val"]
+
+    plans = {
+        "매출": lambda: consensus.forecast(con, "revenue", q_ends, y_ends),
+        "희석EPS": lambda: consensus.forecast(con, "eps", q_ends, y_ends),
+        # 순이익 컨센은 어디에도 없다. EPS 컨센에 주식수를 곱해 **만든다** —
+        # 보고된 컨센이 아니므로 source 에 그렇게 적힌다.
+        "순이익": (lambda: consensus.forecast(con, "eps", q_ends, y_ends, scale=shares))
+                  if shares else
+                  (lambda: consensus.empty_forecast("주식수를 못 구해 EPS 컨센을 금액으로 바꿀 수 없습니다")),
+        "영업이익": lambda: consensus.empty_forecast(
+            "영업이익 컨센을 주는 무료 출처가 없습니다(야후·Alpha Vantage 모두 없음)"),
+        "EBITDA": lambda: consensus.empty_forecast(
+            "EBITDA 컨센을 주는 무료 출처가 없습니다"),
+        "가중평균주식수": lambda: consensus.empty_forecast("주식수 컨센은 없습니다"),
+    }
+    for label, make in plans.items():
+        if label in out["metrics"]:
+            out["metrics"][label]["estimates"] = make()
+    out["forecast_note"] = (
+        "컨센은 야후에서 받습니다 — 실측(2026-09-17, 4종목)으로 **매출과 EPS 만**, "
+        "**앞으로 두 분기와 두 회계연도**까지 나옵니다. 영업이익 컨센은 무료 출처가 "
+        "없고, 순이익은 EPS 컨센에 최근 주식수를 곱해 만든 계산값입니다. "
+        "내후년 칸은 자리를 비워 둡니다.")
 
 
 def _eps_rows(facts: dict) -> dict[str, dict]:

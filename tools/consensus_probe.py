@@ -21,7 +21,9 @@ blended forward EPS = w×FY0 + (1−w)×FY1. 그게 되는지도 같이 본다.
 
 from __future__ import annotations
 
+import json
 import sys
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -117,6 +119,124 @@ def main():
     need = [t for t, v in tally.items() if v["quarterly_consensus"] < 4]
     log(f"\n분기 컨센이 4개 미만인 종목: {len(need)}/{len(tally)} — {' '.join(need) or '없음'}")
     log("4개 미만이면 연간(0y/+1y)을 가중 혼합해 메워야 한다.")
+    log("\n야후가 주는 건 매출과 EPS 뿐이다 — 영업이익·순이익 컨센과 내후년(+2y)은 없다.")
+
+    probe_fmp(tickers)
+    probe_alphavantage(tickers)
+
+
+
+
+# ---------------------------------------------------------------------------
+# 2차: 영업이익·순이익 컨센을 어디서 받나
+#
+# 야후는 **매출과 EPS 만** 준다(0q·+1q·0y·+1y). 영업이익 컨센은 아예 없고,
+# 순이익도 없다(EPS × 주식수로 만들 수는 있지만 그건 계산값이다). 그리고
+# 내후년(+2y)이 없다.
+#
+# 이 저장소에는 이미 두 곳의 키가 걸려 있다 — 실적 컨콜 수집에 쓰던 것이다.
+#   EAI_TRANSCRIPT_API_KEY    Financial Modeling Prep
+#   EAI_ALPHAVANTAGE_API_KEY  Alpha Vantage
+#
+# FMP 의 analyst-estimates 는 estimatedRevenue / estimatedEbit(영업이익) /
+# estimatedNetIncome / estimatedEps 를 **연도별·분기별로** 준다. 요금제에 따라
+# 막혀 있을 수 있어서 실제로 열리는지 재 본다. 키는 절대 찍지 않는다.
+# ---------------------------------------------------------------------------
+import os
+import urllib.parse
+import urllib.request
+
+FMP_FIELDS = ["estimatedRevenueAvg", "estimatedEbitAvg", "estimatedEbitdaAvg",
+              "estimatedNetIncomeAvg", "estimatedEpsAvg",
+              "numberAnalystEstimatedRevenue", "numberAnalystsEstimatedEps"]
+
+
+def _json(url, timeout=25):
+    req = urllib.request.Request(url, headers={"User-Agent": "SUH_DH-probe"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read())
+
+
+def _hide(e):
+    """예외 문구에 쿼리스트링(=키)이 섞여 나오지 않게 한다."""
+    return f"{type(e).__name__}: {str(e).split('?')[0][:120]}"
+
+
+def probe_fmp(tickers):
+    key = os.environ.get("EAI_TRANSCRIPT_API_KEY", "").strip()
+    log("\n\n══ FMP analyst-estimates ══════════════════════════════")
+    if not key:
+        log("  키 없음(EAI_TRANSCRIPT_API_KEY) — 건너뜁니다")
+        return
+    for t in tickers[:4]:
+        for label, url in [
+            ("v3 annual", f"https://financialmodelingprep.com/api/v3/analyst-estimates/{t}?period=annual&limit=8"),
+            ("v3 quarter", f"https://financialmodelingprep.com/api/v3/analyst-estimates/{t}?period=quarter&limit=8"),
+            ("stable annual", f"https://financialmodelingprep.com/stable/analyst-estimates?symbol={t}&period=annual&limit=8"),
+            ("stable quarter", f"https://financialmodelingprep.com/stable/analyst-estimates?symbol={t}&period=quarter&limit=8"),
+        ]:
+            try:
+                rows = _json(url + "&apikey=" + urllib.parse.quote(key))
+            except Exception as e:  # noqa: BLE001
+                log(f"  {t:6} {label:15} ✕ {_hide(e)}")
+                continue
+            if isinstance(rows, dict):
+                msg = rows.get("Error Message") or rows.get("message") or str(rows)[:120]
+                log(f"  {t:6} {label:15} ✕ {msg[:110]}")
+                continue
+            if not rows:
+                log(f"  {t:6} {label:15} — 빈 응답")
+                continue
+            dates = sorted(r.get("date", "") for r in rows)
+            have = [f for f in FMP_FIELDS if rows[0].get(f) not in (None, 0)]
+            log(f"  {t:6} {label:15} {len(rows)}행 · {dates[0]} ~ {dates[-1]}")
+            log(f"  {'':6} {'':15} 채워진 필드: {', '.join(have) or '없음'}")
+            log(f"  {'':6} {'':15} 예시: " +
+                json.dumps({k: rows[-1].get(k) for k in ["date"] + FMP_FIELDS},
+                           ensure_ascii=False)[:220])
+        time.sleep(1.0)
+
+
+def probe_alphavantage(tickers):
+    """AV 는 horizon 으로 분기/연간을 나눠 준다. **미래가 몇 개인지**가 핵심이다."""
+    from datetime import date
+
+    key = os.environ.get("EAI_ALPHAVANTAGE_API_KEY", "").strip()
+    log("\n\n══ Alpha Vantage EARNINGS_ESTIMATES ═══════════════════")
+    if not key:
+        log("  키 없음(EAI_ALPHAVANTAGE_API_KEY) — 건너뜁니다")
+        return
+    today = date.today().isoformat()
+    for i, t in enumerate(tickers[:3]):
+        if i:
+            time.sleep(15)          # 무료 플랜은 분당 5회
+        url = ("https://www.alphavantage.co/query?function=EARNINGS_ESTIMATES"
+               f"&symbol={t}&apikey={urllib.parse.quote(key)}")
+        try:
+            d = _json(url)
+        except Exception as e:  # noqa: BLE001
+            log(f"  {t:6} ✕ {_hide(e)}")
+            continue
+        rows = d.get("estimates")
+        if not rows:
+            log(f"  {t:6} ✕ {json.dumps(d, ensure_ascii=False)[:180]}")
+            continue
+        fields = sorted(rows[0])
+        has_rev = [f for f in fields if "revenue" in f.lower() or "sales" in f.lower()]
+        fut = {}
+        for h in ("fiscal quarter", "fiscal year"):
+            got = sorted(r["date"] for r in rows
+                         if r.get("horizon") == h and r.get("date", "") > today)
+            fut[h] = got
+        log(f"  {t:6} 전체 {len(rows)}행 · 매출 관련 필드: {has_rev or '없음'}")
+        log(f"  {'':6} 미래 분기 {len(fut['fiscal quarter'])}개 → {fut['fiscal quarter'][:6]}")
+        log(f"  {'':6} 미래 연간 {len(fut['fiscal year'])}개 → {fut['fiscal year'][:4]}")
+        for r in rows:
+            if r.get("horizon") == "fiscal year" and r.get("date", "") > today:
+                log(f"  {'':6}   {r['date']} EPS {r.get('eps_estimate_average')} "
+                    f"(애널 {r.get('eps_estimate_analyst_count')}명, "
+                    f"{r.get('eps_estimate_low')}~{r.get('eps_estimate_high')})")
+
 
 
 if __name__ == "__main__":

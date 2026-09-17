@@ -87,7 +87,7 @@ function render(d) {
   for (const n of d.notes || []) head += `<span class="warn">⚠ ${n}</span>`;
   $("head").innerHTML = head;
 
-  renderMetrics(d.metrics || {});
+  renderMetrics(d.metrics || {}, d.forecast_note);
   $("table-sec").classList.remove("hidden");
 
   if (d.per && d.per.dates && d.per.dates.length) {
@@ -99,41 +99,101 @@ function render(d) {
   $("empty").classList.add("hidden");
 }
 
-function renderMetrics(metrics) {
-  const labels = Object.keys(metrics);
+/* 확정 실적 오른쪽에 **컨센 칸**을 이어 붙인다.
+ *
+ * 따로 표를 만들지 않고 같은 표의 오른쪽에 붙인다 — 확정과 추정을 나란히 놓고
+ * 좌우로 굴려 봐야 흐름이 읽힌다. 대신 경계가 분명해야 한다: 세로 구분선과
+ * 다른 배경, 그리고 열 이름에 (E).
+ *
+ * 성장률은 확정과 추정을 **이어 붙인 뒤** 한 번에 계산한다. 그래야 첫 추정
+ * 분기의 YoY 가 1년 전 확정 실적과 비교된다(따로 계산하면 그 칸이 빈다).
+ */
+function growth(vals) {
+  return vals.map((v, i) => {
+    const g = (back) => {
+      const prev = vals[i - back];
+      return i >= back && prev !== null && prev !== undefined && prev > 0
+             && v !== null && v !== undefined ? (v / prev - 1) * 100 : null;
+    };
+    return { qoq: g(1), yoy: g(4) };
+  });
+}
+
+const YEAR_FALLBACK = ["올해", "내년", "내후년"];
+
+function renderMetrics(metrics, note) {
   const out = [];
-  for (const label of labels) {
+  for (const label of Object.keys(metrics)) {
     const m = metrics[label];
     const qs = m.quarters || [];
-    if (!qs.length) {
+    const est = m.estimates || { quarters: [], years: [] };
+    const eq = est.quarters || [];
+    const ey = est.years || [];
+    if (!qs.length && !eq.length && !ey.some((y) => y.val !== null)) {
       out.push(`<div class="mtable"><h3>${label}
         <span class="src">${m.source}</span></h3></div>`);
       continue;
     }
     const isRatio = label.includes("EPS");
-    const head = ["항목", ...qs.map((q) => q.end)];
-    const row = (name, get, cls) =>
-      `<tr><td>${name}</td>` + qs.map((q) => {
-        const v = get(q);
-        if (v === null || v === undefined) return `<td class="na">—</td>`;
-        const k = cls ? (v > 0 ? "up" : v < 0 ? "down" : "") : "";
-        return `<td class="${k}">${cls ? fmtPct(v) : (isRatio ? v.toFixed(2) : fmtBig(v))}</td>`;
+    const fmt = (v) => (v === null || v === undefined ? "—"
+                        : isRatio ? v.toFixed(2) : fmtBig(v));
+
+    // 확정 + 추정 분기를 이어 붙여 성장률을 한 번에
+    const series = [...qs.map((q) => q.val), ...eq.map((q) => q.val)];
+    const g = growth(series);
+    const cells = [
+      ...qs.map((q, i) => ({ head: q.end, kind: "", val: q.val, ...g[i] })),
+      ...eq.map((q, i) => ({ head: `${q.end} (E)`, kind: "est", val: q.val,
+                             analysts: q.analysts, ...g[qs.length + i] })),
+    ];
+    const yv = ey.map((y) => y.val);
+    const yg = yv.map((v, i) => {
+      const prev = yv[i - 1];
+      return i > 0 && prev > 0 && v !== null && v !== undefined
+             ? (v / prev - 1) * 100 : null;
+    });
+    ey.forEach((y, i) => cells.push({
+      head: `${y.end ? "FY" + y.end.slice(0, 4) : YEAR_FALLBACK[i]} (E)`,
+      kind: "est yr", val: y.val, analysts: y.analysts, yoy: yg[i], qoq: null,
+    }));
+    const firstEst = qs.length;
+    const hasAnalysts = cells.some((c) => c.analysts);
+
+    // 애널리스트 수는 사람 수다 — 27.00 이 아니라 27 로.
+    const cnt = (v) => (v ? String(Math.round(v)) : "—");
+    const td = (c, i, text, cls) =>
+      `<td class="${c.kind}${i === firstEst ? " split" : ""}${cls ? " " + cls : ""}">${text}</td>`;
+    const pct = (v) => (v === null || v === undefined ? "—" : fmtPct(v));
+    const row = (name, pick, isPct) =>
+      `<tr><td>${name}</td>` + cells.map((c, i) => {
+        const v = pick(c);
+        const cls = isPct && v !== null && v !== undefined
+                    ? (v > 0 ? "up" : v < 0 ? "down" : "") : (v === null ? "na" : "");
+        return td(c, i, isPct ? pct(v) : fmt(v), cls);
       }).join("") + "</tr>";
 
+    const why = est.reason ? `<p class="note">⚠ ${est.reason}</p>` : "";
     out.push(`<div class="mtable">
-      <h3>${label} <span class="src">${m.source}</span></h3>
+      <h3>${label} <span class="src">${m.source}</span>
+        ${est.source && est.source !== "없음"
+          ? `<span class="src est-src">컨센: ${est.source}</span>` : ""}</h3>
       ${m.note ? `<p class="note">⚠ ${m.note}</p>` : ""}
       ${m.warning ? `<p class="note">⚠ ${m.warning}</p>` : ""}
+      ${why}
       <div class="table-wrap"><table>
-        <thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+        <thead><tr><th>항목</th>${cells.map((c, i) =>
+          `<th class="${c.kind}${i === firstEst ? " split" : ""}">${c.head}</th>`).join("")}</tr></thead>
         <tbody>
-          ${row("값", (q) => q.val, false)}
-          ${row("YoY", (q) => q.yoy, true)}
-          ${row("QoQ", (q) => q.qoq, true)}
+          ${row("값", (c) => c.val, false)}
+          ${row("YoY", (c) => c.yoy, true)}
+          ${row("QoQ", (c) => c.qoq, true)}
+          ${hasAnalysts ? `<tr><td>애널리스트</td>` + cells.map((c, i) =>
+              td(c, i, cnt(c.analysts), c.analysts ? "" : "na")).join("") + `</tr>` : ""}
         </tbody>
       </table></div></div>`);
   }
-  $("metrics").innerHTML = out.join("");
+  $("metrics").innerHTML =
+    (note ? `<p class="sec-desc forecast-note">${note}</p>` : "") + out.join("");
 }
 
 /* ---------------------------------------------------------------------- 차트 */
