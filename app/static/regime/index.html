@@ -615,17 +615,20 @@
        다른 컴퓨터에서 이 프로그램 띄우는 방법 (🖥 설치·실행 버튼).
        Windows 기준으로 쓰되 Mac/Linux 도 같이 적는다.
        =================================================================== -->
+  <!-- ==================================================================
+       이 프로그램을 내 컴퓨터에서 띄우는 방법 (🖥 설치·실행 버튼).
+       "지금 내 상황이 어느 경우인가" 로 먼저 나눈다 — 매번 처음부터 하지 않도록.
+       =================================================================== -->
   <div id="setup" class="help hidden" role="dialog" aria-modal="true" aria-labelledby="setup-title">
     <div class="help-backdrop" data-close="1"></div>
     <div class="help-box">
       <div class="help-head">
-        <h2 id="setup-title">다른 컴퓨터에서 실행하기</h2>
+        <h2 id="setup-title">설치 · 실행</h2>
         <nav class="help-nav">
-          <a href="#s1">① Python</a>
-          <a href="#s2">② 내려받기</a>
-          <a href="#s3">③ 설치</a>
-          <a href="#s4">④ 실행</a>
-          <a href="#s5">⑤ 사용</a>
+          <a href="#s0">준비</a>
+          <a href="#sa">A. 다시 쓸 때</a>
+          <a href="#sb">B. 새 컴퓨터</a>
+          <a href="#sc">C. 업데이트</a>
           <a href="#s6">막힐 때</a>
         </nav>
         <button id="setup-close" class="ghost-btn" title="닫기 (Esc)">✕</button>
@@ -633,9 +636,9 @@
 
       <div class="help-body">
         <p class="help-lead">
-          이 프로그램은 <b>내 컴퓨터에서 도는 작은 웹 서버</b>입니다. 아래 네 단계면 어느
-          컴퓨터에서든 똑같이 씁니다. 처음 한 번만 ①~③ 을 하고, 그 다음부터는 ④ 만 하면 됩니다.
+          이 프로그램은 <b>내 컴퓨터에서 도는 작은 웹 서버</b>입니다.
           <b>올린 CSV 는 그 컴퓨터 바깥으로 나가지 않습니다.</b>
+          아래에서 지금 상황에 맞는 경우만 따라 하세요.
         </p>
 
         <div class="note warn" style="margin:14px 0">
@@ -647,86 +650,175 @@
           <b>온라인이 안 될 때는 아래대로 로컬에서 실행하면 그대로 동작합니다.</b>
         </div>
 
-        <h3 id="s1">① Python 설치 <span class="k">(처음 한 번)</span></h3>
+        <div class="note info" style="margin:14px 0">
+          <b>중요 — 내 폴더는 "그때 받은 복사본"입니다.</b>
+          저장소가 고쳐져도 이미 받아 둔 폴더는 그대로입니다. 새 기능을 쓰려면
+          <b>C. 업데이트</b> 를 해야 합니다. (온라인 화면은 자동으로 갱신됩니다.)
+        </div>
+
+        <!-- ---------------------------------------------------- 준비 -->
+        <h3 id="s0">준비 — 처음 한 번만</h3>
+
+        <h4>1) Python</h4>
         <p class="help-note">
           <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org/downloads</a>
           에서 최신 버전을 받아 설치합니다. 설치 첫 화면에 <b>"Add python.exe to PATH"</b> 체크가
           보이면 켜 주세요 — <b>안 보여도 괜찮습니다.</b> Windows 에는 <code>py</code> 라는 실행기가
-          같이 깔리는데, 이건 PATH 설정과 상관없이 항상 동작합니다.
+          같이 깔리는데, PATH 설정과 상관없이 항상 동작합니다.
         </p>
-        <p class="help-note">확인: <b>시작 메뉴 → <code>powershell</code></b> 실행 후</p>
+        <p class="help-note">확인 — <b>시작 메뉴 → <code>powershell</code></b> 실행 후:</p>
         <pre class="help-pre">py --version</pre>
         <p class="help-note">
           <code>Python 3.13.x</code> 같은 게 나오면 됩니다. 안 나오면 <code>python --version</code> 을
           해 보시고, 그것도 안 되면 <b>Microsoft Store</b> 에서 <b>Python</b> 을 설치하세요(PATH 가 자동입니다).
-          이 안내에서 <code>py</code> 라고 적은 부분은, 그쪽이 되는 경우 <code>python</code> 으로 바꿔 쓰시면 됩니다.
+          아래에서 <code>py</code> 라고 적은 부분은 그 경우 <code>python</code> 으로 바꿔 쓰시면 됩니다.
         </p>
 
-        <h3 id="s2">② 프로그램 파일 내려받기 <span class="k">(Git 없이)</span></h3>
-        <p class="help-note">브라우저에서 아래 주소를 열면 ZIP 이 받아집니다.</p>
+        <h4>2) Git <span class="k">— 선택이지만 권장</span></h4>
+        <p class="help-note">
+          Git 이 있으면 업데이트가 <b>명령 한 줄</b>로 끝납니다. 없으면 매번 ZIP 을 받아
+          압축을 풀어야 합니다. 둘 다 결과는 같습니다.
+        </p>
+        <p class="help-note">
+          <a href="https://git-scm.com/download/win" target="_blank" rel="noopener">git-scm.com/download/win</a>
+          에서 받아 설치합니다. 설치 화면이 여러 장 나오는데 <b>전부 기본값 그대로 Next</b> 를
+          누르시면 됩니다(바꿀 것 없습니다). 설치가 끝나면 <b>PowerShell 을 새로 열고</b>:
+        </p>
+        <pre class="help-pre">git --version</pre>
+        <p class="help-note">
+          <code>git version 2.x.x</code> 가 나오면 됩니다. 아무 것도 안 나오면 PowerShell 창을
+          닫았다 다시 열어 보세요(설치 직후에는 새 창이어야 인식합니다).
+        </p>
+
+        <!-- ---------------------------------------------------- A -->
+        <h3 id="sa">A. 같은 컴퓨터에서 다시 쓸 때 <span class="k">— 제일 흔한 경우</span></h3>
+        <p class="help-note">
+          <b>설치는 다시 하지 않습니다.</b> 서버만 켜면 됩니다.
+        </p>
+        <p class="help-note">
+          ① 전에 만들어 둔 폴더를 파일 탐색기로 엽니다 (예: <code>C:\SUH_DH</code>).
+          <b>위쪽 주소 표시줄을 클릭</b>해 경로를 지우고 <code>powershell</code> 입력 후 Enter.
+        </p>
+        <p class="help-note">② 검은 창에:</p>
+        <pre class="help-pre">py -m uvicorn app.main:app --port 8000</pre>
+        <p class="help-note">
+          ③ 브라우저에서 <code>127.0.0.1:8000/regime/</code><br>
+          ④ <b>CSV 는 이미 기억돼 있습니다</b> — 바로 <b>분석 실행</b>을 누르세요.
+          지난 분석 결과도 그대로 떠 있습니다.
+        </p>
+        <p class="help-note">
+          끝낼 때는 검은 창에서 <b>Ctrl + C</b>. 그 창은 켜져 있는 동안만 프로그램이 돕니다.
+        </p>
+
+        <!-- ---------------------------------------------------- B -->
+        <h3 id="sb">B. 새 컴퓨터에서 처음 쓸 때</h3>
+        <p class="help-note">
+          <b>준비</b>(Python, 가능하면 Git)를 먼저 끝내고 아래 둘 중 하나를 고르세요.
+        </p>
+
+        <h4>B-1. Git 으로 <span class="k">— 권장. 나중에 업데이트가 한 줄</span></h4>
+        <p class="help-note">PowerShell 을 열고(아무 데서나 됩니다), 프로그램을 둘 위치로 이동:</p>
+        <pre class="help-pre">cd C:\</pre>
+        <p class="help-note">그다음 내려받기 — 저장소가 공개라 로그인은 필요 없습니다:</p>
+        <pre class="help-pre">git clone -b claude/funny-carson-ent3s7 https://github.com/uiheesin-ship-it/SUH_DH.git</pre>
+        <p class="help-note">
+          <code>C:\SUH_DH</code> 폴더가 생깁니다. 그 안으로 들어가 패키지를 설치하고 실행합니다:
+        </p>
+        <pre class="help-pre">cd C:\SUH_DH
+py -m pip install -r requirements.txt
+py -m uvicorn app.main:app --port 8000</pre>
+
+        <h4>B-2. ZIP 으로 <span class="k">— Git 없이</span></h4>
+        <p class="help-note">브라우저에서 아래 주소를 열면 ZIP 이 받아집니다:</p>
         <pre class="help-pre">https://github.com/uiheesin-ship-it/SUH_DH/archive/refs/heads/claude/funny-carson-ent3s7.zip</pre>
         <p class="help-note">
           잘 안 되면 손으로: <b>github.com/uiheesin-ship-it/SUH_DH</b> → 왼쪽 위 브랜치 목록에서
           <code>claude/funny-carson-ent3s7</code> 선택 → 초록색 <b>Code ▾</b> → <b>Download ZIP</b>.
         </p>
         <p class="help-note">
-          받은 zip 의 <b>압축을 풉니다.</b> 경로는 짧고 한글·공백 없는 곳이 좋습니다 (예: <code>C:\SUH_DH</code>).
-          풀린 폴더 <b>안으로 들어가서</b> <code>requirements.txt</code>, <code>app</code> 폴더가 보이면 제대로 온 것입니다.
+          <b>압축을 풉니다.</b> 경로는 짧고 한글·공백 없는 곳이 좋습니다 (예: <code>C:\SUH_DH</code>).
+          풀린 폴더 <b>안으로 들어가서</b> <code>requirements.txt</code> 와 <code>app</code> 폴더가
+          보이면 제대로 온 것입니다. 그 폴더에서 주소 표시줄에 <code>powershell</code> 을 입력해 창을 열고:
         </p>
-        <p class="help-note">
-          <b>그 폴더에서 PowerShell 을 엽니다</b> — 파일 탐색기에서 그 폴더를 연 채로
-          <b>위쪽 주소 표시줄을 클릭</b>해 경로를 지우고 <code>powershell</code> 이라고 입력 후 Enter.
-          검은 창 맨 앞에 그 폴더 경로가 찍혀 있으면 맞습니다.
-        </p>
+        <pre class="help-pre">py -m pip install -r requirements.txt
+py -m uvicorn app.main:app --port 8000</pre>
 
-        <h3 id="s3">③ 필요한 패키지 설치 <span class="k">(처음 한 번, 2~5분)</span></h3>
-        <pre class="help-pre">py -m pip install -r requirements.txt</pre>
+        <h4>그다음 — 두 방식 공통</h4>
         <p class="help-note">
-          pandas·plotly 등을 받습니다. 노란 경고는 넘어가도 되고, 마지막에
-          <code>Successfully installed ...</code> 가 나오면 끝입니다.
-        </p>
-
-        <h3 id="s4">④ 실행 <span class="k">(쓸 때마다)</span></h3>
-        <pre class="help-pre">py -m uvicorn app.main:app --port 8000</pre>
-        <p class="help-note">
-          Mac / Linux 는 같은 폴더에서 <code>./run.sh</code> 를 써도 됩니다.<br>
           <code>Uvicorn running on http://127.0.0.1:8000</code> 이 나오면 성공입니다.
-          <b>이 검은 창은 닫지 마세요</b> — 켜져 있는 동안만 동작합니다. 끝낼 때는 그 창에서 <b>Ctrl + C</b>.
+          브라우저에서 <code>127.0.0.1:8000/regime/</code> 를 열고,
+          <b>Manual Upload</b> 를 고른 뒤 <code>date, open, high, low, close, Volume</code> 이 들어 있는
+          CSV 한 개를 올리고 <b>분석 실행</b>.
+          <b>이 브라우저에 데이터 기억</b>을 켜 두면 다음부터는 A 만 하면 됩니다.<br>
+          Mac / Linux 는 같은 폴더에서 <code>./run.sh</code> 를 써도 됩니다.
         </p>
 
-        <h3 id="s5">⑤ 사용</h3>
-        <p class="help-note">브라우저 주소창에:</p>
-        <pre class="help-pre">127.0.0.1:8000/regime/</pre>
+        <!-- ---------------------------------------------------- C -->
+        <h3 id="sc">C. 프로그램을 최신으로 업데이트할 때</h3>
         <p class="help-note">
-          대시보드 전체는 <code>127.0.0.1:8000</code> → <b>미장 → 기타 → Market Regime Lab</b>.<br>
-          <b>Manual Upload</b> 를 고르고 <code>date, open, high, low, close, Volume</code> 이 들어 있는
-          CSV 한 개를 올린 뒤 <b>분석 실행</b>. <b>이 브라우저에 데이터 기억</b>을 켜 두면 다음에 열 때
-          파일과 지난 분석 결과가 그대로 복원됩니다(그 브라우저 안에만 저장됩니다).<br>
-          인터넷이 되는 컴퓨터라면 <b>Auto Download</b> 로 ^IXIC 를 자동으로 받아 쓸 수도 있습니다 —
-          다만 자동 내려받기는 거래량이 부실한 경우가 있어 분산일 분석이 영향을 받을 수 있습니다.
+          기능이 추가·수정돼도 <b>내 폴더는 저절로 바뀌지 않습니다.</b> 아래로 받아 오세요.
+          <b>브라우저에 저장된 CSV 와 분석 결과는 그대로 남습니다</b> —
+          저장이 폴더가 아니라 <code>127.0.0.1:8000</code> 이라는 주소에 묶여 있어서,
+          폴더를 새로 만들어도 같은 포트로 띄우면 그대로 복원됩니다.
+        </p>
+        <p class="help-note">먼저 돌고 있는 서버를 <b>Ctrl + C</b> 로 끕니다.</p>
+
+        <h4>Git 으로 받았다면</h4>
+        <pre class="help-pre">cd C:\SUH_DH
+git pull
+py -m pip install -r requirements.txt
+py -m uvicorn app.main:app --port 8000</pre>
+        <p class="help-note">
+          <code>git pull</code> 한 줄이면 끝입니다. <code>Already up to date.</code> 가 나오면
+          이미 최신이라는 뜻입니다. 패키지가 새로 추가되지 않았다면
+          <code>pip install</code> 은 건너뛰어도 되지만, 한 번 더 해도 해롭지 않습니다.
         </p>
 
+        <h4>ZIP 으로 받았다면</h4>
+        <p class="help-note">
+          B-2 를 다시 합니다 — 새 ZIP 을 받아 압축을 풀고(새 폴더여도 됩니다),
+          그 폴더에서 <code>pip install</code> 과 실행을 한 번씩.
+        </p>
+
+        <h4>최신인지 확인</h4>
+        <p class="help-note">
+          브라우저를 <b>Ctrl + F5</b> 로 강제 새로고침한 뒤 이 화면 위쪽에
+          <b>❓ 설명</b> 과 <b>🖥 설치·실행</b> 버튼이 둘 다 보이면 반영된 것입니다.
+        </p>
+
+        <!-- ---------------------------------------------------- 막힐 때 -->
         <h3 id="s6">막힐 때</h3>
+        <p class="help-note">
+          <b>먼저 이것 하나만</b> — 브라우저에서 <code>127.0.0.1:8000/api/health</code> 를 열어 보세요.
+          <code>"regime":{"ok":true}</code> 면 서버는 정상입니다.
+        </p>
         <dl class="help-dl">
+          <dt><code>Method Not Allowed</code> 또는 <code>Failed to fetch</code></dt>
+          <dd>
+            <b>온라인 주소를 보고 계신 것입니다.</b> 주소창을 <code>127.0.0.1:8000/regime/</code> 로
+            바꾸세요(그 전에 서버가 켜져 있어야 합니다 — A).
+          </dd>
           <dt><code>py</code> 를 찾을 수 없다</dt>
           <dd><code>python -m ...</code> 으로 바꿔 보시고, 그래도 안 되면 Microsoft Store 에서 Python 설치.</dd>
-          <dt>Regime Lab 화면은 뜨는데 분석이 안 된다</dt>
+          <dt><code>git</code> 을 찾을 수 없다</dt>
+          <dd>PowerShell 창을 닫았다가 새로 여세요. 그래도 없으면 Git 설치가 안 된 것입니다 — 준비 2) 로.</dd>
+          <dt>화면은 뜨는데 분석이 안 된다</dt>
           <dd>
-            브라우저에서 <code>127.0.0.1:8000/api/health</code> 를 열어 보세요.
-            <code>"regime":{"ok":true}</code> 여야 정상입니다. <code>false</code> 면 옆의
-            <code>error</code> 에 원인이 적혀 있습니다 — 대개 ③ 을 다시 하면 해결됩니다.
+            <code>/api/health</code> 에서 <code>"regime":{"ok":false}</code> 라면 옆의
+            <code>error</code> 에 원인이 적혀 있습니다. 대개
+            <code>py -m pip install -r requirements.txt</code> 를 다시 하면 해결됩니다.
           </dd>
           <dt><code>pip install</code> 이 실패한다</dt>
-          <dd><code>py -m pip install --upgrade pip</code> 를 먼저 실행하고 ③ 을 다시 하세요.</dd>
+          <dd><code>py -m pip install --upgrade pip</code> 를 먼저 실행하고 다시 하세요.</dd>
           <dt>8000번 포트가 이미 사용 중</dt>
-          <dd><code>--port 8001</code> 로 바꾸고 주소도 <code>127.0.0.1:8001</code> 로 여세요.</dd>
+          <dd><code>--port 8001</code> 로 바꾸고 주소도 <code>127.0.0.1:8001</code> 로 여세요. (저장해 둔 CSV 는 포트가 다르면 따로 관리됩니다.)</dd>
           <dt>인터넷 없이 화면만 보고 싶다</dt>
           <dd>실행 전에 <code>$env:SUH_DH_DEMO=1</code> (PowerShell)을 입력하면 합성 데이터로 뜹니다. 내 CSV 분석에는 필요 없습니다.</dd>
         </dl>
 
         <p class="help-foot">
-          프로그램을 최신으로 바꾸려면 ② 를 다시 해서 새 ZIP 을 받고 ③ 을 한 번 더 실행하세요.
-          브라우저에 저장해 둔 CSV 와 결과는 그대로 남습니다.
+          CSV 파일 자체는 USB·메일·클라우드 무엇으로든 옮기시면 됩니다 — 파일 하나면 충분합니다
+          (<code>date, open, high, low, close, Volume</code>).
         </p>
       </div>
     </div>
