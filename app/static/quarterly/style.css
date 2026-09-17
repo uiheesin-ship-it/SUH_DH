@@ -119,6 +119,16 @@ tbody tr:hover td { background: rgba(56, 189, 248, .06); }
 td.up { color: var(--up); } td.down { color: var(--down); }
 td.na { color: var(--muted); }
 
+/* 컨센 칸 — 확정 실적 오른쪽에 이어 붙는다. 경계가 분명해야 한다. */
+th.est, td.est { background: rgba(244, 114, 182, .07); }
+thead th.est { background: rgba(244, 114, 182, .14); color: #f9a8d4; }
+th.split, td.split { border-left: 2px solid var(--per-est); }
+th.yr, td.yr { background: rgba(244, 114, 182, .13); }
+thead th.yr { background: rgba(244, 114, 182, .2); }
+tbody tr:hover td.est { background: rgba(244, 114, 182, .16); }
+.est-src { color: #f9a8d4 !important; }
+.forecast-note { border-left: 3px solid var(--per-est); padding-left: 12px; }
+
 /* 모달 */
 .modal {
   position: fixed; inset: 0; z-index: 20; display: flex;

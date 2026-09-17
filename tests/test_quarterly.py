@@ -19,8 +19,8 @@ def fact(start, end, val, filed, form="10-Q"):
 
 
 def _facts():
-    """2022-03 ~ 2026-06, 분기 EPS 1.0 / 순이익 100 / 매출 1000."""
-    eps, ni, rev, ann = [], [], [], []
+    """2022-03 ~ 2026-06, 분기 EPS 1.0 / 순이익 100 / 매출 1000 / 주식수 1억."""
+    eps, ni, rev, ann, sh = [], [], [], [], []
     for y in range(2022, 2027):
         for i, (s, e) in enumerate([("01-01", "03-31"), ("04-01", "06-30"),
                                     ("07-01", "09-30"), ("10-01", "12-31")]):
@@ -32,6 +32,7 @@ def _facts():
             eps.append(fact(f"{y}-{s}", f"{y}-{e}", 1.0, filed))
             ni.append(fact(f"{y}-{s}", f"{y}-{e}", 100.0, filed))
             rev.append(fact(f"{y}-{s}", f"{y}-{e}", 1000.0, filed))
+            sh.append(fact(f"{y}-{s}", f"{y}-{e}", 100_000_000.0, filed))
         if y < 2026:
             ann.append(fact(f"{y}-01-01", f"{y}-12-31", 400.0, f"{y + 1}-02-20", "10-K"))
             eps.append(fact(f"{y}-01-01", f"{y}-12-31", 4.0, f"{y + 1}-02-20", "10-K"))
@@ -40,6 +41,7 @@ def _facts():
         "EarningsPerShareDiluted": {"units": {"USD/shares": eps}},
         "NetIncomeLoss": {"units": {"USD": ni + ann}},
         "Revenues": {"units": {"USD": rev}},
+        "WeightedAverageNumberOfDilutedSharesOutstanding": {"units": {"shares": sh}},
     }}}
 
 
@@ -139,3 +141,54 @@ def test_no_price_means_no_per_but_the_table_survives(monkeypatch):
     r = quarterly.build("TEST")
     assert r["metrics"]["매출"]["count"] == 18
     assert r["per"]["dates"] == []
+
+
+# ------------------------------------------ 컨센 칸이 확정 실적 옆에 붙는가
+def test_each_metric_gets_a_forecast_block(monkeypatch):
+    wire(monkeypatch, con=FULL_CON)
+    m = quarterly.build("TEST")["metrics"]
+    for label in ("매출", "영업이익", "순이익", "희석EPS"):
+        assert "estimates" in m[label], label
+        assert len(m[label]["estimates"]["years"]) == 3, label
+
+
+def test_operating_income_has_no_consensus_and_says_why(monkeypatch):
+    """야후에도 Alpha Vantage 에도 영업이익 컨센이 없다(실측)."""
+    wire(monkeypatch, con=FULL_CON)
+    e = quarterly.build("TEST")["metrics"]["영업이익"]["estimates"]
+    assert e["quarters"] == [] and e["source"] == "없음"
+    assert "영업이익" in e["reason"]
+
+
+def test_revenue_and_eps_consensus_land_on_real_dates(monkeypatch):
+    """야후는 0q/+1q 라는 상대 이름만 준다 — 날짜는 EDGAR 쪽에서 만들어 붙인다."""
+    wire(monkeypatch, con=FULL_CON)
+    e = quarterly.build("TEST")["metrics"]["희석EPS"]["estimates"]
+    assert [q["end"] for q in e["quarters"]] == ["2026-09-30", "2026-12-31"]
+    assert e["quarters"][0]["val"] == 1.5
+    assert e["years"][0]["end"] == "2026-12-31" and e["years"][0]["val"] == 6.0
+    assert e["years"][-1]["val"] is None          # 내후년은 안 나온다
+
+
+def test_net_income_consensus_is_eps_times_shares_and_labelled(monkeypatch):
+    """순이익 컨센은 어디에도 없다 — EPS 컨센 × 주식수로 만들고 그렇게 적는다."""
+    wire(monkeypatch, con=FULL_CON)
+    m = quarterly.build("TEST")["metrics"]
+    shares = m["가중평균주식수"]["quarters"][-1]["val"]
+    assert shares == 100_000_000
+    e = m["순이익"]["estimates"]
+    assert e["quarters"][0]["val"] == 1.5 * shares
+    assert "주식수" in e["source"]
+
+
+def test_without_a_share_count_the_net_income_columns_stay_empty(monkeypatch):
+    """주식수를 못 구하면 지어내지 않는다."""
+    facts = _facts()
+    del facts["facts"]["us-gaap"]["WeightedAverageNumberOfDilutedSharesOutstanding"]
+    monkeypatch.setattr(quarterly.secdata, "fetch",
+                        lambda t: ("1", {"name": "T", "sic": "S", "fiscal_year_end": "1231"}, facts))
+    monkeypatch.setattr(quarterly.charts, "get_chart", lambda t, r: dict(PRICES))
+    monkeypatch.setattr(quarterly.consensus, "fetch", lambda t: FULL_CON)
+    e = quarterly.build("TEST")["metrics"]["순이익"]["estimates"]
+    assert e["quarters"] == [] and e["source"] == "없음"
+    assert "주식수" in e["reason"]

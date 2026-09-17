@@ -120,3 +120,51 @@ def test_an_empty_response_is_not_cached(monkeypatch):
     assert consensus.fetch("ZZZZ")["eps"] == {}
     wire(monkeypatch, FakeTicker())
     assert consensus.fetch("ZZZZ")["eps"] != {}
+
+
+# ------------------------------------------------- 컨센 표 (확정 오른쪽에 붙을 칸)
+QE = ["2026-09-30", "2026-12-31"]
+YE = ["2026-12-31", "2027-12-31"]
+
+
+def test_the_forecast_table_fills_two_quarters_and_two_years(monkeypatch):
+    """실측(4종목): 야후는 분기 2개 + 연간 2개까지만 준다."""
+    wire(monkeypatch, FakeTicker())
+    f = consensus.forecast(consensus.fetch("X"), "eps", QE, YE)
+    assert [q["end"] for q in f["quarters"]] == QE
+    assert f["quarters"][0]["val"] == 1.03
+    assert f["quarters"][0]["analysts"] == 17
+    assert [y["val"] for y in f["years"]] == [4.34, 5.33, None]
+
+
+def test_the_third_year_slot_is_always_there_and_always_empty():
+    """내후년 컨센은 무료로 안 나온다 — 칸은 두되 비워 둔다."""
+    f = consensus.forecast({}, "eps", QE, YE)
+    assert len(f["years"]) == consensus.YEAR_SLOTS == 3
+    assert f["years"][-1]["val"] is None
+    assert f["source"] == "없음"
+
+
+def test_a_ticker_without_quarterly_consensus_gets_no_quarter_columns(monkeypatch):
+    """분기 컨센이 없으면 그 칸은 아예 만들지 않는다."""
+    est = EST.drop(index=["0q", "+1q"])
+    wire(monkeypatch, FakeTicker(est=est))
+    f = consensus.forecast(consensus.fetch("X"), "eps", QE, YE)
+    assert f["quarters"] == []
+    assert f["years"][0]["val"] == 4.34
+
+
+def test_scaling_eps_consensus_into_an_amount_says_so(monkeypatch):
+    """순이익 컨센은 어디에도 없다. EPS×주식수로 만들면 그건 계산값이다."""
+    wire(monkeypatch, FakeTicker())
+    f = consensus.forecast(consensus.fetch("X"), "eps", QE, YE, scale=1_000_000)
+    assert f["quarters"][0]["val"] == 1.03 * 1_000_000
+    assert f["quarters"][0]["high"] == 1.08 * 1_000_000
+    assert "주식수" in f["source"]
+
+
+def test_an_item_with_no_source_anywhere_keeps_its_columns():
+    """영업이익은 무료 출처가 없다 — 칸은 두고 이유를 적는다."""
+    f = consensus.empty_forecast("영업이익 컨센을 주는 무료 출처가 없습니다")
+    assert f["quarters"] == [] and len(f["years"]) == 3
+    assert f["source"] == "없음" and "영업이익" in f["reason"]
