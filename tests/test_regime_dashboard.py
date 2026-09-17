@@ -674,9 +674,14 @@ def test_setup_guide_panel():
         "archive/refs/heads/claude/funny-carson-ent3s7.zip",
         "py -m pip install -r requirements.txt", "requirements.txt", "powershell",
         "127.0.0.1:8000/regime/", "Manual Upload", "./run.sh",
-        # C. 업데이트 — 내 폴더는 저절로 바뀌지 않는다
+        # C. 업데이트 — 내 폴더는 저절로 바뀌지 않지만, 클론은 다시 하지 않는다
         "C. 프로그램을 최신으로 업데이트할 때", "git pull",
         "저절로 바뀌지 않습니다", "Ctrl + F5",
+        "클론은 다시 하지 않습니다", "처음 한 번뿐",
+        "수정될 때마다 하는 일",
+        "requirements.txt</code> 가",          # 언제 pip install 을 더 해야 하는지
+        "Already up to date.",
+        'git log -1 --format="%h %ad %s" --date=short',   # 지금 버전 확인
         # 막힐 때
         "127.0.0.1:8000/api/health", '"regime":{"ok":true}', "--port 8001",
     ):

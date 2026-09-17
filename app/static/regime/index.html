@@ -761,30 +761,48 @@ py -m uvicorn app.main:app --port 8000</pre>
           저장이 폴더가 아니라 <code>127.0.0.1:8000</code> 이라는 주소에 묶여 있어서,
           폴더를 새로 만들어도 같은 포트로 띄우면 그대로 복원됩니다.
         </p>
-        <p class="help-note">먼저 돌고 있는 서버를 <b>Ctrl + C</b> 로 끕니다.</p>
 
-        <h4>Git 으로 받았다면</h4>
-        <pre class="help-pre">cd C:\SUH_DH
-git pull
-py -m pip install -r requirements.txt
+        <div class="note ok" style="margin:14px 0">
+          <b>Git 으로 받았다면 — 클론은 다시 하지 않습니다.</b>
+          <code>git clone</code> 은 <b>처음 한 번뿐</b>입니다. 이후 몇 번을 고치든
+          아래 세 줄만 반복하면 됩니다. 폴더를 새로 만들 필요도, ZIP 을 받을 필요도 없습니다.
+        </div>
+
+        <h4>Git — 수정될 때마다 하는 일 <span class="k">(이 세 줄이 전부)</span></h4>
+        <p class="help-note">① 돌고 있는 서버를 <b>Ctrl + C</b> 로 끄고, 같은 창에서:</p>
+        <pre class="help-pre">git pull
 py -m uvicorn app.main:app --port 8000</pre>
+        <p class="help-note">② 브라우저에서 <b>Ctrl + F5</b> (강제 새로고침). 끝입니다.</p>
         <p class="help-note">
-          <code>git pull</code> 한 줄이면 끝입니다. <code>Already up to date.</code> 가 나오면
-          이미 최신이라는 뜻입니다. 패키지가 새로 추가되지 않았다면
-          <code>pip install</code> 은 건너뛰어도 되지만, 한 번 더 해도 해롭지 않습니다.
+          창을 새로 열었다면 폴더로 먼저 이동하세요 — <code>cd C:\SUH_DH</code>
+          (클론한 위치에 맞게). 파일 탐색기에서 그 폴더를 열고 주소 표시줄에
+          <code>powershell</code> 을 입력하면 이동할 필요가 없습니다.
+        </p>
+
+        <h4>이럴 때만 한 줄 더</h4>
+        <p class="help-note">
+          <code>git pull</code> 이 출력하는 <b>바뀐 파일 목록에 <code>requirements.txt</code> 가
+          보이면</b> 새 패키지가 추가된 것이니 한 번만 더:
+        </p>
+        <pre class="help-pre">py -m pip install -r requirements.txt</pre>
+        <p class="help-note">
+          <code>Already up to date.</code> 가 나오면 이미 최신이라 아무것도 안 해도 됩니다.
         </p>
 
         <h4>ZIP 으로 받았다면</h4>
         <p class="help-note">
           B-2 를 다시 합니다 — 새 ZIP 을 받아 압축을 풀고(새 폴더여도 됩니다),
-          그 폴더에서 <code>pip install</code> 과 실행을 한 번씩.
+          그 폴더에서 <code>pip install</code> 과 실행을 한 번씩. 자주 업데이트하실 거면
+          <b>B-1 의 Git 방식으로 한 번 갈아타는 편</b>이 훨씬 편합니다.
         </p>
 
-        <h4>최신인지 확인</h4>
+        <h4>반영됐는지 확인</h4>
         <p class="help-note">
           브라우저를 <b>Ctrl + F5</b> 로 강제 새로고침한 뒤 이 화면 위쪽에
           <b>❓ 설명</b> 과 <b>🖥 설치·실행</b> 버튼이 둘 다 보이면 반영된 것입니다.
+          지금 무엇을 받았는지 확인하려면 폴더에서:
         </p>
+        <pre class="help-pre">git log -1 --format="%h %ad %s" --date=short</pre>
 
         <!-- ---------------------------------------------------- 막힐 때 -->
         <h3 id="s6">막힐 때</h3>
