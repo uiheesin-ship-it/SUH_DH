@@ -495,6 +495,57 @@ async function remember(kind, file, info) {
   }
 }
 
+/* ---------------------------------------------- 마지막 분석 결과 기억하기
+ *
+ * 올린 파일은 IndexedDB 에 남아 새로고침해도 복원되는데, 정작 분석 결과는 매번
+ * 사라져서 "다시 올려야 하나" 싶게 만든다. 결과도 같이 담아 두고, 다음에 열면
+ * 곧바로 되살린다 — 다만 "언제 실행한 결과"인지 분명히 밝힌다(최신 값이 아니다).
+ * 파일이 바뀌면 지난 결과는 버린다.
+ */
+const RESULT_KEY = "last_result";
+
+function dataFingerprint() {
+  // 어떤 데이터로 낸 결과인지 — 파일이 바뀌면 지난 결과를 쓰지 않기 위한 지문.
+  const parts = [dataMode(), $("#p-offline").checked ? "demo" : "live"];
+  ["price", "volume", "yield"].forEach((kind) => {
+    const up = UPLOADS[kind];
+    if (up) parts.push(`${kind}:${up.name}:${up.rows}`);
+  });
+  return parts.join("|");
+}
+
+async function rememberResult(json) {
+  if (!remembering()) return;
+  try {
+    await idbSet(RESULT_KEY, {
+      json, fingerprint: dataFingerprint(), savedAt: new Date().toISOString(),
+    });
+  } catch (err) { /* 용량 초과 등 — 분석 자체에는 영향 없다 */ }
+}
+
+async function restoreResult() {
+  if (!remembering()) return false;
+  let rec = null;
+  try { rec = await idbGet(RESULT_KEY); } catch (err) { return false; }
+  if (!rec || !rec.json) return false;
+  if (rec.fingerprint !== dataFingerprint()) {      // 데이터가 바뀌었다 — 옛 결과는 버린다
+    try { await idbDel(RESULT_KEY); } catch (err) { /* 무시 */ }
+    return false;
+  }
+  try {
+    renderAll(rec.json);
+    SESSION = null;                  // 서버 세션은 살아 있지 않을 수 있다 — 새로 만들게 둔다
+    const when = new Date(rec.savedAt);
+    const stamp = isNaN(when) ? "" : when.toLocaleString("ko-KR");
+    $("#result-age").innerHTML =
+      `지난 실행 결과입니다 (${esc(stamp)} · 기준일 ${esc(rec.json.anchor)}). ` +
+      "최신 데이터·파라미터로 다시 보려면 <b>분석 실행</b>을 누르세요.";
+    $("#result-age").classList.remove("hidden");
+    setStatus(`지난 결과 복원 · ${rec.json.matches.rows.length}개 match`, "warn");
+    return true;
+  } catch (err) { return false; }
+}
+
 async function savedSummary() {
   const out = [];
   for (const kind of ["price", "volume", "yield"]) {
@@ -516,6 +567,7 @@ async function renderSaved() {
 }
 
 async function clearSaved() {
+  try { await idbDel(RESULT_KEY); } catch (err) { /* 무시 */ }
   for (const kind of ["price", "volume", "yield"]) await idbDel(kind);
   ["price", "volume", "yield"].forEach((kind) => { UPLOADS[kind] = null; renderMapping(kind, null); });
   SESSION = null;
@@ -847,6 +899,7 @@ function renderQualityTab(j) {
 function renderAll(j) {
   LAST = j;
   SESSION = j.session;
+  $("#result-age").classList.add("hidden");
   $("#intro").classList.add("hidden");
   $("#tabs").classList.remove("hidden");
   // 한 섹션이 실패해도 나머지 결과는 보여 준다.
@@ -914,6 +967,7 @@ async function run() {
     setStatus("분석 중…");
     const json = await post("/api/regime/analyze", () => requestBody(false));
     renderAll(json);
+    rememberResult(json);              // 새로고침해도 결과가 남도록
   } catch (err) {
     setStatus("분석 실패", "bad");
     $("#intro").classList.remove("hidden");
@@ -1020,16 +1074,21 @@ async function init() {
   $("#strict-add").addEventListener("click", () =>
     $("#strict-list").appendChild(strictRow(FEATURES[0] && FEATURES[0].key)));
 
-  // 파라미터·지표 설명 — 백엔드와 무관하게 언제나 열린다(깨우는 중에도 읽을 수 있게).
-  const helpOpen = (on) => {
-    $("#help").classList.toggle("hidden", !on);
-    if (on) $("#help-close").focus();
+  // 설명 · 설치 안내 — 백엔드와 무관하게 언제나 열린다(깨우는 중에도 읽을 수 있게).
+  const sheet = (id, on) => {
+    $(id).classList.toggle("hidden", !on);
+    if (on) $(id + "-close").focus();
   };
-  $("#help-btn").addEventListener("click", () => helpOpen(true));
-  $("#help-close").addEventListener("click", () => helpOpen(false));
-  $("#help").addEventListener("click", (e) => { if (e.target.dataset.close) helpOpen(false); });
+  [["#help", "#help-btn"], ["#setup", "#setup-btn"]].forEach(([id, btn]) => {
+    $(btn).addEventListener("click", () => sheet(id, true));
+    $(id + "-close").addEventListener("click", () => sheet(id, false));
+    $(id).addEventListener("click", (e) => { if (e.target.dataset.close) sheet(id, false); });
+  });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !$("#help").classList.contains("hidden")) helpOpen(false);
+    if (e.key !== "Escape") return;
+    ["#help", "#setup"].forEach((id) => {
+      if (!$(id).classList.contains("hidden")) sheet(id, false);
+    });
   });
 
   // 백엔드를 깨운다. 무료 인스턴스는 30~60초 걸리는데, 그동안 화면이 멈춘 것처럼
@@ -1126,7 +1185,9 @@ async function init() {
 
   setStatus("준비됨 — 분석 실행을 누르세요");
   await renderSaved();
-  await restoreSaved();       // 이전에 올린 파일이 있으면 그대로 되살린다
+  if (await restoreSaved()) {         // 이전에 올린 파일이 있으면 그대로 되살리고
+    await restoreResult();            // 그 파일로 낸 지난 분석 결과까지 되살린다
+  }
 }
 
 init();

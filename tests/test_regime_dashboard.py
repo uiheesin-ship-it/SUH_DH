@@ -590,7 +590,7 @@ def test_help_panel_documents_every_parameter_in_sections_2_to_5():
     # 버튼과 여닫는 동작
     assert 'id="help-btn"' in html and 'id="help-close"' in html
     js = (STATIC / "regime" / "app.js").read_text(encoding="utf-8")
-    assert "#help-btn" in js and 'e.key === "Escape"' in js
+    assert '"#help", "#help-btn"' in js and 'e.key !== "Escape"' in js   # 여닫기 배선
 
     # 각 파라미터가 무엇을 계산하는지 — 식/기본값이 실제 구현과 같은 말을 해야 한다
     for phrase in (
@@ -635,3 +635,52 @@ def test_help_panel_documents_every_parameter_in_sections_2_to_5():
     for pid, phrase in covered.items():
         if pid in ids:
             assert phrase in body, f"{pid} 설명('{phrase}')이 패널에 없습니다"
+
+
+def test_last_result_survives_a_refresh():
+    """새로고침해도 지난 분석 결과가 남고, '지난 실행'임을 분명히 밝힌다.
+
+    올린 파일은 IndexedDB 로 복원되는데 결과만 매번 사라져서 "다시 올려야 하나"
+    싶게 만들었다. 결과도 담아 두되, 최신 값인 척하면 안 되므로 배너로 표시한다.
+    """
+    js = (STATIC / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "RESULT_KEY" in js and "rememberResult" in js and "restoreResult" in js
+    # 데이터가 바뀌면 지난 결과는 버린다
+    assert "dataFingerprint" in js and "rec.fingerprint !== dataFingerprint()" in js
+    # 서버 세션은 살아 있지 않을 수 있다 — 복원할 때 비운다
+    assert "SESSION = null;" in js.split("async function restoreResult", 1)[1][:900]
+    # 새 결과를 그리면 배너를 지운다
+    assert '$("#result-age").classList.add("hidden")' in js
+    html = (STATIC / "regime" / "index.html").read_text(encoding="utf-8")
+    assert 'id="result-age"' in html
+
+
+def test_setup_guide_panel():
+    """🖥 설치·실행 — 다른 컴퓨터에서 띄우는 방법을 화면 안에서 볼 수 있다."""
+    html = (STATIC / "regime" / "index.html").read_text(encoding="utf-8")
+    assert 'id="setup-btn"' in html and 'id="setup-close"' in html
+    body = html.split('<div id="setup"', 1)[1].split('<div id="overlay"', 1)[0]
+
+    for phrase in (
+        "python.org/downloads", "py --version",                       # ① Python
+        "archive/refs/heads/claude/funny-carson-ent3s7.zip",          # ② 내려받기
+        "requirements.txt", "powershell",
+        "py -m pip install -r requirements.txt",                      # ③ 설치
+        "py -m uvicorn app.main:app --port 8000",                     # ④ 실행
+        "./run.sh", "Ctrl + C",
+        "127.0.0.1:8000/regime/", "Manual Upload",                    # ⑤ 사용
+        "127.0.0.1:8000/api/health", '"regime":{"ok":true}',          # 막힐 때
+        "--port 8001",
+    ):
+        assert phrase in body, f"설치 안내에 '{phrase}' 가 없습니다"
+
+    # 안내한 브랜치가 이 저장소의 실제 기본 브랜치와 같아야 한다
+    import subprocess
+    head = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                          cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    assert "claude/funny-carson-ent3s7" in body
+    # 실행 명령이 실제 앱 경로를 가리키는지
+    assert (ROOT / "app" / "main.py").exists() and (ROOT / "run.sh").exists()
+
+    js = (STATIC / "regime" / "app.js").read_text(encoding="utf-8")
+    assert '"#setup", "#setup-btn"' in js and 'e.key !== "Escape"' in js

@@ -118,6 +118,16 @@ def test_card_opens_instantly_and_runs_the_analysis(server, sample_csv):
         page.click("#help-close")
         page.wait_for_selector("#help", state="hidden", timeout=5000)
 
+        # 2-c) 🖥 설치·실행 — 다른 컴퓨터에서 띄우는 방법. Esc 로 닫힌다.
+        page.click("#setup-btn")
+        page.wait_for_selector("#setup:not(.hidden)", timeout=5000)
+        guide = page.locator("#setup .help-body").inner_text()
+        for must in ("py --version", "py -m pip install -r requirements.txt",
+                     "py -m uvicorn app.main:app --port 8000", "127.0.0.1:8000/regime/"):
+            assert must in guide, f"설치 안내에 '{must}' 가 없습니다"
+        page.keyboard.press("Escape")
+        page.wait_for_selector("#setup", state="hidden", timeout=5000)
+
         # 3) 분석 실행 → 결과
         page.click("#run-btn")
         page.wait_for_selector("#tabs:not(.hidden)", timeout=180_000)
@@ -170,6 +180,13 @@ def test_card_opens_instantly_and_runs_the_analysis(server, sample_csv):
         page.wait_for_function(
             "document.querySelector('#sources') && document.querySelector('#sources').innerText.includes('my_ixic_20y.csv')",
             timeout=180_000)
+
+        # 7) 새로고침해도 지난 분석 결과가 남는다 — 다시 올릴 필요가 없다
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector("#result-age:not(.hidden)", timeout=60_000)
+        assert "지난 실행 결과" in page.locator("#result-age").inner_text()
+        assert page.locator("#tabs.hidden").count() == 0          # 결과 탭이 살아 있다
+        assert page.locator("#panel-matches table.data tbody tr").count() > 0
 
         # 저장 데이터 지우기도 동작한다
         page.click("#saved-clear")
