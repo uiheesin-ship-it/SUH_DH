@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Regime Lab · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>🧪 Market Regime Lab</h1>
+      <button id="help-btn" class="ghost-btn" title="파라미터·지표 설명 (2~5번 섹션)">❓ 설명</button>
+      <button id="setup-btn" class="ghost-btn" title="다른 컴퓨터에서 이 프로그램 실행하기">🖥 설치·실행</button>
+      <span id="demo-badge" class="badge demo hidden">DEMO 데이터</span>
+    </div>
+    <div class="controls">
+      <label class="inline">기준일
+        <input type="date" id="anchor" />
+      </label>
+      <button id="run-btn" class="primary-btn">분석 실행</button>
+      <button id="csv-btn" class="ghost-btn" title="매칭 결과를 CSV로 저장">CSV ↓</button>
+      <span id="status" class="status">준비됨</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ------------------------------ 파라미터 ------------------------------ -->
+    <aside class="params" id="params">
+      <details open>
+        <summary>1. 데이터</summary>
+        <label class="row">티커 <input type="text" id="p-ticker" value="^IXIC" /></label>
+        <label class="row">기간(년) <input type="number" id="p-years" min="5" max="30" value="20" /></label>
+        <p class="hint">업로드 파일이 더 길어도 이 기간(최근 N년)만 사용합니다.</p>
+        <div class="seg" id="data-mode">
+          <label><input type="radio" name="dmode" value="auto" checked /> Auto Download</label>
+          <label><input type="radio" name="dmode" value="manual" /> Manual Upload</label>
+        </div>
+        <label class="check"><input type="checkbox" id="p-offline" /> 오프라인 데모 데이터</label>
+
+        <div id="upload-box" class="hidden">
+          <div class="upload" data-kind="price">
+            <div class="upload-head">데이터 파일 (OHLCV)
+              <span class="hint">CSV/XLSX · Date · Open · High · Low · Close · <b>Volume</b> 한 파일이면 충분합니다</span>
+            </div>
+            <input type="file" class="file" data-kind="price" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+            <div class="map" data-kind="price"></div>
+          </div>
+
+          <label class="check"><input type="checkbox" id="p-remember" checked />
+            이 브라우저에 데이터 기억 (다음에 열면 자동으로 불러옵니다)</label>
+          <div id="saved-box" class="saved hidden">
+            <span id="saved-text"></span>
+            <button id="saved-clear" class="ghost-btn small">저장 데이터 지우기</button>
+          </div>
+
+          <details class="extra">
+            <summary>다른 출처에서 따로 올리기 (선택)</summary>
+            <div class="upload" data-kind="volume">
+              <div class="upload-head">거래량 파일 <span class="hint">Date, Volume · 가격 파일에 거래량이 없을 때만</span></div>
+              <input type="file" class="file" data-kind="volume" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+              <div class="map" data-kind="volume"></div>
+            </div>
+            <div class="upload" data-kind="yield">
+              <div class="upload-head">미국 10년물 <span class="hint">Date, Yield</span></div>
+              <input type="file" class="file" data-kind="yield" accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xls" />
+              <label class="row">단위
+                <select id="p-yield-unit">
+                  <option value="auto">auto (자동 추정)</option>
+                  <option value="percent">percent (4.28)</option>
+                  <option value="decimal">decimal (0.0428)</option>
+                  <option value="basis_points">basis points (428)</option>
+                  <option value="tenths">tenths (42.8)</option>
+                </select>
+              </label>
+              <div class="map" data-kind="yield"></div>
+            </div>
+          </details>
+          <p class="hint">업로드한 파일은 분석하는 동안에만 서버에서 쓰이고 저장되지 않습니다.
+            '기억'을 켜 두면 파일은 이 브라우저(IndexedDB)에만 보관됩니다.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>2. 시장 상태 정의</summary>
+        <div class="sub">추세</div>
+        <div class="row" id="p-sma"></div>
+        <label class="row">기울기 구간 <input type="number" id="p-slope" min="5" max="120" step="5" value="20" /></label>
+        <div class="sub">모멘텀 / 위치</div>
+        <div class="row" id="p-rets"></div>
+        <label class="row">고점 구간 <input type="number" id="p-high" min="60" max="500" value="252" /></label>
+        <div class="sub">변동성</div>
+        <label class="row">실현변동성 <input type="number" id="p-vol" min="5" max="120" value="20" /></label>
+        <label class="row">ATR <input type="number" id="p-atr" min="5" max="60" value="14" /></label>
+        <div class="sub">분산일 (Distribution Day)</div>
+        <label class="row">Lookback <input type="number" id="p-dd-lb" min="5" max="120" value="25" /></label>
+        <label class="row">X: 하락률 ≥ (%) <input type="number" id="p-dd-drop" min="0" max="3" step="0.05" value="0.2" /></label>
+        <label class="row">Y: 거래량 증가 ≥ (%) <input type="number" id="p-dd-vol" min="-20" max="100" step="1" value="0" /></label>
+        <label class="row">Z: CLV ≤ <input type="number" id="p-dd-clv" min="0" max="1" step="0.05" value="0.5" /></label>
+      </details>
+
+      <details>
+        <summary>3. 과거 유사 국면</summary>
+        <div class="seg" id="match-mode">
+          <label><input type="radio" name="mmode" value="similarity" checked /> Similarity</label>
+          <label><input type="radio" name="mmode" value="strict" /> Strict</label>
+        </div>
+        <label class="row">상위 N개 <input type="number" id="p-topn" min="5" max="100" value="25" /></label>
+        <label class="row">De-clustering 간격
+          <select id="p-gap"><option>1</option><option>5</option><option>10</option>
+            <option selected>20</option><option>40</option><option>60</option></select>
+        </label>
+        <label class="row">episode 대표
+          <select id="p-pick"><option value="best">유사도 최고</option><option value="first">가장 먼저</option></select>
+        </label>
+        <label class="row">최근 N일 제외 <input type="number" id="p-exclude" min="0" max="250" step="5" value="120" /></label>
+        <label class="row">정규화
+          <select id="p-norm"><option value="robust">robust (중앙값/MAD)</option><option value="zscore">zscore</option></select>
+        </label>
+        <label class="check"><input type="checkbox" id="p-fullh" /> 최장 horizon 이 채워진 날짜만</label>
+        <div id="weights" class="weights"></div>
+        <div id="strict-box" class="hidden">
+          <div class="sub">조건 (모두 AND)</div>
+          <div id="strict-list"></div>
+          <button id="strict-add" class="ghost-btn small">조건 추가</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>4. Forward Return</summary>
+        <div class="row" id="p-horizons"></div>
+        <label class="row">Bootstrap 반복
+          <select id="p-boot"><option>500</option><option>1000</option><option selected>2000</option><option>5000</option></select>
+        </label>
+        <label class="row">신뢰수준
+          <select id="p-ci"><option>0.80</option><option>0.90</option><option selected>0.95</option><option>0.99</option></select>
+        </label>
+        <label class="row">표본 경고 기준 <input type="number" id="p-warn" min="3" max="100" value="10" /></label>
+        <label class="row">표본 독립성
+          <select id="p-indep">
+            <option value="all">전체 사용 (겹침은 CI 에 반영)</option>
+            <option value="horizon">horizon 별 독립 표본</option>
+          </select>
+        </label>
+        <label class="row">CI 재표본
+          <select id="p-cimethod"><option value="cluster">cluster</option><option value="iid">iid (비교용)</option></select>
+        </label>
+      </details>
+
+      <details>
+        <summary>5. 통계적 검증</summary>
+        <label class="row">방식
+          <select id="p-val-mode"><option value="fixed">고정 분할</option><option value="expanding">Expanding window</option></select>
+        </label>
+        <label class="row">Training 종료 <input type="date" id="p-val-train" value="2015-12-31" /></label>
+        <label class="row">Validation 종료 <input type="date" id="p-val-valid" value="2020-12-31" /></label>
+        <label class="row">평가 간격 <input type="number" id="p-val-step" min="1" max="20" value="5" /></label>
+        <label class="row">검증 horizon
+          <select id="p-val-h"><option>5</option><option selected>20</option><option>60</option><option>120</option></select>
+        </label>
+      </details>
+
+      <details>
+        <summary>6. 차트</summary>
+        <label class="row">Match 음영 <select id="p-shade"></select></label>
+        <label class="check"><input type="checkbox" id="p-log" checked /> 로그 스케일</label>
+        <div class="row" id="p-showsma"></div>
+      </details>
+    </aside>
+
+    <!-- -------------------------------- 결과 -------------------------------- -->
+    <main id="content">
+      <section id="intro" class="card">
+        <h2>현재 시장 상태를 정량화하고, 과거의 비슷한 국면을 찾습니다</h2>
+        <p class="muted">
+          왼쪽에서 데이터와 파라미터를 고른 뒤 <b>분석 실행</b>을 누르세요. 자동 내려받기 대신
+          CSV/XLSX 를 직접 올릴 수도 있고, 업로드한 파일은 분석하는 동안에만 쓰입니다.
+          계산은 대시보드 백엔드(<code>/api/regime/*</code>)에서 기존 분석 엔진이 그대로 수행합니다.
+        </p>
+        <div id="intro-note" class="muted small"></div>
+        <div id="backend-setup" class="hidden">
+          <h3>분석 백엔드 주소</h3>
+          <p class="muted small">
+            정적 사이트(GitHub Pages)에는 파이썬이 없어 계산을 할 수 없습니다. 배포해 둔 대시보드
+            백엔드 주소를 한 번만 입력하면 이 브라우저에 기억되고, 이후에는 바로 동작합니다.
+            (저장소 <code>app/static/regime/config.js</code> 의 <code>SUH_DH_API_BASE</code> 를 채워
+            두면 모든 방문자에게 기본값으로 적용됩니다.)
+          </p>
+          <div class="setup-row">
+            <input id="api-url" type="url" spellcheck="false" autocomplete="off"
+                   placeholder="https://suh-dh-api.onrender.com" />
+            <button id="api-save" class="primary-btn">연결</button>
+            <button id="api-clear" class="ghost-btn">지우기</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="data-review" class="card hidden">
+        <h2>데이터 확인</h2>
+        <div id="sources"></div>
+        <div id="quality-banner"></div>
+        <div id="quality-problems"></div>
+      </section>
+
+      <!-- 새로고침으로 되살린 '지난 실행' 결과임을 분명히 밝힌다 (최신 값이 아니다). -->
+      <div id="result-age" class="note warn hidden"></div>
+
+      <nav id="tabs" class="tabs hidden">
+        <button class="tab active" data-tab="state">① 현재 시장 상태</button>
+        <button class="tab" data-tab="matches">② 과거 유사 국면</button>
+        <button class="tab" data-tab="forward">③ Forward Return</button>
+        <button class="tab" data-tab="audit">④ 계산 감사</button>
+        <button class="tab" data-tab="validation">⑤ 통계적 검증</button>
+        <button class="tab" data-tab="quality">⑥ 데이터 품질</button>
+        <button class="tab" data-tab="method">⑦ 방법론</button>
+      </nav>
+
+      <section id="panel-state" class="panel card hidden"></section>
+
+      <section id="panel-matches" class="panel card hidden">
+        <div id="match-summary" class="muted small"></div>
+        <div id="chart-price" class="chart"></div>
+        <div id="match-table"></div>
+      </section>
+
+      <section id="panel-forward" class="panel card hidden">
+        <div id="forward-tables"></div>
+        <div id="chart-forward" class="chart"></div>
+        <label class="row inline">분포를 볼 horizon <select id="hist-h"></select></label>
+        <div id="chart-dist" class="chart"></div>
+        <div id="forward-warnings"></div>
+      </section>
+
+      <section id="panel-audit" class="panel card hidden">
+        <label class="row inline">감사할 날짜 <select id="audit-date"></select>
+          <button id="audit-btn" class="ghost-btn small">불러오기</button></label>
+        <div id="audit-body"></div>
+      </section>
+
+      <section id="panel-validation" class="panel card hidden">
+        <p class="muted small">
+          파라미터를 고정한 채 평가일마다 그 시점 정보로만 매칭을 다시 수행해, 매칭된 날들의
+          +H일 수익률 중앙값을 신호로 삼고 실제 실현 수익률과 비교합니다. 전 구간을 다시 계산하므로
+          수십 초 걸립니다.
+        </p>
+        <button id="val-btn" class="primary-btn">검증 실행</button>
+        <div id="val-body"></div>
+      </section>
+
+      <section id="panel-quality" class="panel card hidden"></section>
+
+      <section id="panel-method" class="panel card hidden">
+        <h2>방법론 요약</h2>
+        <ul class="method">
+          <li><b>Look-ahead 차단</b> — 외생 시계열은 forward-fill 로만 정렬(5거래일 초과 공백은 결측),
+            유사도 정규화(중앙값/MAD)는 기준일까지의 데이터로만 추정, 검증에서는 forward 구간이
+            끝나지 않은 날을 후보에서 제외합니다.</li>
+          <li><b>유사도</b> — 가중 유클리드 거리 d = √(Σwᵢ(zᵢ−zᵢ*)²/Σwᵢ), 점수 100·exp(−d²/2).
+            de-clustering 으로 같은 국면의 중복을 제거합니다.</li>
+          <li><b>분산일</b> — r ≤ −X% ∧ V ≥ 전일×(1+Y%) ∧ CLV ≤ Z, lookback 안의 개수와 경과일.</li>
+          <li><b>표본 독립성</b> — 유효 표본수 n_eff = n²/Σ max(0, 1−|Δt|/h) 와 독립 에피소드 수를
+            함께 보여 주고, 기본 신뢰구간은 에피소드 단위 cluster bootstrap 입니다.</li>
+          <li><b>검증</b> — walk-forward(고정 분할 / expanding window), In-Sample 과 Out-of-Sample 을
+            구분해 과적합을 진단합니다.</li>
+        </ul>
+        <p class="muted small">
+          자세한 설계·계산 방법론: <code>docs/DESIGN_regime_lab.md</code>. 결과는 리서치 도구이며
+          투자 권유가 아닙니다.
+        </p>
+        <button id="feat-csv-btn" class="ghost-btn">전체 feature CSV ↓</button>
+      </section>
+
+    
+  <!-- ==================================================================
+       파라미터·지표 설명 (❓ 설명 버튼). 화면의 2~5번 섹션에 있는 모든 입력이
+       실제로 무엇을 계산하는지 — 식과 기본값, 그리고 "왜 이렇게 두었나"까지.
+       숫자는 app/regime/ 의 실제 구현에서 가져온 것이다.
+       =================================================================== -->
+  <div id="help" class="help hidden" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="help-backdrop" data-close="1"></div>
+    <div class="help-box">
+      <div class="help-head">
+        <h2 id="help-title">파라미터 · 지표 설명</h2>
+        <nav class="help-nav">
+          <a href="#h2">② 시장 상태 정의</a>
+          <a href="#h3">③ 과거 유사 국면</a>
+          <a href="#h4">④ Forward Return</a>
+          <a href="#h5">⑤ 통계적 검증</a>
+        </nav>
+        <button id="help-close" class="ghost-btn" title="닫기 (Esc)">✕</button>
+      </div>
+
+      <div class="help-body">
+
+        <p class="help-lead">
+          모든 feature 는 <b>기준일 t 까지의 값만</b> 사용합니다. 미래 값을 끌어다 쓰는
+          계산(backward fill, 미래 고점 등)은 어디에도 없습니다 — 그래야 "그때 그
+          자리에 서 있었다면 무엇을 보았을까"를 재현할 수 있습니다.
+        </p>
+
+        <!-- ------------------------------------------------ 2 -->
+        <h3 id="h2">② 시장 상태 정의 — 오늘의 국면을 숫자로</h3>
+        <p class="help-note">
+          여기서 만든 숫자들이 <b>feature 벡터</b>가 되고, ③ 에서 과거의 같은 벡터와
+          거리를 재게 됩니다. 각 feature 옆의 <b>기본 가중치</b>는 ③ 의 가중치 패널
+          초기값입니다. <b>0 이면 기본적으로는 거리 계산에 들어가지 않습니다</b>
+          (직접 올려서 쓸 수 있습니다).
+        </p>
+
+        <h4>추세</h4>
+        <dl class="help-dl">
+          <dt>SMA 창 <span class="k">(칩 선택)</span></dt>
+          <dd>
+            단순이동평균을 계산할 기간들. <code>SMA(w) = 최근 w 거래일 종가 평균</code>.
+            앞의 w−1 일은 표본이 모자라 비워 둡니다(그래서 SMA200 을 쓰면 최소
+            200 거래일이 필요합니다). 고른 창마다 아래 feature 가 생깁니다.
+            <ul>
+              <li><b>이격률</b> <code>px_vs_sma{w}</code> = (종가 / SMA(w) − 1) × 100 [%].
+                  종가가 이평선 위/아래 몇 %인가. <span class="w">기본 가중치: SMA50·SMA200 = 1.0, 나머지 = 0</span></li>
+              <li><b>SMA 배열 점수</b> <code>sma_stack</code>: 인접한 SMA 쌍(짧은 것 &gt; 긴 것)이
+                  몇 쌍이나 정배열인지를 <b>−1 ~ +1</b> 로 환산. 예를 들어 20·50·200 을 골랐으면
+                  쌍이 2개(20&gt;50, 50&gt;200) — 둘 다 맞으면 +1, 둘 다 틀리면 −1, 하나만 맞으면 0.
+                  <span class="w">기본 가중치 1.0</span></li>
+            </ul>
+          </dd>
+
+          <dt>기울기 구간 <span class="k">n (기본 20)</span></dt>
+          <dd>
+            이평선이 <b>오르고 있는지 내리고 있는지</b>를 재는 뒤돌아보기 구간.
+            <code>sma{w}_slope = (SMA(w)_t / SMA(w)_(t−n) − 1) × 100</code> [%].
+            같은 이격률이라도 이평선 자체가 상승 중인지 하락 중인지에 따라 국면이
+            다르기 때문에 따로 둡니다. <span class="w">기본 가중치 0.5</span>
+          </dd>
+        </dl>
+
+        <h4>모멘텀 / 위치</h4>
+        <dl class="help-dl">
+          <dt>수익률 창 <span class="k">(칩 선택, 기본 5·20·60·120)</span></dt>
+          <dd>
+            <code>ret_k = (C_t / C_(t−k) − 1) × 100</code> [%]. 최근 k 거래일 동안 얼마나
+            올랐나. 짧은 창은 단기 과열/침체, 긴 창은 추세의 몸통을 봅니다.
+            <span class="w">기본 가중치: 20일 = 1.0, 60일 = 0.5, 나머지 = 0</span>
+          </dd>
+
+          <dt>고점 구간 <span class="k">(기본 252 ≈ 1년)</span></dt>
+          <dd>
+            <code>dd_52w = (C_t / max(C, 최근 252일) − 1) × 100</code> [%, 항상 ≤ 0].
+            <b>52주 고점 대비 낙폭</b>입니다. 여기서 쓰는 고점은 <b>t 까지의</b> 최고 종가이고,
+            나중에 더 높은 고점이 나와도 소급하지 않습니다 — 미래를 훔쳐보지 않기 위해서입니다.
+            <span class="w">기본 가중치 1.5 — 전체 feature 중 가장 큽니다.</span>
+            같은 상승장이라도 "신고가 부근"과 "고점에서 15% 빠진 자리"는 이후 전개가
+            전혀 다르기 때문입니다.
+          </dd>
+        </dl>
+
+        <h4>변동성</h4>
+        <dl class="help-dl">
+          <dt>실현변동성 <span class="k">(기본 20일)</span></dt>
+          <dd>
+            <code>std(로그수익률, 최근 w일, ddof=1) × √252 × 100</code> [연율 %].
+            종가-종가 기준이라 장중 흔들림은 보지 않습니다.
+            <span class="w">기본 가중치 1.0</span>
+          </dd>
+
+          <dt>ATR <span class="k">(기본 14일)</span></dt>
+          <dd>
+            True Range = <code>max(고−저, |고−전일종가|, |저−전일종가|)</code> 를
+            Wilder 방식(α = 1/n 지수평활)으로 평균 낸 뒤 종가로 나눈 값
+            <code>atr_pct = ATR / C × 100</code> [%]. 갭과 장중 레인지까지 반영한다는 점에서
+            실현변동성과 성격이 다릅니다. <span class="w">기본 가중치 0 — 기본으로는 빠져 있습니다.</span>
+          </dd>
+        </dl>
+
+        <h4>분산일 (Distribution Day)</h4>
+        <p class="help-note">
+          "기관이 물량을 던진 날"을 세는 지표입니다. 아래 <b>세 조건을 모두</b> 만족하는 날만
+          분산일로 셉니다. X·Y·Z 를 직접 정할 수 있게 열어 둔 이유는, 이 정의가 원래
+          업계마다 조금씩 다르기 때문입니다.
+        </p>
+        <dl class="help-dl">
+          <dt>X: 하락률 ≥ <span class="k">(기본 0.2%)</span></dt>
+          <dd>그날 종가 수익률이 <code>−X%</code> 이하. 기본값이면 −0.2% 보다 더 빠진 날.</dd>
+
+          <dt>Y: 거래량 증가 ≥ <span class="k">(기본 0%)</span></dt>
+          <dd>
+            <code>당일 거래량 ≥ 전일 거래량 × (1 + Y/100)</code>. 기본값 0 이면 "전일 이상".
+            20 으로 두면 "전일보다 20% 이상 증가한 날"만 셉니다.
+            <b>거래량이 없거나 0 이면 그날은 아예 판정하지 않습니다</b> — ^IXIC 를 자동
+            내려받기로 쓰면 거래량이 부실한 경우가 있어, 데이터 품질 탭이 이를 알려 줍니다.
+          </dd>
+
+          <dt>Z: CLV ≤ <span class="k">(기본 0.5)</span></dt>
+          <dd>
+            <code>CLV = (종가 − 저가) / (고가 − 저가)</code> — 그날 레인지 안에서 종가의 위치입니다.
+            1 이면 고가 마감, 0 이면 저가 마감. 기본값 0.5 는 "레인지 하단 절반에서 마감".
+            많이 빠졌더라도 저점에서 되돌려 고가 부근에 마감했다면 매도 압력의 흔적으로
+            보지 않겠다는 뜻입니다. 고가 = 저가인 날은 중립(0.5)으로 처리합니다.
+          </dd>
+
+          <dt>Lookback <span class="k">(기본 25 거래일)</span></dt>
+          <dd>
+            <code>dd_count</code> = 최근 이 기간 안에 분산일이 <b>몇 번</b> 있었나.
+            <span class="w">기본 가중치 1.5 — dd_52w 와 함께 가장 큽니다.</span><br>
+            <code>dd_days_since</code> = 마지막 분산일 이후 며칠 지났나(상한 있음).
+            <span class="w">기본 가중치 0</span>
+          </dd>
+        </dl>
+
+        <h4>매크로 (미국 10년 금리) — 화면에 입력은 없지만 feature 로 들어갑니다</h4>
+        <dl class="help-dl">
+          <dt><code>y10_level</code> 수준</dt>
+          <dd>금리 자체의 레벨 [%]. <span class="w">기본 가중치 0</span></dd>
+          <dt><code>y10_chg_{w}d</code> 변화</dt>
+          <dd>
+            <code>y10(t) − y10(t−w)</code> 를 <b>bp</b>(0.01%p) 단위로.
+            <span class="w">기본 가중치: 120일 변화 = 0.5, 나머지 = 0</span><br>
+            금리는 레벨보다 <b>변화 속도</b>가 주식 국면을 가르는 경우가 많아 이렇게 두었습니다.
+          </dd>
+          <dt><code>y10_pctile</code> 백분위</dt>
+          <dd>최근 구간 안에서 금리가 상대적으로 어디쯤인지(0~100). <span class="w">기본 가중치 0</span></dd>
+        </dl>
+
+        <!-- ------------------------------------------------ 3 -->
+        <h3 id="h3">③ 과거 유사 국면 — 닮은 날을 어떻게 고르나</h3>
+
+        <h4>두 가지 방식</h4>
+        <dl class="help-dl">
+          <dt>Similarity <span class="k">(기본)</span></dt>
+          <dd>기준일의 feature 벡터와 <b>거리가 가까운 순</b>으로 뽑습니다. 아래 식을 씁니다.</dd>
+          <dt>Strict</dt>
+          <dd>
+            "이격률 ≥ 3% <b>이고</b> 분산일 ≥ 4개" 처럼 <b>조건을 모두 만족(AND)</b>하는 날만
+            고릅니다. 가중치가 설정돼 있으면 그 안에서 다시 유사도 순으로 정렬합니다.
+            조건이 빡빡하면 표본이 급격히 줄어드니 ④ 의 표본 경고를 같이 보세요.
+          </dd>
+        </dl>
+
+        <h4>거리와 점수 — 실제 계산식</h4>
+        <div class="help-math">
+          <div>① 정규화 &nbsp; <code>z = (x − 중앙값) / (1.4826 × MAD)</code> &nbsp;<span class="k">robust</span></div>
+          <div>② 거리 &nbsp;&nbsp;&nbsp; <code>d = √( Σ wᵢ (zᵢ − zᵢ*)² / Σ wᵢ )</code></div>
+          <div>③ 점수 &nbsp;&nbsp;&nbsp; <code>score = 100 × exp(−d² / 2)</code></div>
+        </div>
+        <p class="help-note">
+          <code>zᵢ*</code> 는 기준일의 값, <code>zᵢ</code> 는 비교 대상 과거 날의 값, <code>wᵢ</code> 는 가중치입니다.
+          가중치 합으로 나누기 때문에 <b>feature 를 더 켜도 거리가 자동으로 커지지 않습니다</b>.
+          점수는 읽기 쉬우라고 붙인 환산값입니다 —
+          <b>d=0 → 100점, d=1 → 60.7점, d=2 → 13.5점.</b>
+          90점대는 "상당히 닮았다", 30점 아래면 "닮은 날이 별로 없다"로 읽으시면 됩니다.
+        </p>
+
+        <dl class="help-dl">
+          <dt>정규화 <span class="k">robust / zscore</span></dt>
+          <dd>
+            단위가 제각각인 feature(%, bp, 개수)를 같은 자로 재기 위한 변환입니다.
+            <b>robust</b> 는 중앙값과 MAD 를 써서 <b>극단값에 덜 흔들립니다</b> —
+            2008년이나 2020년 3월 같은 날이 척도를 통째로 왜곡하는 것을 막습니다.
+            <b>zscore</b> 는 평균과 표준편차를 씁니다.<br>
+            <b>중요:</b> 이 척도는 <b>기준일까지의 관측만으로</b> 계산합니다(as-of).
+            전체 기간의 평균을 쓰면 미래 정보가 새어 들어갑니다.
+          </dd>
+
+          <dt>가중치 패널</dt>
+          <dd>
+            feature 별 <code>wᵢ</code>. <b>0 으로 두면 그 feature 는 거리에서 빠집니다.</b>
+            무엇을 "같은 국면"으로 볼지를 정하는 가장 중요한 손잡이입니다.
+          </dd>
+
+          <dt>최근 N일 제외 <span class="k">(기본 120 거래일)</span></dt>
+          <dd>
+            기준일 <b>바로 앞의 N 거래일을 후보에서 제외</b>합니다. 어제·그제는 당연히
+            오늘과 닮았기 때문에, 빼지 않으면 상위 25개를 최근 몇 주가 독차지하고
+            "과거 사례"라고 부를 수 없게 됩니다.
+          </dd>
+
+          <dt>De-clustering 간격 <span class="k">(기본 20 거래일)</span></dt>
+          <dd>
+            뽑힌 match 끼리 <b>최소 이 간격을 띄웁니다</b>. 한 국면은 수십 일 이어지므로,
+            막지 않으면 2022년 9월 한 구간이 25개 중 20개를 채웁니다. 그러면 "25개 사례"가
+            실제로는 <b>사건 2~3개</b>일 뿐인데 통계는 25개인 척하게 됩니다.
+            ④ 의 유효 표본 수(n_eff)와 같은 문제를 다루는 장치입니다.
+          </dd>
+
+          <dt>episode 대표 <span class="k">유사도 최고 / 가장 먼저</span></dt>
+          <dd>
+            한 덩어리에서 하루만 고를 때 <b>가장 닮은 날</b>을 쓸지, <b>가장 먼저 나온 날</b>을
+            쓸지. "가장 먼저"는 국면의 <b>진입 시점</b>을 보고 싶을 때 유용합니다.
+          </dd>
+
+          <dt>최장 horizon 이 채워진 날짜만</dt>
+          <dd>
+            켜면 <b>가장 긴 horizon(기본 120일)의 이후 수익률이 이미 존재하는 날</b>만 후보가 됩니다.
+            끄면 최근 사례도 포함되지만 긴 horizon 의 표본 수가 짧은 horizon 보다 적어집니다.
+            horizon 별 n 을 같게 맞추고 싶을 때 켜세요.
+          </dd>
+
+          <dt>상위 N개 <span class="k">(기본 25)</span></dt>
+          <dd>De-clustering 을 통과한 날 중 점수 상위 몇 개를 쓸지. 늘리면 표본은 커지지만 덜 닮은 날이 섞입니다.</dd>
+        </dl>
+
+        <!-- ------------------------------------------------ 4 -->
+        <h3 id="h4">④ Forward Return — 그 다음에 무슨 일이 있었나</h3>
+        <p class="help-note">
+          ③ 에서 고른 날들 각각에 대해 <b>그 이후</b> 수익률을 모아 분포를 봅니다.
+          <code>fwd_h = (C_(t+h) / C_t − 1) × 100</code> [%]. h 는 거래일입니다.
+        </p>
+
+        <dl class="help-dl">
+          <dt>horizon <span class="k">(기본 5 · 20 · 60 · 120 거래일)</span></dt>
+          <dd>며칠 뒤까지 볼지. 대략 1주 · 1개월 · 3개월 · 6개월에 해당합니다.</dd>
+
+          <dt>표시되는 통계</dt>
+          <dd>
+            <b>n</b> 표본 수 · <b>평균 / 중앙값</b> · <b>승률</b>(0%보다 큰 비율) ·
+            <b>p25 / p75</b>(사분위 — 분포의 폭) · <b>최소 / 최대</b> · <b>표준편차</b> ·
+            <b>forward 최대낙폭</b>(그 기간 중 겪은 최악의 하락, 평균·중앙값) ·
+            <b>신뢰구간</b>.<br>
+            평균보다 <b>중앙값과 p25~p75</b> 를 먼저 보세요 — 표본이 작으면 평균은 한두 사례에
+            끌려다닙니다. 최대낙폭은 "결과는 좋았지만 가는 길이 어땠나"를 말해 줍니다.
+          </dd>
+
+          <dt>Baseline 비교</dt>
+          <dd>
+            같은 통계를 <b>전체 기간 아무 날에나</b> 적용한 값입니다.
+            매칭 결과가 baseline 과 비슷하면, 그 국면은 <b>특별한 정보가 없다</b>는 뜻입니다.
+            이 비교 없이 "평균 +3%" 같은 숫자만 보면 안 됩니다.
+          </dd>
+
+          <dt>Bootstrap 반복 <span class="k">(기본 2000)</span></dt>
+          <dd>신뢰구간을 만들기 위해 표본을 다시 뽑는 횟수. 늘리면 구간이 안정되고 계산은 느려집니다.</dd>
+
+          <dt>신뢰수준 <span class="k">(기본 0.95)</span></dt>
+          <dd>95% 면 "같은 방식으로 반복하면 이 구간이 참값을 95% 정도 담는다"는 폭입니다.</dd>
+
+          <dt>표본 경고 기준 <span class="k">(기본 10)</span></dt>
+          <dd>n 이 이보다 작으면 화면에 경고를 띄웁니다. 표본 5개짜리 "승률 80%" 는 숫자놀음입니다.</dd>
+
+          <dt>표본 독립성 <span class="k">전체 사용 / horizon 별 독립</span></dt>
+          <dd>
+            <b>이 프로그램에서 가장 중요한 손잡이 중 하나입니다.</b> 20거래일 간격으로 뽑은 두 날의
+            120일 forward 는 100일이 겹칩니다 — 사실상 같은 사건을 두 번 세는 것입니다.
+            <ul>
+              <li><b>전체 사용</b>: 모든 match 를 쓰되, 겹침을 신뢰구간 계산에 반영합니다(기본).</li>
+              <li><b>horizon 별 독립</b>: horizon 마다 최소 h 거래일 간격을 다시 강제해
+                  <b>완전히 겹치지 않는 표본</b>만 씁니다. n 은 줄지만 가장 정직합니다.</li>
+            </ul>
+          </dd>
+
+          <dt>CI 재표본 <span class="k">cluster / iid</span></dt>
+          <dd>
+            <b>cluster</b>(기본)는 겹치는 날들을 <b>한 덩어리(에피소드)로 묶어</b> 재표본합니다.
+            <b>iid</b> 는 날짜를 독립으로 취급합니다 — 비교용으로만 두었습니다.
+            실측해 보면 iid 는 신뢰구간을 <b>h=60 에서 약 17%, h=120 에서 약 29% 좁게</b>
+            만듭니다. 즉 실제보다 확신에 찬 그림을 그립니다.
+          </dd>
+
+          <dt>유효 표본 수 <span class="k">n_eff</span></dt>
+          <dd>
+            <code>n_eff = n² / Σᵢⱼ max(0, 1 − |tᵢ−tⱼ| / h)</code>.
+            겹침을 벌점으로 매겨 <b>"실질적으로 몇 개의 독립 사례인가"</b>를 환산한 값입니다.
+            <b>n_eff ≈ n 이면 독립적인 사례들이고, n_eff ≪ n 이면 겉보기 n 이 부풀려진 것</b>입니다.
+            예: n=25 인데 n_eff 가 11.5 로 나오면, 25개처럼 보이지만 실제 정보량은 11~12개입니다.
+          </dd>
+        </dl>
+
+        <!-- ------------------------------------------------ 5 -->
+        <h3 id="h5">⑤ 통계적 검증 — 과거에 끼워 맞춘 규칙이 아닌지</h3>
+        <p class="help-note">
+          <b>이 화면이 막으려는 함정:</b> 20년치로 가중치와 임계값을 고른 다음,
+          <b>같은 20년</b>에 대고 성적을 재고 "잘 맞는다"고 말하는 것. 여기서는 규칙을
+          <b>고정한 채 앞으로 재생</b>합니다.
+        </p>
+        <p class="help-note">
+          평가일 t 마다 실제 사용자와 같은 자리에 섭니다 — 정규화 척도는 <b>t 까지의 관측만</b>,
+          후보는 <b>자기 forward 창이 t 이전에 이미 닫힌 날</b>만(t 시점에는 아직 진행 중인
+          사례의 결말을 알 수 없으므로 투표권이 없습니다). 그렇게 만든 <b>신호</b>(매칭된 날들의
+          forward 중앙값)를 t 에서 <b>실제로 일어난</b> forward 와 비교합니다.
+        </p>
+
+        <dl class="help-dl">
+          <dt>방식 <span class="k">고정 분할 / Expanding window</span></dt>
+          <dd>
+            <b>고정 분할</b>: Train → Validation → Out-of-Sample 세 구간으로 한 번 자릅니다.<br>
+            <b>Expanding window</b>: 기간을 조금씩 늘려 가며 반복 평가합니다. 한 번의 운 좋은
+            분할에 속지 않으려면 이쪽이 낫습니다.
+          </dd>
+          <dt>Training 종료 / Validation 종료</dt>
+          <dd>구간을 가르는 날짜입니다. 이 날짜 <b>이후</b> 구간이 규칙을 만들 때 쓰이지 않은 진짜 시험지입니다.</dd>
+          <dt>평가 간격 <span class="k">(기본 5 거래일)</span></dt>
+          <dd>며칠에 한 번씩 평가할지. 1 로 두면 평가 횟수는 늘지만 인접한 평가끼리 겹쳐서 실제 정보량은 그만큼 늘지 않습니다.</dd>
+          <dt>검증 horizon <span class="k">(기본 20)</span></dt>
+          <dd>어느 horizon 의 예측을 채점할지.</dd>
+          <dt>결과 지표</dt>
+          <dd>
+            <b>방향 적중률(%)</b> — 신호의 부호와 실제의 부호가 같았던 비율. 50%가 동전 던지기입니다.<br>
+            <b>Spearman 순위상관</b> — "신호가 큰 날이 실제로도 더 좋았나"를 순위로 봅니다. 이상치에 덜 흔들립니다.<br>
+            <b>Pearson</b> — 값 자체의 상관.<br>
+            <b>읽는 법:</b> In-Sample 은 좋은데 Out-of-Sample 에서 무너지면, 그 규칙은
+            <b>노이즈에 맞춘 것</b>입니다. 두 숫자를 나란히 놓고 보라고 IS/OOS 를 같이 표시합니다.
+          </dd>
+        </dl>
+
+        <p class="help-foot">
+          더 파고들려면 <b>④ 계산 감사</b> 탭에서 특정 날짜의 모든 중간값(원본 → feature →
+          정규화 z → 가중 거리 → 점수 → 순위)을 단계별로 펼쳐 볼 수 있습니다.
+        </p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================================================================
+       다른 컴퓨터에서 이 프로그램 띄우는 방법 (🖥 설치·실행 버튼).
+       Windows 기준으로 쓰되 Mac/Linux 도 같이 적는다.
+       =================================================================== -->
+  <!-- ==================================================================
+       이 프로그램을 내 컴퓨터에서 띄우는 방법 (🖥 설치·실행 버튼).
+       "지금 내 상황이 어느 경우인가" 로 먼저 나눈다 — 매번 처음부터 하지 않도록.
+       =================================================================== -->
+  <div id="setup" class="help hidden" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+    <div class="help-backdrop" data-close="1"></div>
+    <div class="help-box">
+      <div class="help-head">
+        <h2 id="setup-title">설치 · 실행</h2>
+        <nav class="help-nav">
+          <a href="#s0">준비</a>
+          <a href="#sa">A. 다시 쓸 때</a>
+          <a href="#sb">B. 새 컴퓨터</a>
+          <a href="#sc">C. 업데이트</a>
+          <a href="#s6">막힐 때</a>
+        </nav>
+        <button id="setup-close" class="ghost-btn" title="닫기 (Esc)">✕</button>
+      </div>
+
+      <div class="help-body">
+        <p class="help-lead">
+          이 프로그램은 <b>내 컴퓨터에서 도는 작은 웹 서버</b>입니다.
+          <b>올린 CSV 는 그 컴퓨터 바깥으로 나가지 않습니다.</b>
+          아래에서 지금 상황에 맞는 경우만 따라 하세요.
+        </p>
+
+        <div class="note warn" style="margin:14px 0">
+          <b>지금 보고 있는 주소부터 확인하세요.</b><br>
+          <code>127.0.0.1:8000/regime/</code> → <b>로컬</b>. 계산은 내 컴퓨터가 합니다. 이걸 쓰세요.<br>
+          <code>…github.io/SUH_DH/regime/</code> → <b>온라인</b>. 계산할 파이썬이 없어서
+          호스팅된 백엔드가 필요합니다. 그 백엔드가 낡았거나 자고 있으면
+          <code>Method Not Allowed</code> · <code>Failed to fetch</code> 같은 오류가 납니다.
+          <b>온라인이 안 될 때는 아래대로 로컬에서 실행하면 그대로 동작합니다.</b>
+        </div>
+
+        <div class="note info" style="margin:14px 0">
+          <b>중요 — 내 폴더는 "그때 받은 복사본"입니다.</b>
+          저장소가 고쳐져도 이미 받아 둔 폴더는 그대로입니다. 새 기능을 쓰려면
+          <b>C. 업데이트</b> 를 해야 합니다. (온라인 화면은 자동으로 갱신됩니다.)
+        </div>
+
+        <!-- ---------------------------------------------------- 준비 -->
+        <h3 id="s0">준비 — 처음 한 번만</h3>
+
+        <h4>1) Python</h4>
+        <p class="help-note">
+          <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org/downloads</a>
+          에서 최신 버전을 받아 설치합니다. 설치 첫 화면에 <b>"Add python.exe to PATH"</b> 체크가
+          보이면 켜 주세요 — <b>안 보여도 괜찮습니다.</b> Windows 에는 <code>py</code> 라는 실행기가
+          같이 깔리는데, PATH 설정과 상관없이 항상 동작합니다.
+        </p>
+        <p class="help-note">확인 — <b>시작 메뉴 → <code>powershell</code></b> 실행 후:</p>
+        <pre class="help-pre">py --version</pre>
+        <p class="help-note">
+          <code>Python 3.13.x</code> 같은 게 나오면 됩니다. 안 나오면 <code>python --version</code> 을
+          해 보시고, 그것도 안 되면 <b>Microsoft Store</b> 에서 <b>Python</b> 을 설치하세요(PATH 가 자동입니다).
+          아래에서 <code>py</code> 라고 적은 부분은 그 경우 <code>python</code> 으로 바꿔 쓰시면 됩니다.
+        </p>
+
+        <h4>2) Git <span class="k">— 선택이지만 권장</span></h4>
+        <p class="help-note">
+          Git 이 있으면 업데이트가 <b>명령 한 줄</b>로 끝납니다. 없으면 매번 ZIP 을 받아
+          압축을 풀어야 합니다. 둘 다 결과는 같습니다.
+        </p>
+        <p class="help-note">
+          <a href="https://git-scm.com/download/win" target="_blank" rel="noopener">git-scm.com/download/win</a>
+          에서 받아 설치합니다. 설치 화면이 여러 장 나오는데 <b>전부 기본값 그대로 Next</b> 를
+          누르시면 됩니다(바꿀 것 없습니다). 설치가 끝나면 <b>PowerShell 을 새로 열고</b>:
+        </p>
+        <pre class="help-pre">git --version</pre>
+        <p class="help-note">
+          <code>git version 2.x.x</code> 가 나오면 됩니다. 아무 것도 안 나오면 PowerShell 창을
+          닫았다 다시 열어 보세요(설치 직후에는 새 창이어야 인식합니다).
+        </p>
+
+        <!-- ---------------------------------------------------- A -->
+        <h3 id="sa">A. 같은 컴퓨터에서 다시 쓸 때 <span class="k">— 제일 흔한 경우</span></h3>
+        <p class="help-note">
+          <b>설치는 다시 하지 않습니다.</b> 서버만 켜면 됩니다.
+        </p>
+        <p class="help-note">
+          ① 전에 만들어 둔 폴더를 파일 탐색기로 엽니다 (예: <code>C:\SUH_DH</code>).
+          <b>위쪽 주소 표시줄을 클릭</b>해 경로를 지우고 <code>powershell</code> 입력 후 Enter.
+        </p>
+        <p class="help-note">② 검은 창에:</p>
+        <pre class="help-pre">py -m uvicorn app.main:app --port 8000</pre>
+        <p class="help-note">
+          ③ 브라우저에서 <code>127.0.0.1:8000/regime/</code><br>
+          ④ <b>CSV 는 이미 기억돼 있습니다</b> — 바로 <b>분석 실행</b>을 누르세요.
+          지난 분석 결과도 그대로 떠 있습니다.
+        </p>
+        <p class="help-note">
+          끝낼 때는 검은 창에서 <b>Ctrl + C</b>. 그 창은 켜져 있는 동안만 프로그램이 돕니다.
+        </p>
+
+        <!-- ---------------------------------------------------- B -->
+        <h3 id="sb">B. 새 컴퓨터에서 처음 쓸 때</h3>
+        <p class="help-note">
+          <b>준비</b>(Python, 가능하면 Git)를 먼저 끝내고 아래 둘 중 하나를 고르세요.
+        </p>
+
+        <h4>B-1. Git 으로 <span class="k">— 권장. 나중에 업데이트가 한 줄</span></h4>
+        <p class="help-note">PowerShell 을 열고(아무 데서나 됩니다), 프로그램을 둘 위치로 이동:</p>
+        <pre class="help-pre">cd C:\</pre>
+        <p class="help-note">그다음 내려받기 — 저장소가 공개라 로그인은 필요 없습니다:</p>
+        <pre class="help-pre">git clone -b claude/funny-carson-ent3s7 https://github.com/uiheesin-ship-it/SUH_DH.git</pre>
+        <p class="help-note">
+          <code>C:\SUH_DH</code> 폴더가 생깁니다. 그 안으로 들어가 패키지를 설치하고 실행합니다:
+        </p>
+        <pre class="help-pre">cd C:\SUH_DH
+py -m pip install -r requirements.txt
+py -m uvicorn app.main:app --port 8000</pre>
+
+        <h4>B-2. ZIP 으로 <span class="k">— Git 없이</span></h4>
+        <p class="help-note">브라우저에서 아래 주소를 열면 ZIP 이 받아집니다:</p>
+        <pre class="help-pre">https://github.com/uiheesin-ship-it/SUH_DH/archive/refs/heads/claude/funny-carson-ent3s7.zip</pre>
+        <p class="help-note">
+          잘 안 되면 손으로: <b>github.com/uiheesin-ship-it/SUH_DH</b> → 왼쪽 위 브랜치 목록에서
+          <code>claude/funny-carson-ent3s7</code> 선택 → 초록색 <b>Code ▾</b> → <b>Download ZIP</b>.
+        </p>
+        <p class="help-note">
+          <b>압축을 풉니다.</b> 경로는 짧고 한글·공백 없는 곳이 좋습니다 (예: <code>C:\SUH_DH</code>).
+          풀린 폴더 <b>안으로 들어가서</b> <code>requirements.txt</code> 와 <code>app</code> 폴더가
+          보이면 제대로 온 것입니다. 그 폴더에서 주소 표시줄에 <code>powershell</code> 을 입력해 창을 열고:
+        </p>
+        <pre class="help-pre">py -m pip install -r requirements.txt
+py -m uvicorn app.main:app --port 8000</pre>
+
+        <h4>그다음 — 두 방식 공통</h4>
+        <p class="help-note">
+          <code>Uvicorn running on http://127.0.0.1:8000</code> 이 나오면 성공입니다.
+          브라우저에서 <code>127.0.0.1:8000/regime/</code> 를 열고,
+          <b>Manual Upload</b> 를 고른 뒤 <code>date, open, high, low, close, Volume</code> 이 들어 있는
+          CSV 한 개를 올리고 <b>분석 실행</b>.
+          <b>이 브라우저에 데이터 기억</b>을 켜 두면 다음부터는 A 만 하면 됩니다.<br>
+          Mac / Linux 는 같은 폴더에서 <code>./run.sh</code> 를 써도 됩니다.
+        </p>
+
+        <!-- ---------------------------------------------------- C -->
+        <h3 id="sc">C. 프로그램을 최신으로 업데이트할 때</h3>
+        <p class="help-note">
+          기능이 추가·수정돼도 <b>내 폴더는 저절로 바뀌지 않습니다.</b> 아래로 받아 오세요.
+          <b>브라우저에 저장된 CSV 와 분석 결과는 그대로 남습니다</b> —
+          저장이 폴더가 아니라 <code>127.0.0.1:8000</code> 이라는 주소에 묶여 있어서,
+          폴더를 새로 만들어도 같은 포트로 띄우면 그대로 복원됩니다.
+        </p>
+
+        <div class="note ok" style="margin:14px 0">
+          <b>Git 으로 받았다면 — 클론은 다시 하지 않습니다.</b>
+          <code>git clone</code> 은 <b>처음 한 번뿐</b>입니다. 이후 몇 번을 고치든
+          아래 세 줄만 반복하면 됩니다. 폴더를 새로 만들 필요도, ZIP 을 받을 필요도 없습니다.
+        </div>
+
+        <h4>Git — 수정될 때마다 하는 일 <span class="k">(이 세 줄이 전부)</span></h4>
+        <p class="help-note">① 돌고 있는 서버를 <b>Ctrl + C</b> 로 끄고, 같은 창에서:</p>
+        <pre class="help-pre">git pull
+py -m uvicorn app.main:app --port 8000</pre>
+        <p class="help-note">② 브라우저에서 <b>Ctrl + F5</b> (강제 새로고침). 끝입니다.</p>
+        <p class="help-note">
+          창을 새로 열었다면 폴더로 먼저 이동하세요 — <code>cd C:\SUH_DH</code>
+          (클론한 위치에 맞게). 파일 탐색기에서 그 폴더를 열고 주소 표시줄에
+          <code>powershell</code> 을 입력하면 이동할 필요가 없습니다.
+        </p>
+
+        <h4>이럴 때만 한 줄 더</h4>
+        <p class="help-note">
+          <code>git pull</code> 이 출력하는 <b>바뀐 파일 목록에 <code>requirements.txt</code> 가
+          보이면</b> 새 패키지가 추가된 것이니 한 번만 더:
+        </p>
+        <pre class="help-pre">py -m pip install -r requirements.txt</pre>
+        <p class="help-note">
+          <code>Already up to date.</code> 가 나오면 이미 최신이라 아무것도 안 해도 됩니다.
+        </p>
+
+        <h4>ZIP 으로 받았다면</h4>
+        <p class="help-note">
+          B-2 를 다시 합니다 — 새 ZIP 을 받아 압축을 풀고(새 폴더여도 됩니다),
+          그 폴더에서 <code>pip install</code> 과 실행을 한 번씩. 자주 업데이트하실 거면
+          <b>B-1 의 Git 방식으로 한 번 갈아타는 편</b>이 훨씬 편합니다.
+        </p>
+
+        <h4>반영됐는지 확인</h4>
+        <p class="help-note">
+          브라우저를 <b>Ctrl + F5</b> 로 강제 새로고침한 뒤 이 화면 위쪽에
+          <b>❓ 설명</b> 과 <b>🖥 설치·실행</b> 버튼이 둘 다 보이면 반영된 것입니다.
+          지금 무엇을 받았는지 확인하려면 폴더에서:
+        </p>
+        <pre class="help-pre">git log -1 --format="%h %ad %s" --date=short</pre>
+
+        <!-- ---------------------------------------------------- 막힐 때 -->
+        <h3 id="s6">막힐 때</h3>
+        <p class="help-note">
+          <b>먼저 이것 하나만</b> — 브라우저에서 <code>127.0.0.1:8000/api/health</code> 를 열어 보세요.
+          <code>"regime":{"ok":true}</code> 면 서버는 정상입니다.
+        </p>
+        <dl class="help-dl">
+          <dt><code>Method Not Allowed</code> 또는 <code>Failed to fetch</code></dt>
+          <dd>
+            <b>온라인 주소를 보고 계신 것입니다.</b> 주소창을 <code>127.0.0.1:8000/regime/</code> 로
+            바꾸세요(그 전에 서버가 켜져 있어야 합니다 — A).
+          </dd>
+          <dt><code>py</code> 를 찾을 수 없다</dt>
+          <dd><code>python -m ...</code> 으로 바꿔 보시고, 그래도 안 되면 Microsoft Store 에서 Python 설치.</dd>
+          <dt><code>git</code> 을 찾을 수 없다</dt>
+          <dd>PowerShell 창을 닫았다가 새로 여세요. 그래도 없으면 Git 설치가 안 된 것입니다 — 준비 2) 로.</dd>
+          <dt>화면은 뜨는데 분석이 안 된다</dt>
+          <dd>
+            <code>/api/health</code> 에서 <code>"regime":{"ok":false}</code> 라면 옆의
+            <code>error</code> 에 원인이 적혀 있습니다. 대개
+            <code>py -m pip install -r requirements.txt</code> 를 다시 하면 해결됩니다.
+          </dd>
+          <dt><code>pip install</code> 이 실패한다</dt>
+          <dd><code>py -m pip install --upgrade pip</code> 를 먼저 실행하고 다시 하세요.</dd>
+          <dt>8000번 포트가 이미 사용 중</dt>
+          <dd><code>--port 8001</code> 로 바꾸고 주소도 <code>127.0.0.1:8001</code> 로 여세요. (저장해 둔 CSV 는 포트가 다르면 따로 관리됩니다.)</dd>
+          <dt>인터넷 없이 화면만 보고 싶다</dt>
+          <dd>실행 전에 <code>$env:SUH_DH_DEMO=1</code> (PowerShell)을 입력하면 합성 데이터로 뜹니다. 내 CSV 분석에는 필요 없습니다.</dd>
+        </dl>
+
+        <p class="help-foot">
+          CSV 파일 자체는 USB·메일·클라우드 무엇으로든 옮기시면 됩니다 — 파일 하나면 충분합니다
+          (<code>date, open, high, low, close, Volume</code>).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay hidden"><div class="spinner"></div><p id="overlay-text"></p></div>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

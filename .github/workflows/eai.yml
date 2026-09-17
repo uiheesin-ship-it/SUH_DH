@@ -118,7 +118,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add data/eai
-            git commit -m "chore(eai): refresh analysis snapshot + harvest ledger"
+            git commit -m "chore(eai): refresh analysis snapshot + harvest ledger [skip render]"
             for i in 1 2 3 4 5; do
               git push origin "HEAD:${GITHUB_REF_NAME}" && break
               echo "push rejected; rebasing (attempt $i) ..."

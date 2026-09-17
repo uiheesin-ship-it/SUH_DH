@@ -29,14 +29,18 @@ body {
 .market-kr .col-head { border-left-color: var(--kr); }
 
 /* --- three category columns: 신고가 | 스크리너 | 기타 ---------------- */
-.cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+/* 신고가 · 스크리너 · 분석Tool · 기타 — 시장마다 네 열을 같은 자리에 둔다. */
+.cols { display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: 16px; align-items: start; }
 .col { min-width: 0; }
 .col-head {
   display: flex; align-items: center; gap: 6px;
   margin: 0 0 10px; padding-left: 8px;
   border-left: 3px solid var(--border);
   font-size: 12px; font-weight: 700; color: var(--muted);
-  letter-spacing: .06em; text-transform: uppercase;
+  letter-spacing: .06em;
+  /* 예전에는 한글 머리글뿐이라 uppercase 가 티나지 않았는데, '분석Tool' 처럼
+     라틴 문자가 섞이면 적어 둔 대로 보이지 않는다. 그대로 보여 준다. */
 }
 .col-count {
   font-size: 11px; font-weight: 600; color: var(--muted);
@@ -72,12 +76,19 @@ body {
 .hub-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 0 20px 40px; line-height: 1.7; }
 .hub-foot code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
 
-/* Two columns first (기타 wraps under), then a single stack on phones. */
-@media (max-width: 940px) {
+/* Two columns first (뒤쪽 열이 아래로 내려감), then a single stack on phones. */
+@media (max-width: 1100px) {
   .cols { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 620px) {
   .cols { grid-template-columns: 1fr; gap: 20px; }
   .card-desc { -webkit-line-clamp: 3; }
   #board { padding: 8px 16px 24px; }
+}
+
+/* 아직 카드가 없는 열 — 자리는 지키되 조용히. */
+.col-empty {
+  margin: 0; padding: 18px 12px; text-align: center;
+  color: var(--muted); font-size: 12px;
+  border: 1px dashed var(--border); border-radius: 12px;
 }

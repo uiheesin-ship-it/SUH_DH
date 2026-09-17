@@ -22,3 +22,6 @@ data/eai/transcripts/*.txt
 frontend/node_modules/
 frontend/.next/
 frontend/next-env.d.ts
+
+# Market Regime Lab price cache (재다운로드 가능, 커밋하지 않음)
+data/regime/

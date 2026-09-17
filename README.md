@@ -1,15 +1,18 @@
 # SUH_DH 대시보드
 
-투자/리서치 프로그램을 카드로 모아 둔 대시보드입니다. 현재 두 가지 프로그램이 있습니다.
+투자/리서치 프로그램을 카드로 모아 둔 대시보드입니다. 현재 세 가지 프로그램이 있습니다.
 
 1. **미국 52주 신고가** — 매일 미국 증시 마감 후(한국시간 아침) **52주 신고가**를 기록한
    미국 주식을 섹터·소섹터별로 한눈에.
 2. **AI 투자 뉴스** — Reuters·CNBC·Yahoo Finance·DataCenterDynamics·The Register 등
    주요 외신에서 **AI·데이터센터 생태계 뉴스만** 선별해 하루 10~20건, 한국어 1~2줄 요약
    + 원문 링크로(무료 매체 우선).
+3. **Market Regime Lab** — 나스닥 종합(^IXIC) 20년 일봉으로 **현재 시장 상태를 정량화**하고
+   **과거의 유사한 국면**을 찾아 그 이후 5/20/60/120거래일 수익률 분포를 보는 Streamlit 웹앱.
 
 아래 설명은 주로 52주 신고가 프로그램 기준이며, 뉴스 프로그램은
-[AI 투자 뉴스 프로그램](#ai-투자-뉴스-프로그램) 절을 참고하세요.
+[AI 투자 뉴스 프로그램](#ai-투자-뉴스-프로그램) 절을,
+레짐 분석은 [Market Regime Lab](#market-regime-lab) 절을 참고하세요.
 
 **두 가지 방식으로 쓸 수 있습니다:**
 1. **항상 켜져 있는 웹 주소(추천)** — GitHub가 매일 자동으로 갱신. PC를 켜둘 필요 없이
@@ -156,6 +159,14 @@ app/
   cache.py       짧은 TTL 인메모리 캐시
   translate.py   영어 → 한국어 번역(무료 Google, 실패 시 원문)
   demo_data.py   오프라인 샘플 데이터(SUH_DH_DEMO=1)
+  regime/        Market Regime Lab (Streamlit) — 수집/feature/similarity/forward/검증/시각화 분리
+    data/        yfinance·stooq·합성 provider + 거래일 정렬(forward-fill only) + 캐시
+    features/    trend / momentum / volatility / distribution day / macro (builder 레지스트리)
+    similarity.py  as-of 정규화 · 가중 거리 · de-clustering
+    matching.py    strict 조건 매칭
+    forward.py     forward return 통계 + bootstrap 신뢰구간 + baseline 비교
+    validation.py  walk-forward / out-of-sample
+    viz.py, ui.py, streamlit_app.py
   static/
     index.html   대시보드 허브(런처) — 프로그램 카드 목록
     hub.css
@@ -164,6 +175,8 @@ app/
     earnings/    실적 발표 전후 주가 반응 프로그램(HTML/CSS/JS)
     breadth/     미장 마켓 브레스 프로그램(HTML/CSS/JS + TradingView 위젯)
     correl/      티커 상관관계 프로그램(HTML/CSS/JS, 정렬·필터 표)
+run_regime.sh            Market Regime Lab 실행 (--demo 지원)
+regime_config.yaml       Market Regime Lab 기본 파라미터
 tools/
   guidance.py            가이던스 vs 컨센서스 큐레이션 도우미(add/consensus)
   kr_dart_backlog.py     DART에서 한국 수주잔고 수집 → data/kr_backlog.json (백필/증분)
@@ -1000,10 +1013,109 @@ API 예시:
 그런 환경에서 라이브로 쓰려면 해당 호스트를 네트워크 허용 목록에 추가하거나,
 미리보기는 `--demo` 모드를 사용하세요.
 
+## Market Regime Lab
+
+나스닥 종합(^IXIC) 약 20년 일봉 + 미국 10년물 금리로 **지금 시장이 어떤 상태인지**를
+숫자로 정의하고, **과거에 비슷했던 날들**을 찾아 그 이후 무슨 일이 있었는지 보는
+로컬 Streamlit 웹앱입니다. 설계와 계산 방법론은
+[docs/DESIGN_regime_lab.md](docs/DESIGN_regime_lab.md) 에 정리돼 있습니다.
+
+**허브 카드에서 바로 열기** — **미장 → 기타 → Market Regime Lab** 을 누르면 다른 프로그램과
+똑같이 페이지가 곧바로 뜹니다(별도 서비스·대기 없음). 화면에서 파라미터를 고르고 **분석 실행**을
+누르면 대시보드 백엔드(`/api/regime/*`)가 기존 분석 엔진을 그대로 돌려 결과를 돌려줍니다.
+
+```bash
+pip install -r requirements.txt
+./run.sh                 # 대시보드 → http://127.0.0.1:8000 → 미장 → 기타 → Market Regime Lab
+```
+
+정적 GitHub Pages 사이트에는 파이썬이 없으므로 **호스팅된 백엔드 주소**가 필요합니다
+(`render.yaml` 의 `suh-dh-api` 배포). 주소는 세 곳 중 하나로 지정합니다 —
+① 화면 위 "분석 백엔드 주소" 입력칸(그 브라우저에 기억), ② 저장소
+`app/static/regime/config.js` 의 `SUH_DH_API_BASE`(모든 방문자 기본값),
+③ repo Variable `SUH_DH_API_BASE`(전체 프로그램 공통). 주소가 없으면 화면이
+입력칸을 띄워 안내합니다.
+
+업로드 파일이 20년보다 길어도(예: 30년치 7,700행) **설정한 기간만** 사용합니다 —
+기간은 왼쪽 `기간(년)`에서 5~30년으로 조정합니다.
+
+무료 Render 인스턴스는 15분 유휴 후 잠들어 첫 요청이 30~60초 걸리므로,
+`.github/workflows/warm-api.yml` 이 **10분마다 `/api/health` 를 쳐서 깨워 둡니다**
+(기본 12:00~23:59 UTC = 21:00~08:59 KST. 24시간 유지하려면 cron 을 `*/10 * * * *` 로).
+주소는 repo Variable `SUH_DH_API_BASE` → `app/static/regime/config.js` 순으로 찾습니다.
+
+**선택: Streamlit 단독 실행** — 같은 분석 엔진을 쓰는 Streamlit 화면도 그대로 남아 있습니다.
+
+```bash
+pip install -r requirements-regime.txt
+./run_regime.sh          # 실시간 데이터
+./run_regime.sh --demo   # 네트워크 없이 합성 데이터
+python3 -m app.regime.quality --ticker '^IXIC'   # 앱 없이 데이터 품질만 확인
+```
+
+- **시장 상태** — 추세(SMA 이격률·배열·기울기), 모멘텀(5/20/60/120일 수익률, 52주 고점 대비
+  낙폭), 변동성(realized vol / ATR%), **분산일**(하락률 X · 거래량 Y · CLV Z · lookback 모두
+  사이드바에서 조정), 10년물 금리(수준·변화·백분위).
+- **과거 유사 국면** — 조건을 모두 만족하는 날을 찾는 *Strict Match* 와, feature 벡터 거리로
+  순위를 매기는 *Similarity Match* 두 가지. 가중치는 feature 별로 조정하고, 같은 국면이
+  중복 집계되지 않도록 **de-clustering**(최소 간격 5/10/20… 거래일, episode 대표는
+  "유사도 최고" 또는 "가장 먼저") 을 적용합니다.
+- **Forward Return** — 5/20/60/120거래일 수익률의 관측 수·평균·중앙값·승률·사분위·최소/최대·
+  표준편차·구간 내 최대낙폭을, **20년 전체 무조건부 baseline 과 나란히** 보여 주고
+  평균/중앙값에 **bootstrap 95% 신뢰구간**을 붙입니다(표본이 작거나 CI가 0을 포함하면 경고).
+- **표본 독립성** — 60D·120D 는 match 들의 forward 구간이 겹칩니다. 기본값은 겹치는 match 를
+  하나의 에피소드로 묶어 **에피소드 단위로 재표본하는 cluster bootstrap** 이고, 화면에
+  **유효 표본수 `n_eff`** 와 독립 에피소드 수, 그리고 "단순 i.i.d. 였다면 신뢰구간이 몇 %
+  좁았을지"를 함께 표시합니다. horizon 별로 최소 간격을 5/20/60/120일로 다시 강제하는
+  **완전 비중첩 표본 모드**도 선택할 수 있습니다.
+- **한 화면에서 끝나는 데이터 단계** — 왼쪽 `1. 데이터`에서 입력 방식을 고르고, Manual Upload 를
+  선택하면 업로더가 바로 나타납니다. **업로드 → 컬럼 자동 인식/매핑 → 데이터 확인(파일명·기간·행 수·
+  Price/Volume/10Y 소스·품질 결과) → 분석 실행** 순서로 이어지며, 문제가 있으면 무엇이 왜 문제인지
+  먼저 알려 줍니다. 올린 파일은 **그 요청에서만** 쓰이고 디스크나 저장소에 저장·커밋되지 않습니다.
+- **데이터 입력 (Auto / Manual)** — 자동 내려받기 외에 **CSV·XLSX 직접 업로드**를 지원합니다.
+  `Date · Open · High · Low · Close · Volume` 이 든 **파일 하나면 충분**하고(거래량을 따로 올릴
+  필요 없음), 헤더 대소문자·한글·날짜 내림차순도 자동으로 인식합니다. 거래량이나 10년물을 다른
+  출처에서 따로 올리고 싶을 때만 선택 항목으로 추가하면 되고(Date 기준 정확 매칭으로 병합),
+  헤더 이름이 달라도 **컬럼 매핑**을 화면에서 고칠 수 있습니다. 한 번 올린 파일은
+  **이 브라우저에 기억**되어 다음에 열면 자동으로 복원됩니다(서버·저장소에는 저장되지 않습니다). 10년물은 %/decimal/bp
+  단위를 자동 추정하고 직접 지정할 수도 있습니다. 업로드가 있으면 자동 내려받기보다 **우선** 적용되며,
+  지금 무엇으로 분석 중인지가 화면 최상단에 항상 표시됩니다. 지수 거래량 대신 QQQ 같은 **proxy 를
+  쓰려면 사용자가 명시적으로 선택**해야 하고, 그때는 `Volume Source: QQQ proxy — not Nasdaq
+  Composite volume` 경고가 계속 붙습니다. 샘플 파일은 [`docs/samples/`](docs/samples/).
+- **데이터 품질** — 기간·중복 날짜·공백·결측·최신성, OHLC 정합성, **거래량이 분산일 판정에
+  쓸 수 있는 데이터인지**(결측·0·단위 변경 감지 + 대체 소스 제안), **10년물이 진짜 yield 인지와
+  단위(%/bp)**, 업로드 시 **병합 커버리지**까지 검사해 상단 배너와 전용 탭(Data Source Summary 포함)에
+  요약합니다. 터미널에서도 같은 검사를 돌립니다.
+- **계산 감사** — match 한 날짜를 고르면 원본 OHLCV → SMA·이격률 → 분산일 3조건 판정 →
+  feature 별 raw/표준화 값·가중치·거리 기여도 → 최종 distance·score → de-clustering 포함 여부 →
+  forward return 의 시작/종료 가격까지 전 과정을 표로 펼쳐 확인할 수 있습니다.
+- **차트** — 20년 지수 차트에 match 를 음영으로 표시(hover 시 날짜·유사도·주요 feature·
+  분산일·이후 수익률), x축을 공유하는 하단 패널에 10년물 금리.
+- **통계적 검증** — 파라미터를 고정한 채 평가일 시점 정보만으로 매칭을 다시 수행하는
+  walk-forward(고정 분할 / expanding window). In-Sample 과 Out-of-Sample 을 구분해
+  보여 주고 격차로 과적합을 진단합니다.
+- **확장** — 티커는 사이드바 입력값이며, `regime_config.yaml` 의 `market.exogenous` 에 한 줄
+  추가하면 VIX·크레딧 스프레드·Fed Funds 등이 같은 feature framework 로 들어옵니다.
+
+> 데이터는 Yahoo Finance(무료) 기준이며 결과는 리서치 도구입니다. 투자 권유가 아닙니다.
+
 ## 테스트
 
 ```bash
 python3 -m pytest tests/ -q
+```
+
+Market Regime Lab 만 따로 돌리려면
+`python3 -m pytest tests/test_regime*.py -q`
+(네트워크 없이 돌며, look-ahead 방지 검증, 감사 화면 값의 독립 재계산,
+샘플 CSV/XLSX 업로드 경로, 그리고 **API 결과가 분석 엔진을 직접 호출한 값과
+같은지**를 확인하는 회귀 테스트를 포함합니다).
+
+브라우저로 전체 흐름(허브 카드 → 랩 실행 → CSV 업로드 → 품질 확인 → 분석 실행)을
+확인하려면:
+
+```bash
+SUH_DH_E2E=1 python3 -m pytest tests/test_regime_dashboard_e2e.py -q
 ```
 
 ## 향후 개선 아이디어

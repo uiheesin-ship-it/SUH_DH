@@ -1,17 +1,18 @@
-# Render Blueprint — deploys the SUH_DH FastAPI backend as a free always-on
-# web service so the GitHub Pages site can query ANY ticker live.
+# Render Blueprint — SUH_DH FastAPI 백엔드 하나를 무료 web service 로 띄웁니다.
+# 정적 GitHub Pages 사이트가 임의 티커 조회와 Market Regime Lab 분석(/api/regime/*)에
+# 이 백엔드를 사용합니다.
 #
 # One-time setup:
 #   1) Push this file (already in the repo).
-#   2) https://dashboard.render.com → New → Blueprint → connect this repo.
-#   3) Render builds & runs it, giving a URL like https://suh-dh-api.onrender.com
+#   2) https://dashboard.render.com → New → Blueprint → connect this repo → Apply.
+#   3) 배포된 URL 을 복사합니다 — 예: https://suh-dh-api.onrender.com
 #   4) In GitHub: Settings → Secrets and variables → Actions → Variables →
-#      New variable  SUH_DH_API_BASE = https://suh-dh-api.onrender.com
-#   5) Re-run the "Build & deploy dashboard" workflow. The Pages earnings page
-#      now fetches non-prebuilt tickers from this backend.
+#        SUH_DH_API_BASE = https://suh-dh-api.onrender.com
+#   5) Actions → "Build & deploy dashboard" → Run workflow.
 #
-# Note: the free plan sleeps after ~15 min idle, so the first query after idle
-# takes ~30-60s to wake (the page shows a loading state).
+# Note: the free plan sleeps after ~15 min idle, so the first request after idle
+# takes ~30-60s to wake (pages show a loading state). 로컬에서 ./run.sh 로 띄우면
+# 이 서비스 없이 곧바로 동작합니다.
 services:
   - type: web
     name: suh-dh-api
@@ -22,3 +23,20 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+      # Market Regime Lab 분석은 이 백엔드에서 돌아갑니다. 무료 인스턴스(512MB)에
+      # 맞춰 bootstrap 반복수만 낮춘 설정을 씁니다 — 계산 방법은 동일합니다.
+      - key: SUH_DH_REGIME_CONFIG
+        value: deploy/regime_config.render.yaml
+    # 이 저장소는 데이터 파이프라인이기도 해서 기본 브랜치에 하루 50번 넘게 커밋이
+    # 올라갑니다(52주 신고가 30분마다, 뉴스·DART·상관관계 등). 자동 배포를 그대로 두면
+    # 백엔드가 그때마다 pip install 부터 다시 해서, 하루 종일 재시작 중인 서비스가 됩니다
+    # — 깨어 있을 틈이 없고, 재시작마다 업로드 세션(메모리)이 날아갑니다.
+    # 코드가 바뀔 때만 배포하도록 데이터 커밋은 빌드에서 제외합니다.
+    buildFilter:
+      ignoredPaths:
+        - data/**          # 신고가·뉴스·DART·상관관계 등 자동 갱신 (하루 30회 이상)
+        - state/**         # telegram 발송 기록
+        - docs/**
+        - site/**
+        - "*.md"
+

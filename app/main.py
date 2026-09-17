@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -31,6 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Regime Lab 의 분석 응답은 Plotly figure JSON 이라 한 번에 ~1MB 나간다. 숫자 배열은
+# 잘 압축돼서(≈270KB) 느린 회선에서 체감 차이가 크다. 작은 응답은 건드리지 않는다.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 # Earnings-AI subsystem (conference-call analysis → investment themes). Mounted
 # under /api/eai/* as a separate bounded context; kept optional so a missing
 # async/DB dependency never blocks the legacy price dashboards.
@@ -51,9 +56,21 @@ except Exception as _eai_err:  # pragma: no cover - surfaces as a log line only
     logging.getLogger(__name__).warning("eai subsystem not mounted: %s", _eai_err)
 
 
+# Regime Lab API 가 붙지 못했을 때의 이유(의존성 누락 등). 아래 include_router 에서 채운다.
+_REGIME_ERROR: str | None = None
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": __version__, "demo": screener._demo()}
+    """살아 있는지 + 어떤 프로그램이 실제로 서빙되는지.
+
+    Regime Lab 은 의존성이 없으면 조용히 빠진 채로 뜬다. 그러면 화면에는 /api/regime/*
+    가 404 로만 보여서 '주소가 틀렸나' 로 오해하게 된다 — 이유를 여기서 같이 알려 준다.
+    """
+    return {
+        "status": "ok", "version": __version__, "demo": screener._demo(),
+        "regime": {"ok": _REGIME_ERROR is None, "error": _REGIME_ERROR},
+    }
 
 
 @app.get("/api/highs")
@@ -338,6 +355,20 @@ def global_news():
 
 
 # Static dashboard (index.html at "/"). Mounted last so /api/* wins.
+# Market Regime Lab — 정적 UI(app/static/regime)가 쓰는 분석 API.
+# 다른 프로그램과 같은 구조: 정적 페이지 + /api/regime/* 백엔드. 라우터는
+# StaticFiles catch-all 보다 먼저 등록한다. pandas/plotly 같은 의존성이 없으면
+# 대시보드는 그대로 뜨고 이 프로그램만 비활성으로 남는다.
+try:
+    from .regime_api import router as regime_router
+
+    app.include_router(regime_router)
+except Exception as _regime_err:  # pragma: no cover - surfaces via /api/health + 로그
+    import logging
+
+    _REGIME_ERROR = str(_regime_err) or _regime_err.__class__.__name__
+    logging.getLogger(__name__).warning("regime lab API not mounted: %s", _regime_err)
+
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 
