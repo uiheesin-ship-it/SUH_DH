@@ -27,5 +27,9 @@ jobs:
           python-version: "3.11"
       - name: Install deps
         run: pip install --quiet yfinance pandas curl_cffi
-      - name: Probe
+      - name: Probe (출처 실측)
         run: python tools/fundamentals_probe.py ${{ github.event.inputs.tickers }}
+      - name: Fetch (실제 수집기로 뽑아 본다)
+        run: |
+          python tools/fundamentals_us.py \
+            ${{ github.event.inputs.tickers || 'AAPL MU JPM APPS CEG' }}
