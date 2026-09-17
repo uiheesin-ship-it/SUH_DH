@@ -37,13 +37,33 @@ async function load(ticker) {
   try {
     const r = await fetch(`${API_BASE}/api/fundamentals/${encodeURIComponent(t)}`,
                           { cache: "no-store" });
-    const j = await r.json();
-    if (!r.ok || j.error) { fail(j.error || `HTTP ${r.status}`, j.detail); return; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.error) { fail(...explain(r, j)); return; }
     DATA = j;
     render(j);
   } catch (e) {
     fail(`불러오지 못했습니다: ${e}`);
   }
+}
+
+/* 실패를 **행동으로 옮길 수 있는 말**로 바꾼다.
+ *
+ * 그냥 "HTTP 404 (Not Found)" 라고 쓰면 티커가 없다는 건지, 백엔드가 없다는 건지,
+ * 주소가 틀린 건지 알 수가 없다. 실제로 그렇게 막혔다 — 백엔드는 멀쩡히 살아
+ * 있는데 새 코드가 아직 안 올라가서 라우트만 없었고, 화면은 그걸 구분해 주지
+ * 못했다. FastAPI 가 모르는 경로에 주는 기본 응답이 {"detail":"Not Found"} 라
+ * 그 모양을 그대로 알아본다.
+ */
+function explain(r, j) {
+  if (r.status === 404 && !j.error && j.detail === "Not Found") {
+    return ["백엔드에 이 기능이 아직 배포되지 않았습니다.",
+            `${API_BASE || location.origin} 는 살아 있지만 /api/fundamentals 경로를 ` +
+            "모릅니다 — 서버가 옛 코드로 돌고 있습니다. Render 라면 " +
+            "Manual Deploy → Deploy latest commit, 로컬이라면 git pull 후 재시작"];
+  }
+  if (r.status === 404) return [j.error || `${$("q").value.trim().toUpperCase()} 를 찾지 못했습니다.`, j.detail];
+  if (r.status === 502) return [j.error || "실적을 불러오지 못했습니다.", j.detail];
+  return [j.error || `HTTP ${r.status}`, j.detail];
 }
 
 function fail(msg, detail) {
