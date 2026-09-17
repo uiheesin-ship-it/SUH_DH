@@ -118,6 +118,20 @@ async function wakeBackend(base, onTick) {
                           (body.regime.error || "원인 불명") +
                           " (로컬이라면 pip install -r requirements.txt 를 다시 실행하세요.)" };
           }
+          if (!body.regime) {
+            // regime 항목이 없는 응답 = Regime Lab 보다 오래된 빌드일 수 있다.
+            // 바로 단정하지 말고 실제로 있는지 한 번 확인한다 — 여기서 걸러 내지 않으면
+            // 7,000줄짜리 파일을 다 올린 뒤에야 'Method Not Allowed' 를 보게 된다.
+            const probe = await fetchTimeout(base + "/api/regime/defaults", WAKE_PROBE_MS)
+              .catch(() => null);
+            if (!probe || probe.status === 404 || probe.status === 405) {
+              return { ok: false, wrong: true,
+                       why: "이 백엔드에는 Regime Lab 분석 API(/api/regime/*)가 없습니다 — " +
+                            "배포가 Regime Lab 추가 이전 버전에 멈춰 있습니다. " +
+                            "백엔드를 최신으로 배포하거나, 내 컴퓨터에서 직접 실행해 쓰세요 " +
+                            "(위 '🖥 설치·실행' 버튼)." };
+            }
+          }
           BACKEND_READY = true;
           return { ok: true, seconds: elapsed() };
         }
