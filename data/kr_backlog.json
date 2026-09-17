@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-09-16T17:54:22+00:00",
+    "updated": "2026-09-17T17:53:29+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4687,7 +4687,8 @@
       "20260914000282",
       "20260914000320",
       "20260915000292",
-      "20260916000427"
+      "20260916000427",
+      "20260917000296"
     ]
   },
   "companies": {
@@ -29850,13 +29851,13 @@
         {
           "period": "2026-06",
           "quarter": "2026 반기",
-          "rcept_dt": "2026-08-14",
-          "rcept_no": "20260814002690",
-          "report_nm": "반기보고서 (2026.06)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814002690",
-          "backlog_krw": 71833,
+          "rcept_dt": "2026-09-17",
+          "rcept_no": "20260917000296",
+          "report_nm": "[기재정정]반기보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260917000296",
+          "backlog_krw": 71833000,
           "backlog_raw": "71,833",
-          "unit": "원",
+          "unit": "천원",
           "currency": null,
           "method": "row-sum",
           "header": "수주잔고"
