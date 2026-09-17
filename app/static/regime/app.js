@@ -1020,6 +1020,18 @@ async function init() {
   $("#strict-add").addEventListener("click", () =>
     $("#strict-list").appendChild(strictRow(FEATURES[0] && FEATURES[0].key)));
 
+  // 파라미터·지표 설명 — 백엔드와 무관하게 언제나 열린다(깨우는 중에도 읽을 수 있게).
+  const helpOpen = (on) => {
+    $("#help").classList.toggle("hidden", !on);
+    if (on) $("#help-close").focus();
+  };
+  $("#help-btn").addEventListener("click", () => helpOpen(true));
+  $("#help-close").addEventListener("click", () => helpOpen(false));
+  $("#help").addEventListener("click", (e) => { if (e.target.dataset.close) helpOpen(false); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("#help").classList.contains("hidden")) helpOpen(false);
+  });
+
   // 백엔드를 깨운다. 무료 인스턴스는 30~60초 걸리는데, 그동안 화면이 멈춘 것처럼
   // 보이지 않도록 남은 초를 계속 알려 준다(파일 고르기·파라미터 조정은 그동안도 된다).
   if (API_BASE) {

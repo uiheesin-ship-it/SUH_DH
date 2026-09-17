@@ -107,6 +107,17 @@ def test_card_opens_instantly_and_runs_the_analysis(server, sample_csv):
         assert page.locator("iframe").count() == 0
         page.wait_for_function("document.querySelectorAll('#weights input.w').length > 5", timeout=15000)
 
+        # 2-b) ❓ 설명 — 2~5번 섹션의 파라미터 설명이 실제로 열리고 닫힌다
+        assert page.locator("#help.hidden").count() == 1          # 처음엔 닫혀 있다
+        page.click("#help-btn")
+        page.wait_for_selector("#help:not(.hidden)", timeout=5000)
+        doc = page.locator("#help .help-body").inner_text()
+        for must in ("이격률", "분산일", "CLV", "n_eff", "Spearman",
+                     "100 × exp(−d² / 2)", "Out-of-Sample"):
+            assert must in doc, f"설명에 '{must}' 가 없습니다"
+        page.click("#help-close")
+        page.wait_for_selector("#help", state="hidden", timeout=5000)
+
         # 3) 분석 실행 → 결과
         page.click("#run-btn")
         page.wait_for_selector("#tabs:not(.hidden)", timeout=180_000)

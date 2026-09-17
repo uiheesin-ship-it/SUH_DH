@@ -574,3 +574,64 @@ def test_automated_data_commits_do_not_trigger_render_builds():
             if "[skip render]" not in msg:
                 missing.append(f"{wf.name}: {msg}")
     assert not missing, "자동 커밋에 [skip render] 가 빠졌습니다:\n" + "\n".join(missing)
+
+
+def test_help_panel_documents_every_parameter_in_sections_2_to_5():
+    """❓ 설명 패널이 2~5번 섹션의 입력을 하나도 빠짐없이 다룬다.
+
+    파라미터를 새로 추가하면서 설명을 안 쓰는 일이 생기지 않도록, index.html 의
+    입력 id 를 훑어서 대응하는 설명 문구가 있는지 확인한다.
+    """
+    import re
+
+    html = (STATIC / "regime" / "index.html").read_text(encoding="utf-8")
+    body = html.split('<div id="help"', 1)[1].split('<div id="overlay"', 1)[0]
+
+    # 버튼과 여닫는 동작
+    assert 'id="help-btn"' in html and 'id="help-close"' in html
+    js = (STATIC / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "#help-btn" in js and 'e.key === "Escape"' in js
+
+    # 각 파라미터가 무엇을 계산하는지 — 식/기본값이 실제 구현과 같은 말을 해야 한다
+    for phrase in (
+        "SMA(w) = 최근 w 거래일 종가 평균",          # trend.py
+        "px_vs_sma{w}", "sma_stack", "sma{w}_slope",
+        "ret_k = (C_t / C_(t−k) − 1) × 100",        # momentum.py
+        "dd_52w", "기본 가중치 1.5",
+        "std(로그수익률, 최근 w일, ddof=1) × √252 × 100",   # volatility.py
+        "Wilder", "atr_pct = ATR / C × 100",
+        "CLV = (종가 − 저가) / (고가 − 저가)",        # distribution.py
+        "당일 거래량 ≥ 전일 거래량 × (1 + Y/100)",
+        "dd_count", "dd_days_since",
+        "y10_level", "y10_chg_{w}d", "y10_pctile", "bp",    # macro.py
+        "z = (x − 중앙값) / (1.4826 × MAD)",          # similarity.py
+        "d = √( Σ wᵢ (zᵢ − zᵢ*)² / Σ wᵢ )",
+        "score = 100 × exp(−d² / 2)",
+        "De-clustering", "episode 대표", "최근 N일 제외",
+        "fwd_h = (C_(t+h) / C_t − 1) × 100",          # forward.py
+        "n_eff = n² / Σᵢⱼ max(0, 1 − |tᵢ−tⱼ| / h)",
+        "cluster", "iid", "Baseline",
+        "Out-of-Sample", "Spearman", "방향 적중률",    # validation.py
+        "Expanding window",
+    ):
+        assert phrase in body, f"설명 패널에 '{phrase}' 가 없습니다"
+
+    # 2~5번 섹션의 입력 id 를 하나도 빠뜨리지 않았는지 — 설명 키워드로 대조
+    covered = {
+        "p-sma": "SMA 창", "p-slope": "기울기 구간", "p-rets": "수익률 창",
+        "p-high": "고점 구간", "p-vol": "실현변동성", "p-atr": "ATR",
+        "p-dd-lb": "Lookback", "p-dd-drop": "X: 하락률", "p-dd-vol": "Y: 거래량 증가",
+        "p-dd-clv": "Z: CLV", "p-topn": "상위 N개", "p-gap": "De-clustering 간격",
+        "p-pick": "episode 대표", "p-exclude": "최근 N일 제외", "p-norm": "정규화",
+        "p-fullh": "최장 horizon", "p-horizons": "horizon", "p-boot": "Bootstrap 반복",
+        "p-ci": "신뢰수준", "p-warn": "표본 경고 기준", "p-indep": "표본 독립성",
+        "p-cimethod": "CI 재표본", "p-val-mode": "방식", "p-val-train": "Training 종료",
+        "p-val-valid": "Validation 종료", "p-val-step": "평가 간격",
+        "p-val-h": "검증 horizon",
+    }
+    section = html.split("2. 시장 상태 정의", 1)[1].split("6. 차트", 1)[0]
+    ids = set(re.findall(r'id="(p-[a-z0-9-]+)"', section))
+    assert ids <= set(covered), f"설명이 없는 새 파라미터: {sorted(ids - set(covered))}"
+    for pid, phrase in covered.items():
+        if pid in ids:
+            assert phrase in body, f"{pid} 설명('{phrase}')이 패널에 없습니다"
