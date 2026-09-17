@@ -55,9 +55,9 @@ def analysis(client):
 
 def test_hub_card_points_at_the_internal_program():
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    card = html[html.index('name: "Market Regime Lab"'):]
+    card = html[html.index('name: "Market Regime (Local 실행 필요)"'):]
     card = card[:card.index("},")]
-    assert 'market: "us"' in card and 'group: "other"' in card
+    assert 'market: "us"' in card and 'group: "tool"' in card
     assert 'href: "regime/"' in card          # 내부 경로 (외부 URL 아님)
     assert "onrender.com" not in card
 
@@ -722,3 +722,45 @@ def test_stale_backend_without_regime_api_is_named(client):
     guide = html.split('<div id="setup"', 1)[1].split('<div id="overlay"', 1)[0]
     assert "127.0.0.1:8000/regime/" in guide and "github.io" in guide
     assert "Method Not Allowed" in guide
+
+
+def test_hub_groups_analysis_tools_separately():
+    """허브의 '기타' 를 분석Tool 과 기타로 나눈다.
+
+    기타에 도구와 읽을거리가 섞여 있어 한 열이 비대해졌다. 종목을 걸러 주는 게
+    아니라 무언가를 재고 따져 보는 것은 분석Tool 로, 뉴스·리서치 요약처럼 읽는
+    것만 기타로 남긴다.
+    """
+    import json
+    import re
+
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+
+    # 열 정의: 신고가 · 스크리너 · 분석Tool · 기타
+    groups = re.search(r"const GROUPS = \[(.*?)\];", html, re.S).group(1)
+    keys = re.findall(r'key: "(\w+)"', groups)
+    assert keys == ["highs", "screener", "tool", "other"], keys
+    assert '{ key: "tool", label: "분석Tool" }' in groups
+
+    # 카드별 소속
+    cards = dict(re.findall(r'name: "([^"]+)"[\s\S]{0,400?}?', html)) if False else {}
+    for m in re.finditer(r'name: "([^"]+)",[\s\S]{0,300}?group: "(\w+)"', html):
+        cards[m.group(1)] = m.group(2)
+
+    assert cards["Market Regime (Local 실행 필요)"] == "tool"     # 이름도 바뀌었다
+    assert "Market Regime Lab" not in cards
+    for name in ("티커 상관관계", "실적 발표 전후 주가 반응", "미장 마켓 브레스",
+                 "한국 실적 전후 주가", "한국 수주잔고"):
+        assert cards[name] == "tool", f"{name} 은 분석Tool 이어야 합니다"
+    for name in ("AI 투자 뉴스", "실적 컨콜 투자 테마"):
+        assert cards[name] == "other", f"{name} 은 기타로 남아야 합니다"
+
+    # 카드가 없는 열은 그리지 않는다 (국장에는 기타가 없다)
+    assert 'if (!cards.length) return "";' in html
+    # 안내 문구도 같이 갱신
+    assert "신고가·스크리너·분석Tool·기타" in html
+    assert "<code>tool</code>" in html
+    # '분석Tool' 이 적어 둔 대로 보이도록 머리글 대문자 변환을 끈다
+    css = (STATIC / "hub.css").read_text(encoding="utf-8")
+    head = css.split(".col-head {", 1)[1].split("}", 1)[0]
+    assert "text-transform: uppercase" not in head

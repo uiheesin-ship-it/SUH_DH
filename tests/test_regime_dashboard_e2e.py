@@ -91,10 +91,10 @@ def test_card_opens_instantly_and_runs_the_analysis(server, sample_csv):
         browser = _launch(pw)
         page = browser.new_page(viewport={"width": 1500, "height": 1000})
 
-        # 1) 허브 → 미장 → 기타 → 카드
+        # 1) 허브 → 미장 → 분석Tool → 카드
         page.goto(server + "/", wait_until="networkidle")
-        column = page.locator(".market-us .col", has=page.locator("h3", has_text="기타"))
-        card = column.locator("a.card", has_text="Market Regime Lab")
+        column = page.locator(".market-us .col", has=page.locator("h3", has_text="분석Tool"))
+        card = column.locator("a.card", has_text="Market Regime")
         assert card.count() == 1
 
         started = time.time()
