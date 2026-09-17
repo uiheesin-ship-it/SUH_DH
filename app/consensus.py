@@ -54,6 +54,22 @@ def _rows(df, field="avg") -> dict:
     return out
 
 
+def _day(idx) -> str:
+    """pandas Timestamp(타임존 포함) → "YYYY-MM-DD".
+
+    ``Timestamp.date`` 는 **메서드**다. 불러서 date 를 받은 다음 isoformat 해야
+    한다. date 객체를 그대로 자르려 들면 TypeError 가 나고, 그 예외가 컨센
+    전체를 날린다(실측: 6종목 모두 "컨센을 받지 못했습니다(TypeError)").
+    """
+    d = getattr(idx, "date", None)
+    if callable(d):
+        try:
+            return d().isoformat()
+        except Exception:  # noqa: BLE001
+            pass
+    return str(idx)[:10]
+
+
 def _announcements(tk) -> list[dict]:
     """과거 실적발표일 + 다가올 예정일.
 
@@ -67,9 +83,8 @@ def _announcements(tk) -> list[dict]:
         return []
     out = []
     for idx, row in df.iterrows():
-        d = getattr(idx, "date", None)
         out.append({
-            "date": (d() if callable(d) else str(idx))[:10] if d else str(idx)[:10],
+            "date": _day(idx),
             "eps_estimate": _num(row.get("EPS Estimate")),
             "reported_eps": _num(row.get("Reported EPS")),
         })

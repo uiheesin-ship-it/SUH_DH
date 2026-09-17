@@ -160,7 +160,7 @@ def main() -> None:
     )
     # regime 은 다른 프로그램과 같은 구조(정적 UI + /api/regime/*)라, 정적 빌드에서는
     # SUH_DH_API_BASE 로 호스팅된 백엔드를 호출한다.
-    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai", "regime"):
+    for program in ("highs", "news", "earnings", "kr", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "quarterly", "eai", "regime"):
         (SITE / program / "config.js").write_text(static_cfg, encoding="utf-8")
 
     # Optional: point the static earnings/kr pages at an always-on backend so
@@ -170,7 +170,7 @@ def main() -> None:
     if api_base:
         # highs: real-time refresh. earnings/kr: any-ticker. base: chart fallback
         # for setups whose chart wasn't pre-built on a fast (scan-skipped) build.
-        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "eai", "regime"):
+        for program in ("earnings", "kr", "highs", "base", "flat", "turnaround", "krhighs", "krhighs60", "krbase", "backlog", "breadth", "correl", "quarterly", "eai", "regime"):
             with (SITE / program / "config.js").open("a", encoding="utf-8") as f:
                 f.write(f'window.SUH_DH_API_BASE = "{api_base}";\n')
 
