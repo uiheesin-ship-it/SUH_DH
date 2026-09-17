@@ -56,9 +56,21 @@ except Exception as _eai_err:  # pragma: no cover - surfaces as a log line only
     logging.getLogger(__name__).warning("eai subsystem not mounted: %s", _eai_err)
 
 
+# Regime Lab API 가 붙지 못했을 때의 이유(의존성 누락 등). 아래 include_router 에서 채운다.
+_REGIME_ERROR: str | None = None
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": __version__, "demo": screener._demo()}
+    """살아 있는지 + 어떤 프로그램이 실제로 서빙되는지.
+
+    Regime Lab 은 의존성이 없으면 조용히 빠진 채로 뜬다. 그러면 화면에는 /api/regime/*
+    가 404 로만 보여서 '주소가 틀렸나' 로 오해하게 된다 — 이유를 여기서 같이 알려 준다.
+    """
+    return {
+        "status": "ok", "version": __version__, "demo": screener._demo(),
+        "regime": {"ok": _REGIME_ERROR is None, "error": _REGIME_ERROR},
+    }
 
 
 @app.get("/api/highs")
@@ -351,9 +363,10 @@ try:
     from .regime_api import router as regime_router
 
     app.include_router(regime_router)
-except Exception as _regime_err:  # pragma: no cover - surfaces as a log line only
+except Exception as _regime_err:  # pragma: no cover - surfaces via /api/health + 로그
     import logging
 
+    _REGIME_ERROR = str(_regime_err) or _regime_err.__class__.__name__
     logging.getLogger(__name__).warning("regime lab API not mounted: %s", _regime_err)
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

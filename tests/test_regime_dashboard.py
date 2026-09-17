@@ -532,6 +532,27 @@ def test_match_shading_is_identical_to_add_vrect():
     assert json.loads(old.to_json()) == json.loads(new.to_json())
 
 
+def test_upload_dependency_is_declared():
+    """Manual Upload 에 필요한 python-multipart 를 requirements 에 못 박는다.
+
+    이게 빠져 있으면 FastAPI 가 UploadFile/Form 라우터 등록을 거부하고,
+    app/main.py 의 try/except 가 그걸 삼켜서 /api/regime/* 전체가 404 가 된다.
+    개발 환경에는 우연히 깔려 있어 테스트는 통과하고, 새로 설치한 곳에서만 터진다
+    — 실제로 그렇게 막혔다.
+    """
+    reqs = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    assert "python-multipart" in reqs
+
+
+def test_health_reports_whether_the_regime_api_is_mounted(client):
+    """의존성이 없어 Regime Lab 이 빠졌으면 /api/health 가 이유를 말한다."""
+    body = client.get("/api/health").json()
+    assert body["status"] == "ok"
+    assert body["regime"]["ok"] is True and body["regime"]["error"] is None
+
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "body.regime.ok === false" in js        # 화면이 그 이유를 그대로 보여 준다
+
 def test_automated_data_commits_do_not_trigger_render_builds():
     """자동 데이터 커밋은 Render 배포를 건너뛴다 — 안 그러면 빌드 시간이 말라 버린다.
 

@@ -12,3 +12,6 @@ feedparser>=6.0
 # Market Regime Lab (app/regime) — 대시보드가 /api/regime/* 로 분석을 서빙합니다.
 plotly>=5.20             # 차트 figure JSON 생성 (브라우저가 그대로 렌더)
 openpyxl>=3.1            # Manual Upload 의 XLSX 읽기
+python-multipart>=0.0.9  # Manual Upload 의 파일 전송(multipart). 없으면 FastAPI 가
+                         # UploadFile/Form 라우터 등록을 거부해서 /api/regime/* 가
+                         # 통째로 404 가 된다 — 실제로 그렇게 막혔다.
