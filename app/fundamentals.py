@@ -290,19 +290,17 @@ def build_metrics(facts: dict, quarters: int = 20) -> dict:
             q = derive_q4(q, a, mode)
         return q
 
-    revenue = metric(REVENUE_TAGS, "매출")
-    rev_source = "보고값"
-    if not revenue:
-        # 은행·보험: 매출 태그가 없다. 총수익 태그 → 조각 합계 순으로 찾고,
-        # **더 최근까지 이어지는 쪽**을 쓴다. 한쪽만 보면 조용히 옛날에서
-        # 끊긴다(JPM 은 조각 합계가 2014년에서 멈춰 있었다).
-        parts_q = _sum_parts(facts, BANK_REVENUE_PARTS, *QUARTER_DAYS)
-        parts = derive_q4(parts_q, _sum_parts(facts, BANK_REVENUE_PARTS, *ANNUAL_DAYS)) \
-            if parts_q else {}
-        total = metric(BANK_REVENUE_TOTAL, "매출")
-        revenue, rev_source = _fresher(
-            (total, "보고값(총수익)"),
-            (parts, "계산값(순이자이익+비이자이익)"))
+    # 매출은 세 가지 방법으로 만들 수 있다. **셋 다 만들어 보고 가장 최근까지
+    # 이어지는 것을 쓴다.** 순서대로 시도하다 첫 성공에서 멈추면 안 된다 —
+    # 은행은 일반 매출 태그를 옛날에 잠깐 쓰다 버리는 일이 흔해서, 그걸 잡고
+    # 멈추면 조용히 몇 년 전에서 끊긴다(JPM 2014, WFC 2020, MS 2018).
+    parts_q = _sum_parts(facts, BANK_REVENUE_PARTS, *QUARTER_DAYS)
+    parts = derive_q4(parts_q, _sum_parts(facts, BANK_REVENUE_PARTS, *ANNUAL_DAYS)) \
+        if parts_q else {}
+    revenue, rev_source = _fresher(
+        (metric(REVENUE_TAGS, "매출"), "보고값"),
+        (metric(BANK_REVENUE_TOTAL, "매출"), "보고값(총수익)"),
+        (parts, "계산값(순이자이익+비이자이익)"))
 
     operating = metric(OPERATING_TAGS, "영업이익")
     net = metric(NET_INCOME_TAGS, "순이익")

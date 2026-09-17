@@ -11,7 +11,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, backlog, breadth, charts, correl, earnings, kr, news, screener
+from . import (__version__, backlog, breadth, charts, correl, earnings, kr, news,
+               quarterly, screener)
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
 from .turnaround import get_screen as turnaround_get_screen
@@ -339,6 +340,24 @@ def correl_for(ticker: str):
         return JSONResponse(
             status_code=502,
             content={"error": f"{ticker} 상관 데이터를 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/fundamentals/{ticker}")
+def fundamentals_for(ticker: str):
+    """한 종목의 분기 실적 표 + 12M forward PER 차트.
+
+    **입력받은 티커만** 그때 받아 온다 — 미리 전 종목을 모으지 않는다. EDGAR
+    companyfacts 는 분기에 한 번 바뀌므로 길게 캐시된다(app/secdata.py).
+    """
+    try:
+        return quarterly.build(ticker)
+    except LookupError as e:
+        return JSONResponse(status_code=404, content={"error": str(e)})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"{ticker} 실적을 불러오지 못했습니다.", "detail": str(e)},
         )
 
 

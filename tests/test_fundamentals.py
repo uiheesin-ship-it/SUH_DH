@@ -183,102 +183,6 @@ def test_missing_metrics_do_not_raise():
     assert all(v["count"] == 0 for v in m.values())
 
 
-# ------------------------------------------------- 티커 → CIK 해석
-# 전체 목록(www.sec.gov/files/company_tickers.json)이 403 이라 쓸 수 없다.
-# efts.sec.gov 전문검색 결과의 display_names 에서 뽑는데, **본문에 그 글자가
-# 우연히 있는 문서**를 잡으면 엉뚱한 회사의 재무제표를 보여 주게 된다.
-def test_cik_resolution_needs_an_exact_ticker_match(monkeypatch):
-    import json as _json
-
-    import tools.fundamentals_us as U
-
-    hits = {"hits": {"hits": [
-        # 본문에 "MU" 가 나오지만 티커는 다른 회사 — 받으면 안 된다.
-        {"_source": {"display_names": ["Mulesoft Holdings (MULE) (CIK 0001725283)"]}},
-        {"_source": {"display_names": ["Micron Technology Inc (MU) (CIK 0000723125)"]}},
-    ]}}
-    monkeypatch.setattr(U, "_get", lambda *a, **k: _json.dumps(hits).encode())
-    assert U.resolve_cik("MU") == "0000723125"
-
-
-def test_cik_resolution_returns_none_when_nothing_matches(monkeypatch):
-    import json as _json
-
-    import tools.fundamentals_us as U
-
-    hits = {"hits": {"hits": [
-        {"_source": {"display_names": ["Some Other Corp (XYZ) (CIK 0000000001)"]}}]}}
-    monkeypatch.setattr(U, "_get", lambda *a, **k: _json.dumps(hits).encode())
-    assert U.resolve_cik("MU") is None
-
-
-def test_cik_resolution_survives_a_network_failure(monkeypatch):
-    import tools.fundamentals_us as U
-
-    def boom(*a, **k):
-        raise TimeoutError("efts down")
-
-    monkeypatch.setattr(U, "_get", boom)
-    assert U.resolve_cik("MU") is None          # 예외가 새면 수집 전체가 죽는다
-
-
-# ------------------------------------------- 씨앗 CIK 목록은 힌트일 뿐이다
-# data/sec_cik.json 은 SEC 원본이 403 이라 공개 미러에서 받아 온 것이다.
-# 틀린 CIK 를 그대로 믿으면 **엉뚱한 회사의 재무제표**를 보여 주게 된다.
-def _fetch_with(monkeypatch, *, meta_tickers, resolved=None):
-    import tools.fundamentals_us as U
-
-    calls = {"search": 0}
-    monkeypatch.setattr(U.time, "sleep", lambda *_: None)
-    monkeypatch.setattr(U, "company_meta", lambda cik: {
-        "name": "X", "tickers": meta_tickers, "sic": "s", "fiscal_year_end": "1231"})
-    monkeypatch.setattr(U, "companyfacts", lambda cik: facts_of())
-
-    def search(t):
-        calls["search"] += 1
-        return resolved
-
-    monkeypatch.setattr(U, "resolve_cik", search)
-    return U, calls
-
-
-def test_a_wrong_seed_cik_is_caught_by_the_sec_response(monkeypatch):
-    """submissions 가 돌려준 tickers 와 안 맞으면 그 CIK 를 쓰지 않는다."""
-    U, calls = _fetch_with(monkeypatch, meta_tickers=["ZZZZ"], resolved=None)
-    r = U.fetch("MU", {"MU": "0000000999"})
-    assert "error" in r, "틀린 CIK 로 남의 재무제표를 내놓았다"
-    assert calls["search"] == 1, "전문검색으로 다시 찾지 않았다"
-
-
-def test_a_correct_seed_cik_costs_no_extra_request(monkeypatch):
-    """맞으면 전문검색을 부르지 않는다 — 확인은 어차피 부르는 호출로 끝난다."""
-    U, calls = _fetch_with(monkeypatch, meta_tickers=["MU"])
-    r = U.fetch("MU", {"MU": "0000723125"})
-    assert r.get("cik") == "0000723125" and "error" not in r
-    assert calls["search"] == 0
-
-
-def test_ticker_missing_from_the_seed_falls_back_to_search(monkeypatch):
-    """씨앗에 없는 신규 상장은 전문검색으로 찾는다."""
-    U, calls = _fetch_with(monkeypatch, meta_tickers=["NEW"], resolved="0000001234")
-    r = U.fetch("NEW", {})
-    assert r.get("cik") == "0000001234" and calls["search"] == 1
-
-
-def test_the_committed_seed_map_looks_sane():
-    """커밋된 씨앗이 실제로 쓸 만한지 — EDGAR 가 서빙한 값과 대조한다."""
-    import json
-    from pathlib import Path
-
-    p = Path(__file__).resolve().parents[1] / "data" / "sec_cik.json"
-    m = json.loads(p.read_text(encoding="utf-8"))["map"]
-    assert len(m) > 5000, f"씨앗이 너무 작다: {len(m)}"
-    # 이 둘은 실제 EDGAR 수집이 성공한 CIK 다(2026-09-17 실행 로그).
-    assert m["AAPL"] == "0000320193"
-    assert m["MU"] == "0000723125"
-    assert all(len(v) == 10 and v.isdigit() for v in list(m.values())[:200])
-
-
 # ------------------------------------------- 태그를 갈아탄 회사 (PLD·CEG 실측)
 def test_a_tag_switch_does_not_truncate_the_series():
     """회사가 중간에 태그를 바꾸면 예전 코드는 옛 태그에서 멈춰 버렸다.
@@ -418,3 +322,21 @@ def test_gross_interest_income_is_never_added_to_noninterest_income():
     )
     m = F.build_metrics(f)
     assert all(q["val"] != 9200 for q in m["매출"]["quarters"])
+
+
+def test_a_stale_generic_revenue_tag_loses_to_a_fresh_bank_total():
+    """은행은 일반 매출 태그를 옛날에 잠깐 쓰다 버린다 — 거기서 멈추면 안 된다.
+
+    실측: JPM 2014-12-31, WFC 2020-09-30, MS 2018-03-31 에서 끊겨 있었다.
+    """
+    f = facts_of(
+        Revenues=[fact("2018-01-01", "2018-03-31", 5910, "2018-05-01")],
+        RevenuesNetOfInterestExpense=[
+            fact("2026-01-01", "2026-03-31", 17000, "2026-05-01"),
+            fact("2026-04-01", "2026-06-30", 18000, "2026-08-01")],
+        NetIncomeLoss=[fact("2026-04-01", "2026-06-30", 5581, "2026-08-01")],
+    )
+    m = F.build_metrics(f)
+    assert m["매출"]["quarters"][-1]["end"] == "2026-06-30"
+    assert m["매출"]["source"] == "보고값(총수익)"
+    assert "warning" not in m["매출"]

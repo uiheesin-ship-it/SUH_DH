@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>분기 실적 · 12M Forward PER · SUH_DH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <a href="../" class="home-link" title="대시보드 홈">⌂</a>
+      <h1>📒 분기 실적 · 12M Forward PER</h1>
+    </div>
+    <div class="controls">
+      <span id="status" class="status">티커를 입력하세요</span>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="search">
+      <div class="search-row">
+        <input id="q" type="search" placeholder="티커 입력 (예: NVDA)"
+               autocomplete="off" spellcheck="false" />
+        <button id="go">조회</button>
+        <button id="per-btn" class="logic-btn"
+                title="12M forward PER 을 어떻게 계산하는지 보기">📐 PER 계산 로직</button>
+        <button id="src-btn" class="logic-btn"
+                title="실적·컨센을 어디서 가져오는지 보기">🗂 데이터 출처</button>
+      </div>
+      <div id="head" class="head"></div>
+    </section>
+
+    <section id="chart-sec" class="chart-sec hidden">
+      <div class="sec-head">
+        <h2>주가 × 12M Forward PER</h2>
+        <p class="sec-desc">
+          계단은 <b>실적발표일</b>에 밟습니다. 기준일(분기말)에 밟으면 아직 공개되지
+          않은 실적으로 그 사이 주가를 나누게 됩니다.
+          <b>실선 = 확정 실적</b>만으로 계산된 구간,
+          <b>점선 = 컨센서스가 섞인</b> 구간입니다.
+        </p>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="plot-box">
+        <div id="plot"></div>
+        <div id="tip" class="tip hidden"></div>
+      </div>
+      <div class="marks" id="marks"></div>
+    </section>
+
+    <section id="table-sec" class="table-sec hidden">
+      <div class="sec-head">
+        <h2>분기 실적</h2>
+        <p class="sec-desc">
+          EDGAR XBRL(data.sec.gov)에서 받은 값입니다. 계산해서 만든 항목은
+          그렇게 표시합니다 — 특히 <b>EBITDA 는 Adjusted EBITDA 가 아닙니다</b>.
+          성장률은 분모가 <b>양수일 때만</b> 냅니다(적자→적자 구간의 증감률은
+          부호가 뒤집혀 읽는 사람을 속입니다).
+        </p>
+      </div>
+      <div id="metrics"></div>
+    </section>
+
+    <div id="empty" class="loading">미국 상장 티커를 입력하면 최근 5년 분기 실적과
+      12M forward PER 차트를 만들어 드립니다.</div>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modal-title"></h3>
+        <button id="modal-close">닫기</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
