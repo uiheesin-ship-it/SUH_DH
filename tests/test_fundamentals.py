@@ -152,3 +152,42 @@ def test_missing_metrics_do_not_raise():
     """태그가 하나도 없어도 빈 시계열을 돌려줄 뿐 터지지 않는다."""
     m = F.build_metrics(facts_of())
     assert all(v["count"] == 0 for v in m.values())
+
+
+# ------------------------------------------------- 티커 → CIK 해석
+# 전체 목록(www.sec.gov/files/company_tickers.json)이 403 이라 쓸 수 없다.
+# efts.sec.gov 전문검색 결과의 display_names 에서 뽑는데, **본문에 그 글자가
+# 우연히 있는 문서**를 잡으면 엉뚱한 회사의 재무제표를 보여 주게 된다.
+def test_cik_resolution_needs_an_exact_ticker_match(monkeypatch):
+    import json as _json
+
+    import tools.fundamentals_us as U
+
+    hits = {"hits": {"hits": [
+        # 본문에 "MU" 가 나오지만 티커는 다른 회사 — 받으면 안 된다.
+        {"_source": {"display_names": ["Mulesoft Holdings (MULE) (CIK 0001725283)"]}},
+        {"_source": {"display_names": ["Micron Technology Inc (MU) (CIK 0000723125)"]}},
+    ]}}
+    monkeypatch.setattr(U, "_get", lambda *a, **k: _json.dumps(hits).encode())
+    assert U.resolve_cik("MU") == "0000723125"
+
+
+def test_cik_resolution_returns_none_when_nothing_matches(monkeypatch):
+    import json as _json
+
+    import tools.fundamentals_us as U
+
+    hits = {"hits": {"hits": [
+        {"_source": {"display_names": ["Some Other Corp (XYZ) (CIK 0000000001)"]}}]}}
+    monkeypatch.setattr(U, "_get", lambda *a, **k: _json.dumps(hits).encode())
+    assert U.resolve_cik("MU") is None
+
+
+def test_cik_resolution_survives_a_network_failure(monkeypatch):
+    import tools.fundamentals_us as U
+
+    def boom(*a, **k):
+        raise TimeoutError("efts down")
+
+    monkeypatch.setattr(U, "_get", boom)
+    assert U.resolve_cik("MU") is None          # 예외가 새면 수집 전체가 죽는다
