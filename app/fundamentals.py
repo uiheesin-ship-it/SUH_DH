@@ -8,7 +8,8 @@
 
   최근 6년 분기가 21개씩 잡힌다 — 5년 20분기에 충분하다.
   **은행·보험은 매출·영업이익 태그가 아예 없다**(JPM 은 둘 다 0개). 구조적인
-  일이라 억지로 채우지 않고 "해당 없음"으로 둔다. 매출만 은행 전용 태그로 만든다.
+  일이라 억지로 채우지 않고 "해당 없음"으로 둔다. 매출만 은행 전용 태그로 만든다 —
+  총수익(순이자이익+비이자이익)이다. **총**이자수익을 더하면 안 된다.
   **Adjusted EBITDA 는 XBRL 에 없다.** 4종목 전부 고유 태그 0개 — 비GAAP 이라
   회사가 보도자료에서 각자 정의한다. 그래서 여기서는 영업이익 + 감가상각으로
   **계산**하고 그렇게 라벨링한다. "Adjusted" 가 아니다.
@@ -45,10 +46,16 @@ REVENUE_TAGS = [
     "SalesRevenueNet",
     "SalesRevenueGoodsNet",
 ]
-# 은행·보험은 위 태그를 안 쓴다. 이자수익 + 비이자수익으로 "총수익"을 만든다.
+# 은행·보험은 위 태그를 안 쓴다. 은행이 "매출"이라 부르는 건 **총수익**
+# (순이자이익 + 비이자이익)이다. 대개 그 총액을 한 태그로 올리므로 그걸 먼저 쓴다.
+BANK_REVENUE_TOTAL = ["RevenuesNetOfInterestExpense",
+                      "InterestAndDividendIncomeOperatingAndNoninterestIncome"]
+# 총액 태그가 없을 때만 두 조각을 더한다. 이자 쪽은 반드시 **순액**이어야 한다 —
+# 총이자수익(InterestAndDividendIncomeOperating)을 더하면 이자비용을 빼지 않아
+# 매출이 부풀고, 게다가 그 태그는 회사가 중간에 버리는 일이 잦다.
 BANK_REVENUE_PARTS = [
-    ["InterestAndDividendIncomeOperating", "InterestIncomeExpenseNet"],
-    ["NoninterestIncome", "RevenuesNetOfInterestExpense"],
+    ["InterestIncomeExpenseNet", "InterestIncomeExpenseAfterProvisionForLoanLease"],
+    ["NoninterestIncome"],
 ]
 OPERATING_TAGS = ["OperatingIncomeLoss"]
 NET_INCOME_TAGS = ["NetIncomeLoss", "ProfitLoss"]
@@ -248,6 +255,22 @@ def quarterly_from_ytd(facts: dict, tags: list[str]) -> dict[str, dict]:
 
 
 # --- 항목 조립 --------------------------------------------------------------
+def _fresher(*candidates: tuple[dict, str]) -> tuple[dict, str]:
+    """같은 항목을 만드는 여러 방법 중 **가장 최근까지 이어지는 것**을 고른다.
+
+    섞지 않고 통째로 하나를 고른다 — 정의가 다른 계열을 이어 붙이면 그 이음매가
+    가짜 성장률이 된다. 최신 분기가 같으면 분기 수가 많은 쪽.
+    """
+    best, best_key = ({}, "없음"), None
+    for rows, source in candidates:
+        if not rows:
+            continue
+        key = (max(rows), len(rows))
+        if best_key is None or key > best_key:
+            best, best_key = (rows, source), key
+    return best
+
+
 def _series(rows: dict[str, dict], limit: int) -> list[dict]:
     return [rows[e] for e in sorted(rows)][-limit:]
 
@@ -270,9 +293,16 @@ def build_metrics(facts: dict, quarters: int = 20) -> dict:
     revenue = metric(REVENUE_TAGS, "매출")
     rev_source = "보고값"
     if not revenue:
-        # 은행·보험: 매출 태그가 없다. 이자 + 비이자로 총수익을 만든다.
-        revenue = _sum_parts(facts, BANK_REVENUE_PARTS, *QUARTER_DAYS)
-        rev_source = "계산값(이자수익+비이자수익)" if revenue else "없음"
+        # 은행·보험: 매출 태그가 없다. 총수익 태그 → 조각 합계 순으로 찾고,
+        # **더 최근까지 이어지는 쪽**을 쓴다. 한쪽만 보면 조용히 옛날에서
+        # 끊긴다(JPM 은 조각 합계가 2014년에서 멈춰 있었다).
+        parts_q = _sum_parts(facts, BANK_REVENUE_PARTS, *QUARTER_DAYS)
+        parts = derive_q4(parts_q, _sum_parts(facts, BANK_REVENUE_PARTS, *ANNUAL_DAYS)) \
+            if parts_q else {}
+        total = metric(BANK_REVENUE_TOTAL, "매출")
+        revenue, rev_source = _fresher(
+            (total, "보고값(총수익)"),
+            (parts, "계산값(순이자이익+비이자이익)"))
 
     operating = metric(OPERATING_TAGS, "영업이익")
     net = metric(NET_INCOME_TAGS, "순이익")

@@ -132,11 +132,14 @@ def test_ebitda_is_labelled_as_computed_not_adjusted():
 
 
 # --------------------------------------------------------------- 은행 처리
-def test_bank_revenue_falls_back_to_interest_plus_noninterest():
-    """은행은 매출 태그가 없다(실측 JPM 0개). 이자+비이자로 총수익을 만든다."""
+def test_bank_revenue_falls_back_to_net_interest_plus_noninterest():
+    """은행은 매출 태그가 없다(실측 JPM 0개). 총수익 = 순이자이익 + 비이자이익.
+
+    이자 쪽은 **순액**이어야 한다. 총이자수익을 더하면 이자비용을 빼지 않아
+    매출이 부풀고, 그 태그는 회사가 중간에 버리는 일도 잦다.
+    """
     f = facts_of(
-        InterestAndDividendIncomeOperating=[
-            fact("2025-01-01", "2025-03-31", 300, "2025-05-01")],
+        InterestIncomeExpenseNet=[fact("2025-01-01", "2025-03-31", 300, "2025-05-01")],
         NoninterestIncome=[fact("2025-01-01", "2025-03-31", 200, "2025-05-01")],
         NetIncomeLoss=[fact("2025-01-01", "2025-03-31", 120, "2025-05-01")],
     )
@@ -388,3 +391,30 @@ def test_a_metric_stuck_in_the_past_is_flagged():
     assert "warning" not in m["매출"]
     assert m["순이익"]["stale_days"] > 200
     assert "2015-03-31" in m["순이익"]["warning"]
+
+
+def test_a_bank_total_revenue_tag_beats_the_parts_when_it_reaches_further():
+    """조각 합계가 옛날에서 끊기면 총수익 태그를 쓴다 — JPM 이 2014년에서 멈췄다."""
+    f = facts_of(
+        InterestIncomeExpenseNet=[fact("2014-10-01", "2014-12-31", 300, "2015-02-01")],
+        NoninterestIncome=[fact("2014-10-01", "2014-12-31", 200, "2015-02-01")],
+        RevenuesNetOfInterestExpense=[
+            fact("2026-04-01", "2026-06-30", 4500, "2026-08-01")],
+        NetIncomeLoss=[fact("2026-04-01", "2026-06-30", 1200, "2026-08-01")],
+    )
+    m = F.build_metrics(f)
+    assert m["매출"]["quarters"][-1]["end"] == "2026-06-30"
+    assert m["매출"]["quarters"][-1]["val"] == 4500
+    assert "warning" not in m["매출"]
+
+
+def test_gross_interest_income_is_never_added_to_noninterest_income():
+    """총이자수익 + 비이자수익은 매출이 아니다 — 이자비용이 빠지지 않는다."""
+    f = facts_of(
+        InterestAndDividendIncomeOperating=[
+            fact("2026-04-01", "2026-06-30", 9000, "2026-08-01")],
+        NoninterestIncome=[fact("2026-04-01", "2026-06-30", 200, "2026-08-01")],
+        NetIncomeLoss=[fact("2026-04-01", "2026-06-30", 120, "2026-08-01")],
+    )
+    m = F.build_metrics(f)
+    assert all(q["val"] != 9200 for q in m["매출"]["quarters"])
