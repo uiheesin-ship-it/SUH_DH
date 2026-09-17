@@ -59,10 +59,17 @@ def load_cik_map() -> dict[str, str]:
 
 
 def save_cik_map(m: dict[str, str]) -> None:
+    """찾아낸 CIK 를 씨앗 목록에 되돌려 쓴다(note·source 는 보존)."""
+    base = {}
+    if CIK_FILE.exists():
+        try:
+            base = json.loads(CIK_FILE.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            base = {}
+    base.update({"count": len(m), "map": dict(sorted(m.items()))})
     CIK_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CIK_FILE.write_text(
-        json.dumps({"count": len(m), "map": dict(sorted(m.items()))},
-                   ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    CIK_FILE.write_text(json.dumps(base, ensure_ascii=False, separators=(",", ":")),
+                        encoding="utf-8")
 
 
 def refresh_cik_map() -> dict[str, str]:
@@ -123,18 +130,48 @@ def company_meta(cik: str) -> dict:
 
 
 def fetch(ticker: str, cik_map: dict[str, str], quarters: int = 20) -> dict:
+    """한 종목의 분기 실적.
+
+    CIK 는 커밋된 씨앗 목록(data/sec_cik.json)에서 먼저 찾는다. 그 목록은 SEC
+    원본이 403 이라 공개 미러에서 받아 온 것이라 **힌트일 뿐이다** — 그래서
+    submissions 응답의 tickers 로 실제로 맞는지 확인한다. 어차피 회사명·결산월을
+    받으려고 부르는 호출이라 확인 비용이 0 이다. 어긋나면(또는 목록에 없으면)
+    EDGAR 전문검색으로 찾는다. 전문검색은 연속 호출이 막히므로 최후 수단이다.
+    """
     t = ticker.upper().strip()
+    tried_search = False
     cik = cik_map.get(t)
     if not cik:
-        cik = resolve_cik(t)
+        cik, tried_search = resolve_cik(t), True
         time.sleep(EFTS_PAUSE)        # 성공이든 실패든 다음 검색 전에 쉰다
-        if cik:
-            cik_map[t] = cik          # 다음부터는 캐시에서 바로
     if not cik:
         return {"ticker": t, "error": "CIK 를 찾지 못했습니다"}
+
+    for _ in range(2):
+        try:
+            meta = company_meta(cik)
+        except urllib.error.HTTPError as e:
+            return {"ticker": t, "error": f"EDGAR HTTP {e.code}"}
+        except Exception as e:  # noqa: BLE001
+            return {"ticker": t, "error": f"{type(e).__name__}: {e}"}
+
+        listed = [x.upper() for x in (meta.get("tickers") or [])]
+        if not listed or t in listed:
+            cik_map[t] = cik
+            break
+        # 씨앗 목록이 틀렸다 — 엉뚱한 회사의 재무제표를 보여 주면 안 된다.
+        log(f"    CIK 불일치: {t} → {cik} 는 {listed} 입니다. 전문검색으로 다시 찾습니다")
+        if tried_search:
+            return {"ticker": t, "error": f"CIK {cik} 가 {t} 와 맞지 않습니다"}
+        cik, tried_search = resolve_cik(t), True
+        time.sleep(EFTS_PAUSE)
+        if not cik:
+            return {"ticker": t, "error": "CIK 를 찾지 못했습니다"}
+    else:
+        return {"ticker": t, "error": "CIK 확인에 실패했습니다"}
+
+    time.sleep(PAUSE)
     try:
-        meta = company_meta(cik)
-        time.sleep(PAUSE)
         facts = companyfacts(cik)
     except urllib.error.HTTPError as e:
         return {"ticker": t, "error": f"EDGAR HTTP {e.code}"}
