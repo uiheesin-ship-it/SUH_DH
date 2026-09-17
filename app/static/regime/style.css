@@ -209,3 +209,11 @@ ul.method { font-size: 13px; line-height: 1.8; padding-left: 18px; }
   .help-box { border-radius: 0; height: 100%; }
   .help-body { padding: 4px 16px 20px; }
 }
+.help-pre {
+  margin: 8px 0; padding: 10px 13px; background: #0b1220; color: #cfe8ff;
+  border: 1px solid var(--border); border-radius: 8px; overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px;
+  user-select: all;                    /* 한 번 클릭으로 통째로 선택 — 붙여넣기 쉽게 */
+}
+.help-body a { color: var(--accent); }
+#setup-btn { font-size: 12px; padding: 4px 10px; }
