@@ -110,6 +110,14 @@ async function wakeBackend(base, onTick) {
         let body = null;
         try { body = JSON.parse(text); } catch (e) { /* Render 안내 페이지(HTML) */ }
         if (body && body.status === "ok") {
+          // 백엔드는 살아 있지만 Regime Lab 만 안 붙어 있을 수 있다(의존성 누락 등).
+          // 그냥 두면 /api/regime/* 가 404 로만 보여서 '주소가 틀렸나' 로 오해하게 된다.
+          if (body.regime && body.regime.ok === false) {
+            return { ok: false, wrong: true,
+                     why: "백엔드는 살아 있지만 Regime Lab 분석 API 가 올라가 있지 않습니다 — " +
+                          (body.regime.error || "원인 불명") +
+                          " (로컬이라면 pip install -r requirements.txt 를 다시 실행하세요.)" };
+          }
           BACKEND_READY = true;
           return { ok: true, seconds: elapsed() };
         }
