@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""실적·컨센 데이터를 어디서 얼마나 받을 수 있는지 실측한다(측정 전용).
+"""실적·컨센 데이터 출처 실측(측정 전용). 1차 결과로 초점을 좁힌 2차 프로브.
 
-만들기 전에 답해야 할 질문이 둘이다.
-  1. 5년치 분기 실적(매출·영업이익·순이익·EBITDA)을 어디서 받나?
-  2. 컨센서스를 무료로 받을 수 있나?
+1차에서 EDGAR 가 403 이었다. SEC 는 연락처가 담긴 User-Agent 를 요구하는데
+형식이 안 맞았을 수도 있고, 클라우드 IP 를 막는 것일 수도 있다. 둘은 대응이
+완전히 다르므로(전자는 헤더 수정, 후자는 출처 교체) 먼저 가른다.
 
-추측 대신 재 본다. 아무것도 커밋하지 않고 결과만 로그에 찍는다.
-샌드박스에서는 SEC·야후·나스닥이 모두 막히므로 GitHub Actions 에서 실행한다.
+컨센은 1차에서 이만큼 확인됐다:
+  earnings_dates 미래 분기  1개뿐      → 4개 분기를 이걸로는 못 채운다
+  earnings_estimate        0q·+1q·0y·+1y → 분기 2개 + 연간 2개
+  forwardEps               전 종목 있음 (APPS 는 적자인데도 +0.95)
+  나스닥 API               타임아웃(차단)
+  stockanalysis            페이지에 estimatesChart 박혀 있음
+
+그래서 2차는 EDGAR 진단 + 컨센 실제 값 확인에 집중한다.
 """
 
 from __future__ import annotations
@@ -15,210 +21,170 @@ import json
 import sys
 import time
 import urllib.request
-from collections import defaultdict
 
-# 성격이 다른 종목들 — 대형 기술주, 반도체, 은행(영업이익 태그가 없다), 소형주,
-# 유틸리티, REIT, 최근 상장. 한 종목만 되는 걸 "된다"고 착각하지 않으려는 것.
-TICKERS = ["AAPL", "MU", "JPM", "APPS", "CEG", "PLD", "ARM", "SMCI"]
-
-# SEC 는 연락처가 담긴 User-Agent 를 요구한다(없으면 403).
-UA = "SUH_DH fundamentals probe (github.com/uiheesin-ship-it/SUH_DH)"
-
-REVENUE_TAGS = ["RevenueFromContractWithCustomerExcludingAssessedTax",
-                "RevenueFromContractWithCustomerIncludingAssessedTax",
-                "Revenues", "SalesRevenueNet"]
-TAGS = {
-    "매출": REVENUE_TAGS,
-    "영업이익": ["OperatingIncomeLoss"],
-    "순이익": ["NetIncomeLoss"],
-    "희석EPS": ["EarningsPerShareDiluted"],
-    "감가상각(D&A)": ["DepreciationDepletionAndAmortization",
-                      "DepreciationAmortizationAndAccretionNet",
-                      "DepreciationAndAmortization"],
-}
+TICKERS = ["AAPL", "MU", "JPM", "APPS"]
 
 
 def log(m=""):
     print(m, flush=True)
 
 
-def get(url, headers=None, timeout=25):
-    req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+def fetch(url, ua, extra=None, timeout=20):
+    h = {"User-Agent": ua, "Accept-Encoding": "gzip, deflate", **(extra or {})}
+    req = urllib.request.Request(url, headers=h)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read()[:400]
+    except urllib.error.HTTPError as e:
+        return e.code, (e.read()[:200] if hasattr(e, "read") else b"")
+    except Exception as e:  # noqa: BLE001
+        return 0, f"{type(e).__name__}: {e}".encode()
 
 
-# ------------------------------------------------------------------ EDGAR
-def cik_map():
-    raw = json.loads(get("https://www.sec.gov/files/company_tickers.json"))
-    return {v["ticker"].upper(): f"{int(v['cik_str']):010d}" for v in raw.values()}
+def probe_sec_headers():
+    """403 이 UA 탓인지 IP 탓인지 가른다."""
+    # SEC 안내 형식: "Sample Company Name AdminContact@<domain>.com"
+    uas = [
+        ("연락처 없음(1차와 동일)", "SUH_DH fundamentals probe (github.com/uiheesin-ship-it/SUH_DH)"),
+        ("이메일 형식", "SUH_DH Dashboard noreply@users.noreply.github.com"),
+        ("브라우저 위장", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/125.0 Safari/537.36"),
+    ]
+    urls = [
+        ("company_tickers", "https://www.sec.gov/files/company_tickers.json"),
+        ("companyfacts", "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"),
+        ("submissions", "https://data.sec.gov/submissions/CIK0000320193.json"),
+    ]
+    for label, ua in uas:
+        log(f"\n  UA: {label}")
+        for name, url in urls:
+            code, body = fetch(url, ua)
+            note = ""
+            if code != 200:
+                note = f"  ← {body[:120].decode('utf-8', 'replace')}"
+            log(f"    {name:16} HTTP {code}{note}")
+            time.sleep(0.3)
 
 
-def quarterly(units, want_days=(80, 100)):
-    """분기(약 90일) 구간 사실만 추린다. 10-Q 는 3개월·9개월 수치를 같이 싣는다."""
+def probe_edgar_content(ua):
+    """UA 가 통하면 실제로 5년치 분기가 잡히는지 본다."""
     from datetime import date
 
-    out = {}
-    for f in units:
-        s, e = f.get("start"), f.get("end")
-        if not s or not e:
+    code, _ = fetch("https://www.sec.gov/files/company_tickers.json", ua)
+    if code != 200:
+        log("  (통하는 UA 가 없어 내용 확인은 건너뜁니다)")
+        return
+    req = urllib.request.Request("https://www.sec.gov/files/company_tickers.json",
+                                 headers={"User-Agent": ua})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        raw = json.loads(r.read())
+    cmap = {v["ticker"].upper(): f"{int(v['cik_str']):010d}" for v in raw.values()}
+    log(f"  티커→CIK {len(cmap):,}개")
+
+    tags = {
+        "매출": ["RevenueFromContractWithCustomerExcludingAssessedTax",
+                 "RevenueFromContractWithCustomerIncludingAssessedTax",
+                 "Revenues", "SalesRevenueNet"],
+        "영업이익": ["OperatingIncomeLoss"],
+        "순이익": ["NetIncomeLoss"],
+        "희석EPS": ["EarningsPerShareDiluted"],
+        "D&A": ["DepreciationDepletionAndAmortization",
+                "DepreciationAmortizationAndAccretionNet", "DepreciationAndAmortization"],
+    }
+    for t in TICKERS:
+        cik = cmap.get(t)
+        if not cik:
             continue
-        d = (date.fromisoformat(e) - date.fromisoformat(s)).days
-        if not (want_days[0] <= d <= want_days[1]):
-            continue
-        # 같은 분기가 여러 번 나오면 나중에 제출된 것(정정)을 쓴다.
-        prev = out.get(e)
-        if prev is None or f.get("filed", "") >= prev.get("filed", ""):
-            out[e] = f
-    return out
+        req = urllib.request.Request(
+            f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json",
+            headers={"User-Agent": ua})
+        with urllib.request.urlopen(req, timeout=40) as r:
+            facts = json.loads(r.read())
+        us = facts.get("facts", {}).get("us-gaap", {})
+        cells, lag = [], []
+        for label, cands in tags.items():
+            best, used = {}, None
+            for tag in cands:
+                for units in (us.get(tag, {}).get("units") or {}).values():
+                    q = {}
+                    for f in units:
+                        s, e = f.get("start"), f.get("end")
+                        if not s or not e:
+                            continue
+                        if not (80 <= (date.fromisoformat(e) - date.fromisoformat(s)).days <= 100):
+                            continue
+                        if e not in q or f.get("filed", "") >= q[e].get("filed", ""):
+                            q[e] = f
+                    if len(q) > len(best):
+                        best, used = q, tag
+            cells.append(f"{label} {len(best):>2}")
+            if label == "순이익" and best:
+                for e, f in sorted(best.items())[-4:]:
+                    if f.get("filed"):
+                        lag.append((date.fromisoformat(f["filed"]) - date.fromisoformat(e)).days)
+        avg = f"{sum(lag)//len(lag)}일" if lag else "—"
+        log(f"  {t:6} {'  '.join(cells)}   기준일→제출일 평균 {avg}")
+        custom = [f"{ns}:{tag}" for ns, node in (facts.get("facts") or {}).items()
+                  if ns != "us-gaap" for tag in node if "ebitda" in tag.lower()]
+        if custom:
+            log(f"         EBITDA 고유태그: {custom[:4]}")
+        time.sleep(0.3)
 
 
-def probe_edgar(ticker, cik):
-    facts = json.loads(get(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"))
-    us = facts.get("facts", {}).get("us-gaap", {})
-    row, filed_ok = {}, 0
-    for label, tags in TAGS.items():
-        best, used = {}, None
-        for tag in tags:
-            node = us.get(tag)
-            if not node:
-                continue
-            for unit_key, units in (node.get("units") or {}).items():
-                q = quarterly(units)
-                if len(q) > len(best):
-                    best, used = q, f"{tag}/{unit_key}"
-        row[label] = (len(best), used)
-        if best:
-            filed_ok += sum(1 for f in best.values() if f.get("filed"))
-
-    # 회사 고유 네임스페이스에 Adjusted EBITDA 류 태그가 있나?
-    custom = []
-    for ns, node in (facts.get("facts") or {}).items():
-        if ns == "us-gaap":
-            continue
-        for tag in node:
-            t = tag.lower()
-            if "ebitda" in t:
-                custom.append(f"{ns}:{tag}")
-    return row, filed_ok, custom
-
-
-# -------------------------------------------------------------- 컨센서스
-def probe_yahoo_estimates(ticker):
-    """yfinance 가 주는 컨센: 앞으로 몇 분기치 EPS 추정을 들고 있나."""
+def probe_consensus_values():
+    """컨센 실제 값 — 12M forward EPS 를 만들 수 있는 재료인지 본다."""
     import yfinance as yf
 
-    tk = yf.Ticker(ticker)
-    out = {}
-
-    # ① earnings_dates — 미래 분기 행에 EPS Estimate 가 채워져 온다.
-    try:
-        import pandas as pd
-
-        df = tk.get_earnings_dates(limit=24)
-        if df is not None and not df.empty:
-            now = pd.Timestamp.now(tz=df.index.tz)
-            fut = df[df.index > now]
-            col = "EPS Estimate"
-            out["earnings_dates 미래분기"] = int(fut[col].notna().sum()) if col in fut else 0
-            out["earnings_dates 과거분기"] = int((df.index <= now).sum())
-    except Exception as e:  # noqa: BLE001
-        out["earnings_dates"] = f"실패: {type(e).__name__}"
-
-    # ② earnings_estimate — 현재/다음 분기, 올해/내년
-    for attr in ("earnings_estimate", "revenue_estimate", "growth_estimates"):
+    for t in TICKERS:
+        log(f"\n  ── {t} ──")
+        tk = yf.Ticker(t)
         try:
-            v = getattr(tk, attr, None)
-            out[attr] = "없음" if v is None or len(v) == 0 else f"{len(v)}행 {list(v.index)}"
+            est = tk.earnings_estimate
+            for idx in est.index:
+                row = est.loc[idx]
+                log(f"    {idx:4} EPS평균 {row.get('avg')}  분석가 {row.get('numberOfAnalysts')}")
         except Exception as e:  # noqa: BLE001
-            out[attr] = f"실패: {type(e).__name__}"
-
-    # ③ forwardEps / trailingEps
-    try:
-        info = tk.get_info()
-        out["forwardEps"] = info.get("forwardEps")
-        out["trailingEps"] = info.get("trailingEps")
-        out["sharesOutstanding"] = info.get("sharesOutstanding")
-    except Exception as e:  # noqa: BLE001
-        out["info"] = f"실패: {type(e).__name__}"
-    return out
+            log(f"    earnings_estimate 실패: {type(e).__name__}")
+        try:
+            info = tk.get_info()
+            log(f"    forwardEps {info.get('forwardEps')} · trailingEps {info.get('trailingEps')}"
+                f" · 결산월 {info.get('lastFiscalYearEnd')}")
+        except Exception as e:  # noqa: BLE001
+            log(f"    info 실패: {type(e).__name__}")
+        time.sleep(1.0)
 
 
-def probe_nasdaq(ticker):
-    """나스닥 공개 API — 분기별 컨센을 주지만 데이터센터 IP 를 막는 일이 잦다."""
-    url = f"https://api.nasdaq.com/api/analyst/{ticker}/earnings-forecast"
-    try:
-        raw = json.loads(get(url, headers={"Accept": "application/json"}, timeout=15))
-        d = (raw.get("data") or {})
-        q = ((d.get("quarterlyForecast") or {}).get("rows") or [])
-        y = ((d.get("yearlyForecast") or {}).get("rows") or [])
-        return f"분기 {len(q)}행, 연간 {len(y)}행"
-    except Exception as e:  # noqa: BLE001
-        return f"실패: {type(e).__name__} {e}"
-
-
-def probe_stockanalysis(ticker):
-    """stockanalysis.com 예측 페이지 — API 는 없고 페이지에 JSON 이 박혀 있다."""
-    try:
-        html = get(f"https://stockanalysis.com/stocks/{ticker.lower()}/forecast/",
-                   timeout=15).decode("utf-8", "replace")
-        hit = [k for k in ("estimatesChart", "revenueEstimate", "epsEstimate",
-                           "analystRatings") if k in html]
-        return f"{len(html) // 1000}KB, 힌트 {hit or '없음'}"
-    except Exception as e:  # noqa: BLE001
-        return f"실패: {type(e).__name__}"
+def probe_stockanalysis_financials():
+    """EDGAR 가 막힐 때의 대안 — 분기 손익계산서가 페이지에 있나."""
+    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
+    for t in TICKERS[:2]:
+        for path in ("financials/?p=quarterly", "financials/"):
+            code, _ = fetch(f"https://stockanalysis.com/stocks/{t.lower()}/{path}", ua)
+            log(f"  {t:6} {path:26} HTTP {code}")
+            time.sleep(0.5)
 
 
 def main():
-    only = sys.argv[1:] or TICKERS
+    log("=" * 72)
+    log("1. EDGAR 403 진단 — UA 문제인가 IP 차단인가")
+    log("=" * 72)
+    probe_sec_headers()
 
-    log("=" * 70)
-    log("1. EDGAR companyfacts — 5년치 분기 실적")
-    log("=" * 70)
-    try:
-        cmap = cik_map()
-        log(f"  티커→CIK 매핑 {len(cmap):,}개 ✅")
-    except Exception as e:  # noqa: BLE001
-        log(f"  ❌ SEC 자체가 안 열립니다: {type(e).__name__} {e}")
-        cmap = {}
+    log("\n" + "=" * 72)
+    log("2. EDGAR 내용 (통하는 UA 로)")
+    log("=" * 72)
+    probe_edgar_content("SUH_DH Dashboard noreply@users.noreply.github.com")
 
-    custom_all = defaultdict(list)
-    for t in only:
-        cik = cmap.get(t.upper())
-        if not cik:
-            log(f"  {t:6} CIK 없음")
-            continue
-        try:
-            row, filed_ok, custom = probe_edgar(t, cik)
-        except Exception as e:  # noqa: BLE001
-            log(f"  {t:6} ❌ {type(e).__name__} {e}")
-            continue
-        parts = " ".join(f"{k} {n:>2}" for k, (n, _) in row.items())
-        log(f"  {t:6} {parts}   filed 있는 사실 {filed_ok}")
-        for k, (n, used) in row.items():
-            if n == 0:
-                log(f"         ↳ {k}: 태그 없음 (후보 {TAGS[k]})")
-        if custom:
-            custom_all[t] = custom[:5]
-        time.sleep(0.2)          # SEC 는 초당 10건 제한
+    log("\n" + "=" * 72)
+    log("3. 컨센 실제 값")
+    log("=" * 72)
+    probe_consensus_values()
 
-    log("\n  회사 고유 EBITDA 태그:")
-    if custom_all:
-        for t, tags in custom_all.items():
-            log(f"    {t:6} {tags}")
-    else:
-        log("    없음 — Adjusted EBITDA 는 XBRL 로 못 받는다는 뜻")
-
-    log("\n" + "=" * 70)
-    log("2. 컨센서스 — 무료로 받을 수 있나")
-    log("=" * 70)
-    for t in only[:4]:
-        log(f"\n  ── {t} ──")
-        for k, v in probe_yahoo_estimates(t).items():
-            log(f"    yahoo {k:24} {v}")
-        log(f"    nasdaq api               {probe_nasdaq(t)}")
-        log(f"    stockanalysis            {probe_stockanalysis(t)}")
-        time.sleep(1.0)
+    log("\n" + "=" * 72)
+    log("4. 대안: stockanalysis 분기 재무제표")
+    log("=" * 72)
+    probe_stockanalysis_financials()
 
 
 if __name__ == "__main__":
