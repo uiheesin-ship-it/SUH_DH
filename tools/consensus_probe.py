@@ -198,12 +198,18 @@ def probe_fmp(tickers):
 
 
 def probe_alphavantage(tickers):
+    """AV 는 horizon 으로 분기/연간을 나눠 준다. **미래가 몇 개인지**가 핵심이다."""
+    from datetime import date
+
     key = os.environ.get("EAI_ALPHAVANTAGE_API_KEY", "").strip()
     log("\n\n══ Alpha Vantage EARNINGS_ESTIMATES ═══════════════════")
     if not key:
         log("  키 없음(EAI_ALPHAVANTAGE_API_KEY) — 건너뜁니다")
         return
-    for t in tickers[:2]:
+    today = date.today().isoformat()
+    for i, t in enumerate(tickers[:3]):
+        if i:
+            time.sleep(15)          # 무료 플랜은 분당 5회
         url = ("https://www.alphavantage.co/query?function=EARNINGS_ESTIMATES"
                f"&symbol={t}&apikey={urllib.parse.quote(key)}")
         try:
@@ -211,14 +217,27 @@ def probe_alphavantage(tickers):
         except Exception as e:  # noqa: BLE001
             log(f"  {t:6} ✕ {_hide(e)}")
             continue
-        if "estimates" not in d:
+        rows = d.get("estimates")
+        if not rows:
             log(f"  {t:6} ✕ {json.dumps(d, ensure_ascii=False)[:180]}")
             continue
-        rows = d["estimates"]
-        log(f"  {t:6} {len(rows)}행 · 키: {sorted(rows[0])[:12]}")
-        for r in rows[:4]:
-            log(f"  {'':6} {json.dumps(r, ensure_ascii=False)[:200]}")
-        time.sleep(15)      # 무료 플랜은 분당 5회
+        fields = sorted(rows[0])
+        has_rev = [f for f in fields if "revenue" in f.lower() or "sales" in f.lower()]
+        fut = {}
+        for h in ("fiscal quarter", "fiscal year"):
+            got = sorted(r["date"] for r in rows
+                         if r.get("horizon") == h and r.get("date", "") > today)
+            fut[h] = got
+        log(f"  {t:6} 전체 {len(rows)}행 · 매출 관련 필드: {has_rev or '없음'}")
+        log(f"  {'':6} 미래 분기 {len(fut['fiscal quarter'])}개 → {fut['fiscal quarter'][:6]}")
+        log(f"  {'':6} 미래 연간 {len(fut['fiscal year'])}개 → {fut['fiscal year'][:4]}")
+        for r in rows:
+            if r.get("horizon") == "fiscal year" and r.get("date", "") > today:
+                log(f"  {'':6}   {r['date']} EPS {r.get('eps_estimate_average')} "
+                    f"(애널 {r.get('eps_estimate_analyst_count')}명, "
+                    f"{r.get('eps_estimate_low')}~{r.get('eps_estimate_high')})")
+
+
 
 if __name__ == "__main__":
     main()
