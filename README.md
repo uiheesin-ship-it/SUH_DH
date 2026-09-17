@@ -112,11 +112,23 @@ GitHub Pages는 정적 사이트라 **미리 빌드한 종목만** 조회됩니�
 > 실제 백엔드는 Render 에서 수동으로 만든 `SUH_DH` 서비스라 이 저장소의
 > `render.yaml` 이 적용되지 않습니다(`render.yaml` 은 `suh-dh-api` 라는 다른
 > 이름을 정의합니다). 필터는 **Render → SUH_DH → Settings → Build Filters →
-> Ignored Paths** 에 있습니다:
+> Ignored Paths** 에 있습니다. **한 칸에 하나씩** 넣어야 합니다:
 >
 > ```
-> data/**   state/**   docs/**   site/**   *.md
+> data/**
+> state/**
+> docs/**
+> site/**
+> *.md
 > ```
+>
+> 다섯을 공백으로 이어 한 칸에 넣으면 Render 가 그걸 **하나의 글로브 패턴**으로
+> 읽습니다. 그런 이름의 파일은 없으니 아무것도 안 걸러지는데, 화면에는 한 줄로
+> 똑같이 보여서 된 것처럼 보입니다. `Edit` 를 눌러 입력칸이 다섯 개로 갈라지는지
+> 확인하세요.
+>
+> 제대로 걸리는지는 **Events** 로 봅니다 — 데이터 커밋(`chore: update dashboard
+> data`)이 Events 에 아예 안 나타나면 맞게 걸린 것입니다.
 
 설정이 저장소 밖에 있으면 여기서는 안 보입니다. 그래서 워크플로 하나가 **밖에서
 확인**합니다 — `.github/workflows/render-deploy.yml` 이 `app/**` 이 바뀐 푸시마다
