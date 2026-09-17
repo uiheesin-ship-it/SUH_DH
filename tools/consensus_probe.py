@@ -125,8 +125,6 @@ def main():
     probe_alphavantage(tickers)
 
 
-if __name__ == "__main__":
-    main()
 
 
 # ---------------------------------------------------------------------------
@@ -221,3 +219,6 @@ def probe_alphavantage(tickers):
         for r in rows[:4]:
             log(f"  {'':6} {json.dumps(r, ensure_ascii=False)[:200]}")
         time.sleep(15)      # 무료 플랜은 분당 5회
+
+if __name__ == "__main__":
+    main()
