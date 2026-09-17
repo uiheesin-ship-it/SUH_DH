@@ -137,84 +137,138 @@ function renderMetrics(metrics) {
 }
 
 /* ---------------------------------------------------------------------- 차트 */
-const W = 980, H = 380, PAD = { l: 52, r: 58, t: 14, b: 26 };
+const W = 1000, H = 420, PAD = { l: 58, r: 62, t: 16, b: 30 };
+const MIN_BARS = 20;                 // 가로로 이보다 더 확대하지는 않는다
+const PER_FLOOR = 0, PER_CEIL = 50;  // PER 축 기본 창
+
+/* PER 축은 **고정 창**으로 본다.
+ *
+ * 데이터에 맞춰 자동으로 늘리면, PER 이 한 번이라도 200 을 찍은 종목은 나머지
+ * 구간이 바닥에 깔려 아무것도 안 보인다(NVDA 2022 가 그랬다). 어차피 100 을
+ * 넘는 PER 은 읽을 의미가 거의 없다. 그래서 0–50 을 기본으로 두고, 그 위가
+ * 궁금하면 창을 **위로 옮겨** 본다. 창 밖으로 나간 선은 지우지 않고 잘라낸다
+ * (clipPath) — 위로 뚫고 나가는 게 보여야 "여긴 벗어났구나"를 안다.
+ */
+let PER_DATA = null;
+let VIEW = null;
+
+function clampView() {
+  const n = PER_DATA.dates.length;
+  let span = Math.round(VIEW.i1 - VIEW.i0);
+  span = Math.max(Math.min(MIN_BARS, n - 1), Math.min(span, n - 1));
+  let i0 = Math.round(VIEW.i0);
+  if (i0 + span > n - 1) i0 = n - 1 - span;
+  VIEW.i0 = Math.max(0, i0);
+  VIEW.i1 = VIEW.i0 + span;
+  const h = Math.max(5, VIEW.perHi - VIEW.perLo);
+  VIEW.perLo = Math.max(0, VIEW.perLo);
+  VIEW.perHi = VIEW.perLo + h;
+}
+
+function setMonths(m) {
+  const n = PER_DATA.dates.length;
+  VIEW.i1 = n - 1;
+  VIEW.i0 = m ? Math.max(0, n - 1 - Math.round(m * 21)) : 0;   // 월 ≈ 21거래일
+  clampView();
+  redraw();
+}
 
 function drawChart(per) {
-  const n = per.dates.length;
-  const px = (i) => PAD.l + (i / Math.max(1, n - 1)) * (W - PAD.l - PAD.r);
+  PER_DATA = per;
+  VIEW = { i0: 0, i1: per.dates.length - 1, perLo: PER_FLOOR, perHi: PER_CEIL };
+  redraw();
+  wire();
+}
 
-  const closes = per.close.filter((v) => v !== null);
-  const pers = [...per.per_confirmed, ...per.per_estimated].filter((v) => v !== null && v > 0);
-  if (!closes.length) return;
-  const cLo = Math.min(...closes), cHi = Math.max(...closes);
-  // PER 은 꼬리가 길다 — 상위 1% 를 잘라야 나머지가 납작해지지 않는다.
-  const sorted = [...pers].sort((a, b) => a - b);
-  const pLo = sorted.length ? sorted[0] : 0;
-  const pHi = sorted.length ? sorted[Math.floor(sorted.length * 0.99)] : 1;
+function redraw() {
+  const per = PER_DATA;
+  const { i0, i1, perLo, perHi } = VIEW;
+  const n = i1 - i0;
+  const px = (i) => PAD.l + ((i - i0) / Math.max(1, n)) * (W - PAD.l - PAD.r);
 
-  const yC = (v) => PAD.t + (1 - (v - cLo) / Math.max(1e-9, cHi - cLo)) * (H - PAD.t - PAD.b);
-  const yP = (v) => PAD.t + (1 - (Math.min(v, pHi) - pLo) / Math.max(1e-9, pHi - pLo)) * (H - PAD.t - PAD.b);
+  // 주가 축은 **보이는 구간에만** 맞춘다. 5년을 다 걸어 두면 확대해도 선이
+  // 납작한 채라 확대한 보람이 없다.
+  const vis = per.close.slice(i0, i1 + 1).filter((v) => v !== null && v !== undefined);
+  if (!vis.length) return;
+  const cLo = Math.min(...vis), cHi = Math.max(...vis);
+  const plotH = H - PAD.t - PAD.b;
+  const yC = (v) => PAD.t + (1 - (v - cLo) / Math.max(1e-9, cHi - cLo)) * plotH;
+  const yP = (v) => PAD.t + (1 - (v - perLo) / Math.max(1e-9, perHi - perLo)) * plotH;
 
   const path = (arr, y) => {
     let d = "", pen = false;
-    arr.forEach((v, i) => {
-      if (v === null || v === undefined || !(v > 0)) { pen = false; return; }
+    for (let i = i0; i <= i1; i++) {
+      const v = arr[i];
+      if (v === null || v === undefined) { pen = false; continue; }
       d += (pen ? "L" : "M") + px(i).toFixed(1) + " " + y(v).toFixed(1) + " ";
       pen = true;
-    });
+    }
     return d.trim();
   };
 
-  // 실적발표일 세로선. 추정이 섞인 구간은 색을 달리한다.
-  const idx = new Map(per.dates.map((d, i) => [d, i]));
-  const nearest = (d) => {
-    if (idx.has(d)) return idx.get(d);
-    let lo = 0, hi = per.dates.length - 1;
-    if (d < per.dates[0] || d > per.dates[hi]) return -1;
-    while (lo < hi) { const m = (lo + hi) >> 1; per.dates[m] < d ? (lo = m + 1) : (hi = m); }
-    return lo;
-  };
-  const marks = (per.marks || []).map((m) => ({ ...m, i: nearest(m.announced) }))
-                                 .filter((m) => m.i >= 0);
+  // 창 위로 벗어난 날이 며칠인지 세어 알려 준다 — 안 그러면 "왜 선이 없지" 한다.
+  let over = 0, under = 0;
+  for (let i = i0; i <= i1; i++) {
+    const v = per.per_confirmed[i] ?? per.per_estimated[i];
+    if (v === null || v === undefined) continue;
+    if (v > perHi) over++;
+    else if (v < perLo) under++;
+  }
+  const overEl = $("per-over");
+  overEl.textContent = over || under
+    ? `창 밖 ${over ? `위로 ${over}일` : ""}${over && under ? " · " : ""}${under ? `아래로 ${under}일` : ""}` +
+      " — ▲▼ 로 옮기거나 －로 축소해서 보세요"
+    : "";
 
+  const marks = (per.marks || []).map((m) => ({ ...m, i: nearestIdx(m.announced) }))
+                                 .filter((m) => m.i >= i0 && m.i <= i1);
+
+  const step = Math.max(1, Math.floor(n / 6));
   const ticks = [];
-  for (let i = 0; i < n; i += Math.max(1, Math.floor(n / 6))) ticks.push(i);
+  for (let i = i0; i <= i1; i += step) ticks.push(i);
+
+  const grid = [0, .25, .5, .75, 1];
+  // 12.5 를 "13" 으로 쓰면 창 범위를 잘못 읽는다. 정수가 아니면 소수점을 보인다.
+  const fmtP = (v) => (Number.isInteger(v) ? String(v)
+                       : (perHi - perLo <= 10 ? v.toFixed(2) : v.toFixed(1)));
 
   $("plot").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">
+    <defs><clipPath id="plotclip">
+      <rect x="${PAD.l}" y="${PAD.t}" width="${W - PAD.l - PAD.r}" height="${plotH}"/>
+    </clipPath></defs>
     <g stroke="#334155" stroke-width="1">
-      ${[0, .25, .5, .75, 1].map((f) => {
-        const y = PAD.t + f * (H - PAD.t - PAD.b);
+      ${grid.map((f) => {
+        const y = PAD.t + f * plotH;
         return `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}" opacity=".45"/>`;
       }).join("")}
     </g>
-    <g>${marks.map((m) => `<line x1="${px(m.i)}" x2="${px(m.i)}" y1="${PAD.t}"
-        y2="${H - PAD.b}" stroke="${m.confirmed ? "#64748b" : "#f472b6"}"
-        stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`).join("")}</g>
-    <path d="${path(per.close, yC)}" fill="none" stroke="var(--price)" stroke-width="1.6"/>
-    <path d="${path(per.per_confirmed, yP)}" fill="none" stroke="var(--per)" stroke-width="1.8"/>
-    <path d="${path(per.per_estimated, yP)}" fill="none" stroke="var(--per-est)"
-          stroke-width="1.8" stroke-dasharray="5 4"/>
-    <g fill="#94a3b8" font-size="10">
-      ${[cHi, (cHi + cLo) / 2, cLo].map((v, k) =>
-        `<text x="${PAD.l - 6}" y="${yC(v) + 3}" text-anchor="end">${v.toFixed(0)}</text>`).join("")}
-      ${[pHi, (pHi + pLo) / 2, pLo].map((v) =>
-        `<text x="${W - PAD.r + 6}" y="${yP(v) + 3}">${v.toFixed(0)}</text>`).join("")}
-      ${ticks.map((i) =>
-        `<text x="${px(i)}" y="${H - 8}" text-anchor="middle">${per.dates[i].slice(0, 7)}</text>`).join("")}
+    <g clip-path="url(#plotclip)">
+      ${marks.map((m) => `<line x1="${px(m.i)}" x2="${px(m.i)}" y1="${PAD.t}"
+          y2="${H - PAD.b}" stroke="${m.confirmed ? "#64748b" : "#f472b6"}"
+          stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`).join("")}
+      <path d="${path(per.close, yC)}" fill="none" stroke="var(--price)" stroke-width="1.6"/>
+      <path d="${path(per.per_confirmed, yP)}" fill="none" stroke="var(--per)" stroke-width="1.8"/>
+      <path d="${path(per.per_estimated, yP)}" fill="none" stroke="var(--per-est)"
+            stroke-width="1.8" stroke-dasharray="5 4"/>
     </g>
-    <rect id="hit" x="${PAD.l}" y="${PAD.t}" width="${W - PAD.l - PAD.r}"
-          height="${H - PAD.t - PAD.b}" fill="transparent"/>
+    <g fill="#94a3b8" font-size="11.5">
+      ${grid.map((f) => {
+        const y = PAD.t + f * plotH;
+        const c = cHi - f * (cHi - cLo), pv = perHi - f * (perHi - perLo);
+        return `<text x="${PAD.l - 7}" y="${y + 4}" text-anchor="end" fill="var(--price)">${c.toFixed(c < 10 ? 1 : 0)}</text>` +
+               `<text x="${W - PAD.r + 7}" y="${y + 4}" fill="var(--per)">${fmtP(pv)}</text>`;
+      }).join("")}
+      ${ticks.map((i) =>
+        `<text x="${px(i)}" y="${H - 9}" text-anchor="middle">${per.dates[i].slice(0, 7)}</text>`).join("")}
+    </g>
   </svg>`;
 
-  $("legend").innerHTML = `
-    <span><i style="border-color:var(--price)"></i>주가 (왼쪽 축)</span>
-    <span><i style="border-color:var(--per)"></i>12M forward PER — 확정 실적 (오른쪽 축)</span>
-    <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>12M forward PER — 컨센 섞임</span>
-    <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>`;
+  $("per-range").textContent = `${fmtP(perLo)} – ${fmtP(perHi)}`;
+  syncButtons();
 
+  const last = (per.marks || [])[per.marks.length - 1];
   const est = (per.estimates || []).map((e) =>
     `<span class="m est">${e.end} 추정 EPS ${e.eps} <small>(${e.source})</small></span>`).join("");
-  const last = marks[marks.length - 1];
   $("marks").innerHTML =
     (last ? `<span class="m">가장 최근 계단 — 발표 <b>${last.announced}</b> ·
        재무정보 기준일 <b>${last.basis_end}</b> · 향후 4분기 EPS ${last.eps}
@@ -222,24 +276,130 @@ function drawChart(per) {
     (est || "") +
     (per.consensus_sources && per.consensus_sources.length
       ? `<br/><span class="m">컨센 출처: ${per.consensus_sources.join(", ")}</span>` : "");
+}
 
-  // 툴팁
-  const svg = $("plot").querySelector("svg");
+function syncButtons() {
+  const last = PER_DATA.dates.length - 1;
+  document.querySelectorAll(".rng").forEach((b) => {
+    const m = +b.dataset.months;
+    const span = m ? Math.round(m * 21) : last;
+    b.classList.toggle("on",
+      VIEW.i1 === last && Math.abs(Math.min(span, last) - (VIEW.i1 - VIEW.i0)) <= 1);
+  });
+}
+
+function nearestIdx(d) {
+  const ds = PER_DATA.dates;
+  if (!ds.length || d < ds[0] || d > ds[ds.length - 1]) return -1;
+  let lo = 0, hi = ds.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; ds[m] < d ? (lo = m + 1) : (hi = m); }
+  return lo;
+}
+
+/* 조작 — 버튼, 끌기, 휠 */
+let WIRED = false;
+
+function wire() {
+  // #plot 은 innerHTML 만 갈아 끼우고 자신은 살아 있다. addEventListener 를
+  // 다시 부르면 티커를 바꿀 때마다 한 겹씩 쌓여 휠 한 번에 여러 번 확대된다.
+  if (WIRED) { syncButtons(); return; }
+  WIRED = true;
+  document.querySelectorAll(".rng").forEach((b) =>
+    b.onclick = () => setMonths(+b.dataset.months));
+
+  const panPer = (dir) => {
+    const h = VIEW.perHi - VIEW.perLo;
+    VIEW.perLo += dir * h / 2; VIEW.perHi += dir * h / 2;
+    clampView(); redraw();
+  };
+  const zoomPer = (f) => {
+    const mid = (VIEW.perLo + VIEW.perHi) / 2, h = (VIEW.perHi - VIEW.perLo) * f / 2;
+    VIEW.perLo = mid - h; VIEW.perHi = mid + h;
+    clampView(); redraw();
+  };
+  $("per-up").onclick = () => panPer(1);
+  $("per-down").onclick = () => panPer(-1);
+  $("per-zin").onclick = () => zoomPer(0.5);
+  $("per-zout").onclick = () => zoomPer(2);
+  $("per-reset").onclick = () => { VIEW.perLo = PER_FLOOR; VIEW.perHi = PER_CEIL; redraw(); };
+  $("per-auto").onclick = () => {
+    const v = [];
+    for (let i = VIEW.i0; i <= VIEW.i1; i++) {
+      const x = PER_DATA.per_confirmed[i] ?? PER_DATA.per_estimated[i];
+      if (x !== null && x !== undefined) v.push(x);
+    }
+    if (!v.length) return;
+    // 꼬리 1% 는 버린다 — 한 점 때문에 나머지가 납작해지지 않게.
+    v.sort((a, b) => a - b);
+    const hi = v[Math.floor(v.length * 0.99)], lo = v[0];
+    const pad = Math.max(1, (hi - lo) * 0.08);
+    VIEW.perLo = Math.max(0, lo - pad); VIEW.perHi = hi + pad;
+    clampView(); redraw();
+  };
+
   const tip = $("tip");
-  svg.addEventListener("mousemove", (ev) => {
-    const r = svg.getBoundingClientRect();
-    const x = ((ev.clientX - r.left) / r.width) * W;
-    const i = Math.round(((x - PAD.l) / (W - PAD.l - PAD.r)) * (n - 1));
-    if (i < 0 || i >= n) { tip.classList.add("hidden"); return; }
-    const p = per.per_confirmed[i], q = per.per_estimated[i];
-    tip.innerHTML = `<b>${per.dates[i]}</b><br/>주가 ${per.close[i]}<br/>` +
-      (p !== null ? `fwd PER <b>${p}</b> (확정)` :
-       q !== null ? `fwd PER <b>${q}</b> (컨센 섞임)` : "fwd PER —");
+  let drag = null;
+  const svgNow = () => $("plot").querySelector("svg");
+
+  const toIdx = (clientX) => {
+    const r = svgNow().getBoundingClientRect();
+    const x = ((clientX - r.left) / r.width) * W;
+    const f = (x - PAD.l) / (W - PAD.l - PAD.r);
+    return Math.round(VIEW.i0 + f * (VIEW.i1 - VIEW.i0));
+  };
+
+  $("plot").onmousedown = (ev) => {
+    drag = { x: ev.clientX, i0: VIEW.i0, span: VIEW.i1 - VIEW.i0, moved: false };
+    svgNow().classList.add("grabbing");
+  };
+  window.addEventListener("mouseup", () => {
+    const el = $("plot").querySelector("svg");
+    if (el) el.classList.remove("grabbing");
+    drag = null;
+  });
+  $("plot").onmousemove = (ev) => {
+    if (drag) {
+      const r = svgNow().getBoundingClientRect();
+      const dx = ((ev.clientX - drag.x) / r.width) * W;
+      const shift = (dx / (W - PAD.l - PAD.r)) * drag.span;
+      VIEW.i0 = drag.i0 - shift; VIEW.i1 = VIEW.i0 + drag.span;
+      clampView();
+      if (Math.abs(dx) > 2) { drag.moved = true; tip.classList.add("hidden"); redraw(); }
+      return;
+    }
+    const i = toIdx(ev.clientX);
+    if (i < VIEW.i0 || i > VIEW.i1) { tip.classList.add("hidden"); return; }
+    const p = PER_DATA.per_confirmed[i], q = PER_DATA.per_estimated[i];
+    tip.innerHTML = `<b>${PER_DATA.dates[i]}</b><br/>주가 ${PER_DATA.close[i]}<br/>` +
+      (p !== null && p !== undefined ? `fwd PER <b>${p}</b> (확정)`
+       : q !== null && q !== undefined ? `fwd PER <b>${q}</b> (컨센 섞임)` : "fwd PER —");
     tip.classList.remove("hidden");
+    const r = $("plot").getBoundingClientRect();
     tip.style.left = Math.min(r.width - 170, ev.clientX - r.left + 12) + "px";
     tip.style.top = (ev.clientY - r.top + 12) + "px";
+  };
+  $("plot").onmouseleave = () => tip.classList.add("hidden");
+
+  // 휠로 기간 확대·축소. 커서가 가리키는 날짜를 제자리에 두고 늘렸다 줄인다.
+  $("plot").onwheel = ((ev) => {
+    ev.preventDefault();
+    const r = svgNow().getBoundingClientRect();
+    const f = Math.max(0, Math.min(1,
+      (((ev.clientX - r.left) / r.width) * W - PAD.l) / (W - PAD.l - PAD.r)));
+    const span = VIEW.i1 - VIEW.i0;
+    const next = Math.max(MIN_BARS, Math.min(PER_DATA.dates.length - 1,
+                                             Math.round(span * (ev.deltaY > 0 ? 1.3 : 0.77))));
+    const anchor = VIEW.i0 + f * span;
+    VIEW.i0 = anchor - f * next; VIEW.i1 = VIEW.i0 + next;
+    clampView(); redraw();
   });
-  svg.addEventListener("mouseleave", () => tip.classList.add("hidden"));
+
+  $("legend").innerHTML = `
+    <span><i style="border-color:var(--price)"></i>주가 (왼쪽 축)</span>
+    <span><i style="border-color:var(--per)"></i>12M forward PER — 확정 실적 (오른쪽 축)</span>
+    <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>12M forward PER — 컨센 섞임</span>
+    <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>
+    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>`;
 }
 
 /* --------------------------------------------------------------------- 모달 */

@@ -44,6 +44,28 @@
         </p>
       </div>
       <div class="legend" id="legend"></div>
+      <div class="chart-ctrl">
+        <div class="ctrl-group">
+          <span class="ctrl-label">기간</span>
+          <button class="rng" data-months="6">6개월</button>
+          <button class="rng" data-months="12">1년</button>
+          <button class="rng" data-months="24">2년</button>
+          <button class="rng" data-months="36">3년</button>
+          <button class="rng" data-months="0">전체</button>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">PER 축</span>
+          <button id="per-down" title="더 낮은 구간 보기">▼</button>
+          <span id="per-range" class="ctrl-val">0 – 50</span>
+          <button id="per-up" title="더 높은 구간 보기">▲</button>
+          <span class="ctrl-sep"></span>
+          <button id="per-zin" title="세로로 확대">＋</button>
+          <button id="per-zout" title="세로로 축소">－</button>
+          <button id="per-auto" title="데이터에 맞춤">자동</button>
+          <button id="per-reset" title="0 – 50 으로">초기화</button>
+        </div>
+        <span id="per-over" class="ctrl-note"></span>
+      </div>
       <div class="plot-box">
         <div id="plot"></div>
         <div id="tip" class="tip hidden"></div>
