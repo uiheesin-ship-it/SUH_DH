@@ -1,0 +1,96 @@
+# 백엔드(FastAPI)를 새 코드로 다시 띄운다.
+#
+# 왜 따로 만드나. 이 저장소는 데이터 파이프라인이라 기본 브랜치에 하루 50번 넘게
+# 커밋이 올라간다. Render 의 자동 배포에만 맡기면 코드 머지 직후 데이터 커밋이
+# 따라붙어 새 코드가 묻힐 수 있다 — 실제로 /api/fundamentals 라우트가 그렇게
+# 배포되지 않아서 화면이 404 를 냈다. 코드가 바뀐 **그 푸시에서** 명시적으로
+# 배포를 걸면 그 경주에 지지 않는다.
+#
+# 준비(한 번만):
+#   1) https://dashboard.render.com → suh-dh 서비스 → Settings → Deploy Hook
+#      → URL 복사 (https://api.render.com/deploy/srv-...?key=... 꼴)
+#   2) 저장소 Settings → Secrets and variables → Actions → **Secrets** 탭
+#      → New repository secret → RENDER_DEPLOY_HOOK_URL
+#   (키가 들어 있는 주소라 Variables 가 아니라 Secrets 입니다.)
+#
+# 시크릿이 없으면 아무 것도 하지 않고 안내만 남긴다. Render 의 자동 배포를 그대로
+# 켜 두면 가끔 두 번 배포될 수 있는데, 나중 것이 이기므로 결과는 같다. 신경 쓰이면
+# Render 쪽 Auto-Deploy 를 꺼도 된다 — 그러면 여기가 유일한 배포 경로가 된다.
+name: Deploy backend (Render)
+
+on:
+  push:
+    branches: ["claude/funny-carson-ent3s7"]
+    paths:
+      - "app/**"
+      - "requirements.txt"
+      - "render.yaml"
+      - "deploy/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger the deploy
+        id: hook
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_URL 시크릿이 없습니다 — 배포를 걸지 않았습니다. Render 대시보드에서 Manual Deploy 하거나, 위 주석대로 시크릿을 등록하세요."
+            echo "fired=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$HOOK" || echo 000)
+          echo "deploy hook -> $code"
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            echo "::warning::배포 훅이 $code 를 냈습니다 — 시크릿 주소를 확인하세요."
+            echo "fired=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "fired=1" >> "$GITHUB_OUTPUT"
+
+      # 배포가 끝났는지를 **라우트로** 확인한다. /api/health 는 코드가 바뀌어도
+      # 같은 답을 주므로 "떴다"는 건 알려 줘도 "새 코드다"는 건 알려 주지 않는다.
+      # FastAPI 가 /openapi.json 에 실제 서빙 중인 경로 목록을 실어 주므로,
+      # app/main.py 에 적힌 라우트가 거기 다 있는지 본다.
+      - name: Wait for the new routes to be live
+        if: steps.hook.outputs.fired == '1'
+        run: |
+          URL="${{ vars.SUH_DH_API_BASE }}"
+          [ -n "$URL" ] || URL=$(sed -n 's/.*SUH_DH_REGIME_API_DEFAULT *= *"\([^"]*\)".*/\1/p' \
+                                 app/static/regime/config.js | head -1)
+          URL="${URL%/}"
+          if [ -z "$URL" ]; then
+            echo "::notice::백엔드 주소를 모릅니다 — 확인을 건너뜁니다."
+            exit 0
+          fi
+          # app/main.py 가 직접 다는 라우트만 본다(하위 라우터는 자체 프리픽스를 쓴다).
+          want=$(grep -oP '@app\.get\("\K[^"]+' app/main.py | sort -u)
+          echo "확인할 라우트 $(echo "$want" | wc -l)개 · 대상 $URL"
+          for i in $(seq 1 20); do
+            sleep 30
+            body=$(curl -sS --max-time 90 "$URL/openapi.json" || true)
+            echo "$body" | grep -q '"paths"' || { echo "  ($i) 아직 응답 없음"; continue; }
+            missing=""
+            for p in $want; do
+              echo "$body" | grep -q "\"$p\"" || missing="$missing $p"
+            done
+            if [ -z "$missing" ]; then
+              echo "✅ 새 코드가 떴습니다 — 라우트 전부 확인 ($((i * 30))초)"
+              exit 0
+            fi
+            echo "  ($i) 아직 없는 라우트:$missing"
+          done
+          echo "::warning::10분 안에 새 라우트가 안 보입니다 — Render 의 Logs 탭에서 빌드 실패를 확인하세요."

@@ -96,6 +96,36 @@ GitHub Pages는 정적 사이트라 **미리 빌드한 종목만** 조회됩니�
 가져옵니다(무료 플랜은 유휴 15분 후 잠들어 첫 요청이 ~30~60초 걸릴 수 있음). 로컬
 `./run.sh` 의 `/api/*` 도 같은 백엔드라, ngrok 주소를 `SUH_DH_API_BASE` 로 써도 됩니다.
 
+#### 백엔드 코드가 바뀌면 — 배포가 묻히지 않게
+
+이 저장소는 데이터 파이프라인이기도 해서 기본 브랜치에 **하루 50번 넘게** 커밋이
+올라갑니다. 예전에는 그 커밋들 메시지에 `[skip render]` 를 붙여 백엔드 재배포를 막았는데,
+그 표시는 경로를 안 보고 **그 푸시 전체**를 건너뜁니다. 그래서 코드 머지 직후 데이터
+커밋이 따라붙으면 새 코드가 통째로 묻혔습니다 — 실제로 `/api/fundamentals` 라우트가
+그렇게 배포되지 않아 화면이 `HTTP 404 (Not Found)` 를 냈습니다.
+
+지금은 두 겹으로 막습니다.
+
+1. **`render.yaml` 의 `buildFilter.ignoredPaths`** — `data/**`·`state/**`·`docs/**`·
+   `site/**`·`*.md` 만 바뀐 푸시는 배포하지 않습니다. 데이터 커밋은 전부 여기 걸리므로
+   `[skip render]` 표시는 필요 없고, 경로로 거르니 코드 커밋을 묻을 일이 없습니다.
+2. **`.github/workflows/render-deploy.yml`** — `app/**`·`requirements.txt`·`render.yaml`·
+   `deploy/**` 가 바뀐 푸시에서 Render **Deploy Hook** 을 직접 호출합니다. 그리고
+   배포가 끝났는지를 `/openapi.json` 에서 **라우트 목록으로** 확인합니다
+   (`/api/health` 는 코드가 바뀌어도 같은 답을 주므로 "새 코드다"를 알려 주지 않습니다).
+
+   준비: Render → 서비스 → Settings → **Deploy Hook** 주소를 복사해서, 저장소
+   Settings → Secrets and variables → Actions → **Secrets** 탭에
+   `RENDER_DEPLOY_HOOK_URL` 로 등록. (키가 들어 있는 주소라 Variables 가 아니라
+   Secrets 입니다.) 없으면 이 워크플로는 안내만 남기고 아무 것도 하지 않습니다.
+
+막힌 것 같으면 **Render 대시보드 → Manual Deploy → Deploy latest commit** 이 항상
+통합니다(`[skip render]` 든 뭐든 무시합니다). 새 코드가 떴는지는 이 주소로 확인합니다:
+
+```
+https://<백엔드>/openapi.json      # paths 에 원하는 라우트가 있나
+```
+
 ## 매일 자동 갱신 웹사이트 (GitHub Pages)
 
 PC를 켜지 않아도 **고정 주소에 접속하면 매일 최신 데이터가 떠 있는** 방식입니다.
