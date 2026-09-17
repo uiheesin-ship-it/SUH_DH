@@ -377,6 +377,37 @@ def test_stale_stored_backend_url_heals_itself():
     assert "기본 주소로 되돌립니다" in js
 
 
+def test_every_backend_call_waits_behind_one_gate():
+    """잠든 백엔드에 요청을 제각각 쏘지 않는다 — 깨우기는 한 번, 나머지는 그 뒤에 줄을 선다.
+
+    게이트가 없으면 init 의 health 폴링, 파일 업로드 POST, 분석 실행이 각자 매달려서
+    타이머만 여러 개 도는 상태가 된다(실제로 그렇게 멈춰 있었다).
+    """
+    js = (ROOT / "app" / "static" / "regime" / "app.js").read_text(encoding="utf-8")
+    assert "async function ensureBackend" in js
+    assert "WAKE_RUN" in js and "WAKE_LISTENERS" in js       # 깨우기는 한 번만 돈다
+    # 실제 호출은 게이트를 통해서만 — 직접 wakeBackend 를 부르는 곳은 게이트뿐
+    assert js.count("wakeBackend(") == 2                      # 정의 1 + 게이트 안 1
+    for caller in ("async function rawPost", "async function inspectFile"):
+        body = js.split(caller, 1)[1][:900]
+        assert "ensureBackend" in body, caller
+    # 업로드도 시간 제한과 재시도를 갖는다 (예전엔 맨 fetch 라 무한정 매달렸다)
+    upload = js.split("async function inspectFile", 1)[1][:1400]
+    assert "fetchTimeout" in upload and "BACKEND_READY = false" in upload
+
+
+def test_backend_is_not_rebuilt_by_data_commits():
+    """데이터 커밋(하루 50번 이상)이 백엔드를 다시 배포하지 않게 막아 둔다.
+
+    막지 않으면 백엔드가 온종일 재시작 중이라 깨어 있을 틈이 없고,
+    재시작마다 메모리에 있던 업로드 세션이 날아간다.
+    """
+    yaml = pytest.importorskip("yaml")
+    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text(encoding="utf-8"))
+    ignored = blueprint["services"][0]["buildFilter"]["ignoredPaths"]
+    assert "data/**" in ignored
+
+
 def test_hub_prewarms_the_backend():
     """대시보드를 여는 순간 백엔드를 한 번 찔러 둔다 — 카드를 누르면 이미 깨어 있다."""
     html = (STATIC / "index.html").read_text(encoding="utf-8")

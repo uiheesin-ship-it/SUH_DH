@@ -27,4 +27,15 @@ services:
       # 맞춰 bootstrap 반복수만 낮춘 설정을 씁니다 — 계산 방법은 동일합니다.
       - key: SUH_DH_REGIME_CONFIG
         value: deploy/regime_config.render.yaml
+    # 이 저장소는 데이터 파이프라인이기도 해서 기본 브랜치에 하루 50번 넘게 커밋이
+    # 올라갑니다(52주 신고가 30분마다, 뉴스·DART·상관관계 등). 자동 배포를 그대로 두면
+    # 백엔드가 그때마다 pip install 부터 다시 해서, 하루 종일 재시작 중인 서비스가 됩니다
+    # — 깨어 있을 틈이 없고, 재시작마다 업로드 세션(메모리)이 날아갑니다.
+    # 코드가 바뀔 때만 배포하도록 데이터 커밋은 빌드에서 제외합니다.
+    buildFilter:
+      ignoredPaths:
+        - data/**
+        - docs/**
+        - site/**
+        - "*.md"
 
