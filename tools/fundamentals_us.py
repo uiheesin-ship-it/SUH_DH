@@ -31,6 +31,10 @@ CIK_FILE = ROOT / "data" / "sec_cik.json"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
 PAUSE = 0.5          # SEC 는 초당 10건까지 허용하지만 우리는 훨씬 아래로 쓴다
+# 전문검색(efts)은 data.sec.gov 보다 훨씬 빡빡하다 — 첫 건만 통과하고 뒤따르는
+# 요청이 전부 HTTPError 였다(실측). 넉넉히 쉬고 물러서며 다시 시도한다.
+EFTS_PAUSE = 2.0
+EFTS_TRIES = 3
 
 
 def log(m=""):
@@ -87,10 +91,17 @@ def resolve_cik(ticker: str) -> str | None:
 
     q = urllib.parse.quote(f'"{ticker}"')
     url = f"https://efts.sec.gov/LATEST/search-index?q={q}&forms=10-Q,10-K"
-    try:
-        hits = json.loads(_get(url, timeout=25)).get("hits", {}).get("hits", [])
-    except Exception as e:  # noqa: BLE001
-        log(f"    전문검색 실패: {type(e).__name__}")
+    hits = None
+    for attempt in range(EFTS_TRIES):
+        try:
+            hits = json.loads(_get(url, timeout=25)).get("hits", {}).get("hits", [])
+            break
+        except Exception as e:  # noqa: BLE001
+            if attempt == EFTS_TRIES - 1:
+                log(f"    전문검색 실패({ticker}): {type(e).__name__}")
+                return None
+            time.sleep(EFTS_PAUSE * (attempt + 1))
+    if not hits:
         return None
     pat = re.compile(r"\((" + re.escape(ticker.upper()) + r")\)\s*\(CIK\s*(\d{10})\)", re.I)
     for h in hits:
@@ -116,9 +127,9 @@ def fetch(ticker: str, cik_map: dict[str, str], quarters: int = 20) -> dict:
     cik = cik_map.get(t)
     if not cik:
         cik = resolve_cik(t)
+        time.sleep(EFTS_PAUSE)        # 성공이든 실패든 다음 검색 전에 쉰다
         if cik:
             cik_map[t] = cik          # 다음부터는 캐시에서 바로
-            time.sleep(PAUSE)
     if not cik:
         return {"ticker": t, "error": "CIK 를 찾지 못했습니다"}
     try:
@@ -159,8 +170,10 @@ def main() -> None:
             last = qs[-1]
             yoy = f"{last['yoy']:+.1f}%" if last.get("yoy") is not None else "—"
             qoq = f"{last['qoq']:+.1f}%" if last.get("qoq") is not None else "—"
+            v = last["val"]
+            shown = f"{v:,.2f}" if abs(v) < 1000 else f"{v:,.0f}"
             log(f"   {label:12} {m['count']:2}분기 · 최근 {last['end']} "
-                f"{last['val']:,.0f}  YoY {yoy}  QoQ {qoq}   ({m['source']})")
+                f"{shown}  YoY {yoy}  QoQ {qoq}   ({m['source']})")
         time.sleep(PAUSE)
 
     if len(cik_map) > before:

@@ -148,6 +148,32 @@ def test_bank_revenue_falls_back_to_interest_plus_noninterest():
     assert "없음" in m["영업이익"]["source"]
 
 
+def test_depreciation_merges_reported_quarters_with_ytd_differences():
+    """보고된 분기값과 누적 차분을 **합쳐야** EBITDA 가 안 끊긴다.
+
+    AAPL 은 분기 D&A 태그가 6개뿐이라, 둘 중 하나만 쓰면 영업이익이 20분기인데
+    EBITDA 는 9분기에서 멈춘다. 겹치는 자리는 보고값이 이긴다.
+    """
+    f = facts_of(
+        OperatingIncomeLoss=[fact(f"2025-0{q * 3 - 2}-01", e, 200, "2025-12-01")
+                             for q, e in enumerate(["2025-03-31", "2025-06-30",
+                                                    "2025-09-30"], 1)],
+        # 분기 태그는 1분기 것만 있고, 누적은 3분기까지 다 있다.
+        DepreciationDepletionAndAmortization=[
+            fact("2025-01-01", "2025-03-31", 30, "2025-05-01"),
+            fact("2025-01-01", "2025-06-30", 62, "2025-08-01"),
+            fact("2025-01-01", "2025-09-30", 95, "2025-11-01"),
+        ],
+        NetIncomeLoss=[fact("2025-01-01", "2025-03-31", 150, "2025-05-01")],
+    )
+    m = F.build_metrics(f)
+    assert m["EBITDA"]["count"] == 3, "누적 차분을 안 써서 EBITDA 가 끊겼다"
+    vals = {q["end"]: q["val"] for q in m["EBITDA"]["quarters"]}
+    assert vals["2025-03-31"] == 230            # 200 + 30 (보고값)
+    assert round(vals["2025-06-30"]) == 232     # 200 + 32 (차분)
+    assert "보고값" in m["EBITDA"]["source"] and "차분" in m["EBITDA"]["source"]
+
+
 def test_missing_metrics_do_not_raise():
     """태그가 하나도 없어도 빈 시계열을 돌려줄 뿐 터지지 않는다."""
     m = F.build_metrics(facts_of())
