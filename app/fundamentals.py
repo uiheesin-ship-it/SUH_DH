@@ -14,6 +14,12 @@
   **계산**하고 그렇게 라벨링한다. "Adjusted" 가 아니다.
   D&A 는 분기 태그가 6~10개뿐이다 — 현금흐름표에 **누적(YTD)** 으로 실리기
   때문이다. 누적을 차분해 분기값을 만든다.
+  **회사가 중간에 태그를 갈아탄다.** 값이 잡히는 첫 태그에서 멈추면 그게 곧
+  구멍이 된다 — PLD 는 EBITDA 가 2015년에서 끊겼고 CEG 는 매출이 14분기만
+  나왔다. 태그 우선순위는 지키되 빈 분기는 아래 태그로 메운다.
+  **가중평균주식수는 평균이라 더해지지 않는다.** Q4 = 연간 − 3분기 를 그대로
+  쓰면 A − 3A = −2A, 즉 주식수가 음수가 된다(SMCI 가 −13.5억 주로 찍혔다).
+  평균 항목은 4×연평균 − 3분기 로 되돌린다.
 
 정정공시를 어떻게 다루는지가 중요하다. 같은 분기가 여러 번 제출되는데(10-K/A,
 재작성), 쓰임이 갈린다.
@@ -57,6 +63,7 @@ SHARES_TAGS = ["WeightedAverageNumberOfDilutedSharesOutstanding",
                "WeightedAverageNumberOfSharesOutstandingBasic"]
 
 QUARTER_DAYS = (80, 100)      # 3개월 구간
+STALE_DAYS = 200              # 이만큼 뒤처지면 "최근"이라 부르지 않는다
 ANNUAL_DAYS = (350, 380)      # 12개월 구간
 
 
@@ -78,33 +85,46 @@ def _units(facts: dict, tag: str):
             yield f
 
 
-def collect(facts: dict, tags: list[str], lo: int, hi: int) -> dict[str, dict]:
-    """기간 길이가 [lo, hi] 인 사실을 기준일별로 모은다.
+def _collect_one(facts: dict, tag: str, lo: int, hi: int) -> dict[str, dict]:
+    """태그 **하나**에서 기간 길이가 [lo, hi] 인 사실을 기준일별로 모은다.
 
-    같은 기준일이 여러 번 나오면(정정공시) **첫 제출본과 마지막 제출본을 둘 다**
+    같은 기준일이 여러 번 나오면(정정공시) 첫 제출본과 마지막 제출본을 둘 다
     남긴다 — 실적 표는 마지막이 맞고 과거 시점 계산은 첫 번째가 맞다.
     """
     out: dict[str, dict] = {}
+    for f in _units(facts, tag):
+        d = _days(f)
+        if d is None or not (lo <= d <= hi):
+            continue
+        end, filed, val = f.get("end"), f.get("filed") or "", f.get("val")
+        if val is None:
+            continue
+        cur = out.get(end)
+        if cur is None:
+            out[end] = {"end": end, "start": f.get("start"), "val": val,
+                        "first_val": val, "first_filed": filed,
+                        "last_filed": filed, "form": f.get("form"), "tag": tag}
+            continue
+        if filed < cur["first_filed"]:
+            cur["first_val"], cur["first_filed"] = val, filed
+        if filed >= cur["last_filed"]:
+            cur["val"], cur["last_filed"], cur["form"] = val, filed, f.get("form")
+    return out
+
+
+def collect(facts: dict, tags: list[str], lo: int, hi: int) -> dict[str, dict]:
+    """여러 태그를 훑어 기준일별 분기값을 만든다 — 우선순위대로 **합친다**.
+
+    예전에는 값이 잡히는 첫 태그에서 멈췄다. 회사가 중간에 태그를 갈아타면
+    그게 곧 구멍이 된다: PLD 는 감가상각을 옛 태그로만 올리다 바꿔서 EBITDA 가
+    2015년에서 끊겼고, CEG 는 매출이 14분기밖에 안 나왔다. 태그 우선순위는
+    그대로 두되(같은 기준일이면 앞 태그가 이긴다) **비어 있는 분기만** 뒤
+    태그로 메운다. 어느 태그에서 온 값인지는 행마다 ``tag`` 에 남는다.
+    """
+    out: dict[str, dict] = {}
     for tag in tags:
-        for f in _units(facts, tag):
-            d = _days(f)
-            if d is None or not (lo <= d <= hi):
-                continue
-            end, filed, val = f.get("end"), f.get("filed") or "", f.get("val")
-            if val is None:
-                continue
-            cur = out.get(end)
-            if cur is None:
-                out[end] = {"end": end, "start": f.get("start"), "val": val,
-                            "first_val": val, "first_filed": filed,
-                            "last_filed": filed, "form": f.get("form"), "tag": tag}
-                continue
-            if filed < cur["first_filed"]:
-                cur["first_val"], cur["first_filed"] = val, filed
-            if filed >= cur["last_filed"]:
-                cur["val"], cur["last_filed"], cur["form"] = val, filed, f.get("form")
-        if out:
-            break          # 먼저 잡힌 태그를 쓴다(매출 태그는 신→구 순서)
+        for end, row in _collect_one(facts, tag, lo, hi).items():
+            out.setdefault(end, row)
     return out
 
 
@@ -130,11 +150,18 @@ def _sum_parts(facts: dict, groups: list[list[str]], lo: int, hi: int) -> dict[s
     return out
 
 
-def derive_q4(quarterly: dict[str, dict], annual: dict[str, dict]) -> dict[str, dict]:
+def derive_q4(quarterly: dict[str, dict], annual: dict[str, dict],
+              mode: str = "sum") -> dict[str, dict]:
     """10-K 는 분기를 안 싣는다 — Q4 = 연간 − (Q1+Q2+Q3).
 
     회계연도 안에 들어가는 분기 셋을 날짜로 찾는다. fy/fp 는 **제출물**의 회계
     연도라 사실 자체의 연도와 어긋날 때가 있어 쓰지 않는다.
+
+    ``mode`` 는 그 항목이 **더해지는 값인지**를 말한다. 매출·이익은 더해지니
+    ``"sum"``. 가중평균주식수는 **평균**이라 더하면 안 된다 — 그대로 빼면
+    A − 3A = −2A 라 주식수가 음수로 나온다(SMCI 가 −13.5억 주로 찍혔다).
+    평균 항목은 ``"mean"`` 으로 Q4 = 4×연평균 − (Q1+Q2+Q3) 를 쓰고, 그래도
+    0 이하가 나오면 버린다 — 있을 수 없는 값이라 근사가 깨진 것이다.
     """
     out = dict(quarterly)
     for end, a in annual.items():
@@ -150,34 +177,32 @@ def derive_q4(quarterly: dict[str, dict], annual: dict[str, dict]) -> dict[str, 
                   and date.fromisoformat(q["end"]) <= a_end]
         if len(inside) != 3:
             continue
+        k = 4 if mode == "mean" else 1
+        val = k * a["val"] - sum(q["val"] for q in inside)
+        first = k * a["first_val"] - sum(q["first_val"] for q in inside)
+        if mode == "mean" and val <= 0:
+            continue
         out[end] = {
             "end": end,
             "start": max(q["end"] for q in inside),
-            "val": a["val"] - sum(q["val"] for q in inside),
-            "first_val": a["first_val"] - sum(q["first_val"] for q in inside),
+            "val": val, "first_val": first,
             "first_filed": a["first_filed"], "last_filed": a["last_filed"],
-            "form": a.get("form"), "tag": a.get("tag"), "derived": "연간−3분기",
+            "form": a.get("form"), "tag": a.get("tag"),
+            "derived": "4×연평균−3분기" if mode == "mean" else "연간−3분기",
         }
     return out
 
 
-def quarterly_from_ytd(facts: dict, tags: list[str]) -> dict[str, dict]:
-    """누적(YTD) 항목을 차분해 분기값으로 만든다 — 감가상각이 이 꼴이다.
-
-    현금흐름표는 회계연도 시작부터 누적이라 구간이 90·180·270·365일로 늘어난다.
-    같은 회계연도 안에서 바로 앞 누적을 빼면 그 분기 값이 된다.
-    """
+def _ytd_one(facts: dict, tag: str) -> dict[str, dict]:
+    """태그 하나의 누적(YTD) 계열을 차분해 분기값으로 만든다."""
     rows = []
-    for tag in tags:
-        for f in _units(facts, tag):
-            d = _days(f)
-            if d is None or d < 80 or d > 380:
-                continue
-            if f.get("val") is None:
-                continue
-            rows.append(f)
-        if rows:
-            break
+    for f in _units(facts, tag):
+        d = _days(f)
+        if d is None or d < 80 or d > 380:
+            continue
+        if f.get("val") is None:
+            continue
+        rows.append(f)
     if not rows:
         return {}
 
@@ -188,9 +213,8 @@ def quarterly_from_ytd(facts: dict, tags: list[str]) -> dict[str, dict]:
 
     out: dict[str, dict] = {}
     for start, group in by_start.items():
-        group = sorted(group, key=lambda f: f["end"])
         # 같은 (start, end) 가 여러 번이면 마지막 제출본
-        dedup = {}
+        dedup: dict[str, dict] = {}
         for f in group:
             e = f["end"]
             if e not in dedup or (f.get("filed") or "") >= (dedup[e].get("filed") or ""):
@@ -201,9 +225,25 @@ def quarterly_from_ytd(facts: dict, tags: list[str]) -> dict[str, dict]:
             val = f["val"] - prev_val
             out[end] = {"end": end, "start": prev_end, "val": val, "first_val": val,
                         "first_filed": f.get("filed") or "", "last_filed": f.get("filed") or "",
-                        "form": f.get("form"), "tag": f"{f.get('tag', tags[0])}(YTD 차분)",
+                        "form": f.get("form"), "tag": f"{tag}(YTD 차분)",
                         "derived": "누적 차분"}
             prev_val, prev_end = f["val"], end
+    return out
+
+
+def quarterly_from_ytd(facts: dict, tags: list[str]) -> dict[str, dict]:
+    """누적(YTD) 항목을 차분해 분기값으로 만든다 — 감가상각이 이 꼴이다.
+
+    현금흐름표는 회계연도 시작부터 누적이라 구간이 90·180·270·365일로 늘어난다.
+    같은 회계연도 안에서 바로 앞 누적을 빼면 그 분기 값이 된다.
+
+    차분은 **태그별로 따로** 한다. 서로 다른 태그의 누적값을 섞어 빼면 값이
+    엉킨다. 그렇게 나온 결과를 ``collect`` 와 같은 우선순위로 합친다.
+    """
+    out: dict[str, dict] = {}
+    for tag in tags:
+        for end, row in _ytd_one(facts, tag).items():
+            out.setdefault(end, row)
     return out
 
 
@@ -220,11 +260,11 @@ def build_metrics(facts: dict, quarters: int = 20) -> dict:
     """
     ann = collect(facts, NET_INCOME_TAGS, *ANNUAL_DAYS)
 
-    def metric(tags, label, annual_tags=None):
+    def metric(tags, label, annual_tags=None, mode="sum"):
         q = collect(facts, tags, *QUARTER_DAYS)
         if q:
             a = collect(facts, annual_tags or tags, *ANNUAL_DAYS)
-            q = derive_q4(q, a)
+            q = derive_q4(q, a, mode)
         return q
 
     revenue = metric(REVENUE_TAGS, "매출")
@@ -237,7 +277,8 @@ def build_metrics(facts: dict, quarters: int = 20) -> dict:
     operating = metric(OPERATING_TAGS, "영업이익")
     net = metric(NET_INCOME_TAGS, "순이익")
     eps = metric(EPS_TAGS, "희석EPS")
-    shares = metric(SHARES_TAGS, "가중평균주식수")
+    # 주식수는 **평균**이다 — 연간에서 세 분기를 그냥 빼면 음수가 된다.
+    shares = metric(SHARES_TAGS, "가중평균주식수", mode="mean")
 
     # D&A 는 분기 태그가 드물다(실측 21분기 중 6~10개). 보고된 분기값을 먼저
     # 깔고 **빈 자리만** 누적 차분으로 메운다 — 둘 중 하나만 쓰면 EBITDA 가
@@ -286,6 +327,18 @@ def build_metrics(facts: dict, quarters: int = 20) -> dict:
             "count": len(series),
             "quarters": series,
         }
+    # 어느 한 항목만 오래전에서 끊겨 있으면 그걸 "최근"이라고 보여 주면 안 된다.
+    # 태그를 갈아탄 회사에서 조용히 생기는 구멍이라 눈에 띄게 표시해 둔다.
+    latest = max((m["quarters"][-1]["end"] for m in metrics.values() if m["quarters"]),
+                 default=None)
+    for m in metrics.values():
+        m["latest"] = m["quarters"][-1]["end"] if m["quarters"] else None
+        m["stale_days"] = None
+        if latest and m["latest"]:
+            m["stale_days"] = (date.fromisoformat(latest) - date.fromisoformat(m["latest"])).days
+            if m["stale_days"] > STALE_DAYS:
+                m["warning"] = (f"최신 분기가 {m['latest']} 에서 끊겼습니다"
+                                f"(다른 항목은 {latest}).")
     metrics["EBITDA"]["note"] = (
         "Adjusted EBITDA 가 아닙니다. 비GAAP 이라 XBRL 에 없고 회사마다 정의가 "
         "다릅니다(일회성·주식보상 등 무엇을 빼는지). 여기 값은 영업이익에 "
