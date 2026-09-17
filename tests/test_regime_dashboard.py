@@ -684,3 +684,28 @@ def test_setup_guide_panel():
 
     js = (STATIC / "regime" / "app.js").read_text(encoding="utf-8")
     assert '"#setup", "#setup-btn"' in js and 'e.key !== "Escape"' in js
+
+
+def test_stale_backend_without_regime_api_is_named(client):
+    """Regime Lab 이전 빌드에 붙었을 때 'Method Not Allowed' 대신 이유를 말한다.
+
+    낡은 백엔드에서는 POST /api/regime/inspect 가 어떤 라우터에도 안 걸려 정적 파일
+    mount 로 흘러가고, FastAPI 가 405 {"detail":"Method Not Allowed"} 를 준다.
+    사용자에게는 아무 의미 없는 메시지라, 파일을 다 올린 뒤에야 막힌 걸 알게 된다.
+    """
+    js = (STATIC / "regime" / "app.js").read_text(encoding="utf-8")
+    block = js.split("async function wakeBackend", 1)[1][:3000]
+    assert "if (!body.regime)" in block                       # 오래된 health 응답
+    assert '"/api/regime/defaults"' in block                  # 실제로 있는지 확인
+    assert "probe.status === 404 || probe.status === 405" in block
+    assert "Regime Lab 추가 이전 버전" in block
+
+    # 현재 백엔드는 둘 다 정상이어야 한다
+    assert client.get("/api/health").json()["regime"]["ok"] is True
+    assert client.get("/api/regime/defaults").status_code == 200
+
+    # 설치 안내가 로컬 주소와 온라인 주소의 차이를 짚어 준다
+    html = (STATIC / "regime" / "index.html").read_text(encoding="utf-8")
+    guide = html.split('<div id="setup"', 1)[1].split('<div id="overlay"', 1)[0]
+    assert "127.0.0.1:8000/regime/" in guide and "github.io" in guide
+    assert "Method Not Allowed" in guide
