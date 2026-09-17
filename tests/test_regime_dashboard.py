@@ -662,15 +662,23 @@ def test_setup_guide_panel():
     body = html.split('<div id="setup"', 1)[1].split('<div id="overlay"', 1)[0]
 
     for phrase in (
-        "python.org/downloads", "py --version",                       # ① Python
-        "archive/refs/heads/claude/funny-carson-ent3s7.zip",          # ② 내려받기
-        "requirements.txt", "powershell",
-        "py -m pip install -r requirements.txt",                      # ③ 설치
-        "py -m uvicorn app.main:app --port 8000",                     # ④ 실행
-        "./run.sh", "Ctrl + C",
-        "127.0.0.1:8000/regime/", "Manual Upload",                    # ⑤ 사용
-        "127.0.0.1:8000/api/health", '"regime":{"ok":true}',          # 막힐 때
-        "--port 8001",
+        # 준비
+        "python.org/downloads", "py --version",
+        "git-scm.com/download/win", "git --version",
+        # A. 같은 컴퓨터에서 다시 — 설치를 다시 하지 않는다
+        "A. 같은 컴퓨터에서 다시 쓸 때", "설치는 다시 하지 않습니다",
+        "py -m uvicorn app.main:app --port 8000", "Ctrl + C",
+        # B. 새 컴퓨터 — Git / ZIP 두 갈래
+        "B. 새 컴퓨터에서 처음 쓸 때",
+        "git clone -b claude/funny-carson-ent3s7 https://github.com/uiheesin-ship-it/SUH_DH.git",
+        "archive/refs/heads/claude/funny-carson-ent3s7.zip",
+        "py -m pip install -r requirements.txt", "requirements.txt", "powershell",
+        "127.0.0.1:8000/regime/", "Manual Upload", "./run.sh",
+        # C. 업데이트 — 내 폴더는 저절로 바뀌지 않는다
+        "C. 프로그램을 최신으로 업데이트할 때", "git pull",
+        "저절로 바뀌지 않습니다", "Ctrl + F5",
+        # 막힐 때
+        "127.0.0.1:8000/api/health", '"regime":{"ok":true}', "--port 8001",
     ):
         assert phrase in body, f"설치 안내에 '{phrase}' 가 없습니다"
 
