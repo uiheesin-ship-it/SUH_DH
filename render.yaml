@@ -34,7 +34,8 @@ services:
     # 코드가 바뀔 때만 배포하도록 데이터 커밋은 빌드에서 제외합니다.
     buildFilter:
       ignoredPaths:
-        - data/**
+        - data/**          # 신고가·뉴스·DART·상관관계 등 자동 갱신 (하루 30회 이상)
+        - state/**         # telegram 발송 기록
         - docs/**
         - site/**
         - "*.md"
