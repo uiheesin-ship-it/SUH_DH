@@ -70,6 +70,25 @@ function fetchTimeout(url, ms, opts) {
 }
 
 let BACKEND_READY = false;
+let WAKE_RUN = null;                    // 진행 중인 깨우기 (동시에 두 번 하지 않는다)
+let WAKE_LISTENERS = [];
+
+/** 백엔드가 준비될 때까지 기다린다 — 여러 곳에서 불러도 깨우기는 한 번만 돈다.
+ *
+ *  이게 없으면 페이지가 잠든 백엔드로 요청을 제각각 쏜다: init 은 /api/health 를
+ *  되묻고, 파일 업로드는 응답 없는 POST 에 매달리고, 분석 실행은 그 업로드를
+ *  기다린다 — 화면에는 타이머 두 개가 따로 돌고 아무것도 끝나지 않는다.
+ *  요청은 전부 이 문을 지나게 하고, 기다리는 쪽에는 같은 진행 상황을 알려 준다. */
+async function ensureBackend(onTick) {
+  if (!API_BASE || BACKEND_READY) return { ok: true };
+  if (onTick) WAKE_LISTENERS.push(onTick);
+  if (!WAKE_RUN) {
+    WAKE_RUN = wakeBackend(API_BASE, (sec) => WAKE_LISTENERS.forEach((fn) => {
+      try { fn(sec); } catch (e) { /* 화면 갱신 실패가 깨우기를 막지 않게 */ }
+    })).finally(() => { WAKE_RUN = null; WAKE_LISTENERS = []; });
+  }
+  return WAKE_RUN;
+}
 
 /** 백엔드가 응답할 때까지 기다린다. onTick(초) 으로 진행 상황을 알려 준다. */
 async function wakeBackend(base, onTick) {
@@ -200,6 +219,8 @@ function metric(k, v) { return `<div class="metric"><div class="k">${esc(k)}</di
 const REQUEST_TIMEOUT_MS = 300000;      // 5분 — 잠든 인스턴스가 깨서 계산까지 하는 시간
 
 async function rawPost(path, body) {
+  const wake = await ensureBackend((sec) => busyText(`백엔드를 깨우는 중… ${sec}초`));
+  if (!wake.ok) throw new Error(wake.why);
   const res = await fetchTimeout(api(path), REQUEST_TIMEOUT_MS, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -227,7 +248,8 @@ async function post(path, makeBody) {
     const msg = String((err && err.message) || err);
 
     if (looksOffline(err) && API_BASE) {
-      const wake = await wakeBackend(API_BASE, (sec) =>
+      BACKEND_READY = false;                 // 그 사이 잠들었거나 재시작했다
+      const wake = await ensureBackend((sec) =>
         busyText(`백엔드가 잠들어 있었습니다 — 깨우는 중… ${sec}초`));
       if (!wake.ok) throw new Error(wake.why);
       busyText("다시 요청하는 중…");
@@ -612,12 +634,33 @@ async function quickInspect(kind, file) {
 }
 
 async function inspectFile(kind, file) {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("kind", kind);
-  const res = await fetch(api("/api/regime/inspect"), { method: "POST", body: form });
-  const json = await res.json();
-  if (!res.ok || json.error) throw new Error(json.error + (json.detail ? " — " + json.detail : ""));
+  // 업로드는 화면에서 제일 먼저 나가는 요청이라, 잠든 백엔드에 그대로 던지면
+  // 응답 없이 매달린 채 '분석 실행'까지 같이 묶여 버린다. 문을 지나게 하고,
+  // 시간 제한과 한 번의 재시도를 준다.
+  const send = async () => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("kind", kind);
+    const res = await fetchTimeout(api("/api/regime/inspect"), REQUEST_TIMEOUT_MS,
+                                   { method: "POST", body: form });
+    const json = await res.json();
+    if (!res.ok || json.error) throw new Error(json.error + (json.detail ? " — " + json.detail : ""));
+    return json;
+  };
+
+  const wake = await ensureBackend((sec) => setStatus(`백엔드를 깨우는 중… ${sec}초`, "warn"));
+  if (!wake.ok) throw new Error(wake.why);
+
+  let json;
+  try {
+    json = await send();
+  } catch (err) {
+    if (!looksOffline(err)) throw err;
+    BACKEND_READY = false;
+    const again = await ensureBackend((sec) => setStatus(`백엔드를 다시 깨우는 중… ${sec}초`, "warn"));
+    if (!again.ok) throw new Error(again.why);
+    json = await send();
+  }
   UPLOADS[kind] = json;
   SESSION = null;                         // 데이터가 바뀌면 세션을 새로 만든다
   renderMapping(kind, json);
@@ -975,7 +1018,7 @@ async function init() {
     $("#intro-note").innerHTML = note("info",
       "분석 백엔드를 깨우는 중입니다 — 무료 인스턴스는 처음 한 번 30~60초가 걸립니다. " +
       "기다리는 동안 왼쪽에서 파일과 파라미터를 미리 골라 두셔도 됩니다.");
-    let wake = await wakeBackend(API_BASE, (sec) => setStatus(`백엔드를 깨우는 중… ${sec}초`, "warn"));
+    let wake = await ensureBackend((sec) => setStatus(`백엔드를 깨우는 중… ${sec}초`, "warn"));
 
     // 브라우저에 저장해 둔 주소가 틀렸을 수 있다(예전에 손으로 넣어 둔 주소 등).
     // 저장값은 무엇보다 우선하므로, 한 번 실패하면 이 빌드의 기본 주소로 되돌려 본다.
@@ -986,7 +1029,7 @@ async function init() {
       $("#intro-note").innerHTML = note("info",
         "저장해 둔 백엔드 주소가 응답하지 않아 기본 주소로 되돌립니다 — " +
         `<code>${esc(builtin)}</code>`);
-      wake = await wakeBackend(API_BASE, (sec) => setStatus(`기본 백엔드를 깨우는 중… ${sec}초`, "warn"));
+      wake = await ensureBackend((sec) => setStatus(`기본 백엔드를 깨우는 중… ${sec}초`, "warn"));
     }
 
     if (!wake.ok) {
