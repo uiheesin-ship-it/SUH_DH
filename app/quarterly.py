@@ -120,7 +120,9 @@ def _attach_forecast(out: dict, con: dict, quarters: list[dict],
                   if shares else
                   (lambda: consensus.empty_forecast("주식수를 못 구해 EPS 컨센을 금액으로 바꿀 수 없습니다")),
         "영업이익": lambda: consensus.empty_forecast(
-            "영업이익 컨센을 주는 무료 출처가 없습니다(야후·Alpha Vantage 모두 없음)"),
+            "영업이익 컨센을 주는 무료 출처가 없습니다 — 야후·Alpha Vantage 에는 항목 "
+            "자체가 없고, FMP 는 유료 플랜에서만 열립니다(무료로는 값이 전부 비어 "
+            "옵니다). 실측 2026-09-18."),
         "EBITDA": lambda: consensus.empty_forecast(
             "EBITDA 컨센을 주는 무료 출처가 없습니다"),
         "가중평균주식수": lambda: consensus.empty_forecast("주식수 컨센은 없습니다"),
