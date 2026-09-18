@@ -150,7 +150,15 @@ def eps_estimates(con: dict) -> dict:
 # 한다. 키 없이 도는 쪽을 기본으로 둔다.
 #
 # 영업이익까지 채우려면 FMP 의 analyst-estimates(estimatedEbit·estimatedNetIncome)
-# 가 필요하다. 그건 키가 있어야 열어 볼 수 있다.
+# 가 필요한데, **무료 플랜으로는 안 된다.** 키를 넣고 재 봤다(2026-09-18):
+#
+#   /api/v3/analyst-estimates          403 Forbidden      (구 엔드포인트, 막힘)
+#   /stable/analyst-estimates?annual   200 · 8행           **값이 전부 null**
+#   /stable/analyst-estimates?quarter  402 Payment Required
+#
+# 연간은 응답이 오지만 estimatedRevenueAvg·estimatedEbitAvg·estimatedNetIncomeAvg
+# 가 모두 null 이다 — 날짜 뼈대만 주고 숫자는 유료로 막아 뒀다. 그래서 영업이익
+# 컨센 칸은 비워 두고 이유를 적는다. 유료 플랜을 쓰게 되면 여기만 바꾸면 된다.
 Q_KEYS = ("0q", "+1q")
 Y_KEYS = ("0y", "+1y")
 YEAR_SLOTS = 3          # 올해·내년·내후년 — 칸은 늘 세 개, 없으면 없다고 쓴다
