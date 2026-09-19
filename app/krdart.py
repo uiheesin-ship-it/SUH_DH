@@ -149,7 +149,17 @@ def announcements(corp: str, years: int = YEARS) -> list[dict]:
 
 
 def fetch(code: str) -> dict:
-    """종목코드 하나의 DART 재료 전부."""
+    """종목코드 하나의 DART 재료 전부.
+
+    키가 없으면 **먼저 그렇게 말한다.** 없는 채로 부르면 DART 가 "자료 없음"
+    처럼 답해서 "이 종목은 보고서가 없습니다" 라는 엉뚱한 메시지가 뜬다.
+    """
+    if not dartdoc.key():
+        raise LookupError(
+            "DART_API_KEY 가 없습니다 — 국장은 DART 무료 API 키가 필요합니다. "
+            "opendart.fss.or.kr 에서 받아(1분, 무료) 환경변수로 넣으세요. "
+            "로컬이라면 서버를 띄우기 전에 "
+            "export DART_API_KEY=발급받은키 를 한 줄 치면 됩니다.")
     corp = corp_code(code)
     return {"code": code, "corp_code": corp,
             "reports": reports(corp), "announcements": announcements(corp)}

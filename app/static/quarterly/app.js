@@ -712,6 +712,9 @@ function renderMarks(per) {
     html += `<br/><span class="m season ${f["직전 해 × 성장률"] ? "warn" : "ok"}">` +
       `추정 분기를 채운 방법: <b>${bits.join(" · ") || "없음"}</b>` +
       (per.kr_growth ? ` · 성장률 ${per.kr_growth}배` : "") +
+      (per.kr_growth_capped
+        ? ` <b>(올해 성장률 ${per.kr_raw_growth}배는 내년까지 이어 쓰기엔 지나쳐
+            성장 없음으로 물러섰습니다)</b>` : "") +
       ` <a href="#" class="basis-link">산정 기준 보기</a></span>`;
     if (per.season) {
       html += `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
@@ -977,6 +980,17 @@ PowerShell 쪽은 바로 프롬프트로 돌아와서 "안 돌고 있나?" 싶�
 띄우면 <b>창이 하나</b>라 헷갈릴 일이 없습니다.
 </div>
 
+<h4>3-1. 국장(🇰🇷)을 쓰려면 — DART 키 한 줄</h4>
+<p>미장은 키가 필요 없습니다. <b>국장만</b> DART 무료 API 키가 필요합니다
+(<code>opendart.fss.or.kr</code> → 가입 → 인증키 신청, 1분·무료).
+받은 키를 서버 띄우기 <b>전에</b> 한 줄 넣으세요.</p>
+<pre>export DART_API_KEY=여기에받은키
+./run.sh</pre>
+<p class="muted">창을 닫으면 사라집니다. 매번 치기 싫으면 <code>SUH_DH</code> 폴더의
+<code>~/.bashrc</code> 에 그 줄을 넣어 두면 됩니다. 키를 안 넣고 국장을 조회하면
+화면이 "DART_API_KEY 가 없습니다" 라고 말해 줍니다 — 조용히 빈 화면이 되지는
+않습니다.</p>
+
 <h4>4. 브라우저에서 열기 — <code>http://</code> 를 꼭</h4>
 <pre>http://localhost:8000/quarterly/</pre>
 <div class="warn">
@@ -1206,6 +1220,14 @@ pip install -r requirements.txt
       갈 일이 없었는데, 국장은 하나뿐이라 안 그러면 <b>가장 최근 1년이 통째로
       빕니다</b>. 성장률을 그대로 이어 쓴다는 뜻이라, 성장률이 꺾이는 해에는
       빗나갑니다.</li>
+  <li><b>성장률이 0.5~2.0배 밖이면 성장 없음(1.0배)으로 물러섭니다.</b>
+      실측(삼성전자 2026-09-19)에서 올해 성장률이 <b>7.25배</b>로 나왔습니다 —
+      메모리 사이클 정점이라 실제로 그렇습니다. 그런데 그 배수를 내년에도 그대로
+      곱하면 2028년 분기 EPS 가 56만 원이 됩니다. 컨센이 한 번도 말한 적 없는
+      숫자이고, 한 해의 정점을 영구 성장률로 바꿔 쓰는 셈입니다. 그럴 땐 "그
+      수준이 유지된다" 로 두고 화면에 그렇게 적습니다 — 이 가정이 틀리면 forward
+      PER 이 <b>보수적으로(높게)</b> 나옵니다. 낙관 쪽으로 틀리는 것보다 낫습니다.
+      범위는 <code>app/krquarterly.py</code> 의 <code>GROWTH_BAND</code> 한 줄입니다.</li>
   <li>③ 의 재료(1년 전 같은 분기)도 없으면 <b>그 분기는 비웁니다</b> — 지어내지
       않습니다. 그러면 그 구간의 PER 선이 끊깁니다.</li>
   <li>확정 합이 연간 컨센을 넘으면 미장과 똑같이 비우고 이유를 적습니다.</li>

@@ -31,6 +31,17 @@ PRICE_YEARS = 5
 # 국장 주가 기본 조회는 2.2년이다(스크리너가 그만큼만 쓴다). 5년을 그리려면
 # 이 페이지에서만 더 길게 달라고 해야 한다.
 PRICE_DAYS = 400 + 365 * PRICE_YEARS
+# ③단계(직전 해 × 성장률)에서 쓸 수 있는 성장률의 범위.
+#
+# 실측(삼성전자 2026-09-19): 올해 FY 컨센 ÷ 작년 실적이 **7.25배**로 나왔다.
+# 메모리 사이클 정점이라 실제로 그렇다. 그런데 그 배수를 **내년에도 그대로**
+# 곱하면 2028년 분기 EPS 가 56만 원이 된다 — 컨센이 한 번도 말한 적 없는 숫자다.
+# 한 해의 사이클 정점을 영구 성장률로 바꿔 쓰는 셈이라 쓸 수 없다.
+#
+# 범위 밖이면 성장률을 **1.0(성장 없음)** 으로 두고 그렇게 적는다. 값을 지어내는
+# 것보다 "그 수준이 유지된다고 보았다" 가 방어 가능하고, 그 가정이 틀리면
+# forward PER 이 **보수적으로**(높게) 나온다 — 낙관 쪽으로 틀리는 것보다 낫다.
+GROWTH_BAND = (0.5, 2.0)
 
 
 def _price(code: str) -> tuple[list[str], list[float]]:
@@ -135,6 +146,12 @@ def estimates(future: list[str], con: dict, fy_ends: list[str],
         prev_sum = sum(v for e, v in known.items() if lo < forwardper._d(e) <= prev_fy)
         if total is not None and prev_sum > 0:
             growth = float(total) / prev_sum
+    raw_growth, capped = growth, False
+    if growth is not None and not (GROWTH_BAND[0] <= growth <= GROWTH_BAND[1]):
+        growth, capped = 1.0, True
+    label = ("성장 없음(올해 성장률 "
+             f"{raw_growth:.2f}배는 내년까지 이어 쓰기엔 지나칩니다)") if capped \
+        else (f"성장률 {growth:.2f}배" if growth is not None else "")
     for end in future:
         if end in out:
             continue
@@ -145,11 +162,13 @@ def estimates(future: list[str], con: dict, fy_ends: list[str],
         if base is None or growth is None:
             continue
         out[end] = {"val": base * growth,
-                    "source": f"직전 해 같은 분기 × 성장률 {growth:.2f}배(가정)",
-                    "assumed": True}
+                    "source": f"직전 해 같은 분기 × {label}(가정)",
+                    "assumed": True, "capped": capped}
         why["직전 해 × 성장률"] += 1
 
     return out, {"counts": why, "growth": None if growth is None else round(growth, 4),
+                 "raw_growth": None if raw_growth is None else round(raw_growth, 4),
+                 "growth_capped": capped, "growth_band": list(GROWTH_BAND),
                  "season_mode": mode, "season_why": season_why,
                  "season_weights": {str(k): round(v, 4) for k, v in w.items()}}
 
@@ -294,6 +313,9 @@ def _chart(series, windows, quarters, con, est, why, dart) -> dict:
                    "weights": why["season_weights"], "why": why["season_why"]},
         "kr_fill": why["counts"],
         "kr_growth": why["growth"],
+        "kr_raw_growth": why["raw_growth"],
+        "kr_growth_capped": why["growth_capped"],
+        "kr_growth_band": why["growth_band"],
         "note": (
             "계단은 **잠정실적 공시일**에 밟습니다 — 정기보고서 접수일보다 2~5주 "
             "빠르고, 시장이 숫자를 아는 날은 그쪽입니다. 없으면 정기보고서 "

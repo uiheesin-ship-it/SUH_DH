@@ -63,6 +63,26 @@ def test_다음_회계연도는_직전_해_같은_분기에_성장률을_곱한�
     assert why["counts"]["직전 해 × 성장률"] == 2
 
 
+def test_성장률이_지나치면_성장_없음으로_물러선다():
+    """실측(삼성전자): 올해 성장률 7.25배. 내년까지 그대로 곱하면 EPS 56만 원이다.
+
+    컨센이 한 번도 말한 적 없는 숫자가 된다. 사이클 정점을 영구 성장률로 바꿔
+    쓰는 셈이라, 그럴 땐 성장 없음(1.0)으로 두고 그렇게 적는다.
+    """
+    est, why = kq.estimates(FUTURE, con(y={"202612": 7000.0}), FY_ENDS, known())
+    assert why["raw_growth"] == pytest.approx(7.0)
+    assert why["growth"] == 1.0
+    assert why["growth_capped"] is True
+    assert est["2027-03-31"]["val"] == pytest.approx(110.0)      # 1년 전 그대로
+    assert "성장 없음" in est["2027-03-31"]["source"]
+
+
+def test_성장률이_범위_안이면_그대로_쓴다():
+    est, why = kq.estimates(FUTURE, con(y={"202612": 1100.0}), FY_ENDS, known())
+    assert why["growth_capped"] is False
+    assert est["2027-03-31"]["val"] == pytest.approx(110.0 * 1.1)
+
+
 def test_연간_컨센이_없으면_지어내지_않는다():
     est, _ = kq.estimates(FUTURE, con(q={"202609": 330.0}), FY_ENDS, known())
     assert "2026-12-31" not in est          # 채울 근거가 없다
