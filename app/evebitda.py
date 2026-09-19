@@ -46,26 +46,47 @@ ASOF_AHEAD = 45           # 분기말 **이후**는 이만큼만 — 표지(dei)
 # 한 버킷 = 한 개념. 그 안에서는 **잡히는 첫 태그 하나만** 쓴다(이중계상 방지).
 # 버킷끼리는 더한다.
 DEBT_BUCKETS = {
-    # 전환사채 태그가 뒤에 붙어 있는 건 **대체**다. 장기차입금 합계는 전환사채를
-    # 이미 담고 있어서, 둘 다 더하면 두 번 들어간다.
     "장기차입금(비유동)": ["LongTermDebtNoncurrent",
                        "LongTermDebtAndCapitalLeaseObligations",
                        "LongTermDebt",
-                       "ConvertibleDebtNoncurrent", "ConvertibleNotesPayable"],
+                       # 실측(SMCI 2026-06-30): 위 셋이 다 끊긴 뒤 이 태그에만
+                       # 4.06B 이 남아 있었다. "장·단기 차입금 합계" 라는 뜻이다.
+                       "DebtLongtermAndShorttermCombinedAmount"],
     "장기차입금(유동)": ["LongTermDebtCurrent",
-                     "LongTermDebtAndCapitalLeaseObligationsCurrent",
-                     "ConvertibleNotesPayableCurrent"],
+                     "LongTermDebtAndCapitalLeaseObligationsCurrent"],
     "단기차입금·CP": ["ShortTermBorrowings", "CommercialPaper",
                    "OtherShortTermBorrowings"],
+    # 전환사채는 **따로 더한다.** 대개 장기차입금 합계 안에 이미 들어 있지만,
+    # 아닌 회사가 있다 — 실측(SMCI)에서 전환사채 4.66B 이 합계 4.06B 과 별개로
+    # 잡혔고, 둘을 더해야 야후 값과 정확히 맞았다. 포함 여부는 아래
+    # ``CONTAINED_IF_LARGER`` 가 **금액으로** 판정한다.
+    "전환사채(비유동)": ["ConvertibleLongTermNotesPayable", "ConvertibleDebtNoncurrent",
+                     "ConvertibleNotesPayable"],
+    "전환사채(유동)": ["ConvertibleNotesPayableCurrent", "ConvertibleDebtCurrent"],
     "운용리스부채(비유동)": ["OperatingLeaseLiabilityNoncurrent"],
     "운용리스부채(유동)": ["OperatingLeaseLiabilityCurrent"],
+    # 유동·비유동을 안 나누고 합계만 올리는 회사가 있다. 나눠 올린 회사에서는
+    # 아래 ``SPLIT_WINS`` 가 이걸 뺀다(안 그러면 리스가 두 배가 된다).
+    "운용리스부채(합계)": ["OperatingLeaseLiability"],
     "금융리스부채(비유동)": ["FinanceLeaseLiabilityNoncurrent"],
     "금융리스부채(유동)": ["FinanceLeaseLiabilityCurrent"],
 }
-# ``…AndCapitalLeaseObligations`` 는 금융리스를 이미 담고 있다. 그 태그가 쓰였으면
-# 금융리스 버킷은 건너뛴다.
+# ``…AndCapitalLeaseObligations`` 는 금융리스를 이미 담고 있다. 그 태그가 쓰인
+# 날짜에는 금융리스 버킷을 건너뛴다.
 LEASE_INSIDE = {"LongTermDebtAndCapitalLeaseObligations": "금융리스부채(비유동)",
                 "LongTermDebtAndCapitalLeaseObligationsCurrent": "금융리스부채(유동)"}
+# **금액으로** 판정하는 포함 관계. 합계가 전환사채보다 크거나 같으면 그 안에
+# 들어 있다고 보고 전환사채를 빼고, 작으면 별개로 보고 더한다. 합계가 부분보다
+# 작을 수는 없다는 산수 하나에 기대는 규칙이라 태그 이름 추측보다 튼튼하다.
+#
+# 실측으로 양쪽이 다 나온다. SMCI 2024-03-31 은 장기차입금 85.6M 에 전환사채
+# 1,696M — 은행 대출과 전환사채가 별개다. 2026-06-30 은 합계 4.06B 에 전환사채
+# 4.66B — 역시 별개다. MSTR 2021-03-31 은 장기차입금이 전환사채보다 커서 안에
+# 들어 있다.
+CONTAINED_IF_LARGER = {"전환사채(비유동)": "장기차입금(비유동)",
+                       "전환사채(유동)": "장기차입금(유동)"}
+# 유동·비유동을 나눠 올렸으면 합계 태그는 쓰지 않는다.
+SPLIT_WINS = {"운용리스부채(합계)": ("운용리스부채(비유동)", "운용리스부채(유동)")}
 
 CASH_BUCKETS = {
     "현금성자산": ["CashAndCashEquivalentsAtCarryingValue",
@@ -247,14 +268,27 @@ def components(bs: dict, end: str) -> dict | None:
             if hit is not None:
                 picked[name] = hit
 
-    # ``…AndCapitalLeaseObligations`` 는 금융리스를 이미 담고 있다. **그 날짜에**
-    # 그 태그가 쓰였을 때만 금융리스 버킷을 뺀다 — 태그는 날짜마다 달라진다.
+    # 겹치는 것을 **그 날짜의 값으로** 걷어낸다. 태그는 날짜마다 달라지므로
+    # 판정도 날짜마다 해야 한다.
     dropped = []
+
+    def drop(name):
+        if name in picked:
+            picked.pop(name)
+            dropped.append(name)
+
+    # ① ``…AndCapitalLeaseObligations`` 는 금융리스를 이미 담고 있다.
     for _, tag in list(picked.values()):
-        inside = LEASE_INSIDE.get(tag)
-        if inside and inside in picked:
-            picked.pop(inside)
-            dropped.append(inside)
+        if LEASE_INSIDE.get(tag):
+            drop(LEASE_INSIDE[tag])
+    # ② 합계가 전환사채보다 크거나 같으면 그 안에 들어 있다 — 작으면 별개다.
+    for part, whole in CONTAINED_IF_LARGER.items():
+        if part in picked and whole in picked and picked[whole][0] >= picked[part][0]:
+            drop(part)
+    # ③ 유동·비유동을 나눠 올렸으면 합계 태그는 쓰지 않는다.
+    for total, splits in SPLIT_WINS.items():
+        if total in picked and any(x in picked for x in splits):
+            drop(total)
 
     parts = {n: v for n, (v, _) in picked.items()}
     debt = sum(v for n, v in parts.items() if n in DEBT_BUCKETS)

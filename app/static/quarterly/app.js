@@ -1017,10 +1017,13 @@ pip install -r requirements.txt
         가중평균주식수가 <b>아닙니다</b></td></tr>
 <tr><td>장기차입금</td><td>✅ 유동·비유동 전부</td>
     <td><code>LongTermDebtNoncurrent</code> / <code>…Current</code></td></tr>
-<tr><td><b>전환사채</b></td><td>✅ 포함 — 다만 <b>따로 더하지 않습니다</b></td>
-    <td><code>LongTermDebtNoncurrent</code> 는 전환사채를 <b>이미 담고 있는 합계</b>라,
-        거기에 <code>ConvertibleNotesPayable</code> 을 또 더하면 <b>이중계상</b>입니다.
-        그래서 전환사채 태그는 장기차입금 태그가 <b>아예 없는 회사에서만</b> 쓰입니다.
+<tr><td><b>전환사채</b></td><td>✅ 포함 — <b>금액으로 판정</b>해서 더합니다</td>
+    <td>대개 <code>LongTermDebtNoncurrent</code> 안에 이미 들어 있어 또 더하면
+        <b>이중계상</b>입니다. 그렇다고 늘 빼면 반대로 누락됩니다 — 실측(SMCI)에서
+        장·단기 합계 4.06B 과 전환사채 4.66B 이 <b>별개로</b> 잡혔고, 둘을 더해야
+        야후 값과 맞았습니다. 그래서 <b>합계 ≥ 전환사채면 안에 있다고 보고 빼고,
+        합계 &lt; 전환사채면 별개로 보고 더합니다</b> — 합계가 부분보다 작을 수는
+        없다는 산수 하나에 기대는 규칙이라 태그 이름 추측보다 튼튼합니다.
         전환을 가정해 주식수에 더하지는 <b>않습니다</b></td></tr>
 <tr><td><b>단기사채·CP</b></td><td>✅ 포함</td>
     <td><code>ShortTermBorrowings</code> / <code>CommercialPaper</code> — 이자부 부채</td></tr>

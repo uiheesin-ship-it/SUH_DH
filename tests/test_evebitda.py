@@ -47,12 +47,40 @@ def facts(**extra):
 
 
 # --- 이중계상 ----------------------------------------------------------------
-def test_전환사채는_장기차입금_위에_또_더하지_않는다():
+def test_합계가_더_크면_전환사채는_그_안에_있다():
     f = facts(a=inst("LongTermDebtNoncurrent", 1000.0),
               b=inst("ConvertibleNotesPayable", 400.0))
     c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
     assert c["debt"] == 1000.0            # 1400 이면 전환사채를 두 번 센 것
     assert c["tags"]["장기차입금(비유동)"] == "LongTermDebtNoncurrent"
+
+
+def test_합계가_더_작으면_전환사채는_별개다():
+    """실측(SMCI 2026-06-30): 장·단기 합계 4.06B 과 전환사채 4.66B 이 따로 잡힌다.
+
+    둘을 더해야 야후 totalDebt(리스 포함 9.26B)와 정확히 맞는다. 합계가 부분보다
+    작을 수는 없으니, 작다는 건 그 안에 안 들어 있다는 뜻이다.
+    """
+    f = facts(a=inst("DebtLongtermAndShorttermCombinedAmount", 4056.0),
+              b=inst("ConvertibleLongTermNotesPayable", 4664.0),
+              c=inst("OperatingLeaseLiabilityNoncurrent", 499.0),
+              d=inst("OperatingLeaseLiabilityCurrent", 41.0))
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
+    assert c["debt"] == pytest.approx(4056 + 4664 + 499 + 41)
+
+
+def test_리스_합계와_유동_비유동이_같이_오면_합계는_버린다():
+    f = facts(a=inst("OperatingLeaseLiability", 540.0),
+              b=inst("OperatingLeaseLiabilityNoncurrent", 499.0),
+              c=inst("OperatingLeaseLiabilityCurrent", 41.0))
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
+    assert c["debt"] == pytest.approx(540.0)       # 1080 이면 두 배로 센 것
+
+
+def test_리스를_안_나눠_올리면_합계를_쓴다():
+    f = facts(a=inst("OperatingLeaseLiability", 540.0))
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
+    assert c["debt"] == pytest.approx(540.0)
 
 
 def test_차입금_수단을_갈아탄_구간도_0_이_되지_않는다():
