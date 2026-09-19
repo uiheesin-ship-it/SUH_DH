@@ -66,12 +66,17 @@ def add_months(d: date, n: int) -> date:
 
 
 # --- 실적발표일 -------------------------------------------------------------
-def match_announcements(quarters: list[dict], announced: list) -> list[dict]:
+def match_announcements(quarters: list[dict], announced: list,
+                        source: str = "실적발표일(야후)",
+                        fallback: str = "EDGAR 제출일") -> list[dict]:
     """분기마다 실적발표일을 붙인다.
 
     야후의 발표일(``get_earnings_dates``)이 있으면 그걸 쓴다 — 보도자료가 나간
     날이다. 없으면 EDGAR 제출일로 물러선다. 제출일은 보도자료보다 며칠 늦는
     일이 많아 차선이지만, 기준일보다는 훨씬 낫다.
+
+    시장마다 그 두 자리에 들어오는 것이 다르다 — 국장은 거래소 〈잠정실적〉
+    공시일과 정기보고서 접수일이다. 규칙은 같으므로 **이름표만** 받는다.
 
     붙이는 방향이 중요하다. **발표일마다 그 직전에 끝난 분기를 찾는다.**
     반대로 분기마다 뒤에 오는 첫 발표일을 집으면, 발표일이 듬성듬성할 때
@@ -96,11 +101,11 @@ def match_announcements(quarters: list[dict], announced: list) -> list[dict]:
         row = dict(q)
         if i in hit:
             row["announced"] = hit[i].isoformat()
-            row["announced_source"] = "실적발표일(야후)"
+            row["announced_source"] = source
         else:
             filed = q.get("first_filed") or q.get("last_filed")
             row["announced"] = filed or None
-            row["announced_source"] = "EDGAR 제출일" if filed else "없음"
+            row["announced_source"] = fallback if filed else "없음"
         out.append(row)
     return out
 

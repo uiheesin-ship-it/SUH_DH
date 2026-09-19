@@ -28,11 +28,14 @@ from . import forwardper, krconsensus, krdart, krdata, krfundamentals
 TABLE_QUARTERS = 20        # 화면 표에 보여 줄 분기 수(5년)
 PER_QUARTERS = 32          # PER 계산용 — 5년 앞을 보려면 더 뒤부터 있어야 한다
 PRICE_YEARS = 5
+# 국장 주가 기본 조회는 2.2년이다(스크리너가 그만큼만 쓴다). 5년을 그리려면
+# 이 페이지에서만 더 길게 달라고 해야 한다.
+PRICE_DAYS = 400 + 365 * PRICE_YEARS
 
 
 def _price(code: str) -> tuple[list[str], list[float]]:
     try:
-        ch = krdata.kr_chart(code)
+        ch = krdata.kr_chart(code, days=PRICE_DAYS)
     except Exception:  # noqa: BLE001
         return [], []
     dates, close = ch.get("dates") or [], ch.get("close") or []
@@ -181,8 +184,12 @@ def build(code: str) -> dict:
         out["per"] = None
         return out
 
+    # 잠정실적 공시일이 먼저 온다(krdart.announcements 가 그 순서로 준다).
+    # 같은 분기에 둘이 붙으면 이른 쪽이 이긴다 — 시장이 먼저 아는 날이다.
     announced = [a["date"] for a in (d.get("announcements") or [])]
-    quarters = forwardper.match_announcements(rows, announced)
+    quarters = forwardper.match_announcements(
+        rows, announced, source="잠정실적 공시일(DART)",
+        fallback="정기보고서 접수일(DART)")
     dates, close = _price(code)
     if not dates:
         out["notes"].append("주가를 받지 못해 forward PER 을 그릴 수 없습니다.")
