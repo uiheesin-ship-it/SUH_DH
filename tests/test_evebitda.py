@@ -50,10 +50,19 @@ def facts(**extra):
 def test_전환사채는_장기차입금_위에_또_더하지_않는다():
     f = facts(a=inst("LongTermDebtNoncurrent", 1000.0),
               b=inst("ConvertibleNotesPayable", 400.0))
-    bs = evebitda.balance_sheet(f)
-    c = evebitda.components(bs, "2026-06-30")
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
     assert c["debt"] == 1000.0            # 1400 이면 전환사채를 두 번 센 것
-    assert bs["tags"]["장기차입금(비유동)"] == "LongTermDebtNoncurrent"
+    assert c["tags"]["장기차입금(비유동)"] == "LongTermDebtNoncurrent"
+
+
+def test_차입금_수단을_갈아탄_구간도_0_이_되지_않는다():
+    """실측(SMCI): 옛날엔 은행 차입, 지금은 전환사채. 회사 전체에서 태그를 하나만
+    고르면 최근 구간이 통째로 0 이 되어 EV 가 41% 작게 나왔다."""
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0, ends=ENDS[:4]),
+              b=inst("ConvertibleNotesPayable", 9000.0, ends=ENDS[4:]))
+    bs = evebitda.balance_sheet(f)
+    assert evebitda.components(bs, "2024-06-30")["debt"] == 1000.0
+    assert evebitda.components(bs, "2026-06-30")["debt"] == 9000.0
 
 
 def test_장기차입금_태그가_없으면_전환사채를_쓴다():
@@ -65,9 +74,10 @@ def test_장기차입금_태그가_없으면_전환사채를_쓴다():
 def test_리스포함_태그면_금융리스를_또_더하지_않는다():
     f = facts(a=inst("LongTermDebtAndCapitalLeaseObligations", 1000.0),
               b=inst("FinanceLeaseLiabilityNoncurrent", 250.0))
-    bs = evebitda.balance_sheet(f)
-    assert evebitda.components(bs, "2026-06-30")["debt"] == 1000.0
-    assert "금융리스부채(비유동)" not in bs["debt"]
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
+    assert c["debt"] == 1000.0
+    assert "금융리스부채(비유동)" not in c["parts"]
+    assert "금융리스부채(비유동)" not in c["absent"]      # 빠진 게 아니라 이미 들어 있다
 
 
 def test_운용리스는_따로_더한다():

@@ -117,21 +117,30 @@ def instants(facts: dict, tag: str, ns: str = "us-gaap") -> dict[str, float]:
                 picked[end] = (float(val), filed)
     return {e: v for e, (v, _) in picked.items()}
 
+def _bucket(facts: dict, tags: list[str]) -> dict[str, tuple[float, str]]:
+    """버킷 하나 — **날짜마다** 잡히는 첫 태그 하나를 쓴다.
 
-def _bucket(facts: dict, tags: list[str]) -> tuple[dict[str, float], str | None]:
-    """버킷 하나 — 잡히는 **첫 태그**를 통째로 쓴다.
+    한 날짜에 태그를 하나만 쓰는 것이 이중계상을 막는 규칙이다. 처음에는 회사
+    전체에서 첫 태그 하나를 골라 통째로 썼는데, 그러면 **회사가 자금조달 수단을
+    바꾼 구간이 통째로 0 이 된다.**
 
-    날짜별로 태그를 섞지 않는다. 정의가 다른 태그를 날짜마다 갈아 끼우면
-    그 이음매가 가짜 부채 증감이 된다(EV 가 한 분기 만에 튄다).
+    실측(SMCI, 2026-09-19)이 그랬다. 옛날에는 은행 차입이 있어
+    ``LongTermDebtNoncurrent`` 가 버킷을 차지했는데 지금은 전환사채
+    (``ConvertibleNotesPayable``, 약 9B)로 갈아탔다. 최근 분기 차입금이 리스부채
+    0.54B 만 남아 EV 가 야후보다 **41% 작게** 나왔다.
+
+    날짜별로 우선순위를 다시 매기면 양쪽 구간이 다 맞는다. 같은 날짜에 장기차입금
+    합계와 전환사채가 **둘 다** 있으면 합계가 이기므로(전환사채는 그 안에 이미
+    들어 있다) 이중계상도 그대로 막힌다.
     """
+    out: dict[str, tuple[float, str]] = {}
     for tag in tags:
-        d = instants(facts, tag)
-        if d:
-            return d, tag
-    return {}, None
+        for end, v in instants(facts, tag).items():
+            out.setdefault(end, (v, tag))
+    return out
 
 
-def _asof(series: dict[str, float], end: str) -> float | None:
+def _asof(series: dict, end: str):
     """그 분기말에 해당하는 값 — **앞뒤를 다르게** 본다.
 
     재무상태표 날짜는 분기말과 며칠씩 어긋난다(애플은 52/53주 회계연도라
@@ -164,37 +173,26 @@ def _asof(series: dict[str, float], end: str) -> float | None:
 
 
 def balance_sheet(facts: dict) -> dict:
-    """EV 재료를 버킷별로 모아 둔다 — 어느 태그에서 왔는지까지.
+    """EV 재료를 버킷별로 모아 둔다 — 날짜마다 어느 태그에서 왔는지까지.
 
     없는 버킷을 0 으로 **채우지 않는다.** 그냥 빠진다. 대신 어떤 버킷이
     비었는지 그대로 실어 보내 화면이 "이 회사는 리스부채 태그가 없습니다"
     라고 말할 수 있게 한다 — 조용한 0 이 제일 나쁘다.
     """
     used: dict[str, str] = {}
-    debt: dict[str, dict[str, float]] = {}
-    skip: set[str] = set()
-    for name, tags in DEBT_BUCKETS.items():
-        if name in skip:
-            continue
-        rows, tag = _bucket(facts, tags)
-        if not rows:
-            continue
-        used[name] = tag
-        debt[name] = rows
-        if tag in LEASE_INSIDE:
-            skip.add(LEASE_INSIDE[tag])      # 이미 안에 들어 있다
 
-    cash: dict[str, dict[str, float]] = {}
-    for name, tags in CASH_BUCKETS.items():
-        rows, tag = _bucket(facts, tags)
-        if rows:
-            used[name], cash[name] = tag, rows
+    def group(spec):
+        out = {}
+        for name, tags in spec.items():
+            rows = _bucket(facts, tags)
+            if not rows:
+                continue
+            out[name] = rows
+            # 날짜마다 태그가 다를 수 있다 — 쓰인 것을 전부 적는다.
+            used[name] = " / ".join(sorted({t for _, t in rows.values()}))
+        return out
 
-    other: dict[str, dict[str, float]] = {}
-    for name, tags in OTHER_BUCKETS.items():
-        rows, tag = _bucket(facts, tags)
-        if rows:
-            used[name], other[name] = tag, rows
+    debt, cash, other = group(DEBT_BUCKETS), group(CASH_BUCKETS), group(OTHER_BUCKETS)
 
     shares: dict[str, float] = {}
     stags = []
@@ -213,7 +211,7 @@ def balance_sheet(facts: dict) -> dict:
     return {"debt": debt, "cash": cash, "other": other, "shares": shares,
             "tags": used,
             "missing": [n for n in list(DEBT_BUCKETS) + list(CASH_BUCKETS) +
-                        list(OTHER_BUCKETS) if n not in used and n not in skip]}
+                        list(OTHER_BUCKETS) if n not in used]}
 
 
 def components(bs: dict, end: str) -> dict | None:
@@ -221,38 +219,37 @@ def components(bs: dict, end: str) -> dict | None:
     sh = _asof(bs.get("shares") or {}, end)
     if not sh or sh <= 0:
         return None
-    parts = {}
-    debt = 0.0
-    for name, rows in (bs.get("debt") or {}).items():
-        v = _asof(rows, end)
-        if v is None:
-            continue
-        parts[name] = v
-        debt += v
-    cash = 0.0
-    for name, rows in (bs.get("cash") or {}).items():
-        v = _asof(rows, end)
-        if v is None:
-            continue
-        parts[name] = v
-        cash += v
-    extra = 0.0
-    for name, rows in (bs.get("other") or {}).items():
-        v = _asof(rows, end)
-        if v is None:
-            continue
-        parts[name] = v
-        extra += v
+
+    picked: dict[str, tuple[float, str]] = {}
+    for grp in ("debt", "cash", "other"):
+        for name, rows in (bs.get(grp) or {}).items():
+            hit = _asof(rows, end)
+            if hit is not None:
+                picked[name] = hit
+
+    # ``…AndCapitalLeaseObligations`` 는 금융리스를 이미 담고 있다. **그 날짜에**
+    # 그 태그가 쓰였을 때만 금융리스 버킷을 뺀다 — 태그는 날짜마다 달라진다.
+    dropped = []
+    for _, tag in list(picked.values()):
+        inside = LEASE_INSIDE.get(tag)
+        if inside and inside in picked:
+            picked.pop(inside)
+            dropped.append(inside)
+
+    parts = {n: v for n, (v, _) in picked.items()}
+    debt = sum(v for n, v in parts.items() if n in DEBT_BUCKETS)
+    cash = sum(v for n, v in parts.items() if n in CASH_BUCKETS)
+    extra = sum(v for n, v in parts.items() if n in OTHER_BUCKETS)
+
     # 태그는 있는데 **이 날짜에만** 값이 없는 버킷이 있다(애플의 리스부채가
-    # 그렇다 — 연 단위로만 올리는 분기가 있다). 전 기간 없는 것과 구별해서
-    # 따로 알려 준다. 조용한 0 이 제일 나쁘다.
-    absent = [n for group in ("debt", "cash", "other")
-              for n in (bs.get(group) or {}) if n not in parts]
+    # 그렇다). 전 기간 없는 것과 구별해서 따로 알려 준다.
+    absent = [n for grp in ("debt", "cash", "other")
+              for n in (bs.get(grp) or {}) if n not in parts and n not in dropped]
     return {"shares": sh, "debt": debt, "cash": cash, "other": extra,
             # 주가에 곱할 것 말고 **더할 것** — EV = 주가×주식수 + adj
             "adj": debt - cash + extra, "net_debt": debt - cash,
-            "parts": parts, "absent": absent}
-
+            "parts": parts, "absent": absent,
+            "tags": {n: t for n, (_, t) in picked.items()}}
 
 # --- 창에 EV 붙이기 ----------------------------------------------------------
 def attach_ev(windows: list[dict], bs: dict) -> list[dict]:
