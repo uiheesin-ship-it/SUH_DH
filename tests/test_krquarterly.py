@@ -74,7 +74,7 @@ def test_성장률이_지나치면_성장_없음으로_물러선다():
     assert why["growth"] == 1.0
     assert why["growth_capped"] is True
     assert est["2027-03-31"]["val"] == pytest.approx(110.0)      # 1년 전 그대로
-    assert "성장 없음" in est["2027-03-31"]["source"]
+    assert est["2027-03-31"]["source"] == "직전 해 같은 분기 × 성장 없음(가정)"
 
 
 def test_성장률이_범위_안이면_그대로_쓴다():

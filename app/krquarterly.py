@@ -149,9 +149,10 @@ def estimates(future: list[str], con: dict, fy_ends: list[str],
     raw_growth, capped = growth, False
     if growth is not None and not (GROWTH_BAND[0] <= growth <= GROWTH_BAND[1]):
         growth, capped = 1.0, True
-    label = ("성장 없음(올해 성장률 "
-             f"{raw_growth:.2f}배는 내년까지 이어 쓰기엔 지나칩니다)") if capped \
-        else (f"성장률 {growth:.2f}배" if growth is not None else "")
+    # 왜 물러섰는지는 차트 아래 한 줄이 따로 말한다. 여기 이름표는 짧게 둔다 —
+    # 분기마다 같은 문장을 반복하면 읽히지 않는다.
+    label = "성장 없음(가정)" if capped \
+        else (f"성장률 {growth:.2f}배(가정)" if growth is not None else "")
     for end in future:
         if end in out:
             continue
@@ -162,7 +163,7 @@ def estimates(future: list[str], con: dict, fy_ends: list[str],
         if base is None or growth is None:
             continue
         out[end] = {"val": base * growth,
-                    "source": f"직전 해 같은 분기 × {label}(가정)",
+                    "source": f"직전 해 같은 분기 × {label}",
                     "assumed": True, "capped": capped}
         why["직전 해 × 성장률"] += 1
 
