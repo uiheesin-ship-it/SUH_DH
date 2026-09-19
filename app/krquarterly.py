@@ -161,14 +161,17 @@ def build(code: str) -> dict:
     con = {}
     try:
         con = krconsensus.fetch(code)
-    except Exception as e:  # noqa: BLE001
-        con = {}
+    except Exception:  # noqa: BLE001
+        pass
 
     metrics = krfundamentals.build_metrics(reports, TABLE_QUARTERS)
+    fy_ends = _fy_ends(reports)
     out = {"market": "kr", "ticker": code, "code": code,
            "name": con.get("name"), "corp_code": d["corp_code"],
            "metrics": metrics, "notes": [],
            "currency": "KRW", "unit": "원"}
+    # 컨센 칸은 차트가 안 그려져도 붙어야 한다 — 표만 보고 싶은 종목이 있다.
+    _attach_forecast(out, con, fy_ends)
 
     eps = krfundamentals.income_series(reports, krfundamentals.EPS)
     rows = krfundamentals._series(eps, PER_QUARTERS)
@@ -180,7 +183,6 @@ def build(code: str) -> dict:
 
     announced = [a["date"] for a in (d.get("announcements") or [])]
     quarters = forwardper.match_announcements(rows, announced)
-    fy_ends = _fy_ends(reports)
     dates, close = _price(code)
     if not dates:
         out["notes"].append("주가를 받지 못해 forward PER 을 그릴 수 없습니다.")
@@ -195,7 +197,6 @@ def build(code: str) -> dict:
     out["per"] = _chart(series, windows, quarters, con, est, why, d)
     out["per_bases"] = {"reported": out["per"]}
     out["per_basis"] = "reported"
-    _attach_forecast(out, con, fy_ends)
     return out
 
 
