@@ -239,6 +239,22 @@ def test_확정_구간과_가정_구간이_따로_나온다():
     assert "마진" in out["estimate_note"]
 
 
+def test_마지막_계단만_오늘_주식수로_바꾼다():
+    """실측(SMCI): 분기말 이후 증자로 시총이 16.5% 늘었다. 그 구간이 제일 궁금하다."""
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0))
+    con = {**_con(), "shares": 2_000.0}          # 재무상태표는 1,000주
+    out = evebitda.build(f, con, FY_ENDS, DATES, CLOSE)
+    assert out["live_shares"]["to"] == 2_000.0
+    assert out["marks"][-1]["shares"] == 2_000.0
+    assert out["marks"][0]["shares"] == 1_000.0   # 과거는 그대로
+
+
+def test_주식수_차이가_1퍼센트_안이면_그냥_둔다():
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0))
+    out = evebitda.build(f, {**_con(), "shares": 1_005.0}, FY_ENDS, DATES, CLOSE)
+    assert out["live_shares"] is None
+
+
 def test_적자_마진이면_추정_구간을_그리지_않는다():
     """실측(MSTR): 마진 중앙값이 −3081%. 그걸 매출 컨센에 곱하면 음수를 지어낸다."""
     f = facts(a=inst("LongTermDebtNoncurrent", 1000.0))

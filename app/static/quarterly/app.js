@@ -659,6 +659,14 @@ function renderMarks(per) {
         ${gone.join(", ")} — 0 으로 채우지 않고 뺐습니다.
         <a href="#" class="basis-link">산정 기준 보기</a></span>`;
     }
+    if (per.live_shares) {
+      const L2 = per.live_shares;
+      html += `<br/><span class="m season warn">가장 최근 구간만 <b>오늘 주식수</b>로
+        계산했습니다 — 분기말 ${num(L2.from)} → 오늘 <b>${num(L2.to)}</b>
+        (${(L2.change * 100).toFixed(1)}%). 분기말 이후 증자·자사주 소각이 있으면
+        그 구간 시총이 틀어지기 때문입니다. <b>과거 구간은 그대로</b> 그때의
+        주식수를 씁니다.</span>`;
+    }
     if (per.estimate_note) {
       html += `<br/><span class="m season warn">${per.estimate_note}
         ${per.margin_why && per.margin_why.quarters

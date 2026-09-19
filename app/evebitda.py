@@ -413,6 +413,7 @@ def build(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
 
     raw = forwardper.forward_windows(qs, est)
     windows = attach_ev(raw, bs)
+    live = _live_shares(windows, con)
     if raw and not windows:
         return {"error": "분기말마다 발행주식수를 찾지 못해 시가총액을 만들 수 "
                          f"없습니다(주식수 태그: {bs['tags'].get('발행주식수', '없음')})."}
@@ -448,6 +449,7 @@ def build(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
         "estimates": [{"end": e, "eps": None if v.get("val") is None else round(v["val"], 0),
                        "source": v["source"], "note": v.get("note")}
                       for e, v in sorted(est.items())],
+        "live_shares": live,
         "ebitda_source": ebitda_src,
         "margin": None if mgn is None else round(mgn, 4),
         "margin_why": mgn_why,
@@ -470,6 +472,28 @@ def build(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
             "되돌리지 않습니다). 리스부채를 차입금에 넣으면서 EBITDA 에서 "
             "리스비용을 되돌리지는 않아, 리스가 큰 회사의 배수는 높게 나옵니다."),
     }
+
+
+def _live_shares(windows: list[dict], con: dict) -> dict | None:
+    """마지막 계단의 주식수만 **오늘 값**으로 바꾼다.
+
+    재무상태표의 주식수는 그 분기말 것이다. 회사가 그 뒤에 증자를 하면 가장
+    최근 구간의 시가총액이 그만큼 작게 나온다 — 그리고 그 구간이 제일 궁금한
+    구간이다. 실측(SMCI 2026-09-19): 분기말 656.88M 인데 야후의 현재 주식수로
+    계산한 시총은 16.5% 컸다(6월 이후 증자).
+
+    과거 구간은 **건드리지 않는다.** 그때 시장이 알던 주식수가 맞다. 바꾸는 건
+    마지막 창 하나뿐이고, 얼마나 달라졌는지 화면에 적는다.
+    """
+    live = con.get("shares")
+    if not windows or not live or live <= 0:
+        return None
+    w = windows[-1]
+    old = w["ev"]["shares"]
+    if not old or abs(live / old - 1) < 0.01:
+        return None                       # 차이가 1% 안이면 굳이 바꾸지 않는다
+    w["ev"] = {**w["ev"], "shares": float(live), "shares_asof": "오늘(야후)"}
+    return {"from": old, "to": float(live), "change": round(live / old - 1, 4)}
 
 
 def _estimate(future: list[str], con: dict, fy_ends: list[str],
