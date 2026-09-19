@@ -125,11 +125,15 @@ def _fetch_finviz(cfg: dict, ipo_pass: bool = False, etf_pass: bool = False) -> 
             desired.append(("50-Day Simple Moving Average", "Price above SMA50"))
     elif ipo_pass:
         # Recent-IPO pass: DON'T require SMA200 (young stocks don't have one) —
-        # that filter is exactly what shut IPOs out. Keep "above SMA50" so we
-        # still catch uptrending post-IPO bases, and restrict to recent listings.
+        # that filter is exactly what shut IPOs out. Also DON'T use Finviz's
+        # "Price above SMA50" here: Finviz's SMA50 FIELD lags for brand-new
+        # listings (it stays null for several days after the stock first has 50
+        # bars), so a fresh IPO trading well above its own 50-day is invisible to
+        # that filter and gets shut out for days. Instead we pull recent IPOs by
+        # listing date only and enforce "above the 50-day" in screen.py with our
+        # OWN, timely SMA50 (computed from the bars) — see the ipo_below_sma50 gate.
         ipo_date = str((cfg.get("ipo") or {}).get("finviz_ipo_date", "In the last year"))
         desired.append(("IPO Date", ipo_date))
-        desired.append(("50-Day Simple Moving Average", "Price above SMA50"))
     else:
         if uni.get("finviz_price_above_sma200"):
             desired.append(("200-Day Simple Moving Average", "Price above SMA200"))

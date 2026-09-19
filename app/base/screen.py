@@ -86,6 +86,18 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     high52 = metrics.high_52w(high)
     low52 = metrics.low_52w(low)
 
+    # IPO-pass names come in WITHOUT Finviz's "above SMA50" filter (that field
+    # lags for brand-new listings), so enforce "above the 50-day" here with our
+    # own, timely SMA50. This is the same intent as the Finviz filter but uses
+    # bar data that's correct on the day the stock first clears 50 bars — so a
+    # fresh IPO trading above its 50-day is picked up on the very next scan
+    # instead of waiting days for Finviz's SMA50 field to populate.
+    if cand.get("from_ipo_pass"):
+        if sma50 is None:
+            return None, "ipo_no_sma50(<50d)"
+        if price < sma50:
+            return None, "ipo_below_sma50"
+
     ret_2w = metrics.pct_return(close, metrics.TRADING_DAYS_2W)
     ret_1m = metrics.pct_return(close, metrics.TRADING_DAYS_1M)
     ret_3m = metrics.pct_return(close, metrics.TRADING_DAYS_3M)

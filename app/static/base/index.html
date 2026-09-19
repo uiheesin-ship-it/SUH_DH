@@ -140,7 +140,7 @@
             <tr><td><b>일반주</b></td>
               <td>주가 &gt; $1 · 시총 ≥ $300M(Small↑) · 산업="Stocks only(펀드 제외)" · <b>50일선 위 + 200일선 위</b>(정배열)</td></tr>
             <tr><td><b>신규상장<br>(IPO)</b></td>
-              <td>위와 동일하되 <b>200일선 조건 제외</b>(신규주는 200일선이 없어 IPO가 다 걸러졌었음) · 최근 1년 내 상장 · 50일선 위</td></tr>
+              <td>최근 1년 내 상장 · 시총≥$300M · 주가&gt;$1. <b>200일선 조건 제외</b>(신규주는 200일선이 없어 IPO가 다 걸러졌었음). <b>50일선 위 판정은 Finviz가 아니라 자체 계산 SMA50로</b> — Finviz의 SMA50 필드는 갓 상장한 종목에서 며칠 지연돼(비어 있음) 50일선 위인데도 안 잡히던 문제가 있어, 정밀분석에서 우리 데이터의 50일선으로 검사(<code>ipo_below_sma50</code>). 50봉 채우고 50일선 위면 즉시 편입.</td></tr>
             <tr><td><b>ETF</b></td>
               <td>산업="ETF" · 50/200일선 위 · <b>레버리지·인버스·ETN·CEF·우선주·워런트 제외</b>(2x·3x·Ultra·Bull·Bear·Short 등)</td></tr>
           </tbody>
@@ -157,6 +157,7 @@
             <tr><td><b>주가 / 거래량</b></td><td>주가 &lt; $1, 또는 마지막 거래량 0</td></tr>
             <tr><td><b>dead_pinned</b></td><td>베이스 구간 일간변동 <b>&lt; 0.5%</b> (M&amp;A 딜가격 고정 등 죽은 종목)</td></tr>
             <tr><td><b>low_vigor</b></td><td><b>ADR% &lt; 2% + 추력 약함</b> (잠자는 저변동주)</td></tr>
+            <tr><td><b>ipo_below_sma50</b></td><td>신규상장 종목이 <b>자체 계산 50일선 아래</b>(또는 아직 50봉 미만이라 50일선 없음)</td></tr>
             <tr><td><b>데이터 오류</b></td><td>Yahoo/Stooq fetch·분석 오류</td></tr>
           </tbody>
         </table>
