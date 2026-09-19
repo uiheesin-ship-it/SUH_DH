@@ -104,7 +104,9 @@ function render(d) {
   $("table-sec").classList.remove("hidden");
 
   if (d.per && d.per.dates && d.per.dates.length) {
+    BASES = d.per_bases || { [d.per_basis || "gaap"]: d.per };
     drawChart(d.per);
+    showBasis(d.per_basis || Object.keys(BASES)[0]);
     $("chart-sec").classList.remove("hidden");
   } else {
     $("chart-sec").classList.add("hidden");
@@ -235,6 +237,30 @@ const PER_FLOOR = 0, PER_CEIL = 50;  // PER 축 기본 창
  */
 let PER_DATA = null;
 let VIEW = null;
+let BASES = {};          // {"gaap": 차트, "adjusted": 차트}
+
+/* EPS 기준을 바꾼다 — 다시 받지 않고 이미 받아 둔 계열을 갈아 끼운다.
+ *
+ * GAAP 과 조정(non-GAAP)은 숫자가 다르다. 확정 구간을 GAAP 으로, 추정 구간을
+ * 조정 컨센으로 그리면 그 경계에서 선이 인위적으로 꺾인다. 기준마다 과거·미래를
+ * 한 기준으로 맞춰 따로 그려 두고 여기서 고른다.
+ */
+function showBasis(name) {
+  const ch = BASES[name];
+  const names = Object.keys(BASES);
+  $("basis-group").classList.toggle("hidden", names.length < 2);
+  document.querySelectorAll(".eb").forEach((b) => {
+    const have = names.includes(b.dataset.basis);
+    b.classList.toggle("on", b.dataset.basis === name);
+    b.disabled = !have;
+    b.title = have ? (BASES[b.dataset.basis].eps_basis_label || "")
+                   : "이 종목은 이 기준의 이력이 없습니다";
+  });
+  if (!ch) return;
+  const keep = VIEW ? { ...VIEW } : null;     // 보던 기간·PER 창을 지킨다
+  drawChart(ch);
+  if (keep) { VIEW = keep; clampView(); redraw(); }
+}
 
 function clampView() {
   const n = PER_DATA.dates.length;
@@ -495,7 +521,10 @@ function wire() {
     <span><i style="border-color:var(--per)"></i>12M forward PER — 확정 실적 (오른쪽 축)</span>
     <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>12M forward PER — 컨센 섞임</span>
     <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>
-    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>`;
+    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>
+    ${PER_DATA.eps_basis_label
+      ? `<span class="ctrl-note">EPS 기준: <b>${PER_DATA.eps_basis_label}</b>` +
+        ` · ${PER_DATA.eps_quarters}분기</span>` : ""}`;
 }
 
 /* --------------------------------------------------------------------- 모달 */
@@ -811,6 +840,8 @@ $("per-btn").addEventListener("click", () => openModal("per"));
 $("src-btn").addEventListener("click", () => openModal("src"));
 $("local-btn").addEventListener("click", () => openModal("local"));
 $("basis-btn").addEventListener("click", () => openModal("basis"));
+document.querySelectorAll(".eb").forEach((b) =>
+  b.addEventListener("click", () => showBasis(b.dataset.basis)));
 $("modal-close").addEventListener("click", () => $("modal").classList.add("hidden"));
 $("modal").addEventListener("click", (e) => {
   if (e.target === $("modal")) $("modal").classList.add("hidden");

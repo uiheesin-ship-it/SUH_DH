@@ -75,11 +75,17 @@ def wire(monkeypatch, *, con=None, price=True):
         monkeypatch.setattr(quarterly.consensus, "fetch", lambda t: con)
 
 
+# 발표일마다 조정 EPS(Reported EPS)가 같이 온다 — GAAP 1.0 보다 20% 크게.
+ANN = [{"date": d, "reported_eps": 1.2} for d in
+       [f"{y}-{m}" for y in (2022, 2023, 2024, 2025) for m in
+        ("04-25", "07-25", "10-25", "01-25")] + ["2026-04-22", "2026-07-22"]]
 FULL_CON = {"eps": {"0q": {"avg": 1.5}, "+1q": {"avg": 1.6},
                     "0y": {"avg": 6.0}, "+1y": {"avg": 8.0}},
-            "announcements": [{"date": "2026-04-22"}, {"date": "2026-07-22"}],
+            "announcements": ANN,
             "sources": ["야후 earnings_estimate", "야후 get_earnings_dates"],
             "shares": 1000.0, "market_cap": 100000.0}
+CON_NO_ADJ = {**FULL_CON,
+              "announcements": [{"date": "2026-04-22"}, {"date": "2026-07-22"}]}
 
 
 def test_it_still_draws_the_confirmed_part_when_consensus_is_missing(monkeypatch):
@@ -121,9 +127,15 @@ def test_both_dates_are_reported_for_every_step(monkeypatch):
 
 def test_the_yahoo_announcement_date_wins_over_the_edgar_filing(monkeypatch):
     wire(monkeypatch, con=FULL_CON)
-    qs = quarterly.build("TEST")["per"]["quarters"]
-    by_end = {q["end"]: q for q in qs}
+    by_end = {q["end"]: q for q in quarterly.build("TEST")["per"]["quarters"]}
     assert by_end["2026-03-31"]["announced"] == "2026-04-22"
+    assert by_end["2026-03-31"]["source"] == "실적발표일(야후)"
+
+
+def test_a_quarter_without_a_yahoo_date_falls_back_to_edgar(monkeypatch):
+    """발표일이 없는 분기는 EDGAR 제출일로 물러선다 — 기준일보다는 낫다."""
+    wire(monkeypatch, con=CON_NO_ADJ)
+    by_end = {q["end"]: q for q in quarterly.build("TEST")["per"]["quarters"]}
     assert by_end["2026-03-31"]["source"] == "실적발표일(야후)"
     assert by_end["2025-03-31"]["source"] == "EDGAR 제출일"
 
@@ -192,3 +204,42 @@ def test_without_a_share_count_the_net_income_columns_stay_empty(monkeypatch):
     e = quarterly.build("TEST")["metrics"]["순이익"]["estimates"]
     assert e["quarters"] == [] and e["source"] == "없음"
     assert "주식수" in e["reason"]
+
+
+# ------------------------------------------------- EPS 기준 (GAAP vs 조정)
+def test_both_bases_are_built_and_adjusted_is_the_default(monkeypatch):
+    """조정이 기본 — 컨센과 같은 기준이라 실선→점선 경계에서 선이 안 꺾인다."""
+    wire(monkeypatch, con=FULL_CON)
+    r = quarterly.build("TEST")
+    assert set(r["per_bases"]) == {"gaap", "adjusted"}
+    assert r["per_basis"] == "adjusted"
+    assert r["per"] is r["per_bases"]["adjusted"]
+    assert r["per_bases"]["gaap"]["eps_basis_label"].startswith("GAAP")
+
+
+def test_the_two_bases_give_different_per(monkeypatch):
+    """조정 EPS 가 GAAP 보다 20% 크면 PER 은 그만큼 낮아야 한다."""
+    wire(monkeypatch, con=FULL_CON)
+    b = quarterly.build("TEST")["per_bases"]
+    g = [v for v in b["gaap"]["per_confirmed"] if v]
+    a = [v for v in b["adjusted"]["per_confirmed"] if v]
+    assert g and a
+    assert a[-1] < g[-1], "조정 EPS 가 더 큰데 PER 이 더 낮지 않다"
+
+
+def test_without_adjusted_history_it_falls_back_to_gaap(monkeypatch):
+    """발표일이 두 개뿐이면 조정 계열이 너무 짧다 — GAAP 으로만 그리고 그렇게 말한다."""
+    wire(monkeypatch, con=CON_NO_ADJ)
+    r = quarterly.build("TEST")
+    assert set(r["per_bases"]) == {"gaap"} and r["per_basis"] == "gaap"
+    assert any("조정" in n for n in r["notes"])
+
+
+def test_the_adjusted_series_never_borrows_a_gaap_value(monkeypatch):
+    """조정값이 없는 분기를 GAAP 으로 메우면 그게 다시 기준 섞임이다."""
+    con = {**FULL_CON, "announcements":
+           [{**a, "reported_eps": (None if a["date"].startswith("2023") else 1.2)}
+            for a in ANN]}
+    wire(monkeypatch, con=con)
+    b = quarterly.build("TEST")["per_bases"]
+    assert b["adjusted"]["eps_quarters"] < b["gaap"]["eps_quarters"]
