@@ -119,6 +119,33 @@ body {
 }
 .modal-body table.basis th { background: var(--panel-2); color: var(--text); }
 
+/* 분기 EPS 손으로 고치기 */
+.edit-sec { margin-top: 18px; border: 1px solid var(--border); border-radius: 12px;
+            padding: 12px 14px; background: var(--panel); }
+.edit-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.edit-head h3 { margin: 0; font-size: 14px; }
+.edit-head button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 7px; padding: 4px 10px; cursor: pointer; font-size: 12px; margin-left: 6px;
+}
+.edit-head button:hover { border-color: var(--accent); color: var(--accent); }
+.edit-fy { margin-top: 10px; border-left: 3px solid var(--border); padding-left: 10px; }
+.edit-fy.over { border-left-color: var(--down); }
+.fy-line { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.fy-line b { color: var(--text); }
+.fy-line .ok { color: var(--up); }
+.fy-line .bad { color: var(--down); font-weight: 600; }
+.edit-fy table { width: auto; white-space: nowrap; }
+.edit-fy td { border: none; padding: 3px 10px 3px 0; text-align: left; font-size: 12px; }
+.edit-fy input.ov {
+  width: 92px; padding: 3px 7px; font-size: 12px; text-align: right;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.edit-fy input.ov[data-edited] { border-color: var(--accent); color: var(--accent); }
+.edit-fy.over input.ov { border-color: var(--down); }
+.edit-fy input.ov:focus { outline: none; border-color: var(--accent); }
+
 /* 표 */
 .mtable { margin-bottom: 22px; }
 .mtable h3 { margin: 0 0 4px; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }

@@ -175,6 +175,40 @@ def _adjusted(quarters: list[dict], con: dict) -> list[dict]:
     return out if len(out) >= 8 else []          # 너무 짧으면 쓸모가 없다
 
 
+def _editable(quarters: list[dict], est: dict, con: dict,
+              fy_ends: list[str]) -> dict:
+    """분기 EPS 를 손으로 고칠 때 화면이 검사에 쓸 재료.
+
+    규칙은 하나다 — **한 회계연도 안에서 (확정 분기 합 + 손으로 넣은 값 합)이
+    그 해 FY 컨센을 넘으면 안 된다.** 그러려면 화면이 세 가지를 알아야 한다:
+    각 추정 분기가 어느 회계연도에 속하는지, 그 해에 이미 확정된 합이 얼마인지,
+    그 해 FY 컨센이 얼마인지.
+    """
+    bounds = sorted(x for x in (forwardper._d(e) for e in fy_ends or []) if x)
+    actual = {q["end"]: q["val"] for q in quarters if q.get("val") is not None}
+    eps = consensus.eps_estimates(con)
+    first_future = forwardper._d(sorted(est)[0]) if est else None
+
+    years = {}
+    for i, key in enumerate(("0y", "+1y")):
+        fy = forwardper._fy_for(key, bounds, first_future)
+        if fy is None:
+            continue
+        lo = forwardper.add_months(fy, -12)
+        booked = sum(v for e, v in actual.items()
+                     if lo < forwardper._d(e) <= fy)
+        years[fy.isoformat()] = {
+            "label": f"FY{fy.year}", "total": eps.get(key),
+            "booked": round(booked, 6),
+            "quarters": sorted(e for e in est
+                               if lo < forwardper._d(e) <= fy),
+        }
+    return {"years": years,
+            "quarters": {e: {"val": v.get("val"), "fy": next(
+                (f for f, y in years.items() if e in y["quarters"]), None)}
+                for e, v in est.items()}}
+
+
 BASIS_LABEL = {"gaap": "GAAP (EDGAR 희석 EPS)",
                "adjusted": "조정 non-GAAP (야후 발표 EPS · 컨센과 같은 기준)"}
 
@@ -190,6 +224,7 @@ def _one_basis(name: str, quarters: list[dict], con: dict, fy_ends: list[str],
     windows = forwardper.forward_windows(quarters, est)
     series = forwardper.per_series(dates, close, windows)
     ch = _chart(series, windows, quarters, con, est, season)
+    ch["editable"] = _editable(quarters, est, con, fy_ends)
     ch["eps_basis"] = name
     ch["eps_basis_label"] = BASIS_LABEL[name]
     ch["eps_quarters"] = len(quarters)
@@ -229,10 +264,18 @@ def _chart(series: list[dict], windows: list[dict], quarters: list[dict],
         "per_confirmed": solid,
         "per_estimated": dashed,
         # 차트에 세로선으로 찍을 두 날짜. 요구대로 **둘 다** 낸다.
-        "marks": [{"announced": w["from"], "basis_end": w["basis_end"],
+        # ends 를 같이 싣는다 — 브라우저가 분기 EPS 를 손으로 고쳤을 때
+        # **다시 받지 않고** 그 자리에서 PER 을 다시 계산하려면 각 창이 어느
+        # 분기들을 덮는지 알아야 한다.
+        "marks": [{"announced": w["from"], "to": w["to"],
+                   "basis_end": w["basis_end"],
                    "confirmed": w["confirmed"], "eps": w["eps"],
                    "estimated": w["estimated"],
+                   "ends": [r["end"] for r in w["quarters"]],
                    "source": w.get("announced_source")} for w in windows],
+        # 분기별 EPS(확정 + 추정) — 위 계산의 재료.
+        "values": {**{q["end"]: q.get("val") for q in quarters},
+                   **{e: v.get("val") for e, v in est.items()}},
         "quarters": [{"end": q["end"], "announced": q.get("announced"),
                       "source": q.get("announced_source"), "eps": q.get("val")}
                      for q in quarters],
