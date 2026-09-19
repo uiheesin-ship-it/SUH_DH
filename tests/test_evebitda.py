@@ -96,6 +96,52 @@ def test_한_분기보다_멀면_끌어오지_않는다():
     assert evebitda.components(bs, "2026-06-30")["debt"] == 0.0     # 조용한 이월 금지
 
 
+def test_주식수는_옛_태그에서_멈추지_않고_표지로_메운다():
+    """실측: WMT 는 CommonStockSharesOutstanding 이 2012년까지 4분기뿐이다.
+
+    버킷 규칙(첫 태그 하나만)을 그대로 쓰면 그 4분기를 잡고 멈춰서 최근 시총이
+    안 만들어지고 EV/EBITDA 가 통째로 사라진다.
+    """
+    f = facts()
+    f["facts"]["us-gaap"].update(
+        inst("CommonStockSharesOutstanding", 900.0, "shares", ends=["2024-03-31"]))
+    f["facts"]["dei"] = inst("EntityCommonStockSharesOutstanding", 1_100.0, "shares")
+    bs = evebitda.balance_sheet(f)
+    assert evebitda.components(bs, "2024-03-31")["shares"] == 900.0    # 옛 태그가 이긴다
+    assert evebitda.components(bs, "2026-06-30")["shares"] == 1_100.0  # 빈 자리는 표지로
+
+
+def test_자기주식_포함_태그보다_표지를_먼저_쓴다():
+    """JPM 은 발행 41.0억 주 vs 유통 27.0억 주 — 1.5배 차이가 난다."""
+    f = facts()
+    del f["facts"]["us-gaap"]["CommonStockSharesOutstanding"]
+    f["facts"]["us-gaap"].update(inst("CommonStockSharesIssued", 4_100.0, "shares"))
+    f["facts"]["dei"] = inst("EntityCommonStockSharesOutstanding", 2_700.0, "shares")
+    assert evebitda.components(evebitda.balance_sheet(f), "2026-06-30")["shares"] == 2_700.0
+
+
+def test_그_날짜에만_없는_버킷은_따로_알려_준다():
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0),
+              b=inst("OperatingLeaseLiabilityNoncurrent", 250.0, ends=["2024-03-31"]))
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
+    assert c["debt"] == 1000.0
+    assert "운용리스부채(비유동)" in c["absent"]      # 전 기간 없는 것과 구별
+
+
+def test_다음_분기_재무상태표를_끌어오지_않는다():
+    """분기말 뒤로 한 분기를 열면 **아직 몰랐던** 재무상태표가 새어 든다."""
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0, ends=["2025-06-30"]))
+    bs = evebitda.balance_sheet(f)
+    assert evebitda.components(bs, "2025-06-30")["debt"] == 1000.0
+    assert evebitda.components(bs, "2025-03-31")["debt"] == 0.0   # 91일 뒤 = 미래
+
+
+def test_표지_주식수는_제출일_기준이라_며칠_뒤까지_받는다():
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0, ends=["2025-04-20"]))
+    bs = evebitda.balance_sheet(f)
+    assert evebitda.components(bs, "2025-03-31")["debt"] == 1000.0   # 20일 뒤 = 같은 보고서
+
+
 def test_주식수가_없으면_EV_를_만들지_않는다():
     f = {"facts": {"us-gaap": dict(dur("OperatingIncomeLoss", 800.0))}}
     assert evebitda.components(evebitda.balance_sheet(f), "2026-06-30") is None

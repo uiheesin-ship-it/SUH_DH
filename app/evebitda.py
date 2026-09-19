@@ -39,7 +39,8 @@ from . import forwardper, fundamentals
 
 EV_QUARTERS = 32          # PER 과 같다 — 5년 앞을 보려면 더 뒤부터 있어야 한다
 MARGIN_QUARTERS = 8       # EBITDA 마진을 볼 과거 분기 수
-ASOF_DAYS = 100           # 분기말에서 이만큼 안쪽의 재무상태표만 그 분기 것으로 본다
+ASOF_BACK = 100           # 분기말 **이전** 이만큼 안쪽의 값만 그 분기 것으로 본다
+ASOF_AHEAD = 45           # 분기말 **이후**는 이만큼만 — 표지(dei)의 제출일 때문
 
 # --- 버킷 ------------------------------------------------------------------
 # 한 버킷 = 한 개념. 그 안에서는 **잡히는 첫 태그 하나만** 쓴다(이중계상 방지).
@@ -79,8 +80,20 @@ OTHER_BUCKETS = {
     "비지배지분": ["MinorityInterest"],
     "우선주": ["PreferredStockValue"],
 }
-SHARE_TAGS = ["CommonStockSharesOutstanding", "CommonStockSharesIssued"]
-DEI_SHARE_TAGS = ["EntityCommonStockSharesOutstanding"]
+# 발행주식수만 **날짜별로 합친다** — 다른 버킷과 규칙이 다르다.
+#
+# 실측(2026-09-19): WMT 는 ``CommonStockSharesOutstanding`` 이 **2012년까지
+# 4분기**밖에 없다. 버킷 규칙(첫 태그 하나만)을 그대로 쓰면 그 4분기를 잡고
+# 멈춰서 최근 시총을 못 만들고, EV/EBITDA 가 통째로 안 그려졌다. 주식수는
+# 부채와 달리 **같은 개념을 여러 태그가 나눠 담고 있을 뿐**이라 날짜별로
+# 우선순위대로 메우는 게 맞다(fundamentals.collect 과 같은 방식).
+#
+# 순서에 뜻이 있다. 표지(dei)의 것은 제출일 기준 **실제 유통주식수**라
+# ``CommonStockSharesIssued``(자기주식 포함) 보다 낫다 — JPM 은 발행 41.0억
+# 주 vs 유통 27.0억 주로 1.5배 차이가 난다.
+SHARE_SOURCES = [("us-gaap", "CommonStockSharesOutstanding"),
+                 ("dei", "EntityCommonStockSharesOutstanding"),
+                 ("us-gaap", "CommonStockSharesIssued")]
 
 
 # --- 재무상태표 읽기 ---------------------------------------------------------
@@ -119,24 +132,35 @@ def _bucket(facts: dict, tags: list[str]) -> tuple[dict[str, float], str | None]
 
 
 def _asof(series: dict[str, float], end: str) -> float | None:
-    """그 분기말에 해당하는 값 — 가장 가까운 날짜, 단 한 분기 안쪽만.
+    """그 분기말에 해당하는 값 — **앞뒤를 다르게** 본다.
 
     재무상태표 날짜는 분기말과 며칠씩 어긋난다(애플은 52/53주 회계연도라
-    9월 27일에 끝난다). 멀리서 끌어오면 몇 분기 전 값이 조용히 붙으므로
-    ``ASOF_DAYS`` 밖은 **없는 것으로 둔다.**
+    9월 27일에 끝난다). 그렇다고 앞뒤를 똑같이 열어 두면 안 된다. 분기말
+    **뒤**로 90일쯤 열면 **다음 분기 재무상태표**가 끌려 들어올 수 있고, 그건
+    그 발표 시점에 시장이 몰랐던 값이다 — 미래 정보가 과거 차트에 새어 든다.
+
+    그래서 뒤쪽은 ``ASOF_AHEAD`` 일까지만 연다. 표지(dei)의 발행주식수는 제출일
+    기준이라 분기말보다 2~4주 늦게 찍히는데, 그건 **그 분기 보고서와 같이**
+    공개되므로 발표 시점에 알 수 있는 값이다. 앞쪽은 한 분기(``ASOF_BACK``)
+    까지 열고, 그 밖은 **없는 것으로 둔다** — 몇 분기 전 숫자가 조용히 붙는
+    것보다 비는 편이 낫다.
     """
     e = forwardper._d(end)
     if e is None:
         return None
-    best, gap = None, None
+    back, ahead = None, None
     for k, v in series.items():
         d = forwardper._d(k)
         if d is None:
             continue
-        g = abs((d - e).days)
-        if g <= ASOF_DAYS and (gap is None or g < gap):
-            best, gap = v, g
-    return best
+        g = (d - e).days
+        if -ASOF_BACK <= g <= 0 and (back is None or -g < back[0]):
+            back = (-g, v)
+        elif 0 < g <= ASOF_AHEAD and (ahead is None or g < ahead[0]):
+            ahead = (g, v)
+    if back is not None:
+        return back[1]
+    return None if ahead is None else ahead[1]
 
 
 def balance_sheet(facts: dict) -> dict:
@@ -172,17 +196,19 @@ def balance_sheet(facts: dict) -> dict:
         if rows:
             used[name], other[name] = tag, rows
 
-    shares, stag = _bucket(facts, SHARE_TAGS)
-    if not shares:
-        # 표지(cover page)에 실리는 dei 태그로 물러선다. 날짜가 제출일이라
-        # 분기말과 한 달쯤 어긋나지만 ``_asof`` 가 흡수한다.
-        for tag in DEI_SHARE_TAGS:
-            d = instants(facts, tag, "dei")
-            if d:
-                shares, stag = d, f"dei:{tag}"
-                break
+    shares: dict[str, float] = {}
+    stags = []
+    for ns, tag in SHARE_SOURCES:
+        rows = instants(facts, tag, ns)
+        if not rows:
+            continue
+        before = len(shares)
+        for end, v in rows.items():
+            shares.setdefault(end, v)       # 빈 날짜만 메운다
+        if len(shares) > before:
+            stags.append(tag if ns == "us-gaap" else f"{ns}:{tag}")
     if shares:
-        used["발행주식수"] = stag
+        used["발행주식수"] = " + ".join(stags)
 
     return {"debt": debt, "cash": cash, "other": other, "shares": shares,
             "tags": used,
@@ -217,9 +243,15 @@ def components(bs: dict, end: str) -> dict | None:
             continue
         parts[name] = v
         extra += v
+    # 태그는 있는데 **이 날짜에만** 값이 없는 버킷이 있다(애플의 리스부채가
+    # 그렇다 — 연 단위로만 올리는 분기가 있다). 전 기간 없는 것과 구별해서
+    # 따로 알려 준다. 조용한 0 이 제일 나쁘다.
+    absent = [n for group in ("debt", "cash", "other")
+              for n in (bs.get(group) or {}) if n not in parts]
     return {"shares": sh, "debt": debt, "cash": cash, "other": extra,
             # 주가에 곱할 것 말고 **더할 것** — EV = 주가×주식수 + adj
-            "adj": debt - cash + extra, "net_debt": debt - cash, "parts": parts}
+            "adj": debt - cash + extra, "net_debt": debt - cash,
+            "parts": parts, "absent": absent}
 
 
 # --- 창에 EV 붙이기 ----------------------------------------------------------
@@ -317,13 +349,22 @@ def build(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
     known = {q["end"]: q["val"] for q in qs if q.get("val") is not None}
 
     rev_rows, _ = fundamentals.revenue_rows(facts)
-    rev_known = {e: r["val"] for e, r in rev_rows.items() if r.get("val") is not None}
+    # 매출이 EBITDA 보다 한 분기 더 나가 있을 수 있다(그 분기 감가상각이 아직
+    # 안 잡히면 EBITDA 가 안 만들어진다). 그 분기는 곧 **추정할 분기**라,
+    # 확정으로 세면 연간 컨센에서 두 번 빠져 남은 분기가 쪼그라든다.
+    last_end = rows[-1]["end"]
+    rev_known = {e: r["val"] for e, r in rev_rows.items()
+                 if r.get("val") is not None and e <= last_end}
     mgn, mgn_why = margin({q["end"]: q["val"] for q in qs}, rev_known)
 
-    future = forwardper.project_ends(qs[-1]["end"], 8)
+    future = forwardper.project_ends(last_end, 8)
     est, est_note = _estimate(future, con, fy_ends, rev_known, mgn)
 
-    windows = attach_ev(forwardper.forward_windows(qs, est), bs)
+    raw = forwardper.forward_windows(qs, est)
+    windows = attach_ev(raw, bs)
+    if raw and not windows:
+        return {"error": "분기말마다 발행주식수를 찾지 못해 시가총액을 만들 수 "
+                         f"없습니다(주식수 태그: {bs['tags'].get('발행주식수', '없음')})."}
     series = ratio_series(dates, close, windows)
     if not series:
         return {"error": "주가나 발표일이 없어 EV/EBITDA 계열을 만들지 못했습니다."}
@@ -367,6 +408,7 @@ def build(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
             "shares": last["ev"]["shares"], "debt": last["ev"]["debt"],
             "cash": last["ev"]["cash"], "other": last["ev"]["other"],
             "net_debt": last["ev"]["net_debt"], "parts": last["ev"]["parts"],
+            "absent": last["ev"]["absent"],
             "ebitda": last["eps"], "estimated": last["estimated"]},
         "basis": "실적발표일",
         "note": (

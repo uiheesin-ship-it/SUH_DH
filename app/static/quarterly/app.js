@@ -650,9 +650,13 @@ function renderMarks(per) {
         → <b>순부채 ${num(L.net_debt)}</b></span>` +
         (parts ? `<br/><span class="m small">${parts}</span>` : "");
     }
-    if (per.missing && per.missing.length) {
-      html += `<br/><span class="m season warn">이 회사에 <b>없는 항목</b>:
-        ${per.missing.join(", ")} — 0 으로 채우지 않고 뺐습니다.
+    const gone = [
+      ...(per.missing || []).map((n) => `${n}(전 기간 없음)`),
+      ...((L && L.absent) || []).map((n) => `${n}(이 분기만 없음)`),
+    ];
+    if (gone.length) {
+      html += `<br/><span class="m season warn">EV 에 <b>안 들어간 항목</b>:
+        ${gone.join(", ")} — 0 으로 채우지 않고 뺐습니다.
         <a href="#" class="basis-link">산정 기준 보기</a></span>`;
     }
     if (per.estimate_note) {

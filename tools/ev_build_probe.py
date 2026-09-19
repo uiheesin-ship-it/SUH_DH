@@ -73,7 +73,9 @@ def main():
             log(f"       {k:22} {money(v)}")
         log(f"     태그: {ev.get('tags')}")
         if ev.get("missing"):
-            log(f"     없는 버킷: {', '.join(ev['missing'])}")
+            log(f"     전 기간 없는 버킷: {', '.join(ev['missing'])}")
+        if L.get("absent"):
+            log(f"     이 분기만 없는 버킷: {', '.join(L['absent'])}")
 
         # 오늘 EV 대조
         close = ev["close"][-1]
