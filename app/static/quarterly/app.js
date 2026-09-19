@@ -1294,7 +1294,7 @@ pip install -r requirements.txt
 향후 4분기 EPS 합이 <b>0 이하면 PER 을 내지 않습니다</b>. 적자 구간의 PER 은
 음수로 나와 차트도 독해도 망가뜨립니다. 차트에서 선이 끊긴 자리가 그곳입니다.
 `],
-  src: ["실적과 컨센을 어디서 가져오나", `
+  src: ["실적과 컨센을 어디서 가져오나 — 미장 · 국장", `
 <h4>실적 — EDGAR XBRL</h4>
 <code>data.sec.gov/api/xbrl/companyfacts</code> 에서 받습니다. 회사가 SEC 에 제출한
 원본이라 가장 신뢰할 수 있고 무료입니다. 미리 전 종목을 모으지 않고 <b>입력한
@@ -1330,6 +1330,27 @@ XBRL 에 없고(실측 4종목 전부 고유 태그 0개) 회사마다 무엇을
 
 <h4>주가</h4>
 야후 일봉 종가(최근 5년). 컨센이나 주가를 못 받아도 확정 구간은 그려집니다.
+
+<hr/>
+<h4>국장(한국)은 어디서 — <b>🇰🇷 한국</b> 토글</h4>
+<table class="basis">
+<tr><th></th><th>어디서</th><th>실측</th></tr>
+<tr><td>분기 실적</td><td>DART <code>fnlttSinglAcntAll</code> (연결 CFS, 없으면 별도 OFS)</td>
+    <td>5년 <b>18/20 보고서</b>. 주당이익·차입금·리스부채·현금·비지배지분까지
+        표준 계정코드로 옵니다</td></tr>
+<tr><td>실적발표일</td><td>DART 공시목록 —
+        <b>〈연결재무제표기준영업(잠정)실적〉</b> 접수일</td>
+    <td>정기보고서보다 <b>2~5주 빠릅니다</b>. 없으면 정기보고서 접수일</td></tr>
+<tr><td>컨센서스</td><td>네이버 모바일
+        <code>m.stock.naver.com/api/stock/{코드}/finance/{quarter|annual}</code></td>
+    <td>확정과 추정이 <b>한 응답에</b> 옵니다(<code>isConsensus</code>).
+        앞으로 <b>분기 1 · 연간 1</b> 뿐입니다 — 미장(야후)은 2·2</td></tr>
+<tr><td>주가</td><td>네이버/KRX(FinanceDataReader)</td><td>당일 종가가 바로 반영됩니다</td></tr>
+</table>
+<p><b>국장이 미장보다 나은 점도 있습니다 — 영업이익 컨센이 나옵니다.</b> 미장에서는
+야후·Alpha Vantage 에 항목 자체가 없고 FMP 는 유료라 비워 뒀던 칸입니다.</p>
+<p><b>키가 필요합니다.</b> DART 는 무료 API 키(<code>DART_API_KEY</code>)를 환경변수로
+읽습니다. 네이버는 키가 없습니다.</p>
 `],
 };
 

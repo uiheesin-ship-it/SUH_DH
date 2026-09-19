@@ -420,6 +420,50 @@ def probe_kr_horizon(code, name):
     log(f"   {'FnGuide SVD_Main':32} {len(html):,}자 · 추정 연도 {years} · 전체 기간 {cols[:12]}")
 
 
+def probe_shape(code, name):
+    """응답의 **키 이름**을 그대로 찍는다 — 짐작으로 고치지 않으려고.
+
+    파이프라인 실측(2026-09-19)에서 컨센 칸이 전부 0 이었다. 파싱이 조용히 빈
+    값을 냈다는 뜻인데, 어느 키를 잘못 짚었는지는 값만 봐서는 모른다. 그래서
+    rowList 한 행의 키를 통째로 찍고, DART 쪽은 손익·현금흐름표의 계정 이름을
+    전부 찍는다(감가상각·은행 매출이 어느 이름으로 오는지).
+    """
+    log(f"\n■ {name}({code}) — 응답 모양")
+    for kind in ("quarter", "annual"):
+        try:
+            d = get(f"https://m.stock.naver.com/api/stock/{code}/finance/{kind}")
+        except Exception as e:  # noqa: BLE001
+            log(f"   finance/{kind:8} ✕ {hide(e)}")
+            continue
+        fi = d.get("financeInfo") or {}
+        log(f"   finance/{kind:8} financeInfo 키: {sorted(fi)}")
+        t = (fi.get("trTitleList") or [{}])[0]
+        log(f"   {'':17} trTitle 한 개: {json.dumps(t, ensure_ascii=False)[:200]}")
+        rows = _rows(fi)[1]
+        for r in (rows or [])[:2]:
+            log(f"   {'':17} row 키: {sorted(r)}")
+            log(f"   {'':17} row 전체: {json.dumps(r, ensure_ascii=False)[:400]}")
+        time.sleep(0.4)
+
+    key = os.environ.get("DART_API_KEY", "").strip()
+    cc = _corp(code)
+    if not key or not cc:
+        return
+    import datetime
+    year = str(datetime.date.today().year - 1)
+    try:
+        d = _dart("fnlttSinglAcntAll.json", key, corp_code=cc, bsns_year=year,
+                  reprt_code="11014", fs_div="CFS")
+    except Exception as e:  # noqa: BLE001
+        log(f"   DART ✕ {hide(e)}")
+        return
+    rows = d.get("list") or []
+    for sj in ("IS", "CIS", "CF"):
+        names = [(r.get("account_nm") or "").strip() for r in rows
+                 if (r.get("sj_div") or "") == sj]
+        log(f"   DART {sj:4} {len(names)}행: {names[:28]}")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     picks = [(c, n) for c, n in SAMPLES if not args or c in args or n in args]
@@ -439,6 +483,8 @@ def main():
             probe_dart_all(code, name)
         if only == "horizon":
             probe_kr_horizon(code, name)
+        if only == "shape":
+            probe_shape(code, name)
         if not only or only == "fnguide":
             probe_fnguide(code, name)
         if not only or only == "web":
