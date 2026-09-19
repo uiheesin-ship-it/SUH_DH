@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 
-from . import charts, consensus, forwardper, fundamentals, secdata
+from . import charts, consensus, evebitda, forwardper, fundamentals, secdata
 
 TABLE_QUARTERS = 20        # 화면 표에 보여 줄 분기 수(5년)
 PER_QUARTERS = 32          # PER 계산용 — 5년 앞을 보려면 더 뒤부터 있어야 한다
@@ -94,6 +94,7 @@ def build(ticker: str) -> dict:
         out["notes"].append("EPS 계열을 만들지 못해 forward PER 을 그릴 수 없습니다.")
         out["per"] = None
         _attach_forecast(out, con, quarters, fy_ends)
+        out["ev"] = _ev(facts, con, fy_ends, dates, close)
         return out
 
     # 기본은 조정 — 컨센과 같은 기준이라 경계에서 선이 안 꺾인다.
@@ -105,8 +106,25 @@ def build(ticker: str) -> dict:
         out["notes"].append(
             "조정(non-GAAP) EPS 이력을 못 받아 GAAP 으로만 그립니다 — 추정 구간은 "
             "조정 기준 컨센이라 그 경계에서 선이 꺾일 수 있습니다.")
-    _attach_forecast(out, con, quarters, _fy_ends(facts))
+    _attach_forecast(out, con, quarters, fy_ends)
+    out["ev"] = _ev(facts, con, fy_ends, dates, close)
     return out
+
+
+def _ev(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
+        close: list[float]) -> dict | None:
+    """EV/EBITDA 묶음 — 실패해도 PER 화면을 죽이지 않는다.
+
+    재료가 하나 더 많다(재무상태표). 태그가 회사마다 달라 못 만드는 종목이
+    반드시 생기는데, 그때 페이지 전체가 500 이 되면 안 된다. 이유를 담은
+    딕셔너리로 돌려주고 화면이 그 이유를 보여 준다.
+    """
+    if not dates:
+        return {"error": "주가를 받지 못해 EV/EBITDA 를 그릴 수 없습니다."}
+    try:
+        return evebitda.build(facts, con, fy_ends, dates, close)
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"EV/EBITDA 를 만들지 못했습니다({type(e).__name__}: {e})."}
 
 
 def _attach_forecast(out: dict, con: dict, quarters: list[dict],

@@ -104,10 +104,15 @@ function render(d) {
   renderMetrics(d.metrics || {}, d.forecast_note);
   $("table-sec").classList.remove("hidden");
 
+  EV_DATA = d.ev || null;
+  BASIS = d.per_basis || "gaap";
   if (d.per && d.per.dates && d.per.dates.length) {
-    BASES = d.per_bases || { [d.per_basis || "gaap"]: d.per };
-    drawChart(d.per);
-    showBasis(d.per_basis || Object.keys(BASES)[0]);
+    BASES = d.per_bases || { [BASIS]: d.per };
+    showMetric("per");
+    $("chart-sec").classList.remove("hidden");
+  } else if (EV_DATA && EV_DATA.dates) {
+    BASES = {};
+    showMetric("ev");
     $("chart-sec").classList.remove("hidden");
   } else {
     $("chart-sec").classList.add("hidden");
@@ -396,9 +401,12 @@ const PER_FLOOR = 0, PER_CEIL = 50;  // PER 축 기본 창
  * 궁금하면 창을 **위로 옮겨** 본다. 창 밖으로 나간 선은 지우지 않고 잘라낸다
  * (clipPath) — 위로 뚫고 나가는 게 보여야 "여긴 벗어났구나"를 안다.
  */
-let PER_DATA = null;
+let PER_DATA = null;     // 지금 그리고 있는 계열(PER 이든 EV/EBITDA 든)
 let VIEW = null;
 let BASES = {};          // {"gaap": 차트, "adjusted": 차트}
+let EV_DATA = null;      // EV/EBITDA 계열(또는 {error})
+let METRIC = "per";      // "per" | "ev"
+let BASIS = "gaap";
 
 /* EPS 기준을 바꾼다 — 다시 받지 않고 이미 받아 둔 계열을 갈아 끼운다.
  *
@@ -423,6 +431,50 @@ function showBasis(name) {
   if (keep) { VIEW = keep; clampView(); redraw(); }
 }
 
+/* 지표 갈아 끼우기 — PER ↔ EV/EBITDA.
+ *
+ * 두 계열은 모양이 같다(dates·close·per_confirmed·per_estimated·marks). 그래서
+ * 그리는 코드는 하나만 두고 여기서 무엇을 그릴지만 고른다. 다른 점은 세 가지다:
+ * 축 기본 창(PER 0–50 / EV 0–30), 아래 설명, 그리고 **분기 EPS 수동 수정은
+ * PER 에만 있다**(EBITDA 는 손으로 고칠 대상이 아니다).
+ */
+function showMetric(name) {
+  const evOk = EV_DATA && EV_DATA.dates && EV_DATA.dates.length;
+  if (name === "ev" && !evOk) name = "per";
+  if (name === "per" && !Object.keys(BASES).length) name = evOk ? "ev" : "per";
+  METRIC = name;
+  document.querySelectorAll(".mt").forEach((b) => {
+    const isEv = b.dataset.metric === "ev";
+    b.classList.toggle("on", b.dataset.metric === name);
+    b.disabled = isEv ? !evOk : !Object.keys(BASES).length;
+    b.title = isEv && !evOk
+      ? ((EV_DATA && EV_DATA.error) || "이 종목은 EV/EBITDA 를 만들 수 없습니다")
+      : "";
+  });
+  // 못 그리는 이유는 **보이게** 적는다. 비활성 버튼의 title 은 아무도 안 본다.
+  $("metric-note").textContent = evOk ? ""
+    : (EV_DATA && EV_DATA.error ? `EV/EBITDA 없음 — ${EV_DATA.error}` : "");
+  $("basis-group").classList.toggle("hidden", name !== "per");
+  $("axis-label").textContent = name === "ev" ? "배수 축" : "PER 축";
+  $("chart-title").textContent = name === "ev"
+    ? "주가 × 12M Forward EV/EBITDA" : "주가 × 12M Forward PER";
+  $("chart-desc").innerHTML = name === "ev"
+    ? `EV 는 <b>주가 × 발행주식수 + 총차입금 − 현금성자산 + 비지배지분 + 우선주</b>
+       입니다. 재무상태표는 분기에 한 번 바뀌므로 <b>실적발표일마다</b> 계단을 밟고
+       그 사이에는 주가만 움직입니다. <b>EBITDA 컨센은 무료 출처가 없어</b>
+       점선 구간은 <b>매출 컨센 × 최근 EBITDA 마진</b>으로 만든 <b>가정치</b>입니다.`
+    : `계단은 <b>실적발표일</b>에 밟습니다. 기준일(분기말)에 밟으면 아직 공개되지
+       않은 실적으로 그 사이 주가를 나누게 됩니다.
+       <b>실선 = 확정 실적</b>만으로 계산된 구간,
+       <b>점선 = 컨센서스가 섞인</b> 구간입니다.`;
+  if (name === "ev") {
+    $("edit-sec").classList.add("hidden");
+    drawChart(EV_DATA);
+  } else {
+    showBasis(BASES[BASIS] ? BASIS : Object.keys(BASES)[0]);
+  }
+}
+
 function clampView() {
   const n = PER_DATA.dates.length;
   let span = Math.round(VIEW.i1 - VIEW.i0);
@@ -444,9 +496,22 @@ function setMonths(m) {
   redraw();
 }
 
+function axisOf(per) {
+  return (per && per.axis) || [PER_FLOOR, PER_CEIL];
+}
+
 function drawChart(per) {
   PER_DATA = per;
-  VIEW = { i0: 0, i1: per.dates.length - 1, perLo: PER_FLOOR, perHi: PER_CEIL };
+  const ax = axisOf(per);
+  VIEW = { i0: 0, i1: per.dates.length - 1, perLo: ax[0], perHi: ax[1] };
+  if (per.metric === "ev") {
+    // EBITDA 는 손으로 고치는 대상이 아니다 — PER 의 오버라이드를 끌고 오면
+    // 엉뚱한 분기 값이 섞인다.
+    OVERRIDE = {};
+    redraw();
+    wire();
+    return;
+  }
   loadOverrides();
   if (Object.keys(OVERRIDE).length) {
     const { conf, est } = perFromOverrides(per);
@@ -544,28 +609,95 @@ function redraw() {
   $("per-range").textContent = `${fmtP(perLo)} – ${fmtP(perHi)}`;
   syncButtons();
 
+  renderMarks(per);
+  renderLegend(per);
+}
+
+/* 차트 아래 설명줄. 지표마다 할 말이 다르다.
+ *
+ * PER 은 "향후 4분기 EPS 를 어떻게 채웠나"가 궁금하고, EV/EBITDA 는 거기에
+ * **EV 를 무엇으로 만들었나**가 더 붙는다 — 회사마다 태그가 달라서 어떤 항목이
+ * 잡혔고 어떤 항목이 아예 없었는지 보여 주지 않으면 조용한 0 이 된다.
+ */
+function renderMarks(per) {
   const last = (per.marks || [])[per.marks.length - 1];
+  const unit = per.metric === "ev" ? "EBITDA" : "EPS";
+  const num = (v) => (v === null || v === undefined ? "—" : fmtBig(v));
   const est = (per.estimates || []).map((e) =>
-    `<span class="m est">${e.end} 추정 EPS ${e.eps} <small>(${e.source})</small></span>`).join("");
-  $("marks").innerHTML =
-    (last ? `<span class="m">가장 최근 계단 — 발표 <b>${last.announced}</b> ·
-       재무정보 기준일 <b>${last.basis_end}</b> · 향후 4분기 EPS ${last.eps}
-       (추정 ${last.estimated}분기, ${last.source})</span><br/>` : "") +
-    (est || "") +
-    (per.season ? `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
-        `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
-        (per.season.mode === "계절성"
-          ? ` (1Q ${(per.season.weights["1"] * 100).toFixed(0)}% · ` +
-            `2Q ${(per.season.weights["2"] * 100).toFixed(0)}% · ` +
-            `3Q ${(per.season.weights["3"] * 100).toFixed(0)}% · ` +
-            `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%, ` +
-            `과거 ${per.season.why.years_used}개 회계연도)`
-          : ` — ${per.season.why.reason || ""}`) +
-        ` <a href="#" id="basis-link">산정 기준 보기</a></span>` : "") +
-    (per.consensus_sources && per.consensus_sources.length
-      ? `<br/><span class="m">컨센 출처: ${per.consensus_sources.join(", ")}</span>` : "");
-  const link = document.getElementById("basis-link");
-  if (link) link.onclick = (e) => { e.preventDefault(); openModal("basis"); };
+    `<span class="m est">${e.end} 추정 ${unit} ${per.metric === "ev" ? num(e.eps) : e.eps}
+       <small>(${e.source})</small></span>`).join("");
+
+  let html = last
+    ? `<span class="m">가장 최근 계단 — 발표 <b>${last.announced}</b> ·
+       재무정보 기준일 <b>${last.basis_end}</b> · 향후 4분기 ${unit}
+       ${per.metric === "ev" ? num(last.eps) : last.eps}
+       (추정 ${last.estimated}분기, ${last.source})</span><br/>`
+    : "";
+  html += est || "";
+
+  if (per.metric === "ev") {
+    const L = per.latest;
+    if (L) {
+      const parts = Object.entries(L.parts || {})
+        .map(([k, v]) => `${k} ${num(v)}`).join(" · ");
+      html += `<br/><span class="m">EV 구성(${L.end} 재무상태표) —
+        발행주식수 <b>${num(L.shares)}</b> · 차입금 <b>${num(L.debt)}</b> ·
+        현금성 <b>${num(L.cash)}</b> · 기타(비지배·우선주) ${num(L.other)}
+        → <b>순부채 ${num(L.net_debt)}</b></span>` +
+        (parts ? `<br/><span class="m small">${parts}</span>` : "");
+    }
+    if (per.missing && per.missing.length) {
+      html += `<br/><span class="m season warn">이 회사에 <b>없는 항목</b>:
+        ${per.missing.join(", ")} — 0 으로 채우지 않고 뺐습니다.
+        <a href="#" class="basis-link">산정 기준 보기</a></span>`;
+    }
+    if (per.estimate_note) {
+      html += `<br/><span class="m season warn">${per.estimate_note}
+        ${per.margin_why && per.margin_why.quarters
+          ? `(최근 ${per.margin_why.quarters}분기 · 최저 ${(per.margin_why.low * 100).toFixed(1)}%
+             ~ 최고 ${(per.margin_why.high * 100).toFixed(1)}%)` : ""}</span>`;
+    }
+    html += `<br/><span class="m small">EBITDA 출처: ${per.ebitda_source || "—"}</span>`;
+  } else if (per.season) {
+    html += `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
+      `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
+      (per.season.mode === "계절성"
+        ? ` (1Q ${(per.season.weights["1"] * 100).toFixed(0)}% · ` +
+          `2Q ${(per.season.weights["2"] * 100).toFixed(0)}% · ` +
+          `3Q ${(per.season.weights["3"] * 100).toFixed(0)}% · ` +
+          `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%, ` +
+          `과거 ${per.season.why.years_used}개 회계연도)`
+        : ` — ${per.season.why.reason || ""}`) +
+      ` <a href="#" class="basis-link">산정 기준 보기</a></span>`;
+  }
+  if (per.consensus_sources && per.consensus_sources.length) {
+    html += `<br/><span class="m">컨센 출처: ${per.consensus_sources.join(", ")}</span>`;
+  }
+  $("marks").innerHTML = html;
+  document.querySelectorAll("#marks .basis-link").forEach((a) =>
+    a.onclick = (e) => { e.preventDefault(); openModal("basis"); });
+}
+
+/* 범례는 **매번 다시 쓴다.**
+ *
+ * 예전에는 wire() 안에 있었는데, wire() 는 한 번만 도는 함수라(리스너가 겹쳐
+ * 쌓이면 휠 한 번에 여러 번 확대된다) EPS 기준을 바꿔도 범례는 옛것 그대로였다.
+ */
+function renderLegend(per) {
+  const ev = per.metric === "ev";
+  const name = ev ? "12M forward EV/EBITDA" : "12M forward PER";
+  $("legend").innerHTML = `
+    <span><i style="border-color:var(--price)"></i>주가 (왼쪽 축)</span>
+    <span><i style="border-color:var(--per)"></i>${name} — 확정 실적 (오른쪽 축)</span>
+    <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>${name} — ${
+      ev ? "가정치 섞임(매출 컨센 × 마진)" : "컨센 섞임"}</span>
+    <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>
+    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>
+    ${!ev && per.eps_basis_label
+      ? `<span class="ctrl-note">EPS 기준: <b>${per.eps_basis_label}</b>` +
+        ` · ${per.eps_quarters}분기</span>` : ""}
+    ${ev && per.margin !== null && per.margin !== undefined
+      ? `<span class="ctrl-note">EBITDA 마진(최근 중앙값): <b>${(per.margin * 100).toFixed(1)}%</b></span>` : ""}`;
 }
 
 function syncButtons() {
@@ -611,7 +743,10 @@ function wire() {
   $("per-down").onclick = () => panPer(-1);
   $("per-zin").onclick = () => zoomPer(0.5);
   $("per-zout").onclick = () => zoomPer(2);
-  $("per-reset").onclick = () => { VIEW.perLo = PER_FLOOR; VIEW.perHi = PER_CEIL; redraw(); };
+  $("per-reset").onclick = () => {
+    const ax = axisOf(PER_DATA);
+    VIEW.perLo = ax[0]; VIEW.perHi = ax[1]; redraw();
+  };
   $("per-auto").onclick = () => {
     const v = [];
     for (let i = VIEW.i0; i <= VIEW.i1; i++) {
@@ -660,9 +795,11 @@ function wire() {
     const i = toIdx(ev.clientX);
     if (i < VIEW.i0 || i > VIEW.i1) { tip.classList.add("hidden"); return; }
     const p = PER_DATA.per_confirmed[i], q = PER_DATA.per_estimated[i];
+    const nm = PER_DATA.metric === "ev" ? "fwd EV/EBITDA" : "fwd PER";
+    const mix = PER_DATA.metric === "ev" ? "가정 섞임" : "컨센 섞임";
     tip.innerHTML = `<b>${PER_DATA.dates[i]}</b><br/>주가 ${PER_DATA.close[i]}<br/>` +
-      (p !== null && p !== undefined ? `fwd PER <b>${p}</b> (확정)`
-       : q !== null && q !== undefined ? `fwd PER <b>${q}</b> (컨센 섞임)` : "fwd PER —");
+      (p !== null && p !== undefined ? `${nm} <b>${p}</b> (확정)`
+       : q !== null && q !== undefined ? `${nm} <b>${q}</b> (${mix})` : `${nm} —`);
     tip.classList.remove("hidden");
     const r = $("plot").getBoundingClientRect();
     tip.style.left = Math.min(r.width - 170, ev.clientX - r.left + 12) + "px";
@@ -684,15 +821,6 @@ function wire() {
     clampView(); redraw();
   });
 
-  $("legend").innerHTML = `
-    <span><i style="border-color:var(--price)"></i>주가 (왼쪽 축)</span>
-    <span><i style="border-color:var(--per)"></i>12M forward PER — 확정 실적 (오른쪽 축)</span>
-    <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>12M forward PER — 컨센 섞임</span>
-    <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>
-    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>
-    ${PER_DATA.eps_basis_label
-      ? `<span class="ctrl-note">EPS 기준: <b>${PER_DATA.eps_basis_label}</b>` +
-        ` · ${PER_DATA.eps_quarters}분기</span>` : ""}`;
 }
 
 /* --------------------------------------------------------------------- 모달 */
@@ -865,33 +993,76 @@ pip install -r requirements.txt
   <li><b>은행·보험은 영업이익 개념이 없어</b> EBITDA 도 만들지 않습니다.</li>
 </ul>
 
-<h4>EV — 만드는 중입니다. 기준은 이렇게 잡습니다</h4>
-<pre>EV = 시가총액
-   + 총차입금
-   − 현금성자산
-   + 비지배지분
-   + 우선주</pre>
+<h4>EV/EBITDA — 어떻게 만드나</h4>
+<pre>EV(t) = 주가(t) × 발행주식수
+      + 총차입금 − 현금성자산 + 비지배지분 + 우선주
+
+12M forward EV/EBITDA = EV(t) ÷ (t 이후 4개 분기 EBITDA 합)</pre>
+<p>재무상태표는 분기에 한 번 바뀌므로 <b>PER 과 같은 실적발표일에 계단을 밟고</b>,
+그 사이에는 주가만 움직입니다. 분기말에 밟으면 아직 공개되지 않은 재무상태표로
+그 사이 주가를 나누게 됩니다.</p>
 <table class="basis">
 <tr><th>항목</th><th>포함</th><th>비고</th></tr>
-<tr><td>시가총액</td><td>주가 × 보통주 발행주식수</td>
-    <td>가중평균이 아니라 <b>기말 발행주식수</b></td></tr>
-<tr><td>장기차입금</td><td>✅ 유동·비유동 전부</td><td></td></tr>
-<tr><td><b>전환사채</b></td><td>✅ 포함</td>
-    <td>부채로 잡힌 장부금액. 전환 가정해 주식수에 더하지는 <b>않습니다</b></td></tr>
-<tr><td><b>단기사채·CP</b></td><td>✅ 포함</td><td>이자부 부채입니다</td></tr>
-<tr><td><b>리스부채</b></td><td>✅ 포함</td>
-    <td>ASC842 이후 재무상태표에 올라오므로 차입금으로 봅니다.
-        <b>단 EBITDA 에서 리스비용을 되돌리지는 않아</b> 이 조합은 리스가 큰
-        회사(유통·항공)의 EV/EBITDA 를 <b>높게</b> 만듭니다</td></tr>
+<tr><td>시가총액</td><td>주가 × <b>기말 발행주식수</b></td>
+    <td><code>CommonStockSharesOutstanding</code> → <code>CommonStockSharesIssued</code>
+        → 표지의 <code>dei:EntityCommonStockSharesOutstanding</code> 순.
+        가중평균주식수가 <b>아닙니다</b></td></tr>
+<tr><td>장기차입금</td><td>✅ 유동·비유동 전부</td>
+    <td><code>LongTermDebtNoncurrent</code> / <code>…Current</code></td></tr>
+<tr><td><b>전환사채</b></td><td>✅ 포함 — 다만 <b>따로 더하지 않습니다</b></td>
+    <td><code>LongTermDebtNoncurrent</code> 는 전환사채를 <b>이미 담고 있는 합계</b>라,
+        거기에 <code>ConvertibleNotesPayable</code> 을 또 더하면 <b>이중계상</b>입니다.
+        그래서 전환사채 태그는 장기차입금 태그가 <b>아예 없는 회사에서만</b> 쓰입니다.
+        전환을 가정해 주식수에 더하지는 <b>않습니다</b></td></tr>
+<tr><td><b>단기사채·CP</b></td><td>✅ 포함</td>
+    <td><code>ShortTermBorrowings</code> / <code>CommercialPaper</code> — 이자부 부채</td></tr>
+<tr><td><b>운용리스부채</b></td><td>✅ 포함</td>
+    <td>ASC842 이후 재무상태표에 올라오므로 차입금으로 봅니다</td></tr>
+<tr><td><b>금융리스부채</b></td><td>✅ 포함(중복이면 제외)</td>
+    <td>회사가 <code>LongTermDebtAndCapitalLeaseObligations</code> 를 썼다면 그 안에
+        이미 들어 있으므로 <b>따로 더하지 않습니다</b></td></tr>
 <tr><td>현금성자산</td><td>➖ 차감</td>
-    <td>현금 + <b>단기투자자산</b>까지. 장기투자·지분증권은 빼지 않습니다</td></tr>
-<tr><td>비지배지분</td><td>✅ 가산</td><td>장부금액</td></tr>
-<tr><td>우선주</td><td>✅ 가산</td><td>장부금액</td></tr>
+    <td>현금 + <b>단기투자자산</b>. 장기투자·지분증권은 빼지 않습니다.
+        실측(AAPL 2026-06-27)으로 이 조합이 야후 <code>totalCash</code> 와
+        <b>정확히 일치</b>했습니다</td></tr>
+<tr><td>비지배지분</td><td>✅ 가산</td>
+    <td><code>MinorityInterest</code> <b>하나만</b> 씁니다.
+        <code>StockholdersEquityIncluding…NoncontrollingInterest</code> 는 이름이
+        비슷하지만 <b>자본 총계</b>라, 쓰면 EV 가 자본만큼 부풀어 오릅니다</td></tr>
+<tr><td>우선주</td><td>✅ 가산</td><td><code>PreferredStockValue</code> 장부금액</td></tr>
 <tr><td>연금부채</td><td>❌ 제외</td><td>넣는 유파도 있지만 안 넣습니다</td></tr>
 </table>
-<p>과거 시점 EV 는 <b>그 시점 주가 × 그 분기말 주식수 + 그 분기말 부채·현금</b>
-으로 만듭니다. 분기 사이는 마지막으로 발표된 재무상태표를 유지합니다.
-<b>EBITDA 컨센은 무료 출처가 없어</b> EV/EBITDA 는 <b>과거 구간만</b> 그려집니다.</p>
+<p><b>개념마다 버킷을 두고, 한 버킷에서는 잡히는 첫 태그 하나만 씁니다.</b>
+날짜마다 태그를 갈아 끼우면 그 이음매가 가짜 부채 증감이 되어 EV 가 한 분기 만에
+튑니다. 분기말에서 <b>100일</b> 밖의 값은 끌어오지 않습니다 — 조용히 몇 분기 전
+숫자가 붙는 것을 막기 위해서입니다.</p>
+<div class="warn">
+<b>없는 항목은 0 으로 채우지 않습니다.</b> 회사마다 쓰는 태그가 천차만별입니다
+(실측: PLD 는 <code>LongTermDebt</code> 하나뿐이고 유동차입금·CP·전환사채·리스부채
+태그가 <b>아예 없습니다</b>). 무엇이 없었는지 차트 아래에 그대로 적어 둡니다.
+</div>
+<p>야후의 <code>totalDebt</code> 와는 <b>일부러 다릅니다</b> — 야후는 리스부채를
+빼고, 여기는 넣습니다(실측 AAPL 기준 12.5B 차이). <b>EBITDA 에서 리스비용을
+되돌리지는 않으므로</b> 리스가 큰 회사(유통·항공)의 EV/EBITDA 는 <b>높게</b>
+나옵니다. 야후의 분기 재무상태표는 7분기뿐이라 5년을 못 그립니다 — EDGAR 는
+59~70분기가 잡혀서 EDGAR 를 씁니다.</p>
+
+<h4>EV/EBITDA 의 점선 — <b>컨센이 아니라 가정</b>입니다</h4>
+<p><b>EBITDA 컨센을 주는 무료 출처가 없습니다</b>(야후·Alpha Vantage 에는 항목
+자체가 없고 FMP 는 유료). 그렇다고 가장 궁금한 최근 1년을 통째로 비워 둘 수는
+없어서, 이렇게 만듭니다.</p>
+<pre>① 매출 컨센을 <b>PER 과 똑같은 계절성 규칙</b>으로 분기에 나눈다
+② 마진 = 최근 8분기 (EBITDA ÷ 매출) 의 <b>중앙값</b>   ← 평균 아님
+③ 추정 분기 EBITDA = 분기 매출 컨센 × 마진</pre>
+<ul>
+  <li>그래서 점선 구간은 <b>컨센이 아니라 가정</b>입니다. 차트 아래에 쓰인 마진과
+      그 마진의 최근 최저~최고 범위를 같이 보세요 — 마진이 흔들리는 회사면
+      그만큼 빗나갑니다.</li>
+  <li>매출 컨센이 없거나 마진을 못 구하면 <b>점선을 아예 그리지 않습니다.</b></li>
+  <li>EBITDA 합이 0 이하이거나 EV 가 음수(순현금이 시총보다 큰 회사)면 그 구간의
+      배수를 <b>비웁니다</b> — 음수 배수는 읽는 사람을 속입니다.</li>
+  <li><b>은행·보험은 영업이익 개념이 없어</b> EBITDA 도, EV/EBITDA 도 만들지 않습니다.</li>
+</ul>
 
 <h4>계절성 배분 — 연간 컨센을 분기에 나누는 법</h4>
 <p>야후는 분기 컨센을 <b>두 개</b>만 줍니다. 12개월을 채우려면 나머지는 연간
@@ -1027,7 +1198,9 @@ $("src-btn").addEventListener("click", () => openModal("src"));
 $("local-btn").addEventListener("click", () => openModal("local"));
 $("basis-btn").addEventListener("click", () => openModal("basis"));
 document.querySelectorAll(".eb").forEach((b) =>
-  b.addEventListener("click", () => showBasis(b.dataset.basis)));
+  b.addEventListener("click", () => { BASIS = b.dataset.basis; showBasis(BASIS); }));
+document.querySelectorAll(".mt").forEach((b) =>
+  b.addEventListener("click", () => showMetric(b.dataset.metric)));
 $("edit-reset").addEventListener("click", () => {
   OVERRIDE = {};
   saveOverrides();

@@ -37,8 +37,8 @@
 
     <section id="chart-sec" class="chart-sec hidden">
       <div class="sec-head">
-        <h2>주가 × 12M Forward PER</h2>
-        <p class="sec-desc">
+        <h2 id="chart-title">주가 × 12M Forward PER</h2>
+        <p class="sec-desc" id="chart-desc">
           계단은 <b>실적발표일</b>에 밟습니다. 기준일(분기말)에 밟으면 아직 공개되지
           않은 실적으로 그 사이 주가를 나누게 됩니다.
           <b>실선 = 확정 실적</b>만으로 계산된 구간,
@@ -47,6 +47,12 @@
       </div>
       <div class="legend" id="legend"></div>
       <div class="chart-ctrl">
+        <div class="ctrl-group" id="metric-group">
+          <span class="ctrl-label">지표</span>
+          <button class="mt on" data-metric="per">PER</button>
+          <button class="mt" data-metric="ev">EV/EBITDA</button>
+          <span id="metric-note" class="ctrl-note"></span>
+        </div>
         <div class="ctrl-group" id="basis-group">
           <span class="ctrl-label">EPS 기준</span>
           <button class="eb" data-basis="adjusted">조정</button>
@@ -61,7 +67,7 @@
           <button class="rng" data-months="0">전체</button>
         </div>
         <div class="ctrl-group">
-          <span class="ctrl-label">PER 축</span>
+          <span class="ctrl-label" id="axis-label">PER 축</span>
           <button id="per-down" title="더 낮은 구간 보기">▼</button>
           <span id="per-range" class="ctrl-val">0 – 50</span>
           <button id="per-up" title="더 높은 구간 보기">▲</button>
