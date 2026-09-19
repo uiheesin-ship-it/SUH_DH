@@ -176,3 +176,89 @@ def test_add_months_does_not_overflow_a_short_month():
     # 분기말은 분기말로 — 9/30 + 3개월은 12/30 이 아니라 12/31 이다
     assert F.add_months(date(2026, 9, 30), 3) == date(2026, 12, 31)
     assert F.add_months(date(2026, 2, 28), 1) == date(2026, 3, 31)
+
+
+# ------------------------------------------------- 계절성 배분 (÷4 의 대안)
+FY = ["2023-12-31", "2024-12-31", "2025-12-31", "2026-12-31", "2027-12-31"]
+
+
+def _season_hist(shape, years=(2023, 2024, 2025), scale=1.0):
+    """shape = 네 분기 비중. 해마다 scale 배씩 커지는 실적을 만든다."""
+    out, mult = {}, 1.0
+    for y in years:
+        for i, (mm, w) in enumerate(zip(("03-31", "06-30", "09-30", "12-31"), shape)):
+            out[f"{y}-{mm}"] = 100.0 * w * mult
+        mult *= scale
+    return out
+
+
+def test_seasonal_weights_find_a_stable_shape():
+    """애플처럼 4분기가 큰 회사 — ÷4 로 나누면 크게 틀어진다."""
+    w, mode, why = F.seasonal_weights(_season_hist([0.2, 0.2, 0.2, 0.4]), FY)
+    assert mode == "계절성"
+    assert round(w[4], 3) == 0.4 and round(w[1], 3) == 0.2
+    assert why["years_used"] == 3
+
+
+def test_growth_does_not_break_the_shape():
+    """해마다 30% 커져도 **한 해 안의 비중**은 그대로다 — 추세는 연간 컨센 몫."""
+    w, mode, _ = F.seasonal_weights(_season_hist([0.1, 0.2, 0.3, 0.4], scale=1.3), FY)
+    assert mode == "계절성"
+    assert round(w[4], 3) == 0.4 and round(w[1], 3) == 0.1
+
+
+def test_an_erratic_company_falls_back_to_even():
+    """계절성이 해마다 뒤집히면 못 믿는다 — 지어내지 않고 균등으로."""
+    hist = {}
+    hist.update(_season_hist([0.1, 0.2, 0.3, 0.4], years=(2023,)))
+    hist.update(_season_hist([0.4, 0.3, 0.2, 0.1], years=(2024,)))
+    hist.update(_season_hist([0.25, 0.25, 0.25, 0.25], years=(2025,)))
+    w, mode, why = F.seasonal_weights(hist, FY)
+    assert mode == "균등" and w == {1: .25, 2: .25, 3: .25, 4: .25}
+    assert "벌어져" in why["reason"]
+
+
+def test_too_little_history_falls_back_to_even():
+    w, mode, why = F.seasonal_weights(_season_hist([0.2, 0.2, 0.2, 0.4], years=(2025,)), FY)
+    assert mode == "균등" and "회계연도" in why["reason"]
+
+
+def test_a_loss_making_year_is_dropped_not_inverted():
+    """적자 해는 비중이 음수로 뒤집힌다 — 버린다."""
+    hist = _season_hist([0.2, 0.2, 0.2, 0.4], years=(2024, 2025))
+    hist.update({f"2023-{m}": -50.0 for m in ("03-31", "06-30", "09-30", "12-31")})
+    w, mode, why = F.seasonal_weights(hist, FY)
+    assert why["years_used"] == 2 and mode == "계절성"
+
+
+def test_the_annual_residual_is_split_by_season_not_by_four():
+    """핵심: 올해 남은 한 분기에 잔여가 통째로 가야 한다."""
+    hist = _season_hist([0.2, 0.2, 0.2, 0.4])
+    known = dict(hist)
+    known.update({"2026-03-31": 30.0, "2026-06-30": 30.0, "2026-09-30": 30.0})
+    ends = F.project_ends("2026-09-30", 4)          # 2026-12-31 …
+    filled = F.fill_estimates(ends, {"0y": 160.0}, FY, known)
+    assert round(filled["2026-12-31"]["val"], 2) == 70.0      # 160 − 90
+    assert "계절성" in filled["2026-12-31"]["source"]
+
+
+def test_two_open_quarters_split_by_their_own_weights():
+    hist = _season_hist([0.1, 0.2, 0.3, 0.4])
+    known = dict(hist)
+    known.update({"2026-03-31": 10.0, "2026-06-30": 20.0})
+    ends = F.project_ends("2026-06-30", 4)          # 2026-09-30, 2026-12-31 …
+    filled = F.fill_estimates(ends, {"0y": 100.0}, FY, known)
+    # 잔여 70 을 3분기:4분기 = 0.3:0.4 로 → 30 : 40
+    assert round(filled["2026-09-30"]["val"], 1) == 30.0
+    assert round(filled["2026-12-31"]["val"], 1) == 40.0
+
+
+def test_a_year_already_over_its_estimate_is_left_empty():
+    """확정 분기 합이 연간 추정을 넘으면 음수를 지어내지 않는다."""
+    hist = _season_hist([0.25] * 4)
+    known = dict(hist)
+    known.update({"2026-03-31": 90.0, "2026-06-30": 90.0, "2026-09-30": 90.0})
+    ends = F.project_ends("2026-09-30", 4)
+    filled = F.fill_estimates(ends, {"0y": 200.0}, FY, known)
+    assert filled["2026-12-31"]["val"] is None
+    assert "넘었습니다" in filled["2026-12-31"]["note"]

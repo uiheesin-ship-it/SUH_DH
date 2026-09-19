@@ -101,6 +101,21 @@ body {
 .marks { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.8; }
 .marks .m { display: inline-block; margin-right: 14px; }
 .marks .est { color: var(--per-est); }
+.marks .season.ok { color: var(--up); }
+.marks .season.warn { color: #fbbf24; }
+.marks .season a { color: inherit; }
+/* 일반 표는 nowrap 이라(가로 스크롤용) 그대로 두면 설명 칸이 잘린다. */
+.modal-body table.basis {
+  border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12px;
+  table-layout: fixed; white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
+}
+.modal-body table.basis td:first-child, .modal-body table.basis th:first-child { width: 22%; }
+.modal-body table.basis td:nth-child(2), .modal-body table.basis th:nth-child(2) { width: 20%; }
+.modal-body table.basis th, .modal-body table.basis td {
+  border: 1px solid var(--border); padding: 5px 9px; text-align: left;
+  vertical-align: top; white-space: normal;
+}
+.modal-body table.basis th { background: var(--panel-2); color: var(--text); }
 
 /* 표 */
 .mtable { margin-bottom: 22px; }

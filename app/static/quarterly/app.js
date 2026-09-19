@@ -345,8 +345,20 @@ function redraw() {
        재무정보 기준일 <b>${last.basis_end}</b> · 향후 4분기 EPS ${last.eps}
        (추정 ${last.estimated}분기, ${last.source})</span><br/>` : "") +
     (est || "") +
+    (per.season ? `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
+        `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
+        (per.season.mode === "계절성"
+          ? ` (1Q ${(per.season.weights["1"] * 100).toFixed(0)}% · ` +
+            `2Q ${(per.season.weights["2"] * 100).toFixed(0)}% · ` +
+            `3Q ${(per.season.weights["3"] * 100).toFixed(0)}% · ` +
+            `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%, ` +
+            `과거 ${per.season.why.years_used}개 회계연도)`
+          : ` — ${per.season.why.reason || ""}`) +
+        ` <a href="#" id="basis-link">산정 기준 보기</a></span>` : "") +
     (per.consensus_sources && per.consensus_sources.length
       ? `<br/><span class="m">컨센 출처: ${per.consensus_sources.join(", ")}</span>` : "");
+  const link = document.getElementById("basis-link");
+  if (link) link.onclick = (e) => { e.preventDefault(); openModal("basis"); };
 }
 
 function syncButtons() {
@@ -475,66 +487,187 @@ function wire() {
 
 /* --------------------------------------------------------------------- 모달 */
 const MODALS = {
-  local: ["내 컴퓨터에서 띄우는 법", `
+  local: ["내 컴퓨터에서 띄우는 법 (윈도우)", `
 <div class="warn">
-<b>⚠ 검은 창(Git Bash)을 닫으면 서버가 꺼집니다.</b> 그 창이 곧 서버입니다.
-페이지를 보는 동안에는 <b>계속 열어 두세요.</b> 최소화는 괜찮습니다.
+<b>⚠ 서버가 도는 창을 닫으면 페이지가 죽습니다.</b> 그 창이 곧 서버입니다.
+보는 동안에는 <b>계속 열어 두세요.</b> 최소화는 괜찮습니다.
 </div>
 
-<h4>왜 서버가 필요한가</h4>
-이 페이지는 다른 화면들과 다릅니다. 신고가·평평·상관관계는 밤에 미리 계산해 둔
-파일을 내려받기만 하면 되지만, 여기는 <b>티커를 입력받은 그 순간</b> EDGAR 와
-야후에 물어봅니다. 브라우저가 직접 물어볼 수는 없습니다 —
-<code>data.sec.gov</code> 가 브라우저에서 오는 요청을 거부하고(CORS), 야후는 애초에
-공개 API 가 아니라 파이썬이 필요합니다. 그 심부름을 해 주는 게 서버입니다.
+<h4>1. 폴더에서 PowerShell 열기</h4>
+탐색기로 <code>SUH_DH</code> 폴더까지 들어간 다음, 주소창에
+<code>powershell</code> 을 치고 Enter. 그 폴더에서 바로 열립니다.
+<br/>(또는 폴더 빈 곳에서 <b>Shift + 우클릭 → "여기에 PowerShell 창 열기"</b>)
+<br/><br/>
+제대로 열렸으면 프롬프트가 이렇게 보입니다:
+<pre>PS C:\\Users\\1234\\OneDrive\\Desktop\\주식\\코딩\\SUH_DH></pre>
 
-<h4>띄우기</h4>
-<b>Git Bash</b> 를 열고(폴더에서 우클릭 → Git Bash Here), 이 두 줄:
-<pre>cd ~/OneDrive/Desktop/주식/코딩/SUH_DH
-./run.sh</pre>
-이렇게 찍히면 성공입니다:
+<h4>2. 최신 코드 받기</h4>
+<pre>git pull</pre>
+<div class="warn">
+<code>Already up to date.</code> 인데 바뀐 게 안 보이면 <b>다른 브랜치</b>에 있는
+것입니다. <code>git branch --show-current</code> 로 확인하세요 —
+<code>claude/funny-carson-ent3s7</code> 이어야 합니다.
+</div>
+
+<h4>3. 서버 띄우기 — <b>PowerShell 에서 이 줄</b></h4>
+<pre>python -m uvicorn app.main:app --port 8000</pre>
+이게 찍히면 성공입니다:
 <pre>INFO:  Application startup complete.
 INFO:  Uvicorn running on http://127.0.0.1:8000</pre>
 
-<h4>열기 — <code>http://</code> 를 꼭 붙이세요</h4>
+<div class="warn">
+<b><code>./run.sh</code> 를 쓰지 마세요 — 그게 헷갈렸던 원인입니다.</b><br/>
+PowerShell 에서 <code>./run.sh</code> 를 치면 윈도우가 그 파일을 <b>Git Bash 로
+따로 열어</b> 검은 창이 하나 더 뜹니다. PowerShell 쪽은 바로 프롬프트로
+돌아와서 "안 돌고 있나?" 싶고, 정작 서버는 그 검은 창에 있어서 <b>그 창을 닫으면
+서버가 죽습니다.</b> 위 <code>python -m uvicorn</code> 줄은 <b>그 자리에서</b>
+돌아서 창이 하나뿐입니다.
+</div>
+
+<h4>4. 브라우저에서 열기 — <code>http://</code> 를 꼭</h4>
 <pre>http://localhost:8000/quarterly/</pre>
 <div class="warn">
 주소창에 <code>localhost:8000</code> 만 치면 요즘 브라우저가 <b>자동으로
-<code>https://</code> 로 바꿉니다.</b> 우리 서버는 <code>http</code> 라 그러면 무조건
-실패합니다. 즐겨찾기에 넣어 두시는 게 제일 편합니다.
+<code>https://</code> 로 바꿔서</b> 무조건 실패합니다. <b>즐겨찾기에 넣어 두세요.</b>
 </div>
 
 <h4>끝낼 때</h4>
-검은 창에서 <b>Ctrl+C</b>. 그냥 창을 닫아도 됩니다 — 어차피 서버가 같이 꺼집니다.
+PowerShell 창에서 <b>Ctrl + C</b>.
 
-<h4>코드가 업데이트됐을 때</h4>
-서버를 끄고(<b>Ctrl+C</b>), 받고, 다시 띄웁니다. <b>받기만 하면 안 됩니다</b> —
-이미 떠 있는 서버는 옛 코드를 메모리에 들고 있습니다.
-<pre>git pull
-./run.sh</pre>
+<h4>코드가 바뀌었을 때</h4>
+<b>받기만 하면 안 됩니다</b> — 이미 떠 있는 서버는 옛 코드를 메모리에 들고
+있습니다. 껐다 다시:
+<pre>Ctrl + C
+git pull
+python -m uvicorn app.main:app --port 8000</pre>
 
-<h4>안 들어가질 때</h4>
+<h4>안 될 때</h4>
 <ol>
-  <li><b>검은 창이 아직 열려 있나</b> — 제일 흔한 원인입니다.</li>
+  <li><b>서버 창이 아직 열려 있나</b> — 제일 흔합니다.</li>
   <li><b><code>http://</code> 를 붙였나</b> — 두 번째로 흔합니다.</li>
-  <li>창을 <b>하나 더</b> 열어 <code>curl http://127.0.0.1:8000/api/health</code>.
+  <li><code>python : 용어를 인식할 수 없습니다</code> → 파이썬이 PATH 에 없습니다.
+      <code>py -m uvicorn app.main:app --port 8000</code> 으로 해 보세요.</li>
+  <li><code>No module named uvicorn</code> → <code>pip install -r requirements.txt</code></li>
+  <li><code>address already in use</code> → 이미 떠 있습니다. 다른 창을 찾거나
+      <code>--port 8001</code> 로 바꿔 띄우세요.</li>
+  <li>창을 하나 더 열어 <code>curl http://127.0.0.1:8000/api/health</code>.
       <code>{"status":"ok"}</code> 가 나오면 서버는 멀쩡하고 브라우저 문제입니다.</li>
-  <li><code>127.0.0.1</code> 대신 <code>localhost</code> 로도 해 보세요.</li>
-  <li>회사 PC·VPN 이면 프록시일 수 있습니다 — Windows 설정 → 네트워크 및 인터넷 →
-      프록시 → <b>"로컬 주소에 프록시 서버 사용 안 함"</b> 체크.</li>
-  <li><code>Address already in use</code> 가 뜨면 이미 떠 있는 겁니다. 다른 창을
-      찾아 쓰거나, 다 닫고 다시 띄우세요.</li>
+  <li>회사 PC·VPN 이면 프록시 — Windows 설정 → 네트워크 및 인터넷 → 프록시 →
+      <b>"로컬 주소에 프록시 서버 사용 안 함"</b> 체크.</li>
 </ol>
 
-<h4>참고로 무시해도 되는 것</h4>
+<h4>처음 받는 컴퓨터라면</h4>
+<pre>git clone https://github.com/uiheesin-ship-it/SUH_DH.git
+cd SUH_DH
+pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000</pre>
+
+<h4>무시해도 되는 것</h4>
 시작할 때 <code>eai subsystem not mounted: No module named 'sqlalchemy'</code> 가
 찍힙니다. 실적 컨콜 프로그램만 안 뜨는 것이고 <b>이 페이지와는 무관합니다.</b>
-
-<h4>배포된 사이트(GitHub Pages)에서는</h4>
-백엔드가 연결돼 있으면 로컬 실행 없이 그대로 됩니다. 무료 서버라 15분 쉬면
-잠들기 때문에 <b>첫 조회가 30~60초</b> 걸릴 수 있습니다 — 멈춘 게 아니라 깨는
-중입니다.
 `],
+
+  basis: ["산정 기준 — EPS · EV · EBITDA · 계절성 배분", `
+<p>숫자를 어떻게 만들었는지 전부 적어 둡니다. <b>기준이 바뀌면 값이 바뀝니다.</b>
+바꾸고 싶은 곳이 있으면 말씀해 주세요 — 상수는 한군데 모아 뒀습니다.</p>
+
+<h4>EPS — 두 기준을 다 씁니다</h4>
+<table class="basis">
+<tr><th>기준</th><th>과거</th><th>컨센</th></tr>
+<tr><td><b>GAAP</b></td>
+    <td>EDGAR <code>EarningsPerShareDiluted</code> (희석, 회사 제출 원본)</td>
+    <td>없음 — 애널리스트는 GAAP 을 추정하지 않습니다</td></tr>
+<tr><td><b>조정<br/>(non-GAAP)</b></td>
+    <td>야후 <code>Reported EPS</code> — 회사가 보도자료에서 발표하고
+        컨센과 대조되는 값</td>
+    <td>야후 <code>earnings_estimate</code></td></tr>
+</table>
+<ul>
+  <li><b>기본은 조정</b>입니다. 컨센과 같은 기준이라 실선→점선 경계에서 선이
+      안 꺾입니다. GAAP 으로 그리면 주식보상이 큰 회사는 그 경계에서 PER 이
+      인위적으로 뚝 떨어집니다(조정 EPS 가 GAAP 보다 크기 때문).</li>
+  <li>조정 EPS 커버리지는 종목마다 다릅니다(실측: NVDA 49분기 / 2014년~).
+      짧으면 그 구간만 GAAP 으로 물러섭니다.</li>
+  <li>정정공시가 있으면 <b>실적 표는 마지막 제출본</b>, 과거 시점 계산은
+      <b>첫 제출본</b>을 씁니다.</li>
+</ul>
+
+<h4>EBITDA — Adjusted EBITDA 가 <b>아닙니다</b></h4>
+<pre>EBITDA = 영업이익(OperatingIncomeLoss)
+       + 감가상각비(DepreciationDepletionAndAmortization 등)</pre>
+<ul>
+  <li><b>주식기준보상(SBC)은 되돌리지 않습니다.</b> 즉 SBC 가 <b>비용으로
+      차감된 상태</b>입니다. 회사들이 말하는 "Adjusted EBITDA" 는 대개 SBC 를
+      다시 더해 되돌리므로 <b>여기 값보다 큽니다.</b></li>
+  <li>일회성 손익(구조조정·자산매각·소송)도 <b>빼지 않습니다.</b> 영업이익에
+      들어 있으면 그대로 반영됩니다.</li>
+  <li>감가상각은 현금흐름표에 <b>누적(YTD)</b> 으로 실리는 일이 많아 차분해서
+      분기값을 만듭니다. 태그별로 따로 차분합니다.</li>
+  <li>Adjusted EBITDA 는 비GAAP 이라 XBRL 에 없습니다(실측 4종목 전부 고유
+      태그 0개). 회사마다 무엇을 빼는지 정의가 달라 비교도 안 됩니다.</li>
+  <li><b>은행·보험은 영업이익 개념이 없어</b> EBITDA 도 만들지 않습니다.</li>
+</ul>
+
+<h4>EV — 만드는 중입니다. 기준은 이렇게 잡습니다</h4>
+<pre>EV = 시가총액
+   + 총차입금
+   − 현금성자산
+   + 비지배지분
+   + 우선주</pre>
+<table class="basis">
+<tr><th>항목</th><th>포함</th><th>비고</th></tr>
+<tr><td>시가총액</td><td>주가 × 보통주 발행주식수</td>
+    <td>가중평균이 아니라 <b>기말 발행주식수</b></td></tr>
+<tr><td>장기차입금</td><td>✅ 유동·비유동 전부</td><td></td></tr>
+<tr><td><b>전환사채</b></td><td>✅ 포함</td>
+    <td>부채로 잡힌 장부금액. 전환 가정해 주식수에 더하지는 <b>않습니다</b></td></tr>
+<tr><td><b>단기사채·CP</b></td><td>✅ 포함</td><td>이자부 부채입니다</td></tr>
+<tr><td><b>리스부채</b></td><td>✅ 포함</td>
+    <td>ASC842 이후 재무상태표에 올라오므로 차입금으로 봅니다.
+        <b>단 EBITDA 에서 리스비용을 되돌리지는 않아</b> 이 조합은 리스가 큰
+        회사(유통·항공)의 EV/EBITDA 를 <b>높게</b> 만듭니다</td></tr>
+<tr><td>현금성자산</td><td>➖ 차감</td>
+    <td>현금 + <b>단기투자자산</b>까지. 장기투자·지분증권은 빼지 않습니다</td></tr>
+<tr><td>비지배지분</td><td>✅ 가산</td><td>장부금액</td></tr>
+<tr><td>우선주</td><td>✅ 가산</td><td>장부금액</td></tr>
+<tr><td>연금부채</td><td>❌ 제외</td><td>넣는 유파도 있지만 안 넣습니다</td></tr>
+</table>
+<p>과거 시점 EV 는 <b>그 시점 주가 × 그 분기말 주식수 + 그 분기말 부채·현금</b>
+으로 만듭니다. 분기 사이는 마지막으로 발표된 재무상태표를 유지합니다.
+<b>EBITDA 컨센은 무료 출처가 없어</b> EV/EBITDA 는 <b>과거 구간만</b> 그려집니다.</p>
+
+<h4>계절성 배분 — 연간 컨센을 분기에 나누는 법</h4>
+<p>야후는 분기 컨센을 <b>두 개</b>만 줍니다. 12개월을 채우려면 나머지는 연간
+추정에서 만들어야 하는데, <b>÷4 는 계절성이 큰 회사를 크게 틀어지게</b> 합니다
+(애플 4분기, 유통 연말). 그래서 과거 비중으로 나눕니다.</p>
+<pre>① 비중 구하기 — 최근 3개 완결 회계연도
+     w[해][분기] = 그 분기 실적 ÷ 그 해 4분기 합
+     w[분기]     = 연도별 w 의 <b>중앙값</b>   ← 평균 아님(한 해 이상치 방어)
+     정규화: w[분기] ← w[분기] ÷ Σw
+
+   버리는 해: 네 분기가 다 없는 해 · 연간 합이 0 이하인 해(적자)
+
+② 믿을 수 있나
+     spread[분기] = max(연도별 w) − min(연도별 w)
+     max(spread) > <b>0.15</b>          → 계절성이 해마다 달라 못 믿음 → <b>균등</b>
+     쓸 수 있는 해 < <b>2개</b>          → <b>균등</b>
+
+③ 나누기
+     잔여 = 연간 컨센 − 이미 확정된 그 해 분기 합
+     분기 추정 = 잔여 × w[그 분기] ÷ Σ(남은 분기들의 w)
+
+     잔여 ≤ 0 이면 <b>배분하지 않습니다</b> — 음수를 지어내는 대신 비워 두고
+     "이미 확정된 분기 합이 연간 추정을 넘었습니다" 라고 적습니다.</pre>
+<p><b>성장 추세는 여기서 다루지 않습니다.</b> 추세는 연간 컨센이 이미 담고
+있고, 여기서는 한 해 <b>안의 배분</b>만 봅니다. 그래서 꾸준히 성장하는 회사도
+뒤 분기 비중이 자연히 커집니다.</p>
+<p>손잡이 세 개는 <code>app/forwardper.py</code> 맨 위에 모여 있습니다 —
+<code>SEASON_YEARS = 3</code>, <code>SEASON_TOL = 0.15</code>,
+<code>SEASON_MIN_YEARS = 2</code>. 바꾸고 싶으시면 말씀해 주세요.</p>
+<p>차트 위에 이번 종목이 <b>계절성</b>으로 나뉘었는지 <b>균등</b>으로 물러섰는지,
+그리고 그 이유가 표시됩니다.</p>
+`],
+
   per: ["12M Forward PER 을 어떻게 구하나", `
 <h4>정의</h4>
 어떤 과거 시점 T 의 12M forward PER 은 <code>T 시점 주가 ÷ (T 이후 4개 분기 EPS 합)</code>
@@ -617,6 +750,7 @@ $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") load($("q").v
 $("per-btn").addEventListener("click", () => openModal("per"));
 $("src-btn").addEventListener("click", () => openModal("src"));
 $("local-btn").addEventListener("click", () => openModal("local"));
+$("basis-btn").addEventListener("click", () => openModal("basis"));
 $("modal-close").addEventListener("click", () => $("modal").classList.add("hidden"));
 $("modal").addEventListener("click", (e) => {
   if (e.target === $("modal")) $("modal").classList.add("hidden");

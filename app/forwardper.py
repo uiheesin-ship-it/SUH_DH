@@ -30,6 +30,11 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 HORIZON = 4              # 앞으로 몇 분기를 12개월로 볼 것인가
+# --- 계절성 배분 손잡이 ------------------------------------------------------
+# 연간 컨센을 미발표 분기에 나눌 때 쓴다. 바꿔 가며 맞춰 볼 값들이라 한데 모은다.
+SEASON_YEARS = 3         # 비중을 구할 때 볼 과거 회계연도 수
+SEASON_TOL = 0.15        # 연도별 비중이 이보다 흩어지면 계절성을 못 믿는다
+SEASON_MIN_YEARS = 2     # 쓸 수 있는 해가 이보다 적으면 균등 배분
 ANNOUNCE_MIN = 3         # 분기말 이후 이만큼 지나야 발표로 본다
 ANNOUNCE_MAX = 120       # 이보다 늦으면 그 분기의 발표가 아니다
 
@@ -118,6 +123,102 @@ def project_ends(last_end, count: int, step_days: int | None = None) -> list[str
     return out
 
 
+def _fq_pos(end, fy_end) -> int | None:
+    """분기 기준일이 그 회계연도의 **몇 번째 분기**인지(1~4)."""
+    e, f = _d(end), _d(fy_end)
+    if e is None or f is None:
+        return None
+    lo = add_months(f, -12)
+    if not (lo < e <= f):
+        return None
+    months = (e.year - lo.year) * 12 + (e.month - lo.month)
+    pos = max(1, min(4, round(months / 3)))
+    return pos
+
+
+def _fy_of(end, bounds: list[date]):
+    """이 분기가 속한 회계연도의 마지막 기준일."""
+    e = _d(end)
+    if e is None:
+        return None
+    for b in bounds:
+        if add_months(b, -12) < e <= b:
+            return b
+    return None
+
+
+def seasonal_weights(known: dict[str, float], fy_ends: list[str],
+                     years: int = SEASON_YEARS, tol: float = SEASON_TOL
+                     ) -> tuple[dict[int, float], str, dict]:
+    """과거 분기들이 그 해 합계에서 차지한 비중 — 계절성 지수.
+
+    연간 컨센을 남은 분기에 **÷4 로 나누면** 계절성이 큰 회사가 크게 틀어진다
+    (애플 4분기, 유통 연말). 그렇다고 성장 추세까지 여기서 다루지는 않는다 —
+    추세는 연간 컨센이 이미 담고 있고, 여기서는 **한 해 안의 배분**만 본다.
+    그래서 꾸준히 성장하는 회사도 뒤 분기 비중이 자연히 커진다.
+
+    산식
+        w[y][q] = v[y][q] / Σ_q v[y][q]      (그 해 분기 합이 양수일 때만)
+        w[q]    = median_y w[y][q]           평균이 아니라 **중앙값** — 한 해의
+                                             이상치(일회성 손익)에 안 흔들리게
+        정규화  w[q] ← w[q] / Σ w
+
+    믿을 수 있나
+        spread[q] = max_y w[y][q] − min_y w[y][q]
+        max_q spread[q] > tol 이면 계절성이 해마다 달라 못 믿는다 → 균등.
+        쓸 수 있는 해가 SEASON_MIN_YEARS 보다 적어도 균등.
+
+    반환: (분기위치→비중, 판정, 근거)
+    """
+    bounds = sorted(x for x in (_d(e) for e in fy_ends or []) if x)
+    per_year: dict[date, dict[int, float]] = {}
+    for end, val in (known or {}).items():
+        if val is None:
+            continue
+        f = _fy_of(end, bounds)
+        pos = _fq_pos(end, f.isoformat()) if f else None
+        if f and pos:
+            per_year.setdefault(f, {})[pos] = val
+
+    rows = []
+    for f in sorted(per_year, reverse=True):
+        qs = per_year[f]
+        if len(qs) != 4:
+            continue                      # 네 분기가 다 있는 해만
+        total = sum(qs.values())
+        if total <= 0:
+            continue                      # 적자 해는 비중이 음수로 뒤집힌다
+        rows.append({q: qs[q] / total for q in (1, 2, 3, 4)})
+        if len(rows) >= years:
+            break
+
+    even = {q: 0.25 for q in (1, 2, 3, 4)}
+    why = {"years_used": len(rows), "tol": tol}
+    if len(rows) < SEASON_MIN_YEARS:
+        why["reason"] = f"쓸 수 있는 회계연도가 {len(rows)}개뿐입니다(최소 {SEASON_MIN_YEARS}개)"
+        return even, "균등", why
+
+    spread = {q: max(r[q] for r in rows) - min(r[q] for r in rows) for q in (1, 2, 3, 4)}
+    why["spread"] = {q: round(v, 4) for q, v in spread.items()}
+    if max(spread.values()) > tol:
+        why["reason"] = (f"연도별 비중이 최대 {max(spread.values()):.1%} 벌어져 "
+                         f"계절성을 믿기 어렵습니다(허용 {tol:.0%})")
+        return even, "균등", why
+
+    med = {}
+    for q in (1, 2, 3, 4):
+        vals = sorted(r[q] for r in rows)
+        n = len(vals)
+        med[q] = vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2
+    tot = sum(med.values())
+    if tot <= 0:
+        why["reason"] = "비중 합이 0 이하입니다"
+        return even, "균등", why
+    w = {q: med[q] / tot for q in (1, 2, 3, 4)}
+    why["weights"] = {q: round(v, 4) for q, v in w.items()}
+    return w, "계절성", why
+
+
 def fill_estimates(future_ends: list[str], est: dict, fy_ends: list[str],
                    known: dict[str, float]) -> dict[str, dict]:
     """미발표 분기의 EPS 를 컨센으로 채운다.
@@ -138,6 +239,7 @@ def fill_estimates(future_ends: list[str], est: dict, fy_ends: list[str],
             out[end] = {"val": float(v), "source": f"컨센 {key}"}
 
     bounds = sorted(x for x in (_d(e) for e in fy_ends or []) if x)
+    w, mode, why = seasonal_weights(known, fy_ends)
     for key in ("0y", "+1y"):
         total = (est or {}).get(key)
         if total is None:
@@ -154,9 +256,21 @@ def fill_estimates(future_ends: list[str], est: dict, fy_ends: list[str],
         rest = [e for e in mine if e not in out]
         if not rest:
             continue
-        share = (float(total) - booked) / len(rest)
+        residual = float(total) - booked
+        if residual <= 0:
+            # 이미 확정·배정된 분기 합이 연간 추정을 넘었다. 음수를 지어내지
+            # 않고 비워 둔다 — 화면에서 그 이유를 보여 준다.
+            for e in rest:
+                out[e] = {"val": None, "source": f"컨센 {key}",
+                          "note": "이미 확정된 분기 합이 연간 추정을 넘었습니다"}
+            continue
+        # ÷남은분기 대신 **계절성 비중**으로 나눈다.
+        share = {e: w.get(_fq_pos(e, fy_end.isoformat()) or 0, 0.25) for e in rest}
+        denom = sum(share.values()) or 1.0
         for e in rest:
-            out[e] = {"val": share, "source": f"컨센 {key} 잔여 배분"}
+            out[e] = {"val": residual * share[e] / denom,
+                      "source": f"컨센 {key} {mode} 배분",
+                      "weight": round(share[e] / denom, 4), "mode": mode}
     return out
 
 
