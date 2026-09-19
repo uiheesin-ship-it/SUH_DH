@@ -31,9 +31,15 @@ from datetime import date, timedelta
 
 # --- 계정 매핑 --------------------------------------------------------------
 # DART 는 표준 계정코드(account_id)를 준다. 없을 때만 이름으로 찾는다.
-REVENUE = (["ifrs-full_Revenue", "ifrs-full_RevenueFromSaleOfGoods",
-            "dart_OperatingIncomeLoss"],
-           ["매출액", "영업수익", "수익(매출액)"])
+REVENUE = (["ifrs-full_Revenue", "ifrs-full_RevenueFromSaleOfGoods"],
+           ["매출액", "영업수익", "수익(매출액)", "수익"])
+# 은행·금융지주는 "매출액" 이라는 줄이 아예 없다(실측 KB금융: IS 0행, CIS 48행).
+# 미장에서 은행 매출을 순이자이익+비이자이익으로 만든 것과 같은 자리다.
+BANK_REVENUE_PARTS = [
+    (["ifrs-full_RevenueFromInterest", "dart_InterestIncomeNet"],
+     ["순이자손익", "순이자이익"]),
+    (["dart_NetFeeAndCommissionIncome"], ["순수수료손익", "순수수료이익"]),
+]
 OPERATING = (["dart_OperatingIncomeLoss", "ifrs-full_ProfitLossFromOperatingActivities"],
              ["영업이익", "영업이익(손실)"])
 NET_INCOME = (["ifrs-full_ProfitLoss"], ["당기순이익", "당기순이익(손실)", "분기순이익"])
@@ -109,10 +115,15 @@ def _pick(rows: list[dict], ids: list[str], names: list[str],
         for r in pool:
             if (r.get("account_nm") or "").strip() == nm:
                 return r
-    # 이름이 조금씩 다른 회사가 있다 — 마지막으로 포함 검색.
+    # 이름이 조금씩 다른 회사가 있다 — 마지막으로 **접두사**만 본다.
+    #
+    # 포함 검색(``nm in 이름``)을 쓰면 안 된다. 실측(KB금융 2026-09-19)에서
+    # "영업이익" 이 **"신용손실충당금 반영전 영업이익"** 에 걸려, 충당금을 빼기
+    # 전 이익이 영업이익 자리에 조용히 들어앉았다. 접두사면 "영업이익(손실)" 은
+    # 잡고 "…반영전 영업이익" 은 안 잡는다.
     for nm in names:
         for r in pool:
-            if nm in (r.get("account_nm") or ""):
+            if (r.get("account_nm") or "").strip().startswith(nm):
                 return r
     return None
 
@@ -202,6 +213,32 @@ def balance_series(reports: dict, ids: list[str], names: list[str]) -> dict[str,
     return out
 
 
+def bank_revenue(reports: dict) -> dict[str, dict]:
+    """은행·금융지주의 "매출" — **순이자손익 + 순수수료손익**.
+
+    실측(KB금융 2026-09-19): 손익계산서(IS)가 0행이고 포괄손익(CIS)에만 48행이
+    있으며 "매출액" 이라는 줄이 아예 없다. 미장에서 은행 매출을 순이자이익 +
+    비이자이익으로 만든 것과 같은 자리다. **총**이자수익을 쓰면 이자비용이
+    안 빠져 매출이 부푸니 반드시 순액을 쓴다.
+
+    조각이 하나라도 없으면 만들지 않는다 — 반쪽짜리 매출은 없느니만 못하다.
+    """
+    parts = [income_series(reports, spec) for spec in BANK_REVENUE_PARTS]
+    if not all(parts):
+        return {}
+    ends = set(parts[0])
+    for p in parts[1:]:
+        ends &= set(p)
+    out = {}
+    for end in ends:
+        rows = [p[end] for p in parts]
+        out[end] = {"end": end, "val": sum(r["val"] for r in rows),
+                    "year": rows[0]["year"], "quarter": rows[0]["quarter"],
+                    "source": "계산값(순이자손익+순수수료손익)",
+                    "derived": "순이자손익+순수수료손익"}
+    return out
+
+
 def _series(rows: dict[str, dict], limit: int) -> list[dict]:
     return [rows[e] for e in sorted(rows)][-limit:]
 
@@ -215,6 +252,11 @@ def build_metrics(reports: dict, quarters: int = 20) -> dict:
     from .fundamentals import with_growth
 
     revenue = income_series(reports, REVENUE)
+    rev_source = "보고값(DART 연결)"
+    if not revenue:
+        revenue = bank_revenue(reports)
+        rev_source = "계산값(순이자손익+순수수료손익)" if revenue \
+            else "없음(매출 계정이 없습니다)"
     operating = income_series(reports, OPERATING)
     net = income_series(reports, NET_INCOME)
     owner = income_series(reports, OWNER_NET)
@@ -232,7 +274,7 @@ def build_metrics(reports: dict, quarters: int = 20) -> dict:
                        "derived": "영업이익+감가상각"}
 
     plan = {
-        "매출": (revenue, "보고값(DART 연결)"),
+        "매출": (revenue, rev_source),
         "영업이익": (operating, "보고값(DART 연결)"),
         "당기순이익": (net, "보고값(DART 연결)"),
         "지배주주순이익": (owner, "보고값(DART 연결)"),
@@ -258,6 +300,8 @@ def build_metrics(reports: dict, quarters: int = 20) -> dict:
                                 f"(다른 항목은 {latest}).")
     metrics["EBITDA"]["note"] = (
         "Adjusted EBITDA 가 아닙니다. 영업이익에 현금흐름표의 감가상각비를 더한 "
-        "순수 계산값입니다. 감가상각을 현금흐름표에 따로 싣지 않는 회사는 "
-        "EBITDA 가 비어 있습니다.")
+        "순수 계산값입니다. **감가상각을 현금흐름표에 따로 싣지 않는 회사는 "
+        "EBITDA 가 비어 있습니다** — DART 표준 계정에 그 줄이 없으면 만들 수 "
+        "없습니다(실측 2026-09-19: 삼성전자·에코프로비엠은 없고 KB금융은 "
+        "있습니다). 없는 것을 0 으로 채우지 않습니다.")
     return metrics

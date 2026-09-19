@@ -108,6 +108,38 @@ def test_같은_이름이_여러_재무제표에_있으면_재무제표로_좁�
     assert got["thstrm_amount"] == "286"
 
 
+def test_포함_검색은_엉뚱한_계정을_잡는다_접두사만_본다():
+    """실측(KB금융): "영업이익" 이 "신용손실충당금 반영전 영업이익" 에 걸렸다.
+
+    충당금을 빼기 전 이익이 영업이익 자리에 조용히 들어앉는다 — 은행에서만
+    나오는 함정이라 눈에 안 띈다.
+    """
+    rows = [row("CIS", "", "신용손실충당금 반영전 영업이익", "999")]
+    assert kf._pick(rows, [], ["영업이익"], ("IS", "CIS")) is None
+    rows.append(row("CIS", "", "영업이익(손실)", "123"))
+    assert kf._pick(rows, [], ["영업이익"], ("IS", "CIS"))["thstrm_amount"] == "123"
+
+
+def test_은행은_순이자손익과_순수수료손익을_더해_매출을_만든다():
+    r = reports()
+    for rows in r.values():
+        rows[:] = [x for x in rows if x["account_id"] != "ifrs-full_Revenue"]
+        dt = rows[0]["thstrm_dt"]
+        rows.append(row("CIS", "", "순이자손익", "300", None, dt))
+        rows.append(row("CIS", "", "순수수료손익", "100", None, dt))
+    m = kf.build_metrics(r)
+    assert "순이자손익" in m["매출"]["source"]
+    assert m["매출"]["quarters"][0]["val"] == 400
+
+
+def test_조각이_하나라도_없으면_은행_매출을_만들지_않는다():
+    r = reports()
+    for rows in r.values():
+        rows[:] = [x for x in rows if x["account_id"] != "ifrs-full_Revenue"]
+        rows.append(row("CIS", "", "순이자손익", "300", None, rows[0]["thstrm_dt"]))
+    assert kf.build_metrics(r)["매출"]["quarters"] == []
+
+
 def test_표준_계정코드가_이름보다_먼저다():
     rows = [row("IS", "", "매출액", "111"),
             row("IS", "ifrs-full_Revenue", "수익", "222")]

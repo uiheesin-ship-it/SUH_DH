@@ -81,14 +81,17 @@ def _rows(fi: dict) -> list[dict]:
 def _period(fi: dict) -> dict[str, bool]:
     """기간 키(YYYYMM) → 추정인가.
 
-    trTitleList 의 title 은 "2026.09." 꼴이다. rowList 의 값 키는 "202609" 라
-    점을 빼서 맞춘다.
+    실측(2026-09-19)으로 trTitleList 의 한 항목은
+    ``{"isConsensus": "N", "title": "2023.12.", "key": "202312"}`` 다. ``key`` 가
+    rowList 의 열 이름과 같은 모양이라 그걸 쓰고, 없을 때만 title 의 점을 뺀다.
     """
     out = {}
     for t in fi.get("trTitleList") or []:
-        title = (t.get("title") or "").replace(".", "").strip()
-        if len(title) >= 6:
-            out[title[:6]] = (t.get("isConsensus") == "Y")
+        key = (t.get("key") or "").strip()
+        if not key:
+            key = (t.get("title") or "").replace(".", "").strip()[:6]
+        if len(key) >= 6:
+            out[key[:6]] = (t.get("isConsensus") == "Y")
     return out
 
 
@@ -102,7 +105,13 @@ def _parse(payload: dict) -> dict:
         if spec is None:
             continue
         label, is_money = spec
-        vals = row.get("value") or row.get("valueList") or row.get("values") or {}
+        # **값은 ``columns`` 에 있다.** 실측(2026-09-19)으로 한 행은
+        # ``{"title": "매출액", "columns": {"202512": {"value": "812,307", "cx": null}}}``
+        # 이다. 예전에 ``value`` 만 보다가 조용히 빈 값을 냈고, 그 바람에 컨센
+        # 칸이 전부 0 으로 떴다 — 파싱이 실패해도 기간 목록은 채워져서
+        # "출처 있음" 으로 보이는 바람에 한참 못 찾았다.
+        vals = (row.get("columns") or row.get("value") or row.get("valueList")
+                or row.get("values") or {})
         if not isinstance(vals, dict):
             continue
         for key, cell in vals.items():
