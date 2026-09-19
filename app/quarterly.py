@@ -75,21 +75,36 @@ def build(ticker: str) -> dict:
 
     announced = [a["date"] for a in (con.get("announcements") or [])]
     quarters = forwardper.match_announcements(eps_rows, announced)
-    known = {q["end"]: q["val"] for q in quarters if q.get("val") is not None}
-    future = forwardper.project_ends(quarters[-1]["end"], 8)
     fy_ends = _fy_ends(facts)
-    est = forwardper.fill_estimates(future, consensus.eps_estimates(con),
-                                    fy_ends, known)
-    # 연간 컨센을 남은 분기에 어떻게 나눴는지 — 화면에서 근거를 보여 준다.
-    sw, smode, swhy = forwardper.seasonal_weights(known, fy_ends)
-    windows = forwardper.forward_windows(quarters, est)
     dates, close = _price(ticker)
-    series = forwardper.per_series(dates, close, windows)
 
-    if not est:
+    # 같은 파이프라인을 **기준마다 한 번씩** 돌린다.
+    #
+    # GAAP 과 조정(non-GAAP)은 숫자가 다르다 — 주식보상이 큰 회사는 조정 쪽이
+    # 훨씬 크다. 지금까지는 확정 구간을 GAAP 으로, 추정 구간을 조정 컨센으로
+    # 그려서 그 경계에서 선이 인위적으로 꺾였다. 기준마다 과거·미래를 한 기준
+    # 으로 맞춰 따로 그리고, 화면에서 고르게 한다.
+    bases = {}
+    for name, qs in (("gaap", quarters), ("adjusted", _adjusted(quarters, con))):
+        if not qs:
+            continue
+        bases[name] = _one_basis(name, qs, con, fy_ends, dates, close)
+
+    if not bases:
+        out["notes"].append("EPS 계열을 만들지 못해 forward PER 을 그릴 수 없습니다.")
+        out["per"] = None
+        _attach_forecast(out, con, quarters, fy_ends)
+        return out
+
+    # 기본은 조정 — 컨센과 같은 기준이라 경계에서 선이 안 꺾인다.
+    default = "adjusted" if "adjusted" in bases else "gaap"
+    out["per"] = bases[default]
+    out["per_bases"] = bases
+    out["per_basis"] = default
+    if "adjusted" not in bases:
         out["notes"].append(
-            "컨센을 못 받아 추정 구간(점선)이 없습니다. 마지막 확정 분기까지만 그립니다.")
-    out["per"] = _chart(series, windows, quarters, con, est, (sw, smode, swhy))
+            "조정(non-GAAP) EPS 이력을 못 받아 GAAP 으로만 그립니다 — 추정 구간은 "
+            "조정 기준 컨센이라 그 경계에서 선이 꺾일 수 있습니다.")
     _attach_forecast(out, con, quarters, _fy_ends(facts))
     return out
 
@@ -138,6 +153,47 @@ def _attach_forecast(out: dict, con: dict, quarters: list[dict],
         "**앞으로 두 분기와 두 회계연도**까지 나옵니다. 영업이익 컨센은 무료 출처가 "
         "없고, 순이익은 EPS 컨센에 최근 주식수를 곱해 만든 계산값입니다. "
         "내후년 칸은 자리를 비워 둡니다.")
+
+
+def _adjusted(quarters: list[dict], con: dict) -> list[dict]:
+    """야후가 발표일마다 실어 주는 **조정 EPS** 로 같은 분기 계열을 다시 만든다.
+
+    ``Reported EPS`` 는 회사가 보도자료에서 발표하고 컨센과 대조되는 값이다 —
+    즉 **컨센과 같은 기준**이다. 이미 발표일을 쓰려고 받아 오던 데이터인데
+    숫자는 버리고 있었다. 실측(2026-09-19)으로 NVDA 는 49분기(2014년~)가 온다.
+
+    발표일이 안 붙은 분기(EDGAR 제출일로 물러선 분기)는 조정값을 모르므로
+    버린다 — 없는 값을 GAAP 으로 메우면 그게 다시 기준 섞임이다.
+    """
+    rep = {a["date"]: a.get("reported_eps") for a in (con.get("announcements") or [])}
+    out = []
+    for q in quarters:
+        v = rep.get(q.get("announced"))
+        if v is None:
+            continue
+        out.append({**q, "val": v, "first_val": v, "basis": "adjusted"})
+    return out if len(out) >= 8 else []          # 너무 짧으면 쓸모가 없다
+
+
+BASIS_LABEL = {"gaap": "GAAP (EDGAR 희석 EPS)",
+               "adjusted": "조정 non-GAAP (야후 발표 EPS · 컨센과 같은 기준)"}
+
+
+def _one_basis(name: str, quarters: list[dict], con: dict, fy_ends: list[str],
+               dates: list[str], close: list[float]) -> dict:
+    """한 기준의 분기 계열 → 창 → PER 계열 → 차트 묶음."""
+    known = {q["end"]: q["val"] for q in quarters if q.get("val") is not None}
+    future = forwardper.project_ends(quarters[-1]["end"], 8)
+    est = forwardper.fill_estimates(future, consensus.eps_estimates(con),
+                                    fy_ends, known)
+    season = forwardper.seasonal_weights(known, fy_ends)
+    windows = forwardper.forward_windows(quarters, est)
+    series = forwardper.per_series(dates, close, windows)
+    ch = _chart(series, windows, quarters, con, est, season)
+    ch["eps_basis"] = name
+    ch["eps_basis_label"] = BASIS_LABEL[name]
+    ch["eps_quarters"] = len(quarters)
+    return ch
 
 
 def _eps_rows(facts: dict) -> dict[str, dict]:
