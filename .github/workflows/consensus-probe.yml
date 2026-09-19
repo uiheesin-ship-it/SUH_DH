@@ -35,3 +35,9 @@ jobs:
           EAI_TRANSCRIPT_API_KEY: ${{ secrets.EAI_TRANSCRIPT_API_KEY }}
           EAI_ALPHAVANTAGE_API_KEY: ${{ secrets.EAI_ALPHAVANTAGE_API_KEY }}
         run: python tools/consensus_probe.py ${{ github.event.inputs.tickers }}
+
+      - name: Basis probe (GAAP vs 조정 · EV/EBITDA 재료)
+        # forward PER 의 확정 구간은 EDGAR 의 GAAP EPS, 추정 구간은 야후 컨센인데
+        # 애널리스트는 조정(non-GAAP) EPS 를 추정한다. 기준이 섞여 있다는 뜻이라
+        # 과거 조정 EPS 와 정규화 손익, EV 재료를 받을 수 있는지 잰다.
+        run: python tools/basis_probe.py ${{ github.event.inputs.tickers }}
