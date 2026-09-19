@@ -316,6 +316,58 @@ def probe_dart_dates(code, name, years=5):
         time.sleep(0.4)
 
 
+def probe_dart_all(code, name, year=None, rc="11014"):
+    """fnlttSinglAcntAll — **전체 재무제표**. 주요계정으로는 모자란 것들을 본다.
+
+    fnlttSinglAcnt(주요계정)은 매출·영업이익·당기순이익과 재무상태표 합계만
+    준다. 미장과 같은 것을 만들려면 더 필요하다.
+
+      주당순이익   PER 의 분모. 순이익÷현재주식수로 만들면 과거 증자·분할이
+                   반영되지 않아 옛 구간이 통째로 틀어진다.
+      감가상각비   EBITDA 를 만들려면 필요하다(영업이익 + 감가상각).
+      차입금·현금  EV 를 만들려면 필요하다.
+
+    있는지 없는지에 따라 국장에서 무엇까지 만들 수 있는지가 갈린다.
+    """
+    key = os.environ.get("DART_API_KEY", "").strip()
+    import datetime
+    year = year or str(datetime.date.today().year - 1)
+    log(f"\n■ {name}({code}) — DART 전체 재무제표 {year} {REPRT[rc]}")
+    if not key:
+        log("   키 없음 — 건너뜁니다")
+        return
+    cc = _corp(code)
+    if not cc:
+        log("   corp_code 없음")
+        return
+    try:
+        d = _dart("fnlttSinglAcntAll.json", key, corp_code=cc, bsns_year=year,
+                  reprt_code=rc, fs_div="CFS")
+    except Exception as e:  # noqa: BLE001
+        log(f"   ✕ {hide(e)}")
+        return
+    if d.get("status") != "000":
+        log(f"   status={d.get('status')} {d.get('message')}")
+        return
+    rows = d.get("list") or []
+    log(f"   전체 {len(rows)}행")
+    marks = {"주당순이익": ("주당",), "감가상각": ("감가상각", "상각비"),
+             "차입금·사채": ("차입금", "사채"), "리스부채": ("리스부채",),
+             "현금성": ("현금및현금성", "단기금융", "단기투자"),
+             "비지배지분": ("비지배",), "우선주": ("우선주",)}
+    for label, words in marks.items():
+        hit = [r for r in rows
+               if any(w in (r.get("account_nm") or "") for w in words)]
+        if not hit:
+            log(f"   {label:12} — 없음")
+            continue
+        log(f"   {label:12} {len(hit)}행")
+        for r in hit[:5]:
+            log(f"       [{r.get('sj_div')}] {(r.get('account_nm') or '')[:28]:30}"
+                f" 당기 {r.get('thstrm_amount')} / 누적 {r.get('thstrm_add_amount')}"
+                f"  ({r.get('account_id')})")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     picks = [(c, n) for c, n in SAMPLES if not args or c in args or n in args]
@@ -331,6 +383,8 @@ def main():
         if only == "dart5":
             probe_dart_history(code, name)
             probe_dart_dates(code, name)
+        if only == "dartall":
+            probe_dart_all(code, name)
         if not only or only == "fnguide":
             probe_fnguide(code, name)
         if not only or only == "web":

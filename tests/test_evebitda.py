@@ -211,6 +211,15 @@ def test_확정_구간과_가정_구간이_따로_나온다():
     assert "마진" in out["estimate_note"]
 
 
+def test_적자_마진이면_추정_구간을_그리지_않는다():
+    """실측(MSTR): 마진 중앙값이 −3081%. 그걸 매출 컨센에 곱하면 음수를 지어낸다."""
+    f = facts(a=inst("LongTermDebtNoncurrent", 1000.0))
+    f["facts"]["us-gaap"].update(dur("OperatingIncomeLoss", -5000.0))
+    out = evebitda.build(f, _con(), FY_ENDS, DATES, CLOSE)
+    assert not any(v is not None for v in out["per_estimated"])
+    assert "적자" in out["estimate_note"]
+
+
 def test_EBITDA_가_짧으면_이유를_말한다():
     f = {"facts": {"us-gaap": dict(inst("CommonStockSharesOutstanding", 1000.0, "shares"))}}
     out = evebitda.build(f, _con(), FY_ENDS, DATES, CLOSE)

@@ -452,6 +452,12 @@ def _estimate(future: list[str], con: dict, fy_ends: list[str],
 
     if mgn is None:
         return {}, "최근 EBITDA 마진을 구하지 못해 추정 구간을 그리지 않습니다."
+    if mgn <= 0:
+        # 최근 절반 이상이 적자 EBITDA 라는 뜻이다. 그 마진을 매출 컨센에 곱하면
+        # 음수 EBITDA 를 지어내게 되고, 배수는 어차피 비워진다. 실측(MSTR)에서
+        # 중앙값이 −3081% 로 나왔다 — 그릴 값이 아니라 안 그리는 게 맞다.
+        return {}, (f"최근 EBITDA 마진 중앙값이 {mgn * 100:.1f}% (적자)라 "
+                    "추정 구간을 그리지 않습니다.")
     rev_est = forwardper.fill_estimates(future, consensus.revenue_estimates(con),
                                         fy_ends, rev_known)
     if not rev_est:
