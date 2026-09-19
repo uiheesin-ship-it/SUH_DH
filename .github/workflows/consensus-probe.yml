@@ -45,7 +45,7 @@ jobs:
       - name: EV probe (EDGAR 에 부채·현금 태그가 있나)
         # 야후 분기 재무상태표는 7분기뿐이라 5년을 그리려면 EDGAR 를 써야 한다.
         # 회사마다 태그가 달라서 어느 것이 몇 분기나 잡히는지 잰다.
-        run: python tools/ev_probe.py ${{ github.event.inputs.tickers }}
+        run: python tools/ev_probe.py --scan ${{ github.event.inputs.tickers }}
 
       - name: EV/EBITDA build probe (파이프라인 전체)
         # 규칙은 단위 테스트가 못 박지만 실제 회사의 태그 조합은 여기서만 보인다.

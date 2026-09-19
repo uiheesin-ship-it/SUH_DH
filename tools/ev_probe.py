@@ -73,6 +73,37 @@ def instants(facts, tag):
     return {e: v for e, (v, _) in out.items()}
 
 
+DEBTISH = ("debt", "notes", "borrow", "convertible", "loan", "lease", "payable")
+SHAREISH = ("shares", "stock")
+
+
+def scan(facts, words, hint=None):
+    """이름에 그 낱말이 든 **모든** 시점 태그를 본다.
+
+    버킷에 넣어 둔 태그 목록이 맞는지 확인하는 용도다. 실측(SMCI)에서 야후가
+    9.26B 이라고 하는 차입금이 내 버킷에는 하나도 안 잡혔다 — 내가 모르는
+    태그에 들어 있다는 뜻이고, 그건 목록을 아무리 노려봐도 안 보인다.
+    """
+    rows = []
+    for tag in sorted((facts.get("facts") or {}).get("us-gaap", {})):
+        low = tag.lower()
+        if not any(w in low for w in words):
+            continue
+        d = instants(facts, tag)
+        if not d:
+            continue
+        last = max(d)
+        rows.append((tag, len(d), last, d[last]))
+    rows.sort(key=lambda r: -abs(r[3]))
+    for tag, n, last, v in rows[:40]:
+        mark = ""
+        if hint and v and abs(v / hint - 1) < 0.02:
+            mark = "   ← 야후 값과 일치"
+        log(f"     {tag:60} {n:3}분기 · 최근 {last} {v:>20,.0f}{mark}")
+    if not rows:
+        log("     (없음)")
+
+
 def main():
     from app import secdata
 
@@ -115,6 +146,17 @@ def main():
                 f"enterpriseValue={info.get('enterpriseValue'):,}")
         except Exception as e:  # noqa: BLE001
             log(f"   야후 대조 ✕ {type(e).__name__}")
+        if "--scan" in sys.argv:
+            hint = None
+            try:
+                import yfinance as yf
+                hint = (yf.Ticker(t).info or {}).get("totalDebt")
+            except Exception:  # noqa: BLE001
+                pass
+            log(f"   ── 부채성 태그 전수 ({t}) ─────────────────────")
+            scan(facts, DEBTISH, hint)
+            log(f"   ── 주식수 태그 전수 ({t}) ─────────────────────")
+            scan(facts, SHAREISH)
         time.sleep(1.0)
 
 

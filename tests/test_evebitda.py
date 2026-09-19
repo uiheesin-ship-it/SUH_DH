@@ -152,6 +152,17 @@ def test_표지_주식수는_제출일_기준이라_며칠_뒤까지_받는다()
     assert evebitda.components(bs, "2025-03-31")["debt"] == 1000.0   # 20일 뒤 = 같은 보고서
 
 
+def test_듀얼클래스면_가중평균_희석주식수로_물러선다():
+    """실측(MSTR): Class A/B 로 나눠 올리면 시점 태그가 통째로 비어 EV 를 못 만든다."""
+    f = facts()
+    del f["facts"]["us-gaap"]["CommonStockSharesOutstanding"]
+    f["facts"]["us-gaap"].update(dur("WeightedAverageNumberOfDilutedSharesOutstanding",
+                                     1_500.0, "shares"))
+    bs = evebitda.balance_sheet(f)
+    assert evebitda.components(bs, "2026-06-30")["shares"] == 1_500.0
+    assert evebitda.SHARE_FALLBACK_LABEL in bs["tags"]["발행주식수"]
+
+
 def test_주식수가_없으면_EV_를_만들지_않는다():
     f = {"facts": {"us-gaap": dict(dur("OperatingIncomeLoss", 800.0))}}
     assert evebitda.components(evebitda.balance_sheet(f), "2026-06-30") is None

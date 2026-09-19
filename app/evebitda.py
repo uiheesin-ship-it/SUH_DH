@@ -94,6 +94,16 @@ OTHER_BUCKETS = {
 SHARE_SOURCES = [("us-gaap", "CommonStockSharesOutstanding"),
                  ("dei", "EntityCommonStockSharesOutstanding"),
                  ("us-gaap", "CommonStockSharesIssued")]
+# 마지막 수단: **가중평균 희석주식수**(손익 쪽 항목이라 시점값이 아니다).
+#
+# 차등의결권(듀얼클래스) 회사는 위 세 태그가 다 비어 있을 수 있다 — 보통주를
+# Class A/B 로 나눠 올리면 companyfacts 에는 차원이 붙은 사실이 실리지 않아
+# 총계가 사라진다(실측: MSTR 은 셋 다 0개라 EV 를 못 만들었다).
+#
+# 기말 발행주식수가 아니라 그 분기의 **평균**이고 희석 효과가 들어가 있어
+# 정의가 다르다. 그래도 0 이나 '못 그림' 보다는 낫고, 어느 쪽을 썼는지는
+# 화면에 그대로 적는다.
+SHARE_FALLBACK_LABEL = "가중평균 희석주식수(기말 발행주식수 아님)"
 
 
 # --- 재무상태표 읽기 ---------------------------------------------------------
@@ -205,6 +215,16 @@ def balance_sheet(facts: dict) -> dict:
             shares.setdefault(end, v)       # 빈 날짜만 메운다
         if len(shares) > before:
             stags.append(tag if ns == "us-gaap" else f"{ns}:{tag}")
+    if len(shares) < 8:
+        # 듀얼클래스 회사는 시점 태그가 통째로 비어 있다 — 손익 쪽의
+        # 가중평균 희석주식수로 물러선다.
+        wa = fundamentals._metric(facts, fundamentals.SHARES_TAGS, mode="mean")
+        before = len(shares)
+        for end, row in wa.items():
+            if row.get("val") and row["val"] > 0:
+                shares.setdefault(end, float(row["val"]))
+        if len(shares) > before:
+            stags.append(SHARE_FALLBACK_LABEL)
     if shares:
         used["발행주식수"] = " + ".join(stags)
 
