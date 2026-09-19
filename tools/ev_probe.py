@@ -75,6 +75,13 @@ def instants(facts, tag):
 
 DEBTISH = ("debt", "notes", "borrow", "convertible", "loan", "lease", "payable")
 SHAREISH = ("shares", "stock")
+# 재무상태표에 실리는 **잔액**만 보고 싶다. 주석에 실리는 만기 스케줄·최소지급액·
+# 공정가치·액면금액은 잔액이 아니라 설명이라 걸러 낸다 — 안 그러면 리스 만기
+# 표만 40줄이 나와 정작 찾는 태그가 밀려난다.
+NOISE = ("maturities", "paymentsdue", "paymentsremainder", "futureminimum",
+         "fairvalue", "faceamount", "unamortized", "rightofuse", "tobereceived",
+         "undiscounted", "authorized", "sharebased", "sharebasedcompensation",
+         "treasury", "parorstated", "additionalpaidin", "notyetrecognized")
 
 
 def scan(facts, words, hint=None):
@@ -87,7 +94,7 @@ def scan(facts, words, hint=None):
     rows = []
     for tag in sorted((facts.get("facts") or {}).get("us-gaap", {})):
         low = tag.lower()
-        if not any(w in low for w in words):
+        if not any(w in low for w in words) or any(w in low for w in NOISE):
             continue
         d = instants(facts, tag)
         if not d:
@@ -95,7 +102,7 @@ def scan(facts, words, hint=None):
         last = max(d)
         rows.append((tag, len(d), last, d[last]))
     rows.sort(key=lambda r: -abs(r[3]))
-    for tag, n, last, v in rows[:40]:
+    for tag, n, last, v in rows[:22]:
         mark = ""
         if hint and v and abs(v / hint - 1) < 0.02:
             mark = "   ← 야후 값과 일치"
