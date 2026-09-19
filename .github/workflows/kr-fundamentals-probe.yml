@@ -12,7 +12,7 @@ on:
         description: "확인할 종목코드(공백 구분). 비우면 기본 6종목"
         default: ""
       only:
-        description: "한 출처만 볼 때 — naver / dart / dart5(5년 이력+발표일) / fnguide / web"
+        description: "한 출처만 볼 때 — naver / dart / dart5 / dartall / horizon / fnguide / web / pipeline(조립 전체)"
         default: ""
 
 permissions:
@@ -31,10 +31,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install deps
+        run: pip install --quiet FinanceDataReader pandas yfinance
+
       - name: Probe
+        if: ${{ github.event.inputs.only != 'pipeline' }}
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
         run: |
           python tools/kr_fundamentals_probe.py \
             ${{ github.event.inputs.only && format('--only={0}', github.event.inputs.only) || '' }} \
             ${{ github.event.inputs.tickers }}
+
+      - name: Pipeline probe (조립 전체)
+        # 규칙은 단위 테스트가 못 박지만 진짜 회사의 계정 이름·보고서 구성은
+        # 여기서만 보인다. 5년이 잡히는지, 발표일이 붙는지, 추정 분기를
+        # 무엇으로 채웠는지를 같이 찍는다.
+        if: ${{ github.event.inputs.only == '' || github.event.inputs.only == 'pipeline' }}
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python tools/kr_quarterly_probe.py ${{ github.event.inputs.tickers }}

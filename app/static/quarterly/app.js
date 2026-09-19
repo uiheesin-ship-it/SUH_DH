@@ -18,15 +18,36 @@ const fmtBig = (v) => {
 };
 const fmtPct = (v) => (v === null || v === undefined ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%");
 
+/* 원화는 조·억으로 읽는다.
+ *
+ * 국장 금액을 B/M 로 보여 주면 읽을 수가 없다(삼성전자 분기 매출 86.06B 원).
+ * 조·억은 한국에서 실제로 쓰는 자릿수라 그대로 쓴다.
+ */
+const fmtKrw = (v) => {
+  if (v === null || v === undefined) return "—";
+  const a = Math.abs(v);
+  if (a >= 1e12) return (v / 1e12).toFixed(2) + "조";
+  if (a >= 1e8) return (v / 1e8).toFixed(0) + "억";
+  if (a >= 1e4) return (v / 1e4).toFixed(1) + "만";
+  return v.toFixed(0);
+};
+
 let DATA = null;
+let MARKET = "us";               // "us" | "kr"
+const isKR = () => MARKET === "kr";
 
 /* ------------------------------------------------------------------ 불러오기 */
 async function load(ticker) {
   const t = (ticker || "").trim().toUpperCase();
   if (!t) return;
+  if (isKR() && !/^\d{6}$/.test(t)) {
+    fail("국장은 **여섯 자리 종목코드**로 찾습니다.",
+         "예: 삼성전자 005930 · SK하이닉스 000660 · NAVER 035420");
+    return;
+  }
   $("status").textContent = `${t} 불러오는 중…`;
   $("empty").classList.add("hidden");
-  history.replaceState(null, "", `?t=${encodeURIComponent(t)}`);
+  history.replaceState(null, "", `?t=${encodeURIComponent(t)}&m=${MARKET}`);
 
   if (STATIC && !API_BASE) {
     fail("이 페이지는 티커를 입력받은 뒤에 EDGAR·야후에서 직접 받아 옵니다. " +
@@ -34,7 +55,8 @@ async function load(ticker) {
     return;
   }
   try {
-    const r = await fetch(`${API_BASE}/api/fundamentals/${encodeURIComponent(t)}`,
+    const path = isKR() ? "/api/kr/fundamentals/" : "/api/fundamentals/";
+    const r = await fetch(`${API_BASE}${path}${encodeURIComponent(t)}`,
                           { cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || j.error) { fail(...explain(r, j)); return; }
@@ -79,10 +101,14 @@ function fail(msg, detail) {
 /* -------------------------------------------------------------------- 그리기 */
 function render(d) {
   DATA = d;                 // 오버라이드 저장 키가 티커를 알아야 한다
+  MARKET = d.market === "kr" ? "kr" : "us";
+  syncMarket();
   $("status").textContent = `${d.ticker} · ${d.name || ""}`;
   const bits = [`<b>${d.name || d.ticker}</b>`];
   if (d.sic) bits.push(d.sic);
   if (d.cik) bits.push(`CIK ${d.cik}`);
+  if (d.corp_code) bits.push(`DART ${d.corp_code}`);
+  if (isKR()) bits.push("단위 원");
   if (d.fiscal_year_end) bits.push(`결산 ${d.fiscal_year_end}`);
   let head = bits.join(" · ");
   for (const n of d.notes || []) head += `<span class="warn">⚠ ${n}</span>`;
@@ -93,7 +119,8 @@ function render(d) {
   // 그래서 git pull 만 하고 재시작을 안 하면 화면은 새것, 백엔드는 옛것이 된다.
   // 겉으로는 "왜 새 칸이 안 나오지?" 로만 보여서 원인을 찾기가 어렵다.
   const ms = Object.values(d.metrics || {});
-  if (ms.some((m) => (m.quarters || []).length) && !ms.some((m) => m.estimates)) {
+  if (!isKR() && ms.some((m) => (m.quarters || []).length)
+      && !ms.some((m) => m.estimates)) {
     head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b> — 컨센(추정) 칸이
       안 나옵니다. 코드는 받았는데 <b>서버를 다시 안 띄운</b> 것입니다.
       서버 창에서 <b>Ctrl+C</b> → <b>./run.sh</b> 로 다시 띄우세요.
@@ -159,8 +186,10 @@ function renderMetrics(metrics, note) {
       continue;
     }
     const isRatio = label.includes("EPS");
+    // 국장은 원 단위다 — EPS 는 원 단위 정수, 금액은 조·억.
     const fmt = (v) => (v === null || v === undefined ? "—"
-                        : isRatio ? v.toFixed(2) : fmtBig(v));
+                        : isRatio ? (isKR() ? Math.round(v).toLocaleString() : v.toFixed(2))
+                        : isKR() ? fmtKrw(v) : fmtBig(v));
 
     // 확정 + 추정 분기를 이어 붙여 성장률을 한 번에
     const series = [...qs.map((q) => q.val), ...eq.map((q) => q.val)];
@@ -626,7 +655,8 @@ function redraw() {
 function renderMarks(per) {
   const last = (per.marks || [])[per.marks.length - 1];
   const unit = per.metric === "ev" ? "EBITDA" : "EPS";
-  const num = (v) => (v === null || v === undefined ? "—" : fmtBig(v));
+  const num = (v) => (v === null || v === undefined ? "—"
+                      : isKR() ? fmtKrw(v) : fmtBig(v));
   const est = (per.estimates || []).map((e) =>
     `<span class="m est">${e.end} 추정 ${unit} ${per.metric === "ev" ? num(e.eps) : e.eps}
        <small>(${e.source})</small></span>`).join("");
@@ -674,6 +704,25 @@ function renderMarks(per) {
              ~ 최고 ${(per.margin_why.high * 100).toFixed(1)}%)` : ""}</span>`;
     }
     html += `<br/><span class="m small">EBITDA 출처: ${per.ebitda_source || "—"}</span>`;
+  } else if (per.kr_fill) {
+    // 국장은 컨센 지평이 좁아서 **무엇으로 채웠는지**가 곧 신뢰도다.
+    const f = per.kr_fill;
+    const bits = Object.entries(f).filter(([, n]) => n)
+      .map(([k, n]) => `${k} ${n}분기`);
+    html += `<br/><span class="m season ${f["직전 해 × 성장률"] ? "warn" : "ok"}">` +
+      `추정 분기를 채운 방법: <b>${bits.join(" · ") || "없음"}</b>` +
+      (per.kr_growth ? ` · 성장률 ${per.kr_growth}배` : "") +
+      ` <a href="#" class="basis-link">산정 기준 보기</a></span>`;
+    if (per.season) {
+      html += `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
+        `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
+        (per.season.mode === "계절성"
+          ? ` (1Q ${(per.season.weights["1"] * 100).toFixed(0)}% · ` +
+            `2Q ${(per.season.weights["2"] * 100).toFixed(0)}% · ` +
+            `3Q ${(per.season.weights["3"] * 100).toFixed(0)}% · ` +
+            `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%)`
+          : ` — ${(per.season.why || {}).reason || ""}`) + `</span>`;
+    }
   } else if (per.season) {
     html += `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
       `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
@@ -714,6 +763,22 @@ function renderLegend(per) {
         ` · ${per.eps_quarters}분기</span>` : ""}
     ${ev && per.margin !== null && per.margin !== undefined
       ? `<span class="ctrl-note">EBITDA 마진(최근 중앙값): <b>${(per.margin * 100).toFixed(1)}%</b></span>` : ""}`;
+}
+
+/* 시장 고르기. 티커 체계가 달라서 서로 남은 입력을 지운다 —
+ * "005930" 을 미장에서, "NVDA" 를 국장에서 찾는 건 늘 실패다. */
+function syncMarket() {
+  document.querySelectorAll(".mk").forEach((b) =>
+    b.classList.toggle("on", b.dataset.market === MARKET));
+  $("q").placeholder = isKR() ? "종목코드 여섯 자리 (예: 005930)" : "티커 입력 (예: NVDA)";
+}
+
+function setMarket(m) {
+  if (MARKET === m) return;
+  MARKET = m;
+  syncMarket();
+  $("q").value = "";
+  $("q").focus();
 }
 
 function syncButtons() {
@@ -968,7 +1033,7 @@ pip install -r requirements.txt
 찍힙니다. 실적 컨콜 프로그램만 안 뜨는 것이고 <b>이 페이지와는 무관합니다.</b>
 `],
 
-  basis: ["산정 기준 — EPS · EV · EBITDA · 계절성 배분", `
+  basis: ["산정 기준 — EPS · EV · EBITDA · 계절성 배분 · 국장", `
 <p>숫자를 어떻게 만들었는지 전부 적어 둡니다. <b>기준이 바뀌면 값이 바뀝니다.</b>
 바꾸고 싶은 곳이 있으면 말씀해 주세요 — 상수는 한군데 모아 뒀습니다.</p>
 
@@ -1090,6 +1155,57 @@ pip install -r requirements.txt
       배수를 <b>비웁니다</b> — 음수 배수는 읽는 사람을 속입니다.</li>
   <li><b>은행·보험은 영업이익 개념이 없어</b> EBITDA 도, EV/EBITDA 도 만들지 않습니다.</li>
 </ul>
+
+<h4>국장(한국) — 재료가 어디서 오나</h4>
+<table class="basis">
+<tr><th></th><th>미장</th><th>국장</th></tr>
+<tr><td>분기 실적</td><td>EDGAR XBRL companyfacts</td>
+    <td>DART 정기보고서 <code>fnlttSinglAcntAll</code> (연결 CFS, 없으면 별도 OFS).
+        실측 5년 <b>18/20 보고서</b></td></tr>
+<tr><td>실적발표일</td><td>야후 <code>get_earnings_dates</code></td>
+    <td><b>거래소 〈연결재무제표기준영업(잠정)실적〉 공시일.</b> 정기보고서
+        접수일보다 <b>2~5주 빠릅니다</b>(실측: 에코프로비엠 잠정 2025-04-29 vs
+        분기보고서 2025-05-14). 없으면 정기보고서 접수일로 물러섭니다</td></tr>
+<tr><td>컨센서스</td><td>야후 — 분기 <b>2</b> + 연간 <b>2</b></td>
+    <td>네이버 — 분기 <b>1</b> + 연간 <b>1</b> (실측 2026-09-19).
+        대신 <b>영업이익 컨센이 나옵니다</b> — 미장에서는 무료로 못 구합니다</td></tr>
+<tr><td>주가</td><td>야후 일봉</td><td>네이버/KRX 일봉(FinanceDataReader)</td></tr>
+</table>
+<h5>국장에서 다르게 다루는 것</h5>
+<ul>
+  <li><b>손익의 <code>thstrm_amount</code> 는 당기 3개월</b>입니다(누적이 아닙니다).
+      실측으로 반기 누적 = 1분기 + 당기가 딱 맞습니다. 누적으로 착각하면 2·3분기가
+      부풀어 오릅니다.</li>
+  <li><b>사업보고서는 당기가 연간</b>이라 미장과 똑같이 <code>Q4 = 연간 − 3분기 누적</code>
+      으로 역산합니다.</li>
+  <li><b>현금흐름표는 누적</b>이라 차분합니다. 감가상각이 거기 있어 EBITDA 에
+      영향을 줍니다. 감가상각을 따로 싣지 않는 회사는 EBITDA 가 빕니다.</li>
+  <li>같은 이름이 여러 재무제표에 나옵니다(비지배지분은 BS·CIS·CF 에 다 있습니다).
+      그래서 계정을 고를 때 <b>어느 재무제표인지를 반드시 좁힙니다.</b></li>
+  <li>표준 계정코드(<code>ifrs-full_…</code>)를 이름보다 먼저 씁니다. 미장과 달리
+      회사가 태그를 갈아타지 않아 오히려 깔끔합니다.</li>
+</ul>
+<h5>컨센이 모자란 구간을 채우는 세 단계</h5>
+<p>12개월이면 네 분기가 필요한데 네이버는 <b>앞으로 한 분기와 한 회계연도</b>만
+줍니다. 그래서 뒤로 갈수록 가정이 세지고, 차트 아래에 <b>무엇으로 몇 분기를
+채웠는지</b>가 그대로 표시됩니다.</p>
+<pre>① 네이버 <b>분기 컨센</b>이 있는 분기는 그대로            (가정 없음)
+② 올해 <b>FY 컨센</b>의 잔여를 계절성 비중으로 배분      (미장과 같은 규칙)
+   잔여 = FY 컨센 − (확정 분기 합 + ①에서 배정한 합)
+③ <b>그다음 회계연도</b> 분기 = 같은 분기 1년 전 × 성장률  (<b>가정</b>)
+   성장률 g = 올해 FY 컨센 ÷ 작년 FY 실적 합</pre>
+<ul>
+  <li>③ 은 <b>컨센이 아니라 가정</b>입니다. 미장은 연간 컨센을 둘 주니 여기까지
+      갈 일이 없었는데, 국장은 하나뿐이라 안 그러면 <b>가장 최근 1년이 통째로
+      빕니다</b>. 성장률을 그대로 이어 쓴다는 뜻이라, 성장률이 꺾이는 해에는
+      빗나갑니다.</li>
+  <li>③ 의 재료(1년 전 같은 분기)도 없으면 <b>그 분기는 비웁니다</b> — 지어내지
+      않습니다. 그러면 그 구간의 PER 선이 끊깁니다.</li>
+  <li>확정 합이 연간 컨센을 넘으면 미장과 똑같이 비우고 이유를 적습니다.</li>
+</ul>
+<p><b>EV/EBITDA 는 국장에 아직 없습니다.</b> 재료(차입금·리스부채·현금·비지배지분·
+우선주자본금)는 DART 전체 재무제표에 표준 계정코드로 다 있는 것을 확인했지만,
+발행주식수는 따로 받아야 해서(<code>stockTotqySttus</code>) 다음 차례입니다.</p>
 
 <h4>계절성 배분 — 연간 컨센을 분기에 나누는 법</h4>
 <p>야후는 분기 컨센을 <b>두 개</b>만 줍니다. 12개월을 채우려면 나머지는 연간
@@ -1228,6 +1344,8 @@ document.querySelectorAll(".eb").forEach((b) =>
   b.addEventListener("click", () => { BASIS = b.dataset.basis; showBasis(BASIS); }));
 document.querySelectorAll(".mt").forEach((b) =>
   b.addEventListener("click", () => showMetric(b.dataset.metric)));
+document.querySelectorAll(".mk").forEach((b) =>
+  b.addEventListener("click", () => setMarket(b.dataset.market)));
 $("edit-reset").addEventListener("click", () => {
   OVERRIDE = {};
   saveOverrides();
@@ -1247,5 +1365,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") $("modal").classList.add("hidden");
 });
 
-const initial = new URLSearchParams(location.search).get("t");
+const params = new URLSearchParams(location.search);
+if (params.get("m") === "kr") MARKET = "kr";
+syncMarket();
+const initial = params.get("t");
 if (initial) { $("q").value = initial; load(initial); }

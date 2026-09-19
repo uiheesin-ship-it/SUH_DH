@@ -11,8 +11,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import (__version__, backlog, breadth, charts, correl, earnings, kr, news,
-               quarterly, screener)
+from . import (__version__, backlog, breadth, charts, correl, earnings, kr,
+               krquarterly, news, quarterly, screener)
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
 from .turnaround import get_screen as turnaround_get_screen
@@ -358,6 +358,24 @@ def fundamentals_for(ticker: str):
         return JSONResponse(
             status_code=502,
             content={"error": f"{ticker} 실적을 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/kr/fundamentals/{code}")
+def kr_fundamentals_for(code: str):
+    """국장 한 종목의 분기 실적 표 + 12M forward PER 차트.
+
+    미장과 **같은 모양**으로 낸다 — 같은 화면이 그린다. 재료만 다르다:
+    실적·발표일은 DART, 컨센은 네이버, 주가는 네이버/KRX.
+    """
+    try:
+        return krquarterly.build(code)
+    except LookupError as e:
+        return JSONResponse(status_code=404, content={"error": str(e)})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"{code} 실적을 불러오지 못했습니다.", "detail": str(e)},
         )
 
 
