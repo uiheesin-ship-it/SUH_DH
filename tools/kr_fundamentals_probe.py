@@ -210,6 +210,112 @@ def probe_dart(code, name):
         time.sleep(0.6)
 
 
+# ------------------------------------------------- DART 5년 이력 · 발표일
+def _dart(url_path, key, **params):
+    q = urllib.parse.urlencode({"crtfc_key": key, **params})
+    return get(f"https://opendart.fss.or.kr/api/{url_path}?{q}", ua=PC_UA)
+
+
+def _corp(code):
+    try:
+        corp = json.loads((ROOT / "data" / "dart_corp.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    return corp.get(code)
+
+
+def probe_dart_history(code, name, years=5):
+    """5년 × 4보고서를 다 받아 본다 — 분기값을 만들 수 있나.
+
+    미장은 EDGAR 가 분기 사실을 직접 준다. 국장 정기보고서는 **누적**으로 싣는
+    일이 많아(3분기보고서 = 1~9월 누적) 그걸 차분해야 분기가 된다. 어느 필드가
+    당기 3개월이고 어느 필드가 누적인지를 여기서 못 박는다.
+    """
+    key = os.environ.get("DART_API_KEY", "").strip()
+    log(f"\n■ {name}({code}) — DART 5년 이력")
+    if not key:
+        log("   키 없음(DART_API_KEY) — 건너뜁니다")
+        return
+    cc = _corp(code)
+    if not cc:
+        log(f"   corp_code 없음 — data/dart_corp.json 에 {code} 가 없습니다")
+        return
+
+    import datetime
+    this_year = datetime.date.today().year
+    want = ["매출액", "영업이익", "당기순이익"]
+    ok = 0
+    for year in range(this_year - years + 1, this_year + 1):
+        for rc in ("11013", "11012", "11014", "11011"):
+            try:
+                d = _dart("fnlttSinglAcnt.json", key, corp_code=cc,
+                          bsns_year=str(year), reprt_code=rc)
+            except Exception as e:  # noqa: BLE001
+                log(f"   {year} {REPRT[rc]:4} ✕ {hide(e)}")
+                continue
+            if d.get("status") != "000":
+                log(f"   {year} {REPRT[rc]:4} — status={d.get('status')} {d.get('message')}")
+                time.sleep(0.4)
+                continue
+            got = {}
+            for r in d.get("list") or []:
+                nm = (r.get("account_nm") or "").strip()
+                if nm in want and r.get("fs_div") == "CFS":
+                    got[nm] = (r.get("thstrm_amount"), r.get("thstrm_add_amount"),
+                               r.get("thstrm_nm"))
+            if got:
+                ok += 1
+                bits = " · ".join(
+                    f"{k} 당기 {v[0]} / 누적 {v[1]}" for k, v in got.items())
+                log(f"   {year} {REPRT[rc]:4} ✓ {bits}  [{list(got.values())[0][2]}]")
+            else:
+                log(f"   {year} {REPRT[rc]:4} — 손익 항목 없음({len(d.get('list') or [])}행)")
+            time.sleep(0.4)
+    log(f"   → 받은 보고서 {ok}/{years * 4}")
+
+
+def probe_dart_dates(code, name, years=5):
+    """**실적발표일**을 어디서 얻나.
+
+    미장은 야후가 실제 발표일을 준다. 국장은 DART 공시목록의 접수일자(rcept_dt)
+    가 그 자리다. 정기보고서 접수일보다 **잠정실적 공시**가 먼저 나오는 일이
+    많아(삼성전자 잠정실적), 둘 다 세어 본다.
+    """
+    key = os.environ.get("DART_API_KEY", "").strip()
+    log(f"\n■ {name}({code}) — DART 공시 접수일")
+    if not key:
+        log("   키 없음 — 건너뜁니다")
+        return
+    cc = _corp(code)
+    if not cc:
+        log("   corp_code 없음")
+        return
+    import datetime
+    end = datetime.date.today()
+    beg = end.replace(year=end.year - years)
+    for label, ty in (("정기보고서(A)", "A"), ("거래소공시(I)", "I")):
+        try:
+            d = _dart("list.json", key, corp_code=cc, bgn_de=beg.strftime("%Y%m%d"),
+                      end_de=end.strftime("%Y%m%d"), pblntf_ty=ty, page_count="100")
+        except Exception as e:  # noqa: BLE001
+            log(f"   {label:12} ✕ {hide(e)}")
+            continue
+        if d.get("status") != "000":
+            log(f"   {label:12} — status={d.get('status')} {d.get('message')}")
+            continue
+        rows = d.get("list") or []
+        if ty == "A":
+            keep = [r for r in rows if "분기보고서" in (r.get("report_nm") or "")
+                    or "반기보고서" in (r.get("report_nm") or "")
+                    or "사업보고서" in (r.get("report_nm") or "")]
+        else:
+            keep = [r for r in rows if "잠정" in (r.get("report_nm") or "")]
+        log(f"   {label:12} 전체 {len(rows)}건 · 쓸 만한 것 {len(keep)}건")
+        for r in sorted(keep, key=lambda x: x.get("rcept_dt") or "")[-6:]:
+            log(f"       {r.get('rcept_dt')}  {r.get('report_nm')}")
+        time.sleep(0.4)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     picks = [(c, n) for c, n in SAMPLES if not args or c in args or n in args]
@@ -222,6 +328,9 @@ def main():
             probe_naver(code, name)
         if not only or only == "dart":
             probe_dart(code, name)
+        if only == "dart5":
+            probe_dart_history(code, name)
+            probe_dart_dates(code, name)
         if not only or only == "fnguide":
             probe_fnguide(code, name)
         if not only or only == "web":
