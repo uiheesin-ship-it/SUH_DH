@@ -106,6 +106,9 @@ function render(d) {
 
   EV_DATA = d.ev || null;
   BASIS = d.per_basis || "gaap";
+  // 새 종목은 **처음부터** 본다. showBasis 는 보던 창을 지키는데(기준을 바꿔도
+  // 카메라가 안 움직여야 하므로), 그게 종목을 바꿀 때까지 이어지면 안 된다.
+  VIEW = null;
   if (d.per && d.per.dates && d.per.dates.length) {
     BASES = d.per_bases || { [BASIS]: d.per };
     showMetric("per");
@@ -442,6 +445,7 @@ function showMetric(name) {
   const evOk = EV_DATA && EV_DATA.dates && EV_DATA.dates.length;
   if (name === "ev" && !evOk) name = "per";
   if (name === "per" && !Object.keys(BASES).length) name = evOk ? "ev" : "per";
+  if (METRIC !== name) VIEW = null;      // 지표가 바뀌면 축이 달라진다(0–50 / 0–30)
   METRIC = name;
   document.querySelectorAll(".mt").forEach((b) => {
     const isEv = b.dataset.metric === "ev";
