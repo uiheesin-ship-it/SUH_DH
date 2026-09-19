@@ -107,6 +107,7 @@ body {
 .mtable h3 { margin: 0 0 4px; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
 .mtable .src { font-size: 11px; color: var(--muted); font-weight: 400; }
 .mtable .note { font-size: 11px; color: #fbbf24; margin: 0 0 6px; line-height: 1.6; }
+.scroll-hint { font-size: 11px; color: var(--muted); margin: 0 0 4px; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: 12px; white-space: nowrap; }
 th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--border); }

@@ -72,26 +72,60 @@ def walk_keys(o, depth=0, out=None):
 
 
 # --------------------------------------------------------------- 네이버 모바일
+def _rows(fi):
+    """financeInfo 안에서 항목 행 목록을 찾는다 — 키 이름을 모르니 훑는다."""
+    for k in ("rowList", "financeDetail", "list", "rows"):
+        v = fi.get(k)
+        if isinstance(v, list) and v:
+            return k, v
+    for k, v in fi.items():
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            return k, v
+    return None, []
+
+
+def probe_naver_finance(code, name, period):
+    """실적 + 컨센이 한 응답에 같이 온다 — 그 구조를 끝까지 본다."""
+    url = f"https://m.stock.naver.com/api/stock/{code}/finance/{period}"
+    try:
+        d = get(url)
+    except Exception as e:  # noqa: BLE001
+        log(f"   finance/{period:8} ✕ {hide(e)}")
+        return
+    fi = d.get("financeInfo") or {}
+    titles = fi.get("trTitleList") or []
+    conf = [t for t in titles if t.get("isConsensus") != "Y"]
+    est = [t for t in titles if t.get("isConsensus") == "Y"]
+    log(f"   finance/{period:8} 기간 {len(titles)}개 "
+        f"— 확정 {len(conf)}개 {[t.get('title') for t in conf]}")
+    log(f"   {'':17} 추정 {len(est)}개 {[t.get('title') for t in est]}")
+    key, rows = _rows(fi)
+    log(f"   {'':17} 항목 목록은 '{key}' 에 {len(rows)}개")
+    for r in rows[:14]:
+        title = r.get("title") or r.get("krName") or r.get("name") or "?"
+        vals = None
+        for vk in ("value", "valueList", "values", "columns"):
+            if vk in r:
+                vals = r[vk]
+                break
+        shown = json.dumps(vals, ensure_ascii=False)[:150] if vals is not None else "?"
+        log(f"   {'':17}   {title:16} {shown}")
+    if rows and len(rows) > 14:
+        log(f"   {'':17}   … 외 {len(rows) - 14}개")
+
+
 def probe_naver(code, name):
     log(f"\n■ {name}({code}) — 네이버 모바일 API")
-    paths = ["integration", "finance/annual", "finance/quarter", "basic",
-             "finance/annual/summary", "finance/quarter/summary"]
-    for p in paths:
-        url = f"https://m.stock.naver.com/api/stock/{code}/{p}"
-        try:
-            d = get(url)
-        except Exception as e:  # noqa: BLE001
-            log(f"   {p:24} ✕ {hide(e)}")
-            continue
-        keys = sorted(set(walk_keys(d)))
-        log(f"   {p:24} ✓ 키 {len(keys)}개")
-        hit = [k for k in keys if any(w in k.lower() for w in
-               ("sales", "revenue", "operat", "profit", "income", "estim",
-                "consensus", "quarter", "annual", "eps", "per"))]
-        if hit:
-            log(f"   {'':24}   관심 키: {hit[:14]}")
-        log(f"   {'':24}   원문: {json.dumps(d, ensure_ascii=False)[:260]}")
+    for period in ("quarter", "annual"):
+        probe_naver_finance(code, name, period)
         time.sleep(0.4)
+    # 컨센 요약이 따로 있나
+    try:
+        d = get(f"https://m.stock.naver.com/api/stock/{code}/integration")
+        ci = d.get("consensusInfo")
+        log(f"   consensusInfo    {json.dumps(ci, ensure_ascii=False)[:300]}")
+    except Exception as e:  # noqa: BLE001
+        log(f"   consensusInfo    ✕ {hide(e)}")
 
 
 # --------------------------------------------------------------------- FnGuide

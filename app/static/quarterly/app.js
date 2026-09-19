@@ -180,6 +180,7 @@ function renderMetrics(metrics, note) {
       ${m.note ? `<p class="note">⚠ ${m.note}</p>` : ""}
       ${m.warning ? `<p class="note">⚠ ${m.warning}</p>` : ""}
       ${why}
+      <div class="scroll-hint">← 왼쪽으로 굴리면 과거 분기 · 오른쪽 끝이 컨센 칸입니다</div>
       <div class="table-wrap"><table>
         <thead><tr><th>항목</th>${cells.map((c, i) =>
           `<th class="${c.kind}${i === firstEst ? " split" : ""}">${c.head}</th>`).join("")}</tr></thead>
@@ -194,6 +195,16 @@ function renderMetrics(metrics, note) {
   }
   $("metrics").innerHTML =
     (note ? `<p class="sec-desc forecast-note">${note}</p>` : "") + out.join("");
+
+  // 표를 **오른쪽 끝으로 밀어 둔다.**
+  //
+  // 20분기가 가로로 깔려 있어서 왼쪽 끝에서 시작하면 2021년 숫자만 보인다.
+  // 컨센 칸은 맨 오른쪽이라 한참 굴려야 나오고, 그래서 "추정치 칸이 안 보인다"
+  // 가 된다. 최근 분기와 컨센이 먼저 보이는 게 맞다 — 과거를 보고 싶으면
+  // 왼쪽으로 굴리면 된다.
+  document.querySelectorAll("#metrics .table-wrap").forEach((el) => {
+    el.scrollLeft = el.scrollWidth;
+  });
 }
 
 /* ---------------------------------------------------------------------- 차트 */
