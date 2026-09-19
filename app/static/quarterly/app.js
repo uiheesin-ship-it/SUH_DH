@@ -78,6 +78,7 @@ function fail(msg, detail) {
 
 /* -------------------------------------------------------------------- 그리기 */
 function render(d) {
+  DATA = d;                 // 오버라이드 저장 키가 티커를 알아야 한다
   $("status").textContent = `${d.ticker} · ${d.name || ""}`;
   const bits = [`<b>${d.name || d.ticker}</b>`];
   if (d.sic) bits.push(d.sic);
@@ -222,6 +223,166 @@ function renderMetrics(metrics, note) {
   });
 }
 
+/* ------------------------------------------------- 분기 EPS 손으로 고치기
+ *
+ * 계절성 배분은 규칙일 뿐이라 종목에 따라 미덥지 않을 수 있다. 그럴 때 고칠
+ * 수 있어야 한다. 다만 아무 값이나 넣으면 안 된다 — **한 회계연도 합이 그 해
+ * 컨센을 넘을 수 없다.** 넘으면 빨갛게 표시하고 저장하지 않는다.
+ *
+ * 고치면 다시 받지 않고 **그 자리에서** PER 을 다시 계산한다. 각 창(window)이
+ * 어느 분기들을 덮는지(marks[].ends)와 분기별 EPS(values)가 응답에 실려 온다.
+ */
+let OVERRIDE = {};        // {분기말: 손으로 넣은 EPS}
+
+const ovKey = () => `suhdh.eps.${(DATA && DATA.ticker) || "?"}.${PER_DATA && PER_DATA.eps_basis}`;
+
+function loadOverrides() {
+  try { OVERRIDE = JSON.parse(localStorage.getItem(ovKey()) || "{}"); }
+  catch (e) { OVERRIDE = {}; }
+}
+function saveOverrides() {
+  try { localStorage.setItem(ovKey(), JSON.stringify(OVERRIDE)); } catch (e) { /* 사파리 시크릿 */ }
+}
+
+/** 회계연도별 한도 검사 — 확정 합 + 입력 합 ≤ 그 해 컨센. */
+function checkYears(per) {
+  const ed = per.editable || { years: {}, quarters: {} };
+  const out = {};
+  for (const [fy, y] of Object.entries(ed.years)) {
+    let used = 0;
+    for (const e of y.quarters) {
+      const v = OVERRIDE[e] !== undefined ? OVERRIDE[e] : per.values[e];
+      if (v !== null && v !== undefined) used += v;
+    }
+    const sum = y.booked + used;
+    out[fy] = { ...y, used, sum,
+                over: y.total !== null && y.total !== undefined && sum > y.total + 1e-9,
+                room: y.total === null || y.total === undefined ? null : y.total - y.booked };
+  }
+  return out;
+}
+
+/** 고친 값으로 PER 계열을 다시 만든다 — 서버를 다시 부르지 않는다. */
+function perFromOverrides(per) {
+  const n = per.dates.length;
+  const conf = new Array(n).fill(null), est = new Array(n).fill(null);
+  const marks = per.marks || [];
+  for (const w of marks) {
+    const ends = w.ends || [];
+    const vals = ends.map((e) => (OVERRIDE[e] !== undefined ? OVERRIDE[e] : per.values[e]));
+    if (!ends.length || vals.some((v) => v === null || v === undefined)) continue;
+    const eps = vals.reduce((a, b) => a + b, 0);
+    const touched = ends.some((e) => OVERRIDE[e] !== undefined);
+    const solid = w.confirmed && !touched;
+    for (let i = 0; i < n; i++) {
+      const d = per.dates[i];
+      if (d < w.announced || (w.to && d >= w.to)) continue;
+      (solid ? conf : est)[i] = eps > 0 ? +(per.close[i] / eps).toFixed(3) : null;
+    }
+  }
+  return { conf, est };
+}
+
+function applyOverrides() {
+  if (!PER_DATA) return;
+  const { conf, est } = perFromOverrides(PER_DATA);
+  PER_DATA.per_confirmed = conf;
+  PER_DATA.per_estimated = est;
+  redraw();
+  refreshEditor();
+}
+
+/* 값이 바뀔 때는 **요약과 한도만** 고쳐 쓴다.
+ *
+ * 편집기를 통째로 다시 그리면 지금 포커스가 있는 input 이 DOM 에서 떨어져
+ * 나가고, 크롬이 "The node to be removed is no longer a child of this node"
+ * 를 뱉는다. 입력칸은 그대로 두고 숫자만 갱신한다.
+ */
+function refreshEditor() {
+  const per = PER_DATA;
+  if (!per || !per.editable) return;
+  const years = checkYears(per);
+  for (const [fy, y] of Object.entries(years)) {
+    const box = document.querySelector(`.edit-fy[data-fy="${fy}"]`);
+    if (!box) continue;
+    box.classList.toggle("over", !!y.over);
+    const line = box.querySelector(".fy-line");
+    if (line) line.innerHTML = fyLine(y);
+    for (const e of y.quarters) {
+      const cell = box.querySelector(`[data-max-for="${e}"]`);
+      if (cell) cell.innerHTML = maxHint(per, y, e);
+      const inp = box.querySelector(`input.ov[data-end="${e}"]`);
+      if (inp) {
+        if (OVERRIDE[e] !== undefined) inp.dataset.edited = "1";
+        else delete inp.dataset.edited;
+      }
+    }
+  }
+}
+
+function fyLine(y) {
+  const t = y.total === null || y.total === undefined ? null : y.total;
+  return `<b>${y.label}</b> 확정 ${y.booked.toFixed(2)} + 추정 ${y.used.toFixed(2)}` +
+    ` = <b>${y.sum.toFixed(2)}</b>` +
+    (t === null ? ` <span class="na">· 연간 컨센 없음(한도 검사 안 함)</span>`
+      : ` / 컨센 ${t.toFixed(2)}` +
+        (y.over ? ` <span class="bad">· ${(y.sum - t).toFixed(2)} 초과 — 저장되지 않습니다</span>`
+                : ` <span class="ok">· 여유 ${(t - y.sum).toFixed(2)}</span>`));
+}
+
+function maxHint(per, y, e) {
+  if (y.total === null || y.total === undefined) return "";
+  const others = y.quarters.reduce((a, o) => a + (o === e ? 0
+    : ((OVERRIDE[o] !== undefined ? OVERRIDE[o] : per.values[o]) || 0)), 0);
+  return `이 칸 최대 <b>${(y.total - y.booked - others).toFixed(2)}</b>`;
+}
+
+function renderEditor() {
+  const per = PER_DATA;
+  const ed = per && per.editable;
+  const qs = ed ? Object.keys(ed.quarters).sort() : [];
+  $("edit-sec").classList.toggle("hidden", !qs.length);
+  if (!qs.length) return;
+  const years = checkYears(per);
+
+  const blocks = Object.entries(years).map(([fy, y]) => {
+    const rows = y.quarters.map((e) => {
+      const base = per.values[e];
+      const cur = OVERRIDE[e] !== undefined ? OVERRIDE[e] : base;
+      return `<tr>
+        <td>${e}</td>
+        <td><input class="ov" data-end="${e}" type="number" step="0.01"
+                   value="${cur === null || cur === undefined ? "" : cur}"
+                   ${OVERRIDE[e] !== undefined ? 'data-edited="1"' : ""} /></td>
+        <td class="na">원래 ${base === null || base === undefined ? "—" : base.toFixed(2)}</td>
+        <td class="na" data-max-for="${e}">${maxHint(per, y, e)}</td>
+      </tr>`;
+    }).join("");
+    return `<div class="edit-fy ${y.over ? "over" : ""}" data-fy="${fy}">
+      <div class="fy-line">${fyLine(y)}</div>
+      <table><tbody>${rows}</tbody></table>
+    </div>`;
+  }).join("");
+
+  $("edit-body").innerHTML = blocks;
+  document.querySelectorAll(".ov").forEach((inp) => {
+    inp.onchange = () => {
+      const e = inp.dataset.end;
+      const raw = inp.value.trim();
+      if (raw === "") delete OVERRIDE[e];
+      else {
+        const v = Number(raw);
+        if (!Number.isFinite(v)) return;
+        OVERRIDE[e] = v;
+      }
+      const years2 = checkYears(PER_DATA);
+      const bad = Object.values(years2).some((y) => y.over);
+      if (!bad) saveOverrides();     // 넘으면 저장하지 않는다
+      applyOverrides();
+    };
+  });
+}
+
 /* ---------------------------------------------------------------------- 차트 */
 const W = 1000, H = 420, PAD = { l: 58, r: 62, t: 16, b: 30 };
 const MIN_BARS = 20;                 // 가로로 이보다 더 확대하지는 않는다
@@ -286,8 +447,15 @@ function setMonths(m) {
 function drawChart(per) {
   PER_DATA = per;
   VIEW = { i0: 0, i1: per.dates.length - 1, perLo: PER_FLOOR, perHi: PER_CEIL };
+  loadOverrides();
+  if (Object.keys(OVERRIDE).length) {
+    const { conf, est } = perFromOverrides(per);
+    per.per_confirmed = conf;
+    per.per_estimated = est;
+  }
   redraw();
   wire();
+  renderEditor();
 }
 
 function redraw() {
@@ -755,6 +923,24 @@ pip install -r requirements.txt
 <code>SEASON_MIN_YEARS = 2</code>. 바꾸고 싶으시면 말씀해 주세요.</p>
 <p>차트 위에 이번 종목이 <b>계절성</b>으로 나뉘었는지 <b>균등</b>으로 물러섰는지,
 그리고 그 이유가 표시됩니다.</p>
+
+<h4>손으로 고칠 때의 규칙</h4>
+<p>배분이 미덥지 않으면 차트 아래 <b>"추정 분기 EPS"</b> 에서 직접 고칠 수
+있습니다. 고치면 PER 차트가 그 자리에서 다시 그려집니다(서버를 다시 부르지
+않습니다). 규칙은 하나입니다.</p>
+<pre>한 회계연도 안에서
+   (확정 분기 합) + (손으로 넣은 값 합)  ≤  그 해 FY 컨센</pre>
+<ul>
+  <li>넘으면 <b>빨갛게</b> 표시되고 <b>저장되지 않습니다.</b> 화면에는 계속
+      반영되므로 얼마나 넘었는지 보면서 되돌릴 수 있습니다.</li>
+  <li>칸마다 <b>"이 칸 최대 X"</b> 가 같이 뜹니다 — 그 해 다른 칸 값을 고려한
+      잔여입니다.</li>
+  <li>연간 컨센이 없는 해는 <b>한도 검사를 하지 않습니다</b>(비교할 기준이 없음).</li>
+  <li>고친 값은 <b>이 브라우저에 티커·EPS 기준별로</b> 저장됩니다. GAAP 과 조정을
+      따로 기억합니다. <b>원래대로</b> 버튼으로 지웁니다.</li>
+  <li>손댄 분기가 들어간 창은 <b>더 이상 확정으로 치지 않습니다</b> — 실선이던
+      구간도 점선으로 바뀝니다.</li>
+</ul>
 `],
 
   per: ["12M Forward PER 을 어떻게 구하나", `
@@ -842,6 +1028,17 @@ $("local-btn").addEventListener("click", () => openModal("local"));
 $("basis-btn").addEventListener("click", () => openModal("basis"));
 document.querySelectorAll(".eb").forEach((b) =>
   b.addEventListener("click", () => showBasis(b.dataset.basis)));
+$("edit-reset").addEventListener("click", () => {
+  OVERRIDE = {};
+  saveOverrides();
+  if (PER_DATA && BASES[PER_DATA.eps_basis]) showBasis(PER_DATA.eps_basis);
+});
+$("edit-toggle").addEventListener("click", () => {
+  const body = $("edit-body");
+  const open = body.classList.toggle("hidden");
+  $("edit-toggle").textContent = open ? "펼치기" : "접기";
+  $("edit-toggle").classList.toggle("on", !open);
+});
 $("modal-close").addEventListener("click", () => $("modal").classList.add("hidden"));
 $("modal").addEventListener("click", (e) => {
   if (e.target === $("modal")) $("modal").classList.add("hidden");

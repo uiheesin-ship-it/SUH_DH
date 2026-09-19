@@ -78,6 +78,23 @@
         <div id="tip" class="tip hidden"></div>
       </div>
       <div class="marks" id="marks"></div>
+
+      <div id="edit-sec" class="edit-sec hidden">
+        <div class="edit-head">
+          <h3>추정 분기 EPS — 직접 고칠 수 있습니다</h3>
+          <div>
+            <button id="edit-reset">원래대로</button>
+            <button id="edit-toggle" class="on">펼치기</button>
+          </div>
+        </div>
+        <p class="sec-desc">
+          계절성으로 나눈 값이 미덥지 않으면 여기서 고치세요. 고치면 위 차트가
+          즉시 다시 그려집니다. <b>한 회계연도 합이 그 해 컨센을 넘을 수는
+          없습니다</b> — 넘으면 빨갛게 표시되고 저장되지 않습니다.
+          고친 값은 이 브라우저에 <b>티커·기준별로</b> 저장됩니다.
+        </p>
+        <div id="edit-body"></div>
+      </div>
     </section>
 
     <section id="table-sec" class="table-sec hidden">
