@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install deps
-        run: pip install --quiet FinanceDataReader pandas yfinance
+        run: pip install --quiet finance-datareader pandas yfinance
 
       - name: Probe
         if: ${{ github.event.inputs.only != 'pipeline' }}
