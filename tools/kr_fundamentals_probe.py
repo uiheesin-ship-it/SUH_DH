@@ -368,6 +368,58 @@ def probe_dart_all(code, name, year=None, rc="11014"):
                 f"  ({r.get('account_id')})")
 
 
+def probe_kr_horizon(code, name):
+    """컨센이 **몇 분기·몇 해 앞**까지 오나 — 12개월을 채울 수 있나.
+
+    미장은 야후가 분기 2개 + 연간 2개를 준다. 그걸로 계절성 배분을 해서 4분기를
+    채웠다. 국장 네이버는 실측(2026-09-18)으로 분기 **1개**, 연간 **1개**뿐이라
+    올해 잔여 분기까지밖에 안 채워진다 — 내년 1·2분기가 빈다.
+
+    그래서 내년 컨센을 주는 곳이 있는지 본다. 네이버의 다른 엔드포인트와
+    FnGuide 를 열어 (E) 가 붙은 연도가 몇 개인지 센다.
+    """
+    log(f"\n■ {name}({code}) — 컨센 지평")
+    variants = [
+        ("finance/quarter", f"https://m.stock.naver.com/api/stock/{code}/finance/quarter"),
+        ("finance/annual", f"https://m.stock.naver.com/api/stock/{code}/finance/annual"),
+        ("finance/quarter?type=consensus",
+         f"https://m.stock.naver.com/api/stock/{code}/finance/quarter?financeType=consensus"),
+        ("integration", f"https://m.stock.naver.com/api/stock/{code}/integration"),
+        ("estimate", f"https://m.stock.naver.com/api/stock/{code}/estimate"),
+        ("consensus", f"https://m.stock.naver.com/api/stock/{code}/consensus"),
+        ("trend", f"https://m.stock.naver.com/api/stock/{code}/finance/annual/trend"),
+    ]
+    for label, url in variants:
+        try:
+            d = get(url)
+        except Exception as e:  # noqa: BLE001
+            log(f"   {label:32} ✕ {hide(e)}")
+            time.sleep(0.3)
+            continue
+        fi = d.get("financeInfo") if isinstance(d, dict) else None
+        if isinstance(fi, dict) and fi.get("trTitleList"):
+            titles = fi["trTitleList"]
+            est = [t.get("title") for t in titles if t.get("isConsensus") == "Y"]
+            log(f"   {label:32} 기간 {len(titles)}개 · 추정 {len(est)}개 {est}")
+        else:
+            keys = sorted(d)[:12] if isinstance(d, dict) else type(d).__name__
+            log(f"   {label:32} ✓ 키 {keys}")
+        time.sleep(0.3)
+
+    # FnGuide 는 연간 컨센을 몇 해까지 싣나
+    url = ("https://comp.fnguide.com/SVO2/ASP/SVD_Main.asp?pGB=1&gicode=A"
+           f"{code}&cID=&MenuYn=Y&ReportGB=&NewMenuID=101&stkGb=701")
+    try:
+        html = get(url, ua=PC_UA, raw=True).decode("utf-8", "replace")
+    except Exception as e:  # noqa: BLE001
+        log(f"   {'FnGuide SVD_Main':32} ✕ {hide(e)}")
+        return
+    import re as _re
+    years = sorted(set(_re.findall(r"(20\d\d)/\d\d\(E\)", html)))
+    cols = sorted(set(_re.findall(r"(20\d\d)/\d\d", html)))
+    log(f"   {'FnGuide SVD_Main':32} {len(html):,}자 · 추정 연도 {years} · 전체 기간 {cols[:12]}")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     picks = [(c, n) for c, n in SAMPLES if not args or c in args or n in args]
@@ -385,6 +437,8 @@ def main():
             probe_dart_dates(code, name)
         if only == "dartall":
             probe_dart_all(code, name)
+        if only == "horizon":
+            probe_kr_horizon(code, name)
         if not only or only == "fnguide":
             probe_fnguide(code, name)
         if not only or only == "web":
