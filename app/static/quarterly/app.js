@@ -493,13 +493,14 @@ const MODALS = {
 보는 동안에는 <b>계속 열어 두세요.</b> 최소화는 괜찮습니다.
 </div>
 
-<h4>1. 폴더에서 PowerShell 열기</h4>
-탐색기로 <code>SUH_DH</code> 폴더까지 들어간 다음, 주소창에
-<code>powershell</code> 을 치고 Enter. 그 폴더에서 바로 열립니다.
-<br/>(또는 폴더 빈 곳에서 <b>Shift + 우클릭 → "여기에 PowerShell 창 열기"</b>)
+<h4>1. 폴더에서 <b>Git Bash</b> 열기</h4>
+탐색기로 <code>SUH_DH</code> 폴더까지 들어간 다음, 빈 곳에서
+<b>우클릭 → "Git Bash Here"</b>
+<br/>(윈도우 11이면 우클릭 메뉴에서 <b>"추가 옵션 표시"</b> 를 먼저 눌러야 나옵니다)
 <br/><br/>
-제대로 열렸으면 프롬프트가 이렇게 보입니다:
-<pre>PS C:\\Users\\1234\\OneDrive\\Desktop\\주식\\코딩\\SUH_DH></pre>
+제대로 열렸으면 프롬프트 끝이 이렇게 보입니다:
+<pre>~/OneDrive/Desktop/주식/코딩/SUH_DH (claude/funny-carson-ent3s7)
+$</pre>
 
 <h4>2. 최신 코드 받기</h4>
 <pre>git pull</pre>
@@ -509,19 +510,18 @@ const MODALS = {
 <code>claude/funny-carson-ent3s7</code> 이어야 합니다.
 </div>
 
-<h4>3. 서버 띄우기 — <b>PowerShell 에서 이 줄</b></h4>
-<pre>python -m uvicorn app.main:app --port 8000</pre>
+<h4>3. 서버 띄우기</h4>
+<pre>./run.sh</pre>
 이게 찍히면 성공입니다:
 <pre>INFO:  Application startup complete.
 INFO:  Uvicorn running on http://127.0.0.1:8000</pre>
 
 <div class="warn">
-<b><code>./run.sh</code> 를 쓰지 마세요 — 그게 헷갈렸던 원인입니다.</b><br/>
-PowerShell 에서 <code>./run.sh</code> 를 치면 윈도우가 그 파일을 <b>Git Bash 로
-따로 열어</b> 검은 창이 하나 더 뜹니다. PowerShell 쪽은 바로 프롬프트로
-돌아와서 "안 돌고 있나?" 싶고, 정작 서버는 그 검은 창에 있어서 <b>그 창을 닫으면
-서버가 죽습니다.</b> 위 <code>python -m uvicorn</code> 줄은 <b>그 자리에서</b>
-돌아서 창이 하나뿐입니다.
+<b>꼭 Git Bash 를 직접 여세요.</b> PowerShell 에서 <code>./run.sh</code> 를 치면
+윈도우가 그 파일을 <b>Git Bash 로 따로 열어</b> 검은 창이 하나 더 뜹니다.
+PowerShell 쪽은 바로 프롬프트로 돌아와서 "안 돌고 있나?" 싶고, 정작 서버는 그
+검은 창에 있어서 <b>그 창을 닫으면 서버가 죽습니다.</b> Git Bash 에서 바로
+띄우면 <b>창이 하나</b>라 헷갈릴 일이 없습니다.
 </div>
 
 <h4>4. 브라우저에서 열기 — <code>http://</code> 를 꼭</h4>
@@ -532,24 +532,36 @@ PowerShell 에서 <code>./run.sh</code> 를 치면 윈도우가 그 파일을 <b
 </div>
 
 <h4>끝낼 때</h4>
-PowerShell 창에서 <b>Ctrl + C</b>.
+Git Bash 창에서 <b>Ctrl + C</b>.
 
 <h4>코드가 바뀌었을 때</h4>
 <b>받기만 하면 안 됩니다</b> — 이미 떠 있는 서버는 옛 코드를 메모리에 들고
 있습니다. 껐다 다시:
 <pre>Ctrl + C
 git pull
+./run.sh</pre>
+
+<h4>PowerShell 로 하고 싶다면</h4>
+됩니다. 다만 <b>파이썬이 두 개</b>라서 준비가 한 번 필요합니다. PowerShell 의
+<code>python</code> 은 보통 아나콘다 파이썬이고, 거기엔 이 프로젝트의 패키지가
+안 깔려 있습니다(<code>No module named uvicorn</code>). 처음 한 번만:
+<pre>pip install -r requirements.txt</pre>
+그 다음부터는
+<pre>git pull
 python -m uvicorn app.main:app --port 8000</pre>
+<b>Git Bash 쪽이 간단합니다</b> — 이미 다 깔려 있으니까요.
 
 <h4>안 될 때</h4>
 <ol>
   <li><b>서버 창이 아직 열려 있나</b> — 제일 흔합니다.</li>
   <li><b><code>http://</code> 를 붙였나</b> — 두 번째로 흔합니다.</li>
-  <li><code>python : 용어를 인식할 수 없습니다</code> → 파이썬이 PATH 에 없습니다.
-      <code>py -m uvicorn app.main:app --port 8000</code> 으로 해 보세요.</li>
-  <li><code>No module named uvicorn</code> → <code>pip install -r requirements.txt</code></li>
+  <li><code>No module named uvicorn</code> → 패키지가 없는 파이썬입니다.
+      Git Bash 에서 <code>./run.sh</code> 로 하시거나,
+      그 셸에서 <code>pip install -r requirements.txt</code>.</li>
+  <li><code>bash: ./run.sh: Permission denied</code> →
+      <code>bash run.sh</code> 로 하세요.</li>
   <li><code>address already in use</code> → 이미 떠 있습니다. 다른 창을 찾거나
-      <code>--port 8001</code> 로 바꿔 띄우세요.</li>
+      <code>SUH_DH_PORT=8001 ./run.sh</code> 로 포트를 바꾸세요.</li>
   <li>창을 하나 더 열어 <code>curl http://127.0.0.1:8000/api/health</code>.
       <code>{"status":"ok"}</code> 가 나오면 서버는 멀쩡하고 브라우저 문제입니다.</li>
   <li>회사 PC·VPN 이면 프록시 — Windows 설정 → 네트워크 및 인터넷 → 프록시 →
@@ -557,10 +569,11 @@ python -m uvicorn app.main:app --port 8000</pre>
 </ol>
 
 <h4>처음 받는 컴퓨터라면</h4>
+Git Bash 에서:
 <pre>git clone https://github.com/uiheesin-ship-it/SUH_DH.git
 cd SUH_DH
 pip install -r requirements.txt
-python -m uvicorn app.main:app --port 8000</pre>
+./run.sh</pre>
 
 <h4>무시해도 되는 것</h4>
 시작할 때 <code>eai subsystem not mounted: No module named 'sqlalchemy'</code> 가
