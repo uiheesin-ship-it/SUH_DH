@@ -77,8 +77,11 @@ def build(ticker: str) -> dict:
     quarters = forwardper.match_announcements(eps_rows, announced)
     known = {q["end"]: q["val"] for q in quarters if q.get("val") is not None}
     future = forwardper.project_ends(quarters[-1]["end"], 8)
+    fy_ends = _fy_ends(facts)
     est = forwardper.fill_estimates(future, consensus.eps_estimates(con),
-                                    _fy_ends(facts), known)
+                                    fy_ends, known)
+    # 연간 컨센을 남은 분기에 어떻게 나눴는지 — 화면에서 근거를 보여 준다.
+    sw, smode, swhy = forwardper.seasonal_weights(known, fy_ends)
     windows = forwardper.forward_windows(quarters, est)
     dates, close = _price(ticker)
     series = forwardper.per_series(dates, close, windows)
@@ -86,7 +89,7 @@ def build(ticker: str) -> dict:
     if not est:
         out["notes"].append(
             "컨센을 못 받아 추정 구간(점선)이 없습니다. 마지막 확정 분기까지만 그립니다.")
-    out["per"] = _chart(series, windows, quarters, con, est)
+    out["per"] = _chart(series, windows, quarters, con, est, (sw, smode, swhy))
     _attach_forecast(out, con, quarters, _fy_ends(facts))
     return out
 
@@ -147,7 +150,7 @@ def _eps_rows(facts: dict) -> dict[str, dict]:
 
 
 def _chart(series: list[dict], windows: list[dict], quarters: list[dict],
-           con: dict, est: dict) -> dict:
+           con: dict, est: dict, season: tuple) -> dict:
     """차트가 바로 먹을 수 있는 모양으로.
 
     실선(확정)과 점선(추정)을 **따로** 낸다. 한 배열에 담고 스타일만 바꾸면
@@ -177,12 +180,17 @@ def _chart(series: list[dict], windows: list[dict], quarters: list[dict],
         "quarters": [{"end": q["end"], "announced": q.get("announced"),
                       "source": q.get("announced_source"), "eps": q.get("val")}
                      for q in quarters],
-        "estimates": [{"end": e, "eps": round(v["val"], 4), "source": v["source"]}
+        "estimates": [{"end": e, "eps": None if v.get("val") is None else round(v["val"], 4),
+                       "source": v["source"], "weight": v.get("weight"),
+                       "note": v.get("note")}
                       for e, v in sorted(est.items())],
         "consensus_sources": con.get("sources") or [],
         "shares": con.get("shares"),
         "market_cap": con.get("market_cap"),
         "basis": "실적발표일",
+        "season": {"mode": season[1], "weights": {str(k): round(v, 4)
+                                                  for k, v in season[0].items()},
+                   "why": season[2]},
         "note": (
             "계단은 실적발표일에 밟습니다. 기준일(분기말)에 밟으면 아직 공개되지 "
             "않은 실적으로 그 사이 주가를 나누게 되기 때문입니다. 기준일은 같이 "
