@@ -1092,6 +1092,21 @@ SEC 원본 매핑 파일이 403 이라 공개 미러에서 받아 온 것이라,
 > 미리 만들어 둘 수가 없습니다. `SUH_DH_API_BASE` 를 연결하거나 로컬에서 `./run.sh` 로
 > 실행하면 아무 티커나 조회됩니다(다른 프로그램의 "아무 티커나 보기" 와 같은 방식).
 
+#### 윈도우에 처음 까는 법 (한 번만)
+
+1. **Git** — <https://git-scm.com/download/win> 에서 받아 설치(선택지는 전부 기본값).
+   이걸 깔아야 우클릭 메뉴에 **"Git Bash Here"** 가 생깁니다.
+2. **파이썬** — <https://www.python.org/downloads/> 에서 받아 설치.
+   첫 화면 아래 **"Add python.exe to PATH" 를 반드시 체크**하고 Install.
+3. **확인** — 아무 폴더에서 우클릭 → Git Bash Here 후 `git --version`, `python --version`.
+4. **코드 받기** — 코드를 둘 폴더에서 우클릭 → Git Bash Here 후
+   ```bash
+   git clone https://github.com/uiheesin-ship-it/SUH_DH.git
+   cd SUH_DH
+   ```
+5. **패키지 설치** — `pip install -r requirements.txt` (몇 분 걸립니다. 한 번만)
+6. **실행** — `./run.sh`
+
 #### 윈도우에서 띄울 때 — Git Bash 를 **직접** 여세요
 
 폴더에서 빈 곳 우클릭 → **"Git Bash Here"** → `git pull` → `./run.sh`.
@@ -1106,6 +1121,14 @@ SEC 원본 매핑 파일이 403 이라 공개 미러에서 받아 온 것이라,
   `No module named uvicorn` 이 납니다. Git Bash 의 `python3` 에는 깔려 있는데
   둘이 다른 파이썬이기 때문입니다. PowerShell 로 하려면 그 셸에서 한 번
   `pip install -r requirements.txt` 를 해야 합니다.
+
+**코드를 받았으면 서버를 다시 띄워야 합니다.** JS·CSS 는 디스크에서 매번 읽히지만
+파이썬은 **서버가 뜰 때 메모리에** 올라갑니다. 그래서 `git pull` 만 하고 재시작을
+안 하면 화면은 새것, 백엔드는 옛것이 되어 "새 칸이 안 나온다" 로만 보입니다.
+실제로 그렇게 막혔습니다 — 지금은 화면이 그 상태를 알아보고 이렇게 말합니다:
+
+> ⚠ **서버가 옛 코드로 돌고 있습니다** — 컨센(추정) 칸이 안 나옵니다.
+> 코드는 받았는데 **서버를 다시 안 띄운** 것입니다. 서버 창에서 **Ctrl+C** → **./run.sh**
 
 화면 왼쪽 위 **💻 로컬 실행법** 버튼에 같은 내용이 들어 있습니다 — 막혔을 때
 README 를 찾아보지는 않기 때문입니다.

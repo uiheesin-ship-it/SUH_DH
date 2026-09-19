@@ -85,6 +85,19 @@ function render(d) {
   if (d.fiscal_year_end) bits.push(`결산 ${d.fiscal_year_end}`);
   let head = bits.join(" · ");
   for (const n of d.notes || []) head += `<span class="warn">⚠ ${n}</span>`;
+
+  // 서버가 옛 코드로 돌고 있으면 화면이 스스로 말한다.
+  //
+  // JS·CSS 는 디스크에서 매번 읽히지만 파이썬은 **서버가 뜰 때 메모리에** 올라간다.
+  // 그래서 git pull 만 하고 재시작을 안 하면 화면은 새것, 백엔드는 옛것이 된다.
+  // 겉으로는 "왜 새 칸이 안 나오지?" 로만 보여서 원인을 찾기가 어렵다.
+  const ms = Object.values(d.metrics || {});
+  if (ms.some((m) => (m.quarters || []).length) && !ms.some((m) => m.estimates)) {
+    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b> — 컨센(추정) 칸이
+      안 나옵니다. 코드는 받았는데 <b>서버를 다시 안 띄운</b> 것입니다.
+      서버 창에서 <b>Ctrl+C</b> → <b>./run.sh</b> 로 다시 띄우세요.
+      (왼쪽 위 <b>💻 로컬 실행법</b>)</span>`;
+  }
   $("head").innerHTML = head;
 
   renderMetrics(d.metrics || {}, d.forecast_note);
@@ -493,6 +506,40 @@ const MODALS = {
 보는 동안에는 <b>계속 열어 두세요.</b> 최소화는 괜찮습니다.
 </div>
 
+<h4>처음 한 번 — 설치</h4>
+<p class="muted">이미 돌려 보셨으면 <b>아래 "1. 폴더에서 Git Bash 열기"</b> 로 건너뛰세요.</p>
+<ol>
+  <li><b>Git 설치</b> — <code>git-scm.com/download/win</code> 에서 받아 설치.
+      설치 중 선택지는 <b>전부 기본값(Next)</b> 으로 두면 됩니다. 이걸 깔아야
+      우클릭 메뉴에 "Git Bash Here" 가 생깁니다.</li>
+  <li><b>파이썬 설치</b> — <code>python.org/downloads</code> 에서 받아 설치.
+      첫 화면 아래 <b>"Add python.exe to PATH" 를 반드시 체크</b>하고 Install.
+      <br/><span class="muted">아나콘다가 이미 있으면 그걸 써도 됩니다. 다만
+      아나콘다 파이썬과 Git Bash 의 파이썬이 <b>서로 다를 수 있어</b>,
+      패키지를 깐 셸에서 실행해야 합니다.</span></li>
+  <li><b>확인</b> — 아무 폴더에서 우클릭 → Git Bash Here 후:
+      <pre>git --version
+python --version</pre>
+      둘 다 버전이 찍히면 됩니다. <code>command not found</code> 면 그 프로그램이
+      아직 안 깔렸거나 PATH 에 없습니다(파이썬은 재설치하며 PATH 체크).</li>
+  <li><b>코드 받기</b> — 코드를 둘 폴더(예: 바탕화면)에서 우클릭 →
+      Git Bash Here 후:
+      <pre>git clone https://github.com/uiheesin-ship-it/SUH_DH.git
+cd SUH_DH</pre>
+      <span class="muted">폴더가 하나 생깁니다. 다음부터는 그 <b>SUH_DH 폴더
+      안에서</b> Git Bash 를 엽니다.</span></li>
+  <li><b>패키지 설치</b> — 같은 창에서:
+      <pre>pip install -r requirements.txt</pre>
+      <span class="muted">몇 분 걸립니다. 한 번만 하면 됩니다.
+      <code>pip</code> 가 없다고 하면 <code>python -m pip install -r requirements.txt</code>.</span></li>
+  <li><b>실행</b> — <pre>./run.sh</pre></li>
+</ol>
+<div class="warn">
+<b>이 단계에서 컴퓨터를 바꾸면 처음부터 다시 해야 합니다.</b> 코드는 GitHub 에
+있으니 4번부터 하면 됩니다.
+</div>
+
+<hr/>
 <h4>1. 폴더에서 <b>Git Bash</b> 열기</h4>
 탐색기로 <code>SUH_DH</code> 폴더까지 들어간 다음, 빈 곳에서
 <b>우클릭 → "Git Bash Here"</b>
