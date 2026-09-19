@@ -1113,7 +1113,14 @@ pip install -r requirements.txt
     <td><code>MinorityInterest</code> <b>하나만</b> 씁니다.
         <code>StockholdersEquityIncluding…NoncontrollingInterest</code> 는 이름이
         비슷하지만 <b>자본 총계</b>라, 쓰면 EV 가 자본만큼 부풀어 오릅니다</td></tr>
-<tr><td>우선주</td><td>✅ 가산</td><td><code>PreferredStockValue</code> 장부금액</td></tr>
+<tr><td>우선주</td><td>✅ 가산</td>
+    <td><b>액면이 아니라 장부금액</b>입니다.
+        <code>PreferredStockIncludingAdditionalPaidInCapital</code> 을 먼저 쓰고
+        없으면 <code>PreferredStockValue</code>(액면). 액면만 보면 우선주가 있어도
+        0 으로 잡힙니다 — 실측(SMCI)에서 액면 0 · 장부 4.23B 이었고, 그 4.23B 이
+        야후 EV 와의 차이와 <b>정확히 같았습니다</b>.
+        상환우선주 등 <b>임시자본</b>(<code>TemporaryEquityCarryingAmount…</code>)도
+        따로 더합니다</td></tr>
 <tr><td>연금부채</td><td>❌ 제외</td><td>넣는 유파도 있지만 안 넣습니다</td></tr>
 </table>
 <p><b>개념마다 버킷을 두고, 한 버킷에서는 그 날짜에 잡히는 첫 태그 하나만

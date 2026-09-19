@@ -126,6 +126,20 @@ def test_비지배지분과_우선주는_더한다():
     assert evebitda.components(evebitda.balance_sheet(f), "2026-06-30")["other"] == 130.0
 
 
+def test_우선주는_액면이_아니라_장부금액을_쓴다():
+    """실측(SMCI): 액면 0 인데 장부 4.23B. 그 4.23B 이 야후 EV 와의 차이와 같았다."""
+    f = facts(a=inst("PreferredStockValue", 0.0),
+              b=inst("PreferredStockIncludingAdditionalPaidInCapital", 4226.0))
+    c = evebitda.components(evebitda.balance_sheet(f), "2026-06-30")
+    assert c["other"] == pytest.approx(4226.0)
+    assert c["tags"]["우선주"] == "PreferredStockIncludingAdditionalPaidInCapital"
+
+
+def test_상환우선주_임시자본도_더한다():
+    f = facts(a=inst("TemporaryEquityCarryingAmountAttributableToParent", 500.0))
+    assert evebitda.components(evebitda.balance_sheet(f), "2026-06-30")["other"] == 500.0
+
+
 # --- as-of ------------------------------------------------------------------
 def test_한_분기보다_멀면_끌어오지_않는다():
     f = facts(a=inst("LongTermDebtNoncurrent", 1000.0, ends=["2024-03-31"]))

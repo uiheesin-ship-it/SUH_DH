@@ -74,7 +74,7 @@ def instants(facts, tag):
 
 
 DEBTISH = ("debt", "notes", "borrow", "convertible", "loan", "lease", "payable")
-SHAREISH = ("shares", "stock")
+SHAREISH = ("shares", "stock", "preferred", "temporaryequity")
 # 재무상태표에 실리는 **잔액**만 보고 싶다. 주석에 실리는 만기 스케줄·최소지급액·
 # 공정가치·액면금액은 잔액이 아니라 설명이라 걸러 낸다 — 안 그러면 리스 만기
 # 표만 40줄이 나와 정작 찾는 태그가 밀려난다.

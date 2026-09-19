@@ -99,7 +99,16 @@ CASH_BUCKETS = {
 # 이름이 비슷하지만 **자본 총계**다 — 그걸 더하면 EV 가 자본만큼 부풀어 오른다.
 OTHER_BUCKETS = {
     "비지배지분": ["MinorityInterest"],
-    "우선주": ["PreferredStockValue"],
+    # ``PreferredStockValue`` 는 **액면금액**이라 우선주가 있어도 0 인 회사가
+    # 흔하다. 장부금액은 "…IncludingAdditionalPaidInCapital" 쪽에 있다.
+    # 실측(SMCI 2026-06-30): 액면 0, 장부 4,226,258,000 — 그 4.23B 이 야후
+    # EV 와의 차이와 **정확히 같았다.**
+    "우선주": ["PreferredStockIncludingAdditionalPaidInCapital", "PreferredStockValue"],
+    # 상환우선주 등은 자본과 부채 사이(임시자본)에 따로 실린다.
+    "상환우선주·임시자본": [
+        "TemporaryEquityCarryingAmountAttributableToParent",
+        "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests",
+        "TemporaryEquityCarryingAmount"],
 }
 # 발행주식수만 **날짜별로 합친다** — 다른 버킷과 규칙이 다르다.
 #
