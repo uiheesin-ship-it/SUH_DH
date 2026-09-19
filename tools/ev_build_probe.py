@@ -40,6 +40,7 @@ def main():
 
     tickers = [a for a in sys.argv[1:] if not a.startswith("-")] or \
               ["AAPL", "NVDA", "PLD", "CEG", "SMCI", "WMT", "JPM"]
+    summary = []
     for t in tickers:
         log(f"\n■ {t}")
         try:
@@ -50,6 +51,7 @@ def main():
         ev = d.get("ev") or {}
         if ev.get("error"):
             log(f"   EV/EBITDA 없음 — {ev['error']}")
+            summary.append((t, None, None, ev["error"][:40]))
             continue
 
         solid = [v for v in ev["per_confirmed"] if v is not None]
@@ -81,6 +83,7 @@ def main():
         close = ev["close"][-1]
         mk = ev["marks"][-1] if ev["marks"] else None
         mine = close * mk["shares"] + mk["adj"] if mk else None
+        y_ev = None
         try:
             import yfinance as yf
             info = yf.Ticker(t).info or {}
@@ -96,6 +99,17 @@ def main():
 
         last = ev["per_confirmed"][-1] or ev["per_estimated"][-1]
         log(f"   → 최근 12M forward EV/EBITDA ≈ {last}")
+        summary.append((t, mine, y_ev, last))
+
+    # 한눈에 보는 요약 — 로그가 길어져 종목별 줄이 화면 밖으로 밀리기 때문이다.
+    log("\n── 요약 ─────────────────────────────────────")
+    log(f"   {'티커':6} {'내 EV':>14} {'야후 EV':>14} {'차이':>8}  최근 배수")
+    for t, mine, y_ev, last in summary:
+        if mine is None:
+            log(f"   {t:6} {'—':>14} {'—':>14} {'—':>8}  {last}")
+            continue
+        gap = f"{(mine / y_ev - 1) * 100:+.1f}%" if (mine and y_ev) else "—"
+        log(f"   {t:6} {money(mine):>14} {money(y_ev):>14} {gap:>8}  {last}")
 
 
 if __name__ == "__main__":
