@@ -26,6 +26,13 @@ from app import charts, earnings, kr, news, screener
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site"
+# 저장소에 **커밋되는** 스냅샷 자리. SITE 와 따로 둔다.
+#
+# 테스트가 build.main() 을 돌릴 때 SITE 만 tmp 로 돌려 놓으면, 데모 데이터가
+# 이 자리(실제 대시보드 데이터)를 덮어쓴다. 실제로 그랬다 — 신고가 65종목이
+# 데모 17종목으로, us_exchanges 7,084종목이 7종목으로 바뀐 채 커밋될 뻔했다.
+# 상수로 빼 두면 테스트가 이것도 같이 돌릴 수 있다.
+DATA = ROOT / "data"
 STATIC = ROOT / "app" / "static"
 LIMIT = int(os.environ.get("SUH_DH_BUILD_LIMIT", "150"))
 
@@ -196,12 +203,12 @@ def main() -> None:
     # redeploy. Per-ticker reasons + charts are still enriched at the END of the
     # build (they're slow and change slowly).
     try:
-        repo_highs = ROOT / "data" / "highs.json"
+        repo_highs = DATA / "highs.json"
         if screener.highs_frozen() and repo_highs.exists():
             # Korean daytime: keep the committed overnight-session list; don't
             # rescan (that would show the near-empty closed-market list).
             shutil.copyfile(repo_highs, SITE / "data" / "highs.json")
-            repo_meta = ROOT / "data" / "meta.json"
+            repo_meta = DATA / "meta.json"
             if repo_meta.exists():
                 shutil.copyfile(repo_meta, SITE / "data" / "meta.json")
             print("  US highs frozen (Korean daytime) — reusing committed highs.json")
@@ -209,10 +216,10 @@ def main() -> None:
             early = screener.get_dashboard()
             early["built"] = built
             write_json(SITE / "data" / "highs.json", early)
-            write_json(ROOT / "data" / "highs.json", early)
+            write_json(DATA / "highs.json", early)
             meta = {"built": built, "count": early.get("count", 0)}
             write_json(SITE / "data" / "meta.json", meta)
-            write_json(ROOT / "data" / "meta.json", meta)
+            write_json(DATA / "meta.json", meta)
             print(f"  early highs list published: {early.get('count', 0)} stocks.")
     except Exception as e:
         print(f"  early highs list failed: {e}")
@@ -222,7 +229,7 @@ def main() -> None:
     # Pages build stays dependency-light — it just copies the latest snapshot,
     # exactly like base.json reuse. Missing snapshot = the page shows a friendly
     # "not generated yet" state.
-    repo_eai = ROOT / "data" / "eai"
+    repo_eai = DATA / "eai"
     if repo_eai.exists():
         dst = SITE / "data" / "eai"
         shutil.copytree(repo_eai, dst, dirs_exist_ok=True)
@@ -233,7 +240,7 @@ def main() -> None:
     # US ticker → exchange map (for the TradingView TXT export on base/flat).
     # Persist the repo copy so a build where the FDR listing hiccups reuses the
     # last good map instead of shipping an empty one.
-    repo_exch = ROOT / "data" / "us_exchanges.json"
+    repo_exch = DATA / "us_exchanges.json"
     try:
         from app import exchanges
         emap = exchanges.us_exchange_map()
@@ -281,7 +288,7 @@ def main() -> None:
         # Also keep a tracked copy at the repo root so the Telegram job can send
         # exactly what the dashboard shows by reading this committed file
         # (no dependency on the published — possibly private — Pages URL).
-        write_json(ROOT / "data" / "news.json", digest)
+        write_json(DATA / "news.json", digest)
         print(f"  {digest.get('count', 0)} news items selected.")
     except Exception as e:
         print(f"  news digest failed: {e}")
@@ -296,7 +303,7 @@ def main() -> None:
     # not abort the rest of the build.
     print("Building post-earnings drift for guidance tickers ...")
     try:
-        gpath = ROOT / "data" / "guidance.json"
+        gpath = DATA / "guidance.json"
         gdata = json.loads(gpath.read_text(encoding="utf-8")) if gpath.exists() else {}
         guided = [t for t in gdata if not t.startswith("_")] if isinstance(gdata, dict) else []
         # Curated guidance tickers + a default big-tech watchlist so the
@@ -339,7 +346,7 @@ def main() -> None:
     # pushes reuse the committed data/base.json so they deploy in a couple of
     # minutes instead of waiting 10-15 min for a rescan. Force with
     # SUH_DH_FORCE_BASE=1.
-    repo_base = ROOT / "data" / "base.json"
+    repo_base = DATA / "base.json"
     event = os.environ.get("GITHUB_EVENT_NAME", "")
     # SUH_DH_SKIP_BASE=1 forces reuse of the committed base.json even on a
     # scheduled run. The frequent intraday cron sets this so those builds stay
@@ -387,7 +394,7 @@ def main() -> None:
     # Flat Base Screener (US). Scan cadence is decided by scan_groups() — the
     # "us" group — exactly like the base screen. Force a single rescan with
     # SUH_DH_FORCE_FLAT=1. Charts share data/chart/ (US bars) with the base page.
-    repo_flat = ROOT / "data" / "flat.json"
+    repo_flat = DATA / "flat.json"
     scan_flat = should_scan("us", "SUH_DH_FORCE_FLAT", repo_flat, groups)
     if scan_flat:
         print("Building flat screener (full scan) ...")
@@ -424,7 +431,7 @@ def main() -> None:
     # Turnaround Screener (US bottom bases). Scan cadence from scan_groups()
     # ("us" group), same as base/flat. Force with SUH_DH_FORCE_TURNAROUND=1.
     # Charts share data/chart/ (US bars) with the base and flat pages.
-    repo_turn = ROOT / "data" / "turnaround.json"
+    repo_turn = DATA / "turnaround.json"
     scan_turn = should_scan("us", "SUH_DH_FORCE_TURNAROUND", repo_turn, groups)
     if scan_turn:
         print("Building turnaround screener (full scan) ...")
@@ -462,7 +469,7 @@ def main() -> None:
     # Korean 52-week highs (KOSPI+KOSDAQ). Also heavy (per-ticker OHLCV), so it
     # follows the same cadence as the base screen: full scan on the 6-hourly cron
     # / manual dispatch, reuse the committed snapshot on pushes and intraday crons.
-    repo_krh = ROOT / "data" / "krhighs.json"
+    repo_krh = DATA / "krhighs.json"
     scan_krh = should_scan("kr", "SUH_DH_FORCE_KRHIGHS", repo_krh, groups)
     if scan_krh:
         print("Building Korean 52-week highs (full scan) ...")
@@ -503,7 +510,7 @@ def main() -> None:
 
     # Korean 60-trading-day highs — same universe/cadence as krhighs above, just a
     # shorter look-back window. Same full-scan-on-cron / reuse-on-push pattern.
-    repo_krh60 = ROOT / "data" / "krhighs60.json"
+    repo_krh60 = DATA / "krhighs60.json"
     scan_krh60 = should_scan("kr", "SUH_DH_FORCE_KRHIGHS60", repo_krh60, groups)
     if scan_krh60:
         print("Building Korean 60-day highs (full scan) ...")
@@ -541,7 +548,7 @@ def main() -> None:
         shutil.copyfile(repo_krh60, SITE / "data" / "krhighs60.json")
 
     # Korean base screener (same heavy cadence as the US base screen).
-    repo_krb = ROOT / "data" / "krbase.json"
+    repo_krb = DATA / "krbase.json"
     scan_krb = should_scan("kr", "SUH_DH_FORCE_KRBASE", repo_krb, groups)
     if scan_krb:
         print("Building Korean base screener (full scan) ...")
@@ -622,7 +629,7 @@ def main() -> None:
     # here: tools/kr_dart_backlog.py (the kr-backlog workflow) fetches it from
     # DART and commits data/kr_backlog.json. The dashboard build just publishes
     # the committed snapshot so GitHub Pages can read it statically.
-    repo_bl = ROOT / "data" / "kr_backlog.json"
+    repo_bl = DATA / "kr_backlog.json"
     try:
         from app import backlog as backlog_mod
 
@@ -640,7 +647,7 @@ def main() -> None:
     # 을 커밋한다. 여기서는 커밋된 스냅샷을 배포본에 실어 나르기만 한다.
     try:
         (SITE / "data").mkdir(parents=True, exist_ok=True)
-        src = ROOT / "data" / "correl.json"
+        src = DATA / "correl.json"
         if src.exists():
             shutil.copyfile(src, SITE / "data" / "correl.json")
             print(f"Publishing correl ({src.stat().st_size / 1e6:.1f}MB) ...")
@@ -658,7 +665,7 @@ def main() -> None:
 
         (SITE / "data").mkdir(parents=True, exist_ok=True)
         for name in ("breadth_us.json", "breadth.json"):
-            src = ROOT / "data" / name
+            src = DATA / name
             if src.exists():
                 shutil.copyfile(src, SITE / "data" / name)
         if not (SITE / "data" / "breadth.json").exists():
@@ -674,7 +681,7 @@ def main() -> None:
     # (the slow part). The bare list was already published up front; this pass
     # replaces it with the reason/chart-enriched version.
     print(f"Fetching 52-week highs (limit={LIMIT}) ...")
-    repo_highs = ROOT / "data" / "highs.json"
+    repo_highs = DATA / "highs.json"
     frozen = screener.highs_frozen() and repo_highs.exists()
     if frozen:
         # Korean daytime: reuse the committed overnight list (reasons/change
@@ -734,10 +741,10 @@ def main() -> None:
     # Stocks beyond the limit still appear in the list (without reason/chart).
     write_json(SITE / "data" / "highs.json", dashboard)
     if not frozen:
-        write_json(ROOT / "data" / "highs.json", dashboard)  # repo copy for raw fetch
+        write_json(DATA / "highs.json", dashboard)  # repo copy for raw fetch
         meta = {"built": built, "count": dashboard.get("count", 0), "charts": fetched}
         write_json(SITE / "data" / "meta.json", meta)
-        write_json(ROOT / "data" / "meta.json", meta)
+        write_json(DATA / "meta.json", meta)
     print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
 
 

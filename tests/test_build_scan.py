@@ -150,6 +150,10 @@ def test_late_highs_fetch_failure_does_not_kill_the_build(monkeypatch, tmp_path)
     monkeypatch.setenv("SUH_DH_DEMO", "1")
     monkeypatch.setenv("SUH_DH_SCAN", "none")
     monkeypatch.setattr(build, "SITE", tmp_path / "site")
+    # **저장소 스냅샷 자리도 옮긴다.** 안 옮기면 이 테스트가 데모 데이터로
+    # data/highs.json·meta.json·news.json·us_exchanges.json 을 덮어쓴다 —
+    # 실제로 신고가 65종목이 데모 17종목으로 바뀐 채 커밋될 뻔했다.
+    monkeypatch.setattr(build, "DATA", tmp_path / "repo-data")
     monkeypatch.setattr(build, "LIMIT", 1)
 
     # 앞부분(목록 발행)은 성공하고, 맨 끝 재수집만 막힌 상황을 만든다.
@@ -173,3 +177,35 @@ def test_late_highs_fetch_failure_does_not_kill_the_build(monkeypatch, tmp_path)
     assert published.exists(), "빌드가 신고가 목록을 하나도 안 남겼다"
     data = _json.loads(published.read_text(encoding="utf-8"))
     assert data.get("count", 0) > 0, "재수집 실패 후 앞서 발행한 목록으로 되돌아가지 못했다"
+
+
+def test_the_build_test_never_touches_the_real_snapshots(monkeypatch, tmp_path):
+    """빌드 테스트가 **커밋된 데이터**를 덮어쓰면 안 된다.
+
+    build.main() 은 site/ 와 저장소 data/ 양쪽에 쓴다. 테스트가 SITE 만 tmp 로
+    돌려 놓으면 데모 데이터가 실제 대시보드 데이터를 덮어쓴다 — 신고가 65종목이
+    데모 17종목으로, us_exchanges 7,084종목이 7종목으로 바뀐 채 커밋될 뻔했다.
+    조용히 일어나는 데다 diff 한 줄이라 리뷰에서도 안 보인다.
+    """
+    import json as _json
+
+    from app import screener
+
+    real = ROOT / "data" / "meta.json"
+    before = real.read_text(encoding="utf-8") if real.exists() else None
+
+    monkeypatch.setenv("SUH_DH_DEMO", "1")
+    monkeypatch.setenv("SUH_DH_SCAN", "none")
+    monkeypatch.setattr(build, "SITE", tmp_path / "site")
+    monkeypatch.setattr(build, "DATA", tmp_path / "repo-data")
+    monkeypatch.setattr(build, "LIMIT", 1)
+    monkeypatch.setattr(screener, "highs_frozen", lambda: False)
+
+    build.main()
+
+    after = real.read_text(encoding="utf-8") if real.exists() else None
+    assert after == before, "빌드 테스트가 커밋된 data/meta.json 을 덮어썼다"
+    # 그러면서도 제 갈 곳에는 썼어야 한다.
+    written = tmp_path / "repo-data" / "meta.json"
+    assert written.exists(), "옮겨 놓은 자리에도 안 썼다면 상수가 안 먹은 것이다"
+    assert _json.loads(written.read_text(encoding="utf-8")).get("built")
