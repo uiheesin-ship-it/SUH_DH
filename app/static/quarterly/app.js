@@ -335,9 +335,23 @@ function setBasis(name) {
  * 고치면 다시 받지 않고 **그 자리에서** PER 을 다시 계산한다. 각 창(window)이
  * 어느 분기들을 덮는지(marks[].ends)와 분기별 EPS(values)가 응답에 실려 온다.
  */
-let OVERRIDE = {};        // {분기말: 손으로 넣은 EPS}
+let OVERRIDE = {};        // {분기말: 손으로 넣은 값 — **편집 단위**}
 
-const ovKey = () => `suhdh.eps.${(DATA && DATA.ticker) || "?"}.${PER_DATA && PER_DATA.eps_basis}`;
+/* 편집기는 **단위를 모른다.** 백엔드가 정해서 보낸다.
+ *
+ *   미장   EPS 로 고친다 — 주당 숫자를 보고 컨센도 EPS 로 나온다.
+ *   국장   당기순이익으로 고친다 — 그쪽에서 보는 숫자가 그것이고 네이버 컨센도
+ *          당기순이익으로 나온다. PER 은 주당으로 계산하니 to_eps 로 되돌린다.
+ *
+ * 그래서 여기서는 values(기준값)·to_eps(EPS 환산)·digits(소수 자릿수)만 본다.
+ */
+const edit = () => (PER_DATA && PER_DATA.editable) || {};
+const editBase = (e) => (edit().values || {})[e];
+const toEps = () => (edit().to_eps === undefined ? 1 : edit().to_eps);
+
+// 단위가 섞이면 안 되므로 저장 키에 단위를 넣는다.
+const ovKey = () => `suhdh.eps.${(DATA && DATA.ticker) || "?"}.` +
+  `${PER_DATA && PER_DATA.eps_basis}.${edit().unit || "EPS"}`;
 
 function loadOverrides() {
   try { OVERRIDE = JSON.parse(localStorage.getItem(ovKey()) || "{}"); }
@@ -354,7 +368,7 @@ function checkYears(per) {
   for (const [fy, y] of Object.entries(ed.years)) {
     let used = 0;
     for (const e of y.quarters) {
-      const v = OVERRIDE[e] !== undefined ? OVERRIDE[e] : per.values[e];
+      const v = OVERRIDE[e] !== undefined ? OVERRIDE[e] : editBase(e);
       if (v !== null && v !== undefined) used += v;
     }
     const sum = y.booked + used;
@@ -372,7 +386,10 @@ function perFromOverrides(per) {
   const marks = per.marks || [];
   for (const w of marks) {
     const ends = w.ends || [];
-    const vals = ends.map((e) => (OVERRIDE[e] !== undefined ? OVERRIDE[e] : per.values[e]));
+    // 고친 값은 편집 단위다 — EPS 로 되돌려야 PER 이 맞는다(국장: 당기순이익 × k).
+    const k = toEps();
+    const vals = ends.map((e) =>
+      (OVERRIDE[e] !== undefined ? OVERRIDE[e] * k : per.values[e]));
     if (!ends.length || vals.some((v) => v === null || v === undefined)) continue;
     const eps = vals.reduce((a, b) => a + b, 0);
     const touched = ends.some((e) => OVERRIDE[e] !== undefined);
@@ -423,41 +440,62 @@ function refreshEditor() {
   }
 }
 
+/* 편집 단위대로 읽히게 쓴다.
+ *
+ * EPS 는 1.23 처럼 소수 두 자리로 읽는데, 당기순이익을 그렇게 쓰면
+ * "704300000000.00" 이 된다 — 아무도 못 읽는다. 조·억으로 줄인다.
+ */
+function fmtEdit(v) {
+  if (v === null || v === undefined) return "—";
+  return edit().digits === 0 ? fmtKrw(v) : v.toFixed(edit().digits ?? 2);
+}
+
 function fyLine(y) {
   const t = y.total === null || y.total === undefined ? null : y.total;
-  return `<b>${y.label}</b> 확정 ${y.booked.toFixed(2)} + 추정 ${y.used.toFixed(2)}` +
-    ` = <b>${y.sum.toFixed(2)}</b>` +
+  return `<b>${y.label}</b> 확정 ${fmtEdit(y.booked)} + 추정 ${fmtEdit(y.used)}` +
+    ` = <b>${fmtEdit(y.sum)}</b>` +
     (t === null ? ` <span class="na">· 연간 컨센 없음(한도 검사 안 함)</span>`
-      : ` / 컨센 ${t.toFixed(2)}` +
-        (y.over ? ` <span class="bad">· ${(y.sum - t).toFixed(2)} 초과 — 저장되지 않습니다</span>`
-                : ` <span class="ok">· 여유 ${(t - y.sum).toFixed(2)}</span>`));
+      : ` / 컨센 ${fmtEdit(t)}` +
+        (y.over ? ` <span class="bad">· ${fmtEdit(y.sum - t)} 초과 — 저장되지 않습니다</span>`
+                : ` <span class="ok">· 여유 ${fmtEdit(t - y.sum)}</span>`));
 }
 
 function maxHint(per, y, e) {
   if (y.total === null || y.total === undefined) return "";
   const others = y.quarters.reduce((a, o) => a + (o === e ? 0
-    : ((OVERRIDE[o] !== undefined ? OVERRIDE[o] : per.values[o]) || 0)), 0);
-  return `이 칸 최대 <b>${(y.total - y.booked - others).toFixed(2)}</b>`;
+    : ((OVERRIDE[o] !== undefined ? OVERRIDE[o] : editBase(o)) || 0)), 0);
+  return `이 칸 최대 <b>${fmtEdit(y.total - y.booked - others)}</b>`;
 }
 
 function renderEditor() {
   const per = PER_DATA;
   const ed = per && per.editable;
-  const qs = ed ? Object.keys(ed.quarters).sort() : [];
+  const qs = ed && ed.quarters ? Object.keys(ed.quarters).sort() : [];
+  // 못 켜는 이유가 있으면 **숨기지 말고 말한다.**
+  if (ed && ed.disabled) {
+    $("edit-sec").classList.remove("hidden");
+    $("edit-title").textContent = "추정 분기 수동 수정";
+    $("edit-body").innerHTML = `<p class="note">⚠ ${md(ed.why || "")}</p>`;
+    return;
+  }
   $("edit-sec").classList.toggle("hidden", !qs.length);
   if (!qs.length) return;
   const years = checkYears(per);
 
+  // 제목·안내도 단위를 따라간다(미장 "추정 분기 EPS", 국장 "…당기순이익").
+  $("edit-title").textContent = `${ed.title || "추정 분기 값"} — 직접 고칠 수 있습니다`;
+  const step = ed.digits === 0 ? "1" : "0.01";
+
   const blocks = Object.entries(years).map(([fy, y]) => {
     const rows = y.quarters.map((e) => {
-      const base = per.values[e];
+      const base = editBase(e);
       const cur = OVERRIDE[e] !== undefined ? OVERRIDE[e] : base;
       return `<tr>
         <td>${e}</td>
-        <td><input class="ov" data-end="${e}" type="number" step="0.01"
+        <td><input class="ov" data-end="${e}" type="number" step="${step}"
                    value="${cur === null || cur === undefined ? "" : cur}"
                    ${OVERRIDE[e] !== undefined ? 'data-edited="1"' : ""} /></td>
-        <td class="na">원래 ${base === null || base === undefined ? "—" : base.toFixed(2)}</td>
+        <td class="na">원래 ${fmtEdit(base)}</td>
         <td class="na" data-max-for="${e}">${maxHint(per, y, e)}</td>
       </tr>`;
     }).join("");
@@ -467,7 +505,8 @@ function renderEditor() {
     </div>`;
   }).join("");
 
-  $("edit-body").innerHTML = blocks;
+  $("edit-body").innerHTML =
+    (ed.factor_note ? `<p class="note">${md(ed.factor_note)}</p>` : "") + blocks;
   document.querySelectorAll(".ov").forEach((inp) => {
     inp.onchange = () => {
       const e = inp.dataset.end;
@@ -1357,9 +1396,83 @@ pip install -r requirements.txt
       않습니다. 그러면 그 구간의 PER 선이 끊깁니다.</li>
   <li>확정 합이 연간 컨센을 넘으면 미장과 똑같이 비우고 이유를 적습니다.</li>
 </ul>
-<p><b>EV/EBITDA 는 국장에 아직 없습니다.</b> 재료(차입금·리스부채·현금·비지배지분·
-우선주자본금)는 DART 전체 재무제표에 표준 계정코드로 다 있는 것을 확인했지만,
-발행주식수는 따로 받아야 해서(<code>stockTotqySttus</code>) 다음 차례입니다.</p>
+<h4>미장과 국장이 다른 곳 — 전부, 그리고 왜</h4>
+<p>두 시장을 같은 코드로 그립니다. 창을 만들고 PER 을 내는 규칙
+(<code>app/forwardper.py</code>)은 <b>한 줄도 안 고치고 공유</b>합니다. 그래도 다른
+곳이 남는데, <b>다른 데는 이유가 있어야 합니다.</b> 아래에 전부 적고 셋으로
+나눕니다 — 재료가 달라서 어쩔 수 없는 것, 이유 없이 달랐다가 고친 것, 아직 못 한 것.</p>
+
+<h5>① 재료가 달라서 — 같게 만들 수 없는 것</h5>
+<table class="basis">
+<tr><th>항목</th><th>미장</th><th>국장</th><th>왜</th></tr>
+<tr><td>분기 실적</td><td>EDGAR XBRL</td><td>DART <code>fnlttSinglAcntAll</code></td>
+    <td>공시 체계가 다릅니다</td></tr>
+<tr><td>실적발표일</td><td>야후 발표일</td><td>거래소 잠정실적 공시일</td>
+    <td>국장은 정기보고서보다 2~5주 빠른 잠정공시가 있습니다</td></tr>
+<tr><td>주가</td><td>야후 일봉</td><td>KRX 일봉(FDR)</td><td>—</td></tr>
+<tr><td>EPS 기준</td><td>GAAP · 조정 <b>두 벌</b></td><td><b>한 벌</b>(보고값)</td>
+    <td>한국은 회사가 보도자료에서 따로 조정 EPS 를 내는 관행이 없습니다.
+        없는 기준을 만들면 그게 지어낸 숫자입니다</td></tr>
+<tr><td>컨센 지평</td><td>분기 2 + 연간 2</td><td>분기 1 + 연간 1</td>
+    <td>네이버가 주는 만큼입니다(실측 2026-09-19)</td></tr>
+<tr><td>추정 채우기</td><td>2단계</td><td><b>3단계</b>(+성장률 이월)</td>
+    <td>지평이 좁아 안 그러면 최근 1년이 통째로 빕니다 — 위 항목 참조</td></tr>
+<tr><td>영업이익 컨센</td><td><b>없음</b></td><td><b>있음</b></td>
+    <td>야후·Alpha Vantage 에 항목이 없고 FMP 는 유료. 네이버는 그냥 줍니다</td></tr>
+<tr><td>순이익 컨센</td><td>EPS × 주식수 <b>파생</b></td><td><b>직접</b></td>
+    <td>네이버가 당기순이익 컨센을 그대로 줍니다</td></tr>
+<tr><td>지배주주순이익 행</td><td>없음</td><td><b>있음</b></td>
+    <td>US GAAP <code>NetIncomeLoss</code> 는 이미 지배주주 귀속입니다.
+        한국은 전체와 지배주주가 따로 나옵니다</td></tr>
+<tr><td><b>손으로 고치는 단위</b></td><td><b>EPS</b></td><td><b>당기순이익</b></td>
+    <td>그 시장에서 실제로 보는 숫자이고 컨센도 그 단위로 나옵니다.
+        국장은 실적에서 잰 환산계수로 EPS 와 오갑니다</td></tr>
+<tr><td>EBITDA 의 감가상각</td><td>XBRL 분기값 + 빈 자리만 누적 차분</td>
+    <td>현금흐름표 <b>누적 차분만</b></td>
+    <td>DART 에는 감가상각이 현금흐름표에만 있습니다</td></tr>
+<tr><td>계정 고르기</td><td>회사가 태그를 갈아타 <b>날짜별 우선순위</b> 필요</td>
+    <td>표준 계정코드가 안정적</td>
+    <td>미장에서 SMCI 가 은행차입→전환사채로 갈아탄 사고가 있었습니다</td></tr>
+<tr><td>뒤처짐 경고</td><td>200일</td><td>250일</td>
+    <td>국장 분기보고서 마감이 45일이라 넉넉하게 둡니다</td></tr>
+<tr><td>회계연도 말</td><td>연간 사실의 실제 <code>end</code></td>
+    <td>사업보고서 기간의 끝</td>
+    <td>미장은 52/53주 회계연도가 있어 해마다 날짜가 다릅니다(애플)</td></tr>
+</table>
+
+<h5>② 이유 없이 달랐던 것 — 고쳤습니다</h5>
+<ul>
+  <li><b>분기 실적을 손으로 고치는 칸이 국장에 없었습니다.</b> "조정·GAAP 구분이
+      없다" 와 달리 이건 재료 문제가 아니었습니다. <b>당기순이익</b>으로 고치게
+      했습니다 — 화면은 단위를 모른 채 돌고, 서버가 단위를 정합니다.</li>
+  <li><b>컨센을 못 받으면 국장만 조용히 넘어갔습니다.</b> 미장은 이유를 적는데
+      국장은 삼켜서, 컨센 칸이 빈 이유를 알 길이 없었습니다. 이제 적습니다.</li>
+  <li><b>EV/EBITDA 버튼이 이유 없이 회색이었습니다.</b> 미장은 못 만들면 그 이유가
+      뜨는데 국장은 아무 말이 없어 고장으로 보였습니다. 이제 말합니다.</li>
+  <li><b>매출을 "먼저 잡히는 쪽" 으로 골랐습니다.</b> 미장에서 은행 매출이 조용히
+      2014년에서 끊겼던 바로 그 실수입니다("매출액" 줄을 몇 해 쓰다 버린 회사를
+      잡고 멈춤). 이제 국장도 후보를 다 만들고 <b>가장 최근까지 이어지는 쪽</b>을
+      통째로 고릅니다.</li>
+  <li>미장에서 베껴 온 <b>죽은 코드</b>(야후 발표일 집계)가 국장에 남아 있었습니다.</li>
+</ul>
+
+<h5>③ 아직 못 한 것</h5>
+<ul>
+  <li><b>EV/EBITDA 가 국장에 없습니다.</b> 재료(차입금·리스부채·현금·비지배지분·
+      우선주자본금)는 DART 전체 재무제표에 표준 계정코드로 다 있는 것을
+      확인했지만, <b>발행주식수</b>는 다른 API(<code>stockTotqySttus</code>)로 따로
+      받아야 해서 다음 차례입니다.</li>
+  <li><b>가중평균주식수 행</b>이 국장 표에 없습니다. DART 표준 계정에는 없고
+      주석에 있습니다. 대신 편집칸이 EPS ÷ 당기순이익에서 역산한 <b>지배주주 기준
+      주식수</b>를 적어 줍니다.</li>
+  <li><b>정정공시의 최초 보고값</b>을 미장은 들고 있고 국장은 없습니다. DART 는
+      (연도, 보고서)별로 <b>최신 접수본</b>만 주므로 최초값을 보려면 접수번호를
+      따라가야 합니다. 다만 <b>지금은 미장에서도 화면에 안 쓰므로</b> 보이는
+      차이는 없습니다.</li>
+  <li>PER 을 그리는 <b>최소 분기 수</b>가 다릅니다(미장은 하나라도 있으면, 국장은
+      8분기 이상). 국장 쪽이 엄격한 건데, 짧은 계열로 그린 PER 은 어느 시장에서든
+      의미가 없어 미장을 국장에 맞추는 게 맞습니다.</li>
+</ul>
 
 <h4>계절성 배분 — 연간 컨센을 분기에 나누는 법</h4>
 <p>야후는 분기 컨센을 <b>두 개</b>만 줍니다. 12개월을 채우려면 나머지는 연간

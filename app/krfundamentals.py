@@ -249,14 +249,17 @@ def build_metrics(reports: dict, quarters: int = 20) -> dict:
     미장과 같은 모양으로 낸다(같은 화면이 그린다). 항목마다 어디서 온 값인지
     ``source`` 에 적는다 — 계산값을 보고값처럼 보여 주면 안 된다.
     """
-    from .fundamentals import with_growth
+    from .fundamentals import with_growth, _fresher
 
-    revenue = income_series(reports, REVENUE)
-    rev_source = "보고값(DART 연결)"
+    # 먼저 성공한 쪽에서 멈추면 안 된다 — 미장에서 은행 매출이 조용히 몇 년 전에서
+    # 끊겼던 자리다(JPM 2014, WFC 2020). "매출액" 줄을 몇 해 쓰다 버린 회사를
+    # 잡고 멈추면 그 지점부터 표가 빈다. 후보를 다 만들어 **가장 최근까지
+    # 이어지는 쪽**을 통째로 고른다(섞으면 이음매가 가짜 성장률이 된다).
+    revenue, rev_source = _fresher(
+        (income_series(reports, REVENUE), "보고값(DART 연결)"),
+        (bank_revenue(reports), "계산값(순이자손익+순수수료손익)"))
     if not revenue:
-        revenue = bank_revenue(reports)
-        rev_source = "계산값(순이자손익+순수수료손익)" if revenue \
-            else "없음(매출 계정이 없습니다)"
+        rev_source = "없음(매출 계정이 없습니다)"
     operating = income_series(reports, OPERATING)
     net = income_series(reports, NET_INCOME)
     owner = income_series(reports, OWNER_NET)
