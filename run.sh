@@ -14,6 +14,24 @@ cd "$(dirname "$0")"
 # source 대신 KEY=VALUE 줄만 골라 읽는다. 남의 파일을 통째로 실행하지 않고,
 # 윈도우 메모장이 붙이는 줄끝(\r)도 여기서 떼어 낸다 — 안 떼면 키 끝에 보이지
 # 않는 문자가 붙어 DART 가 "인증키가 올바르지 않습니다" 로만 답한다.
+# 메모장이 만든 .env.txt 를 먼저 잡는다.
+#
+# 윈도우 메모장은 "파일 형식: 텍스트 문서" 가 기본이라 `.env` 라고 적어도
+# `.env.txt` 로 저장한다. 게다가 탐색기는 확장자를 숨겨서 눈으로는 `.env` 로
+# 보인다 — "분명히 저장했는데 왜 못 읽지" 가 여기서 나온다.
+if [[ ! -f .env ]]; then
+  for _cand in .env.txt .env.TXT "env.txt"; do
+    if [[ -f "$_cand" ]]; then
+      echo
+      echo "⚠  '$_cand' 가 있습니다. 메모장이 확장자 .txt 를 붙인 것입니다."
+      echo "   이름을 .env 로 바꾸면 됩니다:"
+      echo "     mv '$_cand' .env"
+      echo
+      break
+    fi
+  done
+fi
+
 if [[ -f .env ]]; then
   _n=0
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -27,6 +45,10 @@ if [[ -f .env ]]; then
     fi
   done < .env
   echo ".env 에서 환경변수 ${_n}개를 읽었습니다."
+  # 값은 절대 찍지 않는다 — 키가 로그·스크린샷에 남으면 안 된다. 길이만 본다.
+  if [[ -n "${DART_API_KEY:-}" ]]; then
+    echo "  DART_API_KEY 확인됨(${#DART_API_KEY}자) — 국장 조회가 됩니다."
+  fi
 fi
 
 if [[ "${1:-}" == "--demo" ]]; then

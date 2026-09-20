@@ -1065,10 +1065,26 @@ PowerShell 쪽은 바로 프롬프트로 돌아와서 "안 돌고 있나?" 싶�
       <pre>cp .env.example .env
 notepad .env</pre>
       메모장이 열리면 <code>DART_API_KEY=</code> 뒤에 받은 키를 붙여 넣고
-      저장합니다.
-      <pre>DART_API_KEY=여기에받은40자리키</pre></li>
+      <b>Ctrl + S</b>. 파일이 이미 있으니 저장 위치를 묻지 않습니다.
+      <pre>DART_API_KEY=여기에받은40자리키</pre>
+      <div class="warn">
+      <b>저장 창이 떴다면</b> <code>cp</code> 를 건너뛴 것입니다. 메모장은 기본으로
+      <code>.txt</code> 를 붙여 <b><code>.env.txt</code></b> 를 만들고, 탐색기는
+      확장자를 숨겨서 눈으로는 <code>.env</code> 로 보입니다 — "분명히 저장했는데"
+      가 여기서 나옵니다. 그 창에서 <b>파일 이름에 따옴표까지</b>
+      <code>".env"</code> 로 적고 <b>파일 형식은 "모든 파일"</b> 로 두세요.
+      (이미 그렇게 됐다면 <code>./run.sh</code> 가 알아채고 알려 줍니다.)
+      </div>
+      <p class="muted">메모장이 번거로우면 Git Bash 에서 한 줄로:
+      <br/><code>printf 'DART_API_KEY=받은키\n' &gt; .env</code>
+      <br/>(Git Bash 에서 붙여넣기는 <b>마우스 오른쪽 클릭</b> 또는
+      <code>Shift + Insert</code>)</p></li>
   <li><b>다시 띄우기</b> — <pre>./run.sh</pre>
-      맨 위에 <code>.env 에서 환경변수 1개를 읽었습니다.</code> 가 찍히면 됐습니다.</li>
+      맨 위에 이 두 줄이 찍히면 됐습니다(키 값 자체는 절대 안 찍습니다):
+      <pre>.env 에서 환경변수 1개를 읽었습니다.
+  DART_API_KEY 확인됨(40자) — 국장 조회가 됩니다.</pre>
+      안 찍히면 <code>ls -la .env &amp;&amp; cat .env</code> 로 파일이 제자리에
+      있는지 확인하세요.</li>
 </ol>
 <div class="warn">
 <b><code>.env</code> 는 커밋되지 않습니다</b>(<code>.gitignore</code> 에 있습니다) —
