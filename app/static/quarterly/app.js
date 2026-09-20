@@ -1055,16 +1055,29 @@ PowerShell 쪽은 바로 프롬프트로 돌아와서 "안 돌고 있나?" 싶�
 띄우면 <b>창이 하나</b>라 헷갈릴 일이 없습니다.
 </div>
 
-<h4>3-1. 국장(🇰🇷)을 쓰려면 — DART 키 한 줄</h4>
-<p>미장은 키가 필요 없습니다. <b>국장만</b> DART 무료 API 키가 필요합니다
-(<code>opendart.fss.or.kr</code> → 가입 → 인증키 신청, 1분·무료).
-받은 키를 서버 띄우기 <b>전에</b> 한 줄 넣으세요.</p>
-<pre>export DART_API_KEY=여기에받은키
-./run.sh</pre>
-<p class="muted">창을 닫으면 사라집니다. 매번 치기 싫으면 <code>SUH_DH</code> 폴더의
-<code>~/.bashrc</code> 에 그 줄을 넣어 두면 됩니다. 키를 안 넣고 국장을 조회하면
-화면이 "DART_API_KEY 가 없습니다" 라고 말해 줍니다 — 조용히 빈 화면이 되지는
-않습니다.</p>
+<h4>3-1. 국장(🇰🇷)을 쓰려면 — DART 키, <b>한 번만</b></h4>
+<p>미장은 키가 필요 없습니다. <b>국장만</b> DART 무료 API 키가 필요합니다.
+국장을 눌렀을 때 <b>"DART_API_KEY 가 없습니다"</b> 가 뜨면 이 절차입니다.</p>
+<ol>
+  <li><b>키 받기</b> — <code>opendart.fss.or.kr</code> 접속 → 회원가입 →
+      <b>인증키 신청</b>. 메일로 <b>40자리 키</b>가 옵니다. 무료, 1분.</li>
+  <li><b>키 적어 두기</b> — <code>SUH_DH</code> 폴더에서 Git Bash 를 열고:
+      <pre>cp .env.example .env
+notepad .env</pre>
+      메모장이 열리면 <code>DART_API_KEY=</code> 뒤에 받은 키를 붙여 넣고
+      저장합니다.
+      <pre>DART_API_KEY=여기에받은40자리키</pre></li>
+  <li><b>다시 띄우기</b> — <pre>./run.sh</pre>
+      맨 위에 <code>.env 에서 환경변수 1개를 읽었습니다.</code> 가 찍히면 됐습니다.</li>
+</ol>
+<div class="warn">
+<b><code>.env</code> 는 커밋되지 않습니다</b>(<code>.gitignore</code> 에 있습니다) —
+키가 GitHub 에 올라갈 걱정은 안 하셔도 됩니다. 한 번 적어 두면 창을 닫았다 열어도
+<code>./run.sh</code> 가 매번 읽습니다.
+</div>
+<p class="muted">한 번만 쓰고 말 거면 같은 창에서
+<code>export DART_API_KEY=받은키</code> 를 친 뒤 <code>./run.sh</code> 해도 됩니다.
+다만 <b>그 창을 닫으면 사라집니다.</b></p>
 
 <h4>4. 브라우저에서 열기 — <code>http://</code> 를 꼭</h4>
 <pre>http://localhost:8000/quarterly/</pre>

@@ -51,12 +51,59 @@ REPRT = {"11013": (1, "03-31"), "11012": (2, "06-30"),
 YEARS = 6                 # 5년 20분기를 채우려면 한 해 더 봐야 한다
 PERIODIC = ("분기보고서", "반기보고서", "사업보고서")
 FLASH = "잠정"            # 〈연결재무제표기준영업(잠정)실적〉
+KEY_TTL = 600.0           # 키 판정은 잠깐만 기억한다(키를 고치면 곧 반영되게)
+
+# DART 가 돌려주는 상태 코드. 그대로 두면 화면에 "000" 같은 숫자만 뜬다.
+#
+# 키가 틀렸을 때가 제일 헷갈린다 — 보고서 조회는 "자료 없음" 처럼 답해서
+# "이 종목은 보고서가 없나 보다" 로 읽힌다. 5년치 48번을 다 두드린 뒤에야
+# 빈손으로 끝난다. 그래서 **첫 한 번**으로 키부터 판정한다.
+STATUS = {
+    "010": "등록되지 않은 키입니다 — opendart.fss.or.kr 에서 발급받은 40자리 키인지 확인하세요.",
+    "011": "사용할 수 없는 키입니다 — 메일로 온 인증 링크를 눌러 활성화했는지 확인하세요.",
+    "012": "이 IP 에서는 접근할 수 없는 키입니다.",
+    "013": "조회된 자료가 없습니다.",
+    "020": "오늘 요청 한도를 넘었습니다(하루 20,000건) — 내일 다시 되거나 다른 키가 필요합니다.",
+    "100": "요청 값이 잘못됐습니다.",
+    "101": "부적절한 접근입니다.",
+    "800": "DART 가 시스템 점검 중입니다.",
+    "900": "DART 쪽에서 알 수 없는 오류가 났습니다.",
+}
 
 
 def _api(path: str, **params) -> dict:
     q = urllib.parse.urlencode({"crtfc_key": dartdoc.key(), **params})
     raw = dartdoc._get(f"{BASE}/{path}?{q}", timeout=40, retries=3)
     return json.loads(raw)
+
+
+def check_key() -> None:
+    """키가 쓸 수 있는 것인지 **한 번** 확인한다. 못 쓰면 이유를 그대로 말한다.
+
+    안 하면 어떻게 되냐면: 보고서 조회가 키 문제를 "자료 없음"(013)으로 답해서
+    5년치 48번을 다 두드린 뒤 빈손으로 끝난다. 화면에는 "정기보고서를 받지
+    못했습니다" 라고만 떠서, 키가 문제인지 종목이 문제인지 알 수가 없다.
+
+    값싼 호출 하나(공시목록 1건)로 갈라 놓고, 결과는 잠깐 기억한다 — 키를
+    고치면 곧 다시 확인되도록 길게 잡지 않는다.
+    """
+    def produce():
+        try:
+            d = _api("list.json", bgn_de="20240101", end_de="20240102",
+                     page_count="1")
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False,
+                    "why": f"DART 에 연결하지 못했습니다({type(e).__name__})."}
+        status = d.get("status")
+        if status in ("000", "013"):        # 013 = 그날 공시가 없었을 뿐
+            return {"ok": True}
+        return {"ok": False,
+                "why": STATUS.get(status) or f"DART status {status}: {d.get('message')}"}
+
+    got = cache.get_or_set(f"krdart:key:{dartdoc.key()[-6:]}", KEY_TTL, produce,
+                           cache_when=lambda v: bool(v.get("ok")))
+    if not got.get("ok"):
+        raise LookupError(f"DART API 키를 쓸 수 없습니다 — {got['why']}")
 
 
 def corp_code(code: str) -> str:
@@ -158,8 +205,10 @@ def fetch(code: str) -> dict:
         raise LookupError(
             "DART_API_KEY 가 없습니다 — 국장은 DART 무료 API 키가 필요합니다. "
             "opendart.fss.or.kr 에서 받아(1분, 무료) 환경변수로 넣으세요. "
-            "로컬이라면 서버를 띄우기 전에 "
-            "export DART_API_KEY=발급받은키 를 한 줄 치면 됩니다.")
+            "로컬이라면 저장소 폴더의 .env 파일에 "
+            "DART_API_KEY=발급받은키 를 한 줄 적고 ./run.sh 를 다시 띄우세요"
+            "(.env.example 을 복사해서 쓰면 됩니다).")
+    check_key()
     corp = corp_code(code)
     return {"code": code, "corp_code": corp,
             "reports": reports(corp), "announcements": announcements(corp)}

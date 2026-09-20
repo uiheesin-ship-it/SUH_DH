@@ -5,6 +5,30 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# .env 가 있으면 환경변수로 읽는다.
+#
+# 국장(DART)은 무료 API 키가 필요한데, 매번 `export DART_API_KEY=...` 를 치고
+# 같은 창에서 띄워야 한다 — 창을 닫으면 사라지니 다음번에 또 "왜 안 되지" 가
+# 된다. .env 한 줄이면 끝난다. .gitignore 에 들어 있어 커밋되지 않는다.
+#
+# source 대신 KEY=VALUE 줄만 골라 읽는다. 남의 파일을 통째로 실행하지 않고,
+# 윈도우 메모장이 붙이는 줄끝(\r)도 여기서 떼어 낸다 — 안 떼면 키 끝에 보이지
+# 않는 문자가 붙어 DART 가 "인증키가 올바르지 않습니다" 로만 답한다.
+if [[ -f .env ]]; then
+  _n=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    if [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
+      _k="${BASH_REMATCH[2]}"; _v="${BASH_REMATCH[3]}"
+      _v="${_v%\"}"; _v="${_v#\"}"; _v="${_v%\'}"; _v="${_v#\'}"
+      export "$_k=$_v"
+      _n=$((_n + 1))
+    fi
+  done < .env
+  echo ".env 에서 환경변수 ${_n}개를 읽었습니다."
+fi
+
 if [[ "${1:-}" == "--demo" ]]; then
   export SUH_DH_DEMO=1
   echo "Running in DEMO mode (sample data, no network)."
