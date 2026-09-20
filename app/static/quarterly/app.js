@@ -335,9 +335,23 @@ function setBasis(name) {
  * 고치면 다시 받지 않고 **그 자리에서** PER 을 다시 계산한다. 각 창(window)이
  * 어느 분기들을 덮는지(marks[].ends)와 분기별 EPS(values)가 응답에 실려 온다.
  */
-let OVERRIDE = {};        // {분기말: 손으로 넣은 EPS}
+let OVERRIDE = {};        // {분기말: 손으로 넣은 값 — **편집 단위**}
 
-const ovKey = () => `suhdh.eps.${(DATA && DATA.ticker) || "?"}.${PER_DATA && PER_DATA.eps_basis}`;
+/* 편집기는 **단위를 모른다.** 백엔드가 정해서 보낸다.
+ *
+ *   미장   EPS 로 고친다 — 주당 숫자를 보고 컨센도 EPS 로 나온다.
+ *   국장   당기순이익으로 고친다 — 그쪽에서 보는 숫자가 그것이고 네이버 컨센도
+ *          당기순이익으로 나온다. PER 은 주당으로 계산하니 to_eps 로 되돌린다.
+ *
+ * 그래서 여기서는 values(기준값)·to_eps(EPS 환산)·digits(소수 자릿수)만 본다.
+ */
+const edit = () => (PER_DATA && PER_DATA.editable) || {};
+const editBase = (e) => (edit().values || {})[e];
+const toEps = () => (edit().to_eps === undefined ? 1 : edit().to_eps);
+
+// 단위가 섞이면 안 되므로 저장 키에 단위를 넣는다.
+const ovKey = () => `suhdh.eps.${(DATA && DATA.ticker) || "?"}.` +
+  `${PER_DATA && PER_DATA.eps_basis}.${edit().unit || "EPS"}`;
 
 function loadOverrides() {
   try { OVERRIDE = JSON.parse(localStorage.getItem(ovKey()) || "{}"); }
@@ -354,7 +368,7 @@ function checkYears(per) {
   for (const [fy, y] of Object.entries(ed.years)) {
     let used = 0;
     for (const e of y.quarters) {
-      const v = OVERRIDE[e] !== undefined ? OVERRIDE[e] : per.values[e];
+      const v = OVERRIDE[e] !== undefined ? OVERRIDE[e] : editBase(e);
       if (v !== null && v !== undefined) used += v;
     }
     const sum = y.booked + used;
@@ -372,7 +386,10 @@ function perFromOverrides(per) {
   const marks = per.marks || [];
   for (const w of marks) {
     const ends = w.ends || [];
-    const vals = ends.map((e) => (OVERRIDE[e] !== undefined ? OVERRIDE[e] : per.values[e]));
+    // 고친 값은 편집 단위다 — EPS 로 되돌려야 PER 이 맞는다(국장: 당기순이익 × k).
+    const k = toEps();
+    const vals = ends.map((e) =>
+      (OVERRIDE[e] !== undefined ? OVERRIDE[e] * k : per.values[e]));
     if (!ends.length || vals.some((v) => v === null || v === undefined)) continue;
     const eps = vals.reduce((a, b) => a + b, 0);
     const touched = ends.some((e) => OVERRIDE[e] !== undefined);
@@ -423,41 +440,62 @@ function refreshEditor() {
   }
 }
 
+/* 편집 단위대로 읽히게 쓴다.
+ *
+ * EPS 는 1.23 처럼 소수 두 자리로 읽는데, 당기순이익을 그렇게 쓰면
+ * "704300000000.00" 이 된다 — 아무도 못 읽는다. 조·억으로 줄인다.
+ */
+function fmtEdit(v) {
+  if (v === null || v === undefined) return "—";
+  return edit().digits === 0 ? fmtKrw(v) : v.toFixed(edit().digits ?? 2);
+}
+
 function fyLine(y) {
   const t = y.total === null || y.total === undefined ? null : y.total;
-  return `<b>${y.label}</b> 확정 ${y.booked.toFixed(2)} + 추정 ${y.used.toFixed(2)}` +
-    ` = <b>${y.sum.toFixed(2)}</b>` +
+  return `<b>${y.label}</b> 확정 ${fmtEdit(y.booked)} + 추정 ${fmtEdit(y.used)}` +
+    ` = <b>${fmtEdit(y.sum)}</b>` +
     (t === null ? ` <span class="na">· 연간 컨센 없음(한도 검사 안 함)</span>`
-      : ` / 컨센 ${t.toFixed(2)}` +
-        (y.over ? ` <span class="bad">· ${(y.sum - t).toFixed(2)} 초과 — 저장되지 않습니다</span>`
-                : ` <span class="ok">· 여유 ${(t - y.sum).toFixed(2)}</span>`));
+      : ` / 컨센 ${fmtEdit(t)}` +
+        (y.over ? ` <span class="bad">· ${fmtEdit(y.sum - t)} 초과 — 저장되지 않습니다</span>`
+                : ` <span class="ok">· 여유 ${fmtEdit(t - y.sum)}</span>`));
 }
 
 function maxHint(per, y, e) {
   if (y.total === null || y.total === undefined) return "";
   const others = y.quarters.reduce((a, o) => a + (o === e ? 0
-    : ((OVERRIDE[o] !== undefined ? OVERRIDE[o] : per.values[o]) || 0)), 0);
-  return `이 칸 최대 <b>${(y.total - y.booked - others).toFixed(2)}</b>`;
+    : ((OVERRIDE[o] !== undefined ? OVERRIDE[o] : editBase(o)) || 0)), 0);
+  return `이 칸 최대 <b>${fmtEdit(y.total - y.booked - others)}</b>`;
 }
 
 function renderEditor() {
   const per = PER_DATA;
   const ed = per && per.editable;
-  const qs = ed ? Object.keys(ed.quarters).sort() : [];
+  const qs = ed && ed.quarters ? Object.keys(ed.quarters).sort() : [];
+  // 못 켜는 이유가 있으면 **숨기지 말고 말한다.**
+  if (ed && ed.disabled) {
+    $("edit-sec").classList.remove("hidden");
+    $("edit-title").textContent = "추정 분기 수동 수정";
+    $("edit-body").innerHTML = `<p class="note">⚠ ${md(ed.why || "")}</p>`;
+    return;
+  }
   $("edit-sec").classList.toggle("hidden", !qs.length);
   if (!qs.length) return;
   const years = checkYears(per);
 
+  // 제목·안내도 단위를 따라간다(미장 "추정 분기 EPS", 국장 "…당기순이익").
+  $("edit-title").textContent = `${ed.title || "추정 분기 값"} — 직접 고칠 수 있습니다`;
+  const step = ed.digits === 0 ? "1" : "0.01";
+
   const blocks = Object.entries(years).map(([fy, y]) => {
     const rows = y.quarters.map((e) => {
-      const base = per.values[e];
+      const base = editBase(e);
       const cur = OVERRIDE[e] !== undefined ? OVERRIDE[e] : base;
       return `<tr>
         <td>${e}</td>
-        <td><input class="ov" data-end="${e}" type="number" step="0.01"
+        <td><input class="ov" data-end="${e}" type="number" step="${step}"
                    value="${cur === null || cur === undefined ? "" : cur}"
                    ${OVERRIDE[e] !== undefined ? 'data-edited="1"' : ""} /></td>
-        <td class="na">원래 ${base === null || base === undefined ? "—" : base.toFixed(2)}</td>
+        <td class="na">원래 ${fmtEdit(base)}</td>
         <td class="na" data-max-for="${e}">${maxHint(per, y, e)}</td>
       </tr>`;
     }).join("");
@@ -467,7 +505,8 @@ function renderEditor() {
     </div>`;
   }).join("");
 
-  $("edit-body").innerHTML = blocks;
+  $("edit-body").innerHTML =
+    (ed.factor_note ? `<p class="note">${md(ed.factor_note)}</p>` : "") + blocks;
   document.querySelectorAll(".ov").forEach((inp) => {
     inp.onchange = () => {
       const e = inp.dataset.end;

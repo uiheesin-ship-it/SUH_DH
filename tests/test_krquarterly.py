@@ -97,3 +97,77 @@ def test_확정_합이_연간_컨센을_넘으면_비운다():
 
 def test_기간_키는_네이버_모양으로_맞춘다():
     assert kq._ym("2026-06-30") == "202606"
+
+
+# ── 손으로 고치는 칸: 국장은 당기순이익으로 고친다 ─────────────────────────────
+
+def net(**kw):
+    """분기별 확정 당기순이익. 주식수 1,000주를 가정하면 EPS 와 맞는다."""
+    out = {e: {"val": v * 1000.0} for e, v in known().items()}
+    out.update({e: {"val": v} for e, v in kw.items()})
+    return out
+
+
+def eps_rows(**kw):
+    return [{"end": e, "val": v} for e, v in sorted(known().items())]
+
+
+def test_환산계수는_EPS를_당기순이익으로_나눈_중앙값이다():
+    k, why = kq.eps_per_won(eps_rows(), net())
+    assert k == pytest.approx(1 / 1000.0)
+    assert why["implied_shares"] == 1000
+    assert why["quarters"] == kq.FACTOR_QUARTERS
+
+
+def test_순이익이_0이거나_부호가_어긋난_분기는_계수에서_뺀다():
+    """적자 분기 하나가 비율을 날린다. 중앙값이어도 아예 빼고, 더 뒤까지 본다."""
+    n = net(**{"2025-12-31": 0.0, "2025-09-30": -300_000.0})
+    k, why = kq.eps_per_won(eps_rows(), n)
+    assert k == pytest.approx(1 / 1000.0)
+    assert why["quarters"] == kq.FACTOR_QUARTERS          # 빈 자리를 더 과거로 메운다
+    # 뒤에 메울 분기가 없으면 그만큼 적은 분기로 잰다 — 지어내지 않는다.
+    few = {e: v for e, v in n.items() if e < "2026"}
+    k2, why2 = kq.eps_per_won(eps_rows(), few)
+    assert why2["quarters"] == 6
+    assert k2 == pytest.approx(1 / 1000.0)
+
+
+def test_잴_분기가_없으면_계수를_지어내지_않는다():
+    k, why = kq.eps_per_won(eps_rows(), {})
+    assert k is None
+    assert why["quarters"] == 0
+
+
+def test_고치는_칸은_당기순이익_단위로_나온다():
+    est, _ = kq.estimates(FUTURE, con(q={"202609": 330.0}, y={"202612": 1100.0}),
+                          FY_ENDS, known())
+    ed = kq._editable(est, con(q={"202609": 330.0}, y={"202612": 1100.0}),
+                      FY_ENDS, {e: r["val"] for e, r in net().items()},
+                      1 / 1000.0, {"quarters": 8, "implied_shares": 1000})
+    assert ed["unit"] == "당기순이익"
+    assert ed["to_eps"] == pytest.approx(1 / 1000.0)
+    assert ed["digits"] == 0
+    # 차트가 쓰는 EPS 330 을 계수로 되돌린 값 — 따로 추정하지 않는다.
+    assert ed["values"]["2026-09-30"] == pytest.approx(330.0 * 1000.0)
+    assert "1,000주" in ed["factor_note"]
+
+
+def test_고치는_칸의_연간_한도도_당기순이익_컨센이다():
+    c = con(q={"202609": 330.0}, y={"202612": 1100.0})
+    c["years"]["202612"]["당기순이익"] = 1_100_000.0
+    est, _ = kq.estimates(FUTURE, c, FY_ENDS, known())
+    ed = kq._editable(est, c, FY_ENDS,
+                      {e: r["val"] for e, r in net().items()},
+                      1 / 1000.0, {"quarters": 8})
+    y = ed["years"]["2026-12-31"]
+    assert y["total"] == pytest.approx(1_100_000.0)       # 원 단위, EPS 아님
+    assert y["booked"] == pytest.approx(330_000.0)        # 110+220 → 원
+    assert y["quarters"] == ["2026-09-30", "2026-12-31"]
+
+
+def test_계수를_못_재면_고치는_칸을_끄고_이유를_말한다():
+    est, _ = kq.estimates(FUTURE, con(q={"202609": 330.0}), FY_ENDS, known())
+    ed = kq._editable(est, con(), FY_ENDS, {}, None, {"quarters": 0})
+    assert ed["disabled"] is True
+    assert "당기순이익" in ed["why"]
+    assert "values" not in ed

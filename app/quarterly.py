@@ -258,6 +258,15 @@ def _editable(quarters: list[dict], est: dict, con: dict,
     그 해 FY 컨센을 넘으면 안 된다.** 그러려면 화면이 세 가지를 알아야 한다:
     각 추정 분기가 어느 회계연도에 속하는지, 그 해에 이미 확정된 합이 얼마인지,
     그 해 FY 컨센이 얼마인지.
+
+    **어떤 단위로 고치느냐는 시장이 정한다.** 미장은 EPS 로 고친다(주당 숫자를
+    보고 컨센도 EPS 로 나온다). 국장은 당기순이익으로 고친다 — 그쪽에서 실제로
+    보는 숫자가 그것이고 네이버 컨센도 당기순이익으로 나온다. 그래서 화면은
+    단위를 모른 채 ``unit``·``values``·``to_eps`` 만 보고 움직인다.
+
+        values   편집 단위의 기준값(고치기 전 값)
+        to_eps   그 단위 × 이 값 = EPS. 미장은 1.0, 국장은 환산계수
+        digits   입력칸 소수 자릿수(EPS 2, 원 단위 0)
     """
     bounds = sorted(x for x in (forwardper._d(e) for e in fy_ends or []) if x)
     actual = {q["end"]: q["val"] for q in quarters if q.get("val") is not None}
@@ -278,7 +287,10 @@ def _editable(quarters: list[dict], est: dict, con: dict,
             "quarters": sorted(e for e in est
                                if lo < forwardper._d(e) <= fy),
         }
-    return {"years": years,
+    return {"unit": "EPS", "unit_label": "주당", "to_eps": 1.0, "digits": 2,
+            "title": "추정 분기 EPS",
+            "values": {e: v.get("val") for e, v in est.items()},
+            "years": years,
             "quarters": {e: {"val": v.get("val"), "fy": next(
                 (f for f, y in years.items() if e in y["quarters"]), None)}
                 for e, v in est.items()}}

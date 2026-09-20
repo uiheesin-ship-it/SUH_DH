@@ -42,6 +42,7 @@ PRICE_DAYS = 400 + 365 * PRICE_YEARS
 # 것보다 "그 수준이 유지된다고 보았다" 가 방어 가능하고, 그 가정이 틀리면
 # forward PER 이 **보수적으로**(높게) 나온다 — 낙관 쪽으로 틀리는 것보다 낫다.
 GROWTH_BAND = (0.5, 2.0)
+FACTOR_QUARTERS = 8      # 당기순이익 → EPS 환산계수를 볼 과거 분기 수
 
 
 def _price(code: str) -> tuple[list[str], list[float]]:
@@ -174,6 +175,92 @@ def estimates(future: list[str], con: dict, fy_ends: list[str],
                  "season_weights": {str(k): round(v, 4) for k, v in w.items()}}
 
 
+def eps_per_won(eps_rows: list[dict], net: dict[str, dict],
+                n: int = FACTOR_QUARTERS) -> tuple[float | None, dict]:
+    """당기순이익 1원이 EPS 얼마인가 — **실적에서 재는** 환산계수.
+
+    국장에서 손으로 고치고 싶은 숫자는 EPS 가 아니라 **당기순이익**이다. 그쪽에서
+    실제로 보는 숫자가 그것이고, 네이버 컨센도 당기순이익으로 나온다. 그런데
+    PER 은 주당 숫자로 계산하니 둘 사이를 오갈 계수가 필요하다.
+
+        k = median( EPS[분기] ÷ 당기순이익[분기] )
+
+    주식수로 나누고 지배주주 비율을 곱하는 대신 **비율 하나로 잰다.** 둘 다
+    같은 보고서에서 나온 값이라 그 비율에 주식수와 지배주주 비율이 이미 같이
+    들어 있다. 주식수를 따로 받아 올 필요가 없고, 증자·분할도 저절로 반영된다.
+
+    평균이 아니라 중앙값이다 — 순이익이 0 근처인 분기 하나가 비율을 날려 버린다.
+    그런 분기(당기순이익이 0 이거나 부호가 EPS 와 어긋나는 분기)는 아예 뺀다.
+    """
+    rows = []
+    for q in reversed(eps_rows):
+        e, ni = q.get("val"), (net.get(q["end"]) or {}).get("val")
+        if e is None or not ni:
+            continue
+        k = e / ni
+        if k <= 0:            # 지배주주분과 전체의 부호가 어긋난 분기
+            continue
+        rows.append(k)
+        if len(rows) >= n:
+            break
+    if not rows:
+        return None, {"quarters": 0}
+    srt = sorted(rows)
+    m = len(srt)
+    med = srt[m // 2] if m % 2 else (srt[m // 2 - 1] + srt[m // 2]) / 2
+    return med, {"quarters": m, "low": srt[0], "high": srt[-1],
+                 # 1/k 는 곧 "지배주주 기준 주식수" 다 — 화면에 그렇게 보여 준다.
+                 "implied_shares": round(1 / med) if med else None}
+
+
+def _editable(est: dict, con: dict, fy_ends: list[str], net_actual: dict,
+              factor: float | None, why: dict) -> dict:
+    """국장은 **당기순이익**으로 고친다 — 미장이 EPS 로 고치는 자리다.
+
+    한도 검사 규칙은 미장과 똑같다: 한 회계연도 안에서 (확정 분기 합 + 손으로
+    넣은 값 합) ≤ 그 해 FY 컨센. 다만 전부 당기순이익 단위다. 네이버가 FY
+    당기순이익 컨센을 주므로 비교할 기준이 있다.
+
+    기준값(고치기 전 값)은 **차트가 쓰는 EPS 추정치를 환산계수로 되돌려** 만든다.
+    당기순이익으로 따로 한 번 더 추정하지 않는다 — 그러면 표에 뜬 값과 차트가
+    쓰는 값이 미묘하게 달라져서, 아무것도 안 고쳤는데 선이 움직인다.
+    """
+    if not factor:
+        return {"unit": "당기순이익", "disabled": True,
+                "why": "당기순이익과 주당이익의 관계를 잴 수 있는 분기가 없어 "
+                       "손으로 고치는 기능을 켤 수 없습니다."}
+    _, ye = krconsensus.series(con, "annual", "당기순이익")
+    bounds = sorted(x for x in (forwardper._d(e) for e in fy_ends or []) if x)
+    first = forwardper._d(sorted(est)[0]) if est else None
+
+    years = {}
+    for fy in [b for b in bounds if first and b >= first][:2]:
+        lo = forwardper.add_months(fy, -12)
+        booked = sum(v for e, v in net_actual.items()
+                     if lo < forwardper._d(e) <= fy)
+        years[fy.isoformat()] = {
+            "label": f"FY{fy.year}", "total": ye.get(_ym(fy.isoformat())),
+            "booked": round(booked, 3),
+            "quarters": sorted(e for e in est
+                               if lo < forwardper._d(e) <= fy),
+        }
+    values = {e: (None if v.get("val") is None else v["val"] / factor)
+              for e, v in est.items()}
+    return {
+        "unit": "당기순이익", "unit_label": "원", "to_eps": factor, "digits": 0,
+        "title": "추정 분기 당기순이익",
+        "factor_note": (
+            f"당기순이익 → EPS 환산계수는 최근 {why.get('quarters')}분기에서 쟀습니다"
+            + (f" (지배주주 기준 주식수 약 {why['implied_shares']:,}주 상당)"
+               if why.get("implied_shares") else "") + "."),
+        "values": values,
+        "years": years,
+        "quarters": {e: {"val": values.get(e), "fy": next(
+            (f for f, y in years.items() if e in y["quarters"]), None)}
+            for e in est},
+    }
+
+
 def build(code: str) -> dict:
     """종목코드 → 실적 표 + forward PER 차트."""
     d = krdart.fetch(code)
@@ -221,7 +308,17 @@ def build(code: str) -> dict:
     est, why = estimates(future, con, fy_ends, known)
     windows = forwardper.forward_windows(quarters, est)
     series = forwardper.per_series(dates, close, windows)
+
+    # 손으로 고치는 단위는 **당기순이익**이다(미장은 EPS). 그쪽에서 실제로 보는
+    # 숫자이고 네이버 컨센도 당기순이익으로 나온다.
+    net = krfundamentals.income_series(reports, krfundamentals.NET_INCOME)
+    factor, fwhy = eps_per_won(quarters, net)
+    editable = _editable(est, con, fy_ends,
+                         {e: r["val"] for e, r in net.items()
+                          if r.get("val") is not None}, factor, fwhy)
+
     out["per"] = _chart(series, windows, quarters, con, est, why, d)
+    out["per"]["editable"] = editable
     out["per_bases"] = {"reported": out["per"]}
     out["per_basis"] = "reported"
     return out

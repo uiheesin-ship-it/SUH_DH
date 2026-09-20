@@ -290,3 +290,24 @@ def test_the_adjusted_series_never_borrows_a_gaap_value(monkeypatch):
     wire(monkeypatch, con=con)
     b = quarterly.build("TEST")["per_bases"]
     assert b["adjusted"]["eps_quarters"] < b["gaap"]["eps_quarters"]
+
+
+# ---------------------------------------------- 손으로 고치는 칸 (미장은 EPS)
+def test_the_editor_payload_says_it_edits_eps(monkeypatch):
+    """화면은 단위를 모른 채 움직인다 — 미장이 EPS 라는 건 여기서만 말한다."""
+    wire(monkeypatch, con=FULL_CON)
+    ed = quarterly.build("TEST")["per"]["editable"]
+    assert ed["unit"] == "EPS"
+    assert ed["to_eps"] == 1.0          # EPS 를 EPS 로 바꾸는 계수는 1
+    assert ed["digits"] == 2
+    assert "EPS" in ed["title"]
+
+
+def test_the_editor_base_values_are_the_same_numbers_the_chart_uses(monkeypatch):
+    """기준값이 차트와 다르면 아무것도 안 고쳤는데 선이 움직인다."""
+    wire(monkeypatch, con=FULL_CON)
+    per = quarterly.build("TEST")["per"]
+    ed = per["editable"]
+    chart = {r["end"]: r["eps"] for r in per["estimates"]}
+    assert {e: None if v is None else round(v, 4)
+            for e, v in ed["values"].items()} == chart
