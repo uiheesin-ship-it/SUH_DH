@@ -44,6 +44,12 @@ PRICE_DAYS = 400 + 365 * PRICE_YEARS
 GROWTH_BAND = (0.5, 2.0)
 FACTOR_QUARTERS = 8      # 당기순이익 → EPS 환산계수를 볼 과거 분기 수
 
+# 국장 EV/EBITDA 가 아직 없는 이유 — 화면이 이 문장을 그대로 보여 준다.
+EV_NOT_YET = (
+    "국장 EV/EBITDA 는 아직 만들지 않았습니다. 차입금·리스부채·현금·비지배지분·"
+    "우선주자본금은 DART 전체 재무제표에 표준 계정코드로 다 있는 것을 확인했지만, "
+    "발행주식수는 다른 API(stockTotqySttus)로 따로 받아야 해서 다음 차례입니다.")
+
 
 def _price(code: str) -> tuple[list[str], list[float]]:
     try:
@@ -271,8 +277,12 @@ def build(code: str) -> dict:
     con = {}
     try:
         con = krconsensus.fetch(code)
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        # 미장은 이때 이유를 적는다. 국장만 조용히 넘기면, 컨센 칸이 텅 빈
+        # 이유를 사용자가 알 길이 없다.
+        con_error = f"네이버 컨센을 받지 못했습니다({type(e).__name__}) — 확정 구간만 그립니다."
+    else:
+        con_error = None
 
     metrics = krfundamentals.build_metrics(reports, TABLE_QUARTERS)
     fy_ends = _fy_ends(reports)
@@ -280,6 +290,11 @@ def build(code: str) -> dict:
            "name": con.get("name"), "corp_code": d["corp_code"],
            "metrics": metrics, "notes": [],
            "currency": "KRW", "unit": "원"}
+    if con_error:
+        out["notes"].append(con_error)
+    # 미장은 EV/EBITDA 를 그린다. 국장은 아직 못 그리는데, 그 이유를 **화면이
+    # 말할 수 있게** 실어 보낸다 — 비활성 버튼만 덩그러니 두면 고장으로 보인다.
+    out["ev"] = {"error": EV_NOT_YET}
     # 컨센 칸은 차트가 안 그려져도 붙어야 한다 — 표만 보고 싶은 종목이 있다.
     _attach_forecast(out, con, fy_ends)
 
@@ -382,7 +397,6 @@ def _chart(series, windows, quarters, con, est, why, dart) -> dict:
         if solid[i] is None and solid[i - 1] is not None and dashed[i] is not None:
             dashed[i - 1] = solid[i - 1]
 
-    flash = sum(1 for q in quarters if q.get("announced_source") == "실적발표일(야후)")
     return {
         "metric": "per",
         "dates": dates,

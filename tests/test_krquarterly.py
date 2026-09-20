@@ -171,3 +171,80 @@ def test_계수를_못_재면_고치는_칸을_끄고_이유를_말한다():
     assert ed["disabled"] is True
     assert "당기순이익" in ed["why"]
     assert "values" not in ed
+
+
+# ── build() 조립: 미장과 나란히 놓았을 때 빠진 게 없나 ──────────────────────
+
+def _reports(years=(2021, 2022, 2023, 2024, 2025)):
+    """5년치 합성 정기보고서 — 분기 EPS 100원·당기순이익 1억(주식수 100만주)."""
+    out = {}
+    for y in years:
+        for i, rc in enumerate(["11013", "11012", "11014", "11011"]):
+            q = i + 1
+            dt = (f"{y}.01.01 ~ {y}.12.31" if rc == "11011"
+                  else f"{y}.01.01 ~ {y}.{['03','06','09'][i]}."
+                       f"{['31','30','30'][i]}")
+            # 손익은 당기 3개월, 사업보고서만 연간
+            mul = 4 if rc == "11011" else 1
+            rows = [
+                {"sj_div": "IS", "account_id": "ifrs-full_Revenue",
+                 "account_nm": "매출액", "thstrm_amount": f"{1000 * mul}",
+                 "thstrm_add_amount": None, "thstrm_dt": dt},
+                {"sj_div": "IS", "account_id": "dart_OperatingIncomeLoss",
+                 "account_nm": "영업이익", "thstrm_amount": f"{200 * mul}",
+                 "thstrm_add_amount": None, "thstrm_dt": dt},
+                {"sj_div": "IS", "account_id": "ifrs-full_ProfitLoss",
+                 "account_nm": "당기순이익", "thstrm_amount": f"{100_000_000 * mul}",
+                 "thstrm_add_amount": None, "thstrm_dt": dt},
+                {"sj_div": "IS", "account_id": "ifrs-full_DilutedEarningsLossPerShare",
+                 "account_nm": "희석주당이익", "thstrm_amount": f"{100 * mul}",
+                 "thstrm_add_amount": None, "thstrm_dt": dt},
+            ]
+            out[(y, rc)] = rows
+    return out
+
+
+def _ann():
+    return [{"date": f"{y}-{m}-10"} for y in (2021, 2022, 2023, 2024, 2025)
+            for m in ("05", "08", "11")] + \
+           [{"date": f"{y}-02-10"} for y in (2022, 2023, 2024, 2025, 2026)]
+
+
+def wire_kr(monkeypatch, con_raises=False):
+    from app import krdart, krconsensus, krdata
+    monkeypatch.setattr(krdart, "fetch", lambda code: {
+        "corp_code": "00126380", "reports": _reports(), "announcements": _ann()})
+
+    def _con(code):
+        if con_raises:
+            raise TimeoutError("naver down")
+        return {"name": "테스트전자", "quarters": {}, "years": {}, "sources": []}
+    monkeypatch.setattr(krconsensus, "fetch", _con)
+    dates = [f"{y}-{m:02d}-15" for y in range(2021, 2027) for m in range(1, 13)
+             if not (y == 2026 and m > 9)]
+    monkeypatch.setattr(krdata, "kr_chart",
+                        lambda code, days=None: {"dates": dates,
+                                                 "close": [50_000.0] * len(dates)})
+
+
+def test_컨센을_못_받으면_조용히_넘기지_않고_적는다(monkeypatch):
+    """미장은 이때 이유를 적는다. 국장만 삼키면 컨센 칸이 빈 이유를 알 수 없다."""
+    wire_kr(monkeypatch, con_raises=True)
+    r = kq.build("005930")
+    assert any("네이버 컨센" in n for n in r["notes"])
+
+
+def test_EV가_없는_이유를_화면이_말할_수_있게_싣는다(monkeypatch):
+    """미장에는 EV 차트가 있다. 국장은 없는데, 비활성 버튼만 두면 고장으로 보인다."""
+    wire_kr(monkeypatch)
+    r = kq.build("005930")
+    assert r["ev"]["error"].startswith("국장 EV/EBITDA 는 아직")
+    assert "stockTotqySttus" in r["ev"]["error"]
+    assert "dates" not in r["ev"]          # 그릴 자료인 척하지 않는다
+
+
+def test_차트에_당기순이익_편집칸이_붙는다(monkeypatch):
+    wire_kr(monkeypatch)
+    ed = kq.build("005930")["per"]["editable"]
+    assert ed["unit"] == "당기순이익"
+    assert ed["to_eps"] == pytest.approx(100 / 100_000_000)

@@ -168,3 +168,57 @@ def test_감가상각이_없는_회사는_EBITDA_가_빈다():
         rows[:] = [x for x in rows if x["sj_div"] != "CF"]
         rows.append(row("IS", "dart_OperatingIncomeLoss", "영업이익", "1,000"))
     assert kf.build_metrics(r)["EBITDA"]["quarters"] == []
+
+
+# --- 매출: 후보를 다 만들고 가장 최근까지 이어지는 쪽 ------------------------
+
+def _rev_rows(year, reprt, dt, *, plain=None, interest=None, fee=None):
+    rows = []
+    if plain is not None:
+        rows.append(row("IS", "ifrs-full_Revenue", "매출액", f"{plain:,}", None, dt))
+    if interest is not None:
+        rows.append(row("CIS", "ifrs-full_RevenueFromInterest", "순이자손익",
+                        f"{interest:,}", None, dt))
+    if fee is not None:
+        rows.append(row("CIS", "dart_NetFeeAndCommissionIncome", "순수수료손익",
+                        f"{fee:,}", None, dt))
+    return rows
+
+
+def _bank_reports():
+    """"매출액" 줄을 2021 에만 쓰다 버린 회사. 순이자·순수수료는 계속 나온다."""
+    out = {}
+    for y in (2021, 2022, 2023):
+        for i, rc in enumerate(["11013", "11012", "11014"]):
+            dt = f"{y}.{['01','04','07'][i]}.01 ~ {y}.{['03','06','09'][i]}." \
+                 f"{['31','30','30'][i]}"
+            out[(y, rc)] = _rev_rows(y, rc, dt,
+                                     plain=500 if y == 2021 else None,
+                                     interest=800, fee=200)
+    return out
+
+
+def test_매출은_먼저_성공한_쪽에서_멈추지_않는다():
+    """미장에서 은행 매출이 조용히 2014년에서 끊겼던 자리다 — 같은 실수를 안 한다."""
+    m = kf.build_metrics(_bank_reports())["매출"]
+    assert m["latest"] == "2023-09-30"          # 2021-09-30 이면 먼저 잡고 멈춘 것
+    assert m["source"] == "계산값(순이자손익+순수수료손익)"
+    assert m["quarters"][-1]["val"] == 1000     # 800 + 200
+
+
+def test_보고값이_끝까지_이어지면_보고값을_쓴다():
+    """계산값이 더 길 때만 갈아탄다 — 이유 없이 계산값을 앞세우지 않는다."""
+    rep = {k: _rev_rows(k[0], k[1],
+                        f"{k[0]}.01.01 ~ {k[0]}.03.31", plain=9_999,
+                        interest=800, fee=200)
+           for k in _bank_reports()}
+    m = kf.build_metrics(rep)["매출"]
+    assert m["source"] == "보고값(DART 연결)"
+
+
+def test_매출_계정이_아예_없으면_없다고_적는다():
+    rep = {k: [row("CF", "ifrs-full_AdjustmentsForDepreciationAndAmortisationExpense",
+                   "감가상각비 및 상각비", "10", None,
+                   f"{k[0]}.01.01 ~ {k[0]}.03.31")]
+           for k in _bank_reports()}
+    assert kf.build_metrics(rep)["매출"]["source"] == "없음(매출 계정이 없습니다)"
