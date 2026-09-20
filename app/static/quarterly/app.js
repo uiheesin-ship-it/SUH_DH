@@ -117,22 +117,34 @@ function render(d) {
   if (d.cik) bits.push(`CIK ${d.cik}`);
   if (d.corp_code) bits.push(`DART ${d.corp_code}`);
   if (isKR()) bits.push("단위 원");
+  if (d.backend && d.backend.rev) bits.push(`서버 ${d.backend.rev}`);
   if (d.fiscal_year_end) bits.push(`결산 ${d.fiscal_year_end}`);
   let head = bits.join(" · ");
   for (const n of d.notes || []) head += `<span class="warn">⚠ ${md(n)}</span>`;
 
-  // 서버가 옛 코드로 돌고 있으면 화면이 스스로 말한다.
+  // 서버가 옛 코드로 돌고 있으면 화면이 **사실로** 말한다.
   //
   // JS·CSS 는 디스크에서 매번 읽히지만 파이썬은 **서버가 뜰 때 메모리에** 올라간다.
-  // 그래서 git pull 만 하고 재시작을 안 하면 화면은 새것, 백엔드는 옛것이 된다.
-  // 겉으로는 "왜 새 칸이 안 나오지?" 로만 보여서 원인을 찾기가 어렵다.
-  const ms = Object.values(d.metrics || {});
-  if (!isKR() && ms.some((m) => (m.quarters || []).length)
-      && !ms.some((m) => m.estimates)) {
-    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b> — 컨센(추정) 칸이
-      안 나옵니다. 코드는 받았는데 <b>서버를 다시 안 띄운</b> 것입니다.
-      서버 창에서 <b>Ctrl+C</b> → <b>./run.sh</b> 로 다시 띄우세요.
-      (왼쪽 위 <b>💻 로컬 실행법</b>)</span>`;
+  // git pull 만 하고 재시작을 안 하면 화면은 새것, 백엔드는 옛것이 된다. 겉으로는
+  // "왜 새 칸이 안 나오지?" 로만 보여서 매번 한참 헤맸다.
+  //
+  // 예전에는 "컨센 칸이 없으면 옛 코드겠거니" 로 **짐작**했다. 그러면 그 기능만
+  // 잡고 다음 기능은 또 못 잡는다. 이제 백엔드가 뜬 시각과 파일 수정 시각을 같이
+  // 보내므로(app/buildinfo.py) 시계 두 개를 비교해 확실히 안다.
+  const bi = d.backend;
+  if (bi && bi.stale) {
+    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b> —
+      코드 파일이 서버보다 <b>${bi.stale_by_min}분</b> 새것입니다.
+      <code>git pull</code> 은 됐는데 <b>서버를 다시 안 띄운</b> 것입니다.
+      서버 창에서 <b>Ctrl+C</b> → <b>./run.sh</b>.
+      그래도 그대로면 브라우저에서 <b>Ctrl+Shift+R</b>(강력 새로고침).
+      <small>서버 시작 ${(bi.started_at || "").replace("T", " ").slice(0, 16)} ·
+      코드 ${(bi.code_mtime || "").replace("T", " ").slice(0, 16)}</small></span>`;
+  } else if (!bi) {
+    // backend 자체가 안 오면 그 기능이 생기기 전 코드다 — 그것도 옛 코드다.
+    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b>(버전 정보를
+      안 보냅니다). <code>git pull</code> 후 서버 창에서 <b>Ctrl+C</b> →
+      <b>./run.sh</b> 로 다시 띄우세요. (왼쪽 위 <b>💻 로컬 실행법</b>)</span>`;
   }
   $("head").innerHTML = head;
 
@@ -1058,6 +1070,25 @@ Git Bash 창에서 <b>Ctrl + C</b>.
 <pre>Ctrl + C
 git pull
 ./run.sh</pre>
+<div class="warn">
+<b>"다시 띄웠는데 왜 그대로지"</b> 의 원인은 거의 둘입니다.
+<ol>
+  <li><b>서버 창이 두 개</b>입니다. 한쪽만 껐고 브라우저는 옛 코드가 도는 쪽을
+      보고 있습니다. 이제 <code>./run.sh</code> 가 먼저 확인해서
+      <b>"이미 …에서 서버가 돌고 있습니다"</b> 라고 말하고 멈춥니다.</li>
+  <li><b>브라우저가 옛 화면을 캐시</b>하고 있습니다 →
+      <b>Ctrl + Shift + R</b>(강력 새로고침).</li>
+</ol>
+둘 다 아니면 화면 맨 위 종목 이름 줄에 <b>⚠ 서버가 옛 코드로 돌고 있습니다</b>
+가 뜹니다 — 코드 파일이 서버보다 몇 분 새것인지까지 적혀 나옵니다.
+</div>
+
+<h4>지금 도는 서버가 새 코드인지 한 줄로 확인</h4>
+<pre>curl -s http://127.0.0.1:8000/api/health</pre>
+<p><code>"backend"</code> 안의 <code>rev</code>(커밋 해시)와 <code>stale</code> 을
+보세요. <code>"stale": true</code> 면 <b>파일이 서버보다 새것</b> — 재시작이
+필요합니다. <code>backend</code> 항목 자체가 없으면 그것도 옛 코드입니다.
+화면 맨 위 종목 이름 줄에도 <b>서버 &lt;해시&gt;</b> 로 같이 뜹니다.</p>
 
 <h4>PowerShell 로 하고 싶다면</h4>
 됩니다. 다만 <b>파이썬이 두 개</b>라서 준비가 한 번 필요합니다. PowerShell 의
