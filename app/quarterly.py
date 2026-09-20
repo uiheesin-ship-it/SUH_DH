@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 
-from . import charts, consensus, forwardper, fundamentals, secdata
+from . import charts, consensus, evebitda, forwardper, fundamentals, secdata
 
 TABLE_QUARTERS = 20        # 화면 표에 보여 줄 분기 수(5년)
 PER_QUARTERS = 32          # PER 계산용 — 5년 앞을 보려면 더 뒤부터 있어야 한다
@@ -84,8 +84,9 @@ def build(ticker: str) -> dict:
     # 훨씬 크다. 지금까지는 확정 구간을 GAAP 으로, 추정 구간을 조정 컨센으로
     # 그려서 그 경계에서 선이 인위적으로 꺾였다. 기준마다 과거·미래를 한 기준
     # 으로 맞춰 따로 그리고, 화면에서 고르게 한다.
+    adjusted = _adjusted(quarters, con)
     bases = {}
-    for name, qs in (("gaap", quarters), ("adjusted", _adjusted(quarters, con))):
+    for name, qs in (("gaap", quarters), ("adjusted", adjusted)):
         if not qs:
             continue
         bases[name] = _one_basis(name, qs, con, fy_ends, dates, close)
@@ -93,7 +94,8 @@ def build(ticker: str) -> dict:
     if not bases:
         out["notes"].append("EPS 계열을 만들지 못해 forward PER 을 그릴 수 없습니다.")
         out["per"] = None
-        _attach_forecast(out, con, quarters, fy_ends)
+        _attach_forecast(out, con, quarters, fy_ends, adjusted)
+        out["ev"] = _ev(facts, con, fy_ends, dates, close)
         return out
 
     # 기본은 조정 — 컨센과 같은 기준이라 경계에서 선이 안 꺾인다.
@@ -105,12 +107,29 @@ def build(ticker: str) -> dict:
         out["notes"].append(
             "조정(non-GAAP) EPS 이력을 못 받아 GAAP 으로만 그립니다 — 추정 구간은 "
             "조정 기준 컨센이라 그 경계에서 선이 꺾일 수 있습니다.")
-    _attach_forecast(out, con, quarters, _fy_ends(facts))
+    _attach_forecast(out, con, quarters, fy_ends, adjusted)
+    out["ev"] = _ev(facts, con, fy_ends, dates, close)
     return out
 
 
+def _ev(facts: dict, con: dict, fy_ends: list[str], dates: list[str],
+        close: list[float]) -> dict | None:
+    """EV/EBITDA 묶음 — 실패해도 PER 화면을 죽이지 않는다.
+
+    재료가 하나 더 많다(재무상태표). 태그가 회사마다 달라 못 만드는 종목이
+    반드시 생기는데, 그때 페이지 전체가 500 이 되면 안 된다. 이유를 담은
+    딕셔너리로 돌려주고 화면이 그 이유를 보여 준다.
+    """
+    if not dates:
+        return {"error": "주가를 받지 못해 EV/EBITDA 를 그릴 수 없습니다."}
+    try:
+        return evebitda.build(facts, con, fy_ends, dates, close)
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"EV/EBITDA 를 만들지 못했습니다({type(e).__name__}: {e})."}
+
+
 def _attach_forecast(out: dict, con: dict, quarters: list[dict],
-                     fy_ends: list[str]) -> None:
+                     fy_ends: list[str], adjusted: list[dict] | None = None) -> None:
     """항목마다 컨센 칸을 붙인다 — 확정 실적 오른쪽에 이어 붙을 것들.
 
     기간 이름을 야후는 0q/+1q/0y/+1y 라는 **상대 이름**으로만 준다. 실제
@@ -148,11 +167,67 @@ def _attach_forecast(out: dict, con: dict, quarters: list[dict],
     for label, make in plans.items():
         if label in out["metrics"]:
             out["metrics"][label]["estimates"] = make()
+    _eps_bases(out, con, quarters, adjusted or [], q_ends, y_ends)
     out["forecast_note"] = (
         "컨센은 야후에서 받습니다 — 실측(2026-09-17, 4종목)으로 **매출과 EPS 만**, "
         "**앞으로 두 분기와 두 회계연도**까지 나옵니다. 영업이익 컨센은 무료 출처가 "
         "없고, 순이익은 EPS 컨센에 최근 주식수를 곱해 만든 계산값입니다. "
         "내후년 칸은 자리를 비워 둡니다.")
+
+
+def _eps_bases(out: dict, con: dict, quarters: list[dict], adjusted: list[dict],
+               q_ends: list[str], y_ends: list[str]) -> None:
+    """실적 표의 희석EPS 칸도 **기준마다 따로** 만든다.
+
+    차트는 이미 GAAP·조정을 따로 그리는데 표는 한 줄뿐이었다. 그 한 줄이
+    **확정은 GAAP, 추정은 조정 컨센**이라 기준이 섞여 있었다 — 차트에서 없앤
+    바로 그 문제가 표에 남아 있었던 것이다. 주식보상이 큰 회사는 그 경계에서
+    값이 껑충 뛴다.
+
+    그래서 두 벌을 만들어 화면이 고르게 한다. 재료는 차트가 쓰던 것과 **같다**.
+
+      GAAP     EDGAR 희석 EPS. **컨센 칸은 비운다** — 애널리스트는 GAAP 을
+               추정하지 않는다. 비우는 대신 이유를 적고 조정 탭을 가리킨다.
+      조정      야후 ``Reported EPS``(회사가 보도자료에서 발표하는 값) +
+               야후 컨센. 확정과 추정이 **같은 기준**이라 경계가 매끈하다.
+    """
+    m = out["metrics"].get("희석EPS")
+    if m is None:
+        return
+    gaap_rows = m.get("quarters") or []
+    adj_rows = fundamentals.with_growth(
+        [{"end": q["end"], "val": q["val"]} for q in adjusted][-TABLE_QUARTERS:])
+
+    bases = {}
+    if gaap_rows:
+        bases["gaap"] = {
+            "label": BASIS_LABEL["gaap"], "source": "보고값(EDGAR 희석 EPS)",
+            "quarters": gaap_rows, "count": len(gaap_rows),
+            "latest": gaap_rows[-1]["end"],
+            "estimates": consensus.empty_forecast(
+                "애널리스트는 GAAP EPS 를 추정하지 않습니다 — 컨센은 회사가 "
+                "보도자료에서 발표하는 **조정(non-GAAP)** 기준입니다. 여기에 그 "
+                "값을 붙이면 확정은 GAAP, 추정은 조정이 되어 기준이 섞입니다. "
+                "추정치는 **조정 탭**에서 보세요.")}
+    if adj_rows:
+        bases["adjusted"] = {
+            "label": BASIS_LABEL["adjusted"],
+            "source": "야후 발표 EPS(회사 보도자료 기준 · 컨센과 같은 기준)",
+            "quarters": adj_rows, "count": len(adj_rows),
+            "latest": adj_rows[-1]["end"],
+            "estimates": consensus.forecast(con, "eps", q_ends, y_ends)}
+    if not bases:
+        return
+
+    default = "adjusted" if "adjusted" in bases else "gaap"
+    m["bases"] = bases
+    m["basis"] = default
+    # 기준을 모르는 클라이언트도 **섞이지 않은** 한 벌을 보게 한다.
+    for key in ("quarters", "source", "estimates", "count", "latest"):
+        m[key] = bases[default][key]
+    m["basis_note"] = (
+        "GAAP 과 조정(non-GAAP)은 다른 값입니다. 조정 쪽이 컨센과 같은 기준이라 "
+        "확정→추정 경계가 매끈하고, GAAP 쪽은 컨센이 없어 추정 칸이 비어 있습니다.")
 
 
 def _adjusted(quarters: list[dict], con: dict) -> list[dict]:

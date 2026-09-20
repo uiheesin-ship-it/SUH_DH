@@ -275,74 +275,92 @@ def _series(rows: dict[str, dict], limit: int) -> list[dict]:
     return [rows[e] for e in sorted(rows)][-limit:]
 
 
+def _metric(facts: dict, tags, annual_tags=None, mode="sum") -> dict[str, dict]:
+    """분기 사실 + 10-K 역산으로 한 항목의 분기 계열을 만든다."""
+    q = collect(facts, tags, *QUARTER_DAYS)
+    if not q:
+        return {}
+    a = collect(facts, annual_tags or tags, *ANNUAL_DAYS)
+    return derive_q4(q, a, mode)
+
+
+def revenue_rows(facts: dict) -> tuple[dict[str, dict], str]:
+    """매출 분기 계열 — 세 가지 방법을 **다 만들어 보고** 고른다.
+
+    순서대로 시도하다 첫 성공에서 멈추면 안 된다. 은행은 일반 매출 태그를
+    옛날에 잠깐 쓰다 버리는 일이 흔해서, 그걸 잡고 멈추면 조용히 몇 년 전에서
+    끊긴다(JPM 2014, WFC 2020, MS 2018).
+    """
+    parts_q = _sum_parts(facts, BANK_REVENUE_PARTS, *QUARTER_DAYS)
+    parts = derive_q4(parts_q, _sum_parts(facts, BANK_REVENUE_PARTS, *ANNUAL_DAYS)) \
+        if parts_q else {}
+    return _fresher(
+        (_metric(facts, REVENUE_TAGS), "보고값"),
+        (_metric(facts, BANK_REVENUE_TOTAL), "보고값(총수익)"),
+        (parts, "계산값(순이자이익+비이자이익)"))
+
+
+def da_rows(facts: dict) -> tuple[dict[str, dict], str]:
+    """감가상각 분기 계열 — 보고된 분기값을 깔고 **빈 자리만** 누적 차분으로.
+
+    D&A 는 분기 태그가 드물다(실측 21분기 중 6~10개). 둘 중 하나만 쓰면
+    EBITDA 가 짧아진다(AAPL 은 보고값이 6개뿐이라 EBITDA 가 9분기에서 끊겼다).
+    """
+    reported = collect(facts, DA_TAGS, *QUARTER_DAYS)
+    ytd = quarterly_from_ytd(facts, DA_TAGS)
+    da = {**ytd, **reported}            # 겹치면 보고값이 이긴다
+    if reported and ytd:
+        return da, "보고값+누적 차분"
+    if reported:
+        return da, "보고값"
+    if ytd:
+        return da, "누적 차분"
+    return {}, "없음"
+
+
+def ebitda_rows(facts: dict) -> tuple[dict[str, dict], str]:
+    """EBITDA = 영업이익 + 감가상각. **Adjusted EBITDA 가 아니다.**
+
+    비GAAP 이라 XBRL 에 없고(실측 4종목 전부 고유 태그 0개) 회사마다 무엇을
+    빼는지 정의가 다르다. 주식기준보상도 되돌리지 않는다 — 비용으로 차감된
+    상태다.
+    """
+    operating = _metric(facts, OPERATING_TAGS)
+    da, da_source = da_rows(facts)
+    out = {}
+    for end, op in operating.items():
+        d = da.get(end)
+        if d is None:
+            continue
+        out[end] = {"end": end, "start": op["start"],
+                    "val": op["val"] + d["val"],
+                    "first_val": op["first_val"] + d["first_val"],
+                    "first_filed": max(op["first_filed"], d["first_filed"]),
+                    "last_filed": max(op["last_filed"], d["last_filed"]),
+                    "form": op.get("form"), "tag": "OperatingIncomeLoss + D&A",
+                    "derived": "영업이익+감가상각"}
+    return out, f"계산값(영업이익+감가상각, 감가상각은 {da_source})"
+
+
 def build_metrics(facts: dict, quarters: int = 20) -> dict:
     """companyfacts → 항목별 분기 시계열.
 
     항목마다 **어디서 온 값인지**를 같이 싣는다(``source``). 계산값을 보고값처럼
     보여 주면 안 되기 때문이다 — 특히 EBITDA 는 "Adjusted EBITDA" 가 아니다.
     """
-    ann = collect(facts, NET_INCOME_TAGS, *ANNUAL_DAYS)
-
-    def metric(tags, label, annual_tags=None, mode="sum"):
-        q = collect(facts, tags, *QUARTER_DAYS)
-        if q:
-            a = collect(facts, annual_tags or tags, *ANNUAL_DAYS)
-            q = derive_q4(q, a, mode)
-        return q
-
-    # 매출은 세 가지 방법으로 만들 수 있다. **셋 다 만들어 보고 가장 최근까지
-    # 이어지는 것을 쓴다.** 순서대로 시도하다 첫 성공에서 멈추면 안 된다 —
-    # 은행은 일반 매출 태그를 옛날에 잠깐 쓰다 버리는 일이 흔해서, 그걸 잡고
-    # 멈추면 조용히 몇 년 전에서 끊긴다(JPM 2014, WFC 2020, MS 2018).
-    parts_q = _sum_parts(facts, BANK_REVENUE_PARTS, *QUARTER_DAYS)
-    parts = derive_q4(parts_q, _sum_parts(facts, BANK_REVENUE_PARTS, *ANNUAL_DAYS)) \
-        if parts_q else {}
-    revenue, rev_source = _fresher(
-        (metric(REVENUE_TAGS, "매출"), "보고값"),
-        (metric(BANK_REVENUE_TOTAL, "매출"), "보고값(총수익)"),
-        (parts, "계산값(순이자이익+비이자이익)"))
-
-    operating = metric(OPERATING_TAGS, "영업이익")
-    net = metric(NET_INCOME_TAGS, "순이익")
-    eps = metric(EPS_TAGS, "희석EPS")
+    revenue, rev_source = revenue_rows(facts)
+    operating = _metric(facts, OPERATING_TAGS)
+    net = _metric(facts, NET_INCOME_TAGS)
+    eps = _metric(facts, EPS_TAGS)
     # 주식수는 **평균**이다 — 연간에서 세 분기를 그냥 빼면 음수가 된다.
-    shares = metric(SHARES_TAGS, "가중평균주식수", mode="mean")
-
-    # D&A 는 분기 태그가 드물다(실측 21분기 중 6~10개). 보고된 분기값을 먼저
-    # 깔고 **빈 자리만** 누적 차분으로 메운다 — 둘 중 하나만 쓰면 EBITDA 가
-    # 짧아진다(AAPL 은 보고값이 6개뿐이라 EBITDA 가 9분기에서 끊겼다).
-    reported = collect(facts, DA_TAGS, *QUARTER_DAYS)
-    ytd = quarterly_from_ytd(facts, DA_TAGS)
-    da = {**ytd, **reported}            # 겹치면 보고값이 이긴다
-    if reported and ytd:
-        da_source = "보고값+누적 차분"
-    elif reported:
-        da_source = "보고값"
-    elif ytd:
-        da_source = "누적 차분"
-    else:
-        da_source = "없음"
-
-    # EBITDA = 영업이익 + 감가상각. **Adjusted EBITDA 가 아니다** — 비GAAP 이라
-    # XBRL 에 없고(실측 4종목 전부 고유 태그 0개), 회사마다 정의가 다르다.
-    ebitda = {}
-    for end, op in operating.items():
-        d = da.get(end)
-        if d is None:
-            continue
-        ebitda[end] = {"end": end, "start": op["start"],
-                       "val": op["val"] + d["val"],
-                       "first_val": op["first_val"] + d["first_val"],
-                       "first_filed": max(op["first_filed"], d["first_filed"]),
-                       "last_filed": max(op["last_filed"], d["last_filed"]),
-                       "form": op.get("form"), "tag": "OperatingIncomeLoss + D&A",
-                       "derived": "영업이익+감가상각"}
+    shares = _metric(facts, SHARES_TAGS, mode="mean")
+    ebitda, ebitda_source = ebitda_rows(facts)
 
     out = {
         "매출": (revenue, rev_source),
         "영업이익": (operating, "보고값" if operating else "없음(은행·보험은 개념 없음)"),
         "순이익": (net, "보고값"),
-        "EBITDA": (ebitda, f"계산값(영업이익+감가상각, 감가상각은 {da_source})"),
+        "EBITDA": (ebitda, ebitda_source),
         "희석EPS": (eps, "보고값"),
         "가중평균주식수": (shares, "보고값"),
     }

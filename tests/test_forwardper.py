@@ -262,3 +262,16 @@ def test_a_year_already_over_its_estimate_is_left_empty():
     filled = F.fill_estimates(ends, {"0y": 200.0}, FY, known)
     assert filled["2026-12-31"]["val"] is None
     assert "넘었습니다" in filled["2026-12-31"]["note"]
+
+
+def test_발표일_이름표는_시장마다_다르다():
+    """규칙은 같지만 그 자리에 들어오는 것이 다르다 — 국장은 DART 잠정실적이다."""
+    qs = [{"end": "2025-03-31", "val": 1.0, "first_filed": "2025-05-14"}]
+    got = F.match_announcements(qs, ["2025-04-29"],
+                                source="잠정실적 공시일(DART)",
+                                fallback="정기보고서 접수일(DART)")
+    assert got[0]["announced"] == "2025-04-29"
+    assert got[0]["announced_source"] == "잠정실적 공시일(DART)"
+    none = F.match_announcements(qs, [], source="잠정실적 공시일(DART)",
+                                 fallback="정기보고서 접수일(DART)")
+    assert none[0]["announced_source"] == "정기보고서 접수일(DART)"

@@ -11,8 +11,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import (__version__, backlog, breadth, charts, correl, earnings, kr, news,
-               quarterly, screener)
+from . import (__version__, backlog, breadth, buildinfo, charts, correl,
+               earnings, kr, krquarterly, news, quarterly, screener)
 from .base import get_screen as base_get_screen
 from .flat import get_screen as flat_get_screen
 from .turnaround import get_screen as turnaround_get_screen
@@ -71,6 +71,9 @@ def health():
     return {
         "status": "ok", "version": __version__, "demo": screener._demo(),
         "regime": {"ok": _REGIME_ERROR is None, "error": _REGIME_ERROR},
+        # 지금 도는 코드가 어느 것인지. `git pull` 만 하고 재시작을 안 하면
+        # 화면에 새 칸이 조용히 안 나오는데, 여기 한 줄이면 바로 갈린다.
+        "backend": buildinfo.info(),
     }
 
 
@@ -351,13 +354,34 @@ def fundamentals_for(ticker: str):
     companyfacts 는 분기에 한 번 바뀌므로 길게 캐시된다(app/secdata.py).
     """
     try:
-        return quarterly.build(ticker)
+        # 지금 도는 서버가 디스크의 코드와 같은지 화면이 알 수 있게 같이 싣는다.
+        # `git pull` 만 하고 재시작을 안 하면 새 칸이 조용히 안 나오는데, 그때
+        # 화면이 짐작 대신 사실로 말할 수 있어야 한다(app/buildinfo.py).
+        return {**quarterly.build(ticker), "backend": buildinfo.info()}
     except LookupError as e:
         return JSONResponse(status_code=404, content={"error": str(e)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse(
             status_code=502,
             content={"error": f"{ticker} 실적을 불러오지 못했습니다.", "detail": str(e)},
+        )
+
+
+@app.get("/api/kr/fundamentals/{code}")
+def kr_fundamentals_for(code: str):
+    """국장 한 종목의 분기 실적 표 + 12M forward PER 차트.
+
+    미장과 **같은 모양**으로 낸다 — 같은 화면이 그린다. 재료만 다르다:
+    실적·발표일은 DART, 컨센은 네이버, 주가는 네이버/KRX.
+    """
+    try:
+        return {**krquarterly.build(code), "backend": buildinfo.info()}
+    except LookupError as e:
+        return JSONResponse(status_code=404, content={"error": str(e)})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse(
+            status_code=502,
+            content={"error": f"{code} 실적을 불러오지 못했습니다.", "detail": str(e)},
         )
 
 

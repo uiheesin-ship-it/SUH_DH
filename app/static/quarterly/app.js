@@ -18,15 +18,44 @@ const fmtBig = (v) => {
 };
 const fmtPct = (v) => (v === null || v === undefined ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%");
 
+/* 백엔드가 보내는 설명 문장의 **강조**를 굵게 바꾼다.
+ *
+ * 파이썬 쪽 문장은 로그·프로브에서도 그대로 읽히므로 마크다운 표기를 쓴다.
+ * 그런데 화면은 그걸 innerHTML 에 그냥 넣고 있어서 별표가 **그대로 찍혔다.**
+ * 여기서 한 번만 바꾼다. 우리 문장이라 이스케이프는 하지 않는다.
+ */
+const md = (t) => (t == null ? "" : String(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>"));
+
+/* 원화는 조·억으로 읽는다.
+ *
+ * 국장 금액을 B/M 로 보여 주면 읽을 수가 없다(삼성전자 분기 매출 86.06B 원).
+ * 조·억은 한국에서 실제로 쓰는 자릿수라 그대로 쓴다.
+ */
+const fmtKrw = (v) => {
+  if (v === null || v === undefined) return "—";
+  const a = Math.abs(v);
+  if (a >= 1e12) return (v / 1e12).toFixed(2) + "조";
+  if (a >= 1e8) return (v / 1e8).toFixed(0) + "억";
+  if (a >= 1e4) return (v / 1e4).toFixed(1) + "만";
+  return v.toFixed(0);
+};
+
 let DATA = null;
+let MARKET = "us";               // "us" | "kr"
+const isKR = () => MARKET === "kr";
 
 /* ------------------------------------------------------------------ 불러오기 */
 async function load(ticker) {
   const t = (ticker || "").trim().toUpperCase();
   if (!t) return;
+  if (isKR() && !/^\d{6}$/.test(t)) {
+    fail("국장은 **여섯 자리 종목코드**로 찾습니다.",
+         "예: 삼성전자 005930 · SK하이닉스 000660 · NAVER 035420");
+    return;
+  }
   $("status").textContent = `${t} 불러오는 중…`;
   $("empty").classList.add("hidden");
-  history.replaceState(null, "", `?t=${encodeURIComponent(t)}`);
+  history.replaceState(null, "", `?t=${encodeURIComponent(t)}&m=${MARKET}`);
 
   if (STATIC && !API_BASE) {
     fail("이 페이지는 티커를 입력받은 뒤에 EDGAR·야후에서 직접 받아 옵니다. " +
@@ -34,7 +63,8 @@ async function load(ticker) {
     return;
   }
   try {
-    const r = await fetch(`${API_BASE}/api/fundamentals/${encodeURIComponent(t)}`,
+    const path = isKR() ? "/api/kr/fundamentals/" : "/api/fundamentals/";
+    const r = await fetch(`${API_BASE}${path}${encodeURIComponent(t)}`,
                           { cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || j.error) { fail(...explain(r, j)); return; }
@@ -79,35 +109,65 @@ function fail(msg, detail) {
 /* -------------------------------------------------------------------- 그리기 */
 function render(d) {
   DATA = d;                 // 오버라이드 저장 키가 티커를 알아야 한다
+  MARKET = d.market === "kr" ? "kr" : "us";
+  syncMarket();
   $("status").textContent = `${d.ticker} · ${d.name || ""}`;
   const bits = [`<b>${d.name || d.ticker}</b>`];
   if (d.sic) bits.push(d.sic);
   if (d.cik) bits.push(`CIK ${d.cik}`);
+  if (d.corp_code) bits.push(`DART ${d.corp_code}`);
+  if (isKR()) bits.push("단위 원");
+  if (d.backend && d.backend.rev) {
+    // 브랜치까지 적는다 — "pull 했는데 왜 그대로지" 의 진짜 원인이 대개 이것이다.
+    bits.push(`서버 ${d.backend.branch ? d.backend.branch + " " : ""}${d.backend.rev}`);
+  }
   if (d.fiscal_year_end) bits.push(`결산 ${d.fiscal_year_end}`);
   let head = bits.join(" · ");
-  for (const n of d.notes || []) head += `<span class="warn">⚠ ${n}</span>`;
+  for (const n of d.notes || []) head += `<span class="warn">⚠ ${md(n)}</span>`;
 
-  // 서버가 옛 코드로 돌고 있으면 화면이 스스로 말한다.
+  // 서버가 옛 코드로 돌고 있으면 화면이 **사실로** 말한다.
   //
   // JS·CSS 는 디스크에서 매번 읽히지만 파이썬은 **서버가 뜰 때 메모리에** 올라간다.
-  // 그래서 git pull 만 하고 재시작을 안 하면 화면은 새것, 백엔드는 옛것이 된다.
-  // 겉으로는 "왜 새 칸이 안 나오지?" 로만 보여서 원인을 찾기가 어렵다.
-  const ms = Object.values(d.metrics || {});
-  if (ms.some((m) => (m.quarters || []).length) && !ms.some((m) => m.estimates)) {
-    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b> — 컨센(추정) 칸이
-      안 나옵니다. 코드는 받았는데 <b>서버를 다시 안 띄운</b> 것입니다.
-      서버 창에서 <b>Ctrl+C</b> → <b>./run.sh</b> 로 다시 띄우세요.
-      (왼쪽 위 <b>💻 로컬 실행법</b>)</span>`;
+  // git pull 만 하고 재시작을 안 하면 화면은 새것, 백엔드는 옛것이 된다. 겉으로는
+  // "왜 새 칸이 안 나오지?" 로만 보여서 매번 한참 헤맸다.
+  //
+  // 예전에는 "컨센 칸이 없으면 옛 코드겠거니" 로 **짐작**했다. 그러면 그 기능만
+  // 잡고 다음 기능은 또 못 잡는다. 이제 백엔드가 뜬 시각과 파일 수정 시각을 같이
+  // 보내므로(app/buildinfo.py) 시계 두 개를 비교해 확실히 안다.
+  const bi = d.backend;
+  if (bi && bi.stale) {
+    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b> —
+      코드 파일이 서버보다 <b>${bi.stale_by_min}분</b> 새것입니다.
+      <code>git pull</code> 은 됐는데 <b>서버를 다시 안 띄운</b> 것입니다.
+      서버 창에서 <b>Ctrl+C</b> → <b>./run.sh</b>.
+      그래도 그대로면 브라우저에서 <b>Ctrl+Shift+R</b>(강력 새로고침).
+      <small>서버 시작 ${(bi.started_at || "").replace("T", " ").slice(0, 16)} ·
+      코드 ${(bi.code_mtime || "").replace("T", " ").slice(0, 16)}</small></span>`;
+  } else if (!bi) {
+    // backend 자체가 안 오면 그 기능이 생기기 전 코드다 — 그것도 옛 코드다.
+    head += `<span class="warn">⚠ <b>서버가 옛 코드로 돌고 있습니다</b>(버전 정보를
+      안 보냅니다). <code>git pull</code> 후 서버 창에서 <b>Ctrl+C</b> →
+      <b>./run.sh</b> 로 다시 띄우세요. (왼쪽 위 <b>💻 로컬 실행법</b>)</span>`;
   }
   $("head").innerHTML = head;
 
+  // 표의 기준은 차트 기본값을 따른다. 응답에 차트가 없어도(표만 나오는 종목)
+  // 표 자체가 기준을 알고 있으므로 거기서 받는다.
+  BASIS = d.per_basis || (d.metrics && d.metrics["희석EPS"] || {}).basis || "gaap";
   renderMetrics(d.metrics || {}, d.forecast_note);
   $("table-sec").classList.remove("hidden");
 
+  EV_DATA = d.ev || null;
+  // 새 종목은 **처음부터** 본다. showBasis 는 보던 창을 지키는데(기준을 바꿔도
+  // 카메라가 안 움직여야 하므로), 그게 종목을 바꿀 때까지 이어지면 안 된다.
+  VIEW = null;
   if (d.per && d.per.dates && d.per.dates.length) {
-    BASES = d.per_bases || { [d.per_basis || "gaap"]: d.per };
-    drawChart(d.per);
-    showBasis(d.per_basis || Object.keys(BASES)[0]);
+    BASES = d.per_bases || { [BASIS]: d.per };
+    showMetric("per");
+    $("chart-sec").classList.remove("hidden");
+  } else if (EV_DATA && EV_DATA.dates) {
+    BASES = {};
+    showMetric("ev");
     $("chart-sec").classList.remove("hidden");
   } else {
     $("chart-sec").classList.add("hidden");
@@ -137,10 +197,23 @@ function growth(vals) {
 
 const YEAR_FALLBACK = ["올해", "내년", "내후년"];
 
+/* 기준이 여러 벌인 항목은 **고른 기준의 자료**를 쓴다.
+ *
+ * 희석EPS 가 그렇다. 차트는 진작 GAAP·조정을 따로 그렸는데 표는 한 줄이었고,
+ * 그 한 줄이 확정은 GAAP·추정은 조정 컨센이라 기준이 섞여 있었다 — 차트에서
+ * 없앤 바로 그 문제다. 기준은 차트 토글과 **같은 값**을 쓴다. 한 페이지에
+ * 기준이 두 개 떠 있으면 어느 쪽을 보고 있는지 알 수가 없다.
+ */
+function basisOf(m) {
+  if (!m.bases) return m;
+  return m.bases[BASIS] || m.bases[m.basis] || Object.values(m.bases)[0];
+}
+
 function renderMetrics(metrics, note) {
   const out = [];
   for (const label of Object.keys(metrics)) {
-    const m = metrics[label];
+    const m0 = metrics[label];
+    const m = { ...m0, ...basisOf(m0) };
     const qs = m.quarters || [];
     const est = m.estimates || { quarters: [], years: [] };
     const eq = est.quarters || [];
@@ -151,8 +224,10 @@ function renderMetrics(metrics, note) {
       continue;
     }
     const isRatio = label.includes("EPS");
+    // 국장은 원 단위다 — EPS 는 원 단위 정수, 금액은 조·억.
     const fmt = (v) => (v === null || v === undefined ? "—"
-                        : isRatio ? v.toFixed(2) : fmtBig(v));
+                        : isRatio ? (isKR() ? Math.round(v).toLocaleString() : v.toFixed(2))
+                        : isKR() ? fmtKrw(v) : fmtBig(v));
 
     // 확정 + 추정 분기를 이어 붙여 성장률을 한 번에
     const series = [...qs.map((q) => q.val), ...eq.map((q) => q.val)];
@@ -188,13 +263,25 @@ function renderMetrics(metrics, note) {
         return td(c, i, isPct ? pct(v) : fmt(v), cls);
       }).join("") + "</tr>";
 
-    const why = est.reason ? `<p class="note">⚠ ${est.reason}</p>` : "";
+    const why = est.reason ? `<p class="note">⚠ ${md(est.reason)}</p>` : "";
+    // 기준이 여러 벌이면 제목 옆에서 고른다. 차트 토글과 같은 값을 움직인다.
+    // 차트 토글과 **같은 순서**로 둔다 — 같은 개념이 자리를 바꾸면 눈이 헤맨다.
+    const ORDER = ["adjusted", "gaap"];
+    const names = Object.keys(m0.bases || {})
+      .sort((a, b) => (ORDER.indexOf(a) + 1 || 9) - (ORDER.indexOf(b) + 1 || 9));
+    const picker = names.length < 2 ? "" :
+      `<span class="mbasis">${names.map((n) =>
+        `<button class="mb${n === BASIS ? " on" : ""}" data-basis="${n}"
+           title="${(m0.bases[n].label || "").replace(/"/g, "")}">${
+          n === "adjusted" ? "조정" : n === "gaap" ? "GAAP" : n}</button>`).join("")}</span>`;
     out.push(`<div class="mtable">
-      <h3>${label} <span class="src">${m.source}</span>
+      <h3>${label} ${picker}<span class="src">${m.source}</span>
         ${est.source && est.source !== "없음"
           ? `<span class="src est-src">컨센: ${est.source}</span>` : ""}</h3>
-      ${m.note ? `<p class="note">⚠ ${m.note}</p>` : ""}
-      ${m.warning ? `<p class="note">⚠ ${m.warning}</p>` : ""}
+      ${m0.basis_note && names.length > 1
+        ? `<p class="note">${md(m0.basis_note)}</p>` : ""}
+      ${m.note ? `<p class="note">⚠ ${md(m.note)}</p>` : ""}
+      ${m.warning ? `<p class="note">⚠ ${md(m.warning)}</p>` : ""}
       ${why}
       <div class="scroll-hint">← 왼쪽으로 굴리면 과거 분기 · 오른쪽 끝이 컨센 칸입니다</div>
       <div class="table-wrap"><table>
@@ -210,7 +297,7 @@ function renderMetrics(metrics, note) {
       </table></div></div>`);
   }
   $("metrics").innerHTML =
-    (note ? `<p class="sec-desc forecast-note">${note}</p>` : "") + out.join("");
+    (note ? `<p class="sec-desc forecast-note">${md(note)}</p>` : "") + out.join("");
 
   // 표를 **오른쪽 끝으로 밀어 둔다.**
   //
@@ -218,9 +305,25 @@ function renderMetrics(metrics, note) {
   // 컨센 칸은 맨 오른쪽이라 한참 굴려야 나오고, 그래서 "추정치 칸이 안 보인다"
   // 가 된다. 최근 분기와 컨센이 먼저 보이는 게 맞다 — 과거를 보고 싶으면
   // 왼쪽으로 굴리면 된다.
-  document.querySelectorAll("#metrics .table-wrap").forEach((el) => {
-    el.scrollLeft = el.scrollWidth;
-  });
+  // **레이아웃이 끝난 뒤에** 민다. innerHTML 직후에는 scrollWidth 가 아직
+  // 제자리를 못 잡아 첫 로드에서만 안 밀리는 일이 있었다(그게 "추정치 칸이 안
+  // 보여" 의 남은 절반이었다). 다음 프레임에 한 번 더 민다.
+  const toRight = () => document.querySelectorAll("#metrics .table-wrap")
+    .forEach((el) => { el.scrollLeft = el.scrollWidth; });
+  toRight();
+  requestAnimationFrame(toRight);
+  document.querySelectorAll("#metrics .mb").forEach((b) =>
+    b.onclick = () => setBasis(b.dataset.basis));
+}
+
+/* 기준 하나를 페이지 전체에 건다 — 차트와 표가 따로 놀면 안 된다. */
+function setBasis(name) {
+  if (BASIS === name) return;
+  BASIS = name;
+  if (DATA) renderMetrics(DATA.metrics || {}, DATA.forecast_note);
+  if (BASES[name]) showBasis(name);
+  else document.querySelectorAll(".eb").forEach((b) =>
+    b.classList.toggle("on", b.dataset.basis === name));
 }
 
 /* ------------------------------------------------- 분기 EPS 손으로 고치기
@@ -396,9 +499,12 @@ const PER_FLOOR = 0, PER_CEIL = 50;  // PER 축 기본 창
  * 궁금하면 창을 **위로 옮겨** 본다. 창 밖으로 나간 선은 지우지 않고 잘라낸다
  * (clipPath) — 위로 뚫고 나가는 게 보여야 "여긴 벗어났구나"를 안다.
  */
-let PER_DATA = null;
+let PER_DATA = null;     // 지금 그리고 있는 계열(PER 이든 EV/EBITDA 든)
 let VIEW = null;
 let BASES = {};          // {"gaap": 차트, "adjusted": 차트}
+let EV_DATA = null;      // EV/EBITDA 계열(또는 {error})
+let METRIC = "per";      // "per" | "ev"
+let BASIS = "gaap";
 
 /* EPS 기준을 바꾼다 — 다시 받지 않고 이미 받아 둔 계열을 갈아 끼운다.
  *
@@ -423,6 +529,51 @@ function showBasis(name) {
   if (keep) { VIEW = keep; clampView(); redraw(); }
 }
 
+/* 지표 갈아 끼우기 — PER ↔ EV/EBITDA.
+ *
+ * 두 계열은 모양이 같다(dates·close·per_confirmed·per_estimated·marks). 그래서
+ * 그리는 코드는 하나만 두고 여기서 무엇을 그릴지만 고른다. 다른 점은 세 가지다:
+ * 축 기본 창(PER 0–50 / EV 0–30), 아래 설명, 그리고 **분기 EPS 수동 수정은
+ * PER 에만 있다**(EBITDA 는 손으로 고칠 대상이 아니다).
+ */
+function showMetric(name) {
+  const evOk = EV_DATA && EV_DATA.dates && EV_DATA.dates.length;
+  if (name === "ev" && !evOk) name = "per";
+  if (name === "per" && !Object.keys(BASES).length) name = evOk ? "ev" : "per";
+  if (METRIC !== name) VIEW = null;      // 지표가 바뀌면 축이 달라진다(0–50 / 0–30)
+  METRIC = name;
+  document.querySelectorAll(".mt").forEach((b) => {
+    const isEv = b.dataset.metric === "ev";
+    b.classList.toggle("on", b.dataset.metric === name);
+    b.disabled = isEv ? !evOk : !Object.keys(BASES).length;
+    b.title = isEv && !evOk
+      ? ((EV_DATA && EV_DATA.error) || "이 종목은 EV/EBITDA 를 만들 수 없습니다")
+      : "";
+  });
+  // 못 그리는 이유는 **보이게** 적는다. 비활성 버튼의 title 은 아무도 안 본다.
+  $("metric-note").textContent = evOk ? ""
+    : (EV_DATA && EV_DATA.error ? `EV/EBITDA 없음 — ${EV_DATA.error}` : "");
+  $("basis-group").classList.toggle("hidden", name !== "per");
+  $("axis-label").textContent = name === "ev" ? "배수 축" : "PER 축";
+  $("chart-title").textContent = name === "ev"
+    ? "주가 × 12M Forward EV/EBITDA" : "주가 × 12M Forward PER";
+  $("chart-desc").innerHTML = name === "ev"
+    ? `EV 는 <b>주가 × 발행주식수 + 총차입금 − 현금성자산 + 비지배지분 + 우선주</b>
+       입니다. 재무상태표는 분기에 한 번 바뀌므로 <b>실적발표일마다</b> 계단을 밟고
+       그 사이에는 주가만 움직입니다. <b>EBITDA 컨센은 무료 출처가 없어</b>
+       점선 구간은 <b>매출 컨센 × 최근 EBITDA 마진</b>으로 만든 <b>가정치</b>입니다.`
+    : `계단은 <b>실적발표일</b>에 밟습니다. 기준일(분기말)에 밟으면 아직 공개되지
+       않은 실적으로 그 사이 주가를 나누게 됩니다.
+       <b>실선 = 확정 실적</b>만으로 계산된 구간,
+       <b>점선 = 컨센서스가 섞인</b> 구간입니다.`;
+  if (name === "ev") {
+    $("edit-sec").classList.add("hidden");
+    drawChart(EV_DATA);
+  } else {
+    showBasis(BASES[BASIS] ? BASIS : Object.keys(BASES)[0]);
+  }
+}
+
 function clampView() {
   const n = PER_DATA.dates.length;
   let span = Math.round(VIEW.i1 - VIEW.i0);
@@ -444,9 +595,22 @@ function setMonths(m) {
   redraw();
 }
 
+function axisOf(per) {
+  return (per && per.axis) || [PER_FLOOR, PER_CEIL];
+}
+
 function drawChart(per) {
   PER_DATA = per;
-  VIEW = { i0: 0, i1: per.dates.length - 1, perLo: PER_FLOOR, perHi: PER_CEIL };
+  const ax = axisOf(per);
+  VIEW = { i0: 0, i1: per.dates.length - 1, perLo: ax[0], perHi: ax[1] };
+  if (per.metric === "ev") {
+    // EBITDA 는 손으로 고치는 대상이 아니다 — PER 의 오버라이드를 끌고 오면
+    // 엉뚱한 분기 값이 섞인다.
+    OVERRIDE = {};
+    redraw();
+    wire();
+    return;
+  }
   loadOverrides();
   if (Object.keys(OVERRIDE).length) {
     const { conf, est } = perFromOverrides(per);
@@ -544,28 +708,146 @@ function redraw() {
   $("per-range").textContent = `${fmtP(perLo)} – ${fmtP(perHi)}`;
   syncButtons();
 
+  renderMarks(per);
+  renderLegend(per);
+}
+
+/* 차트 아래 설명줄. 지표마다 할 말이 다르다.
+ *
+ * PER 은 "향후 4분기 EPS 를 어떻게 채웠나"가 궁금하고, EV/EBITDA 는 거기에
+ * **EV 를 무엇으로 만들었나**가 더 붙는다 — 회사마다 태그가 달라서 어떤 항목이
+ * 잡혔고 어떤 항목이 아예 없었는지 보여 주지 않으면 조용한 0 이 된다.
+ */
+function renderMarks(per) {
   const last = (per.marks || [])[per.marks.length - 1];
+  const unit = per.metric === "ev" ? "EBITDA" : "EPS";
+  const num = (v) => (v === null || v === undefined ? "—"
+                      : isKR() ? fmtKrw(v) : fmtBig(v));
   const est = (per.estimates || []).map((e) =>
-    `<span class="m est">${e.end} 추정 EPS ${e.eps} <small>(${e.source})</small></span>`).join("");
-  $("marks").innerHTML =
-    (last ? `<span class="m">가장 최근 계단 — 발표 <b>${last.announced}</b> ·
-       재무정보 기준일 <b>${last.basis_end}</b> · 향후 4분기 EPS ${last.eps}
-       (추정 ${last.estimated}분기, ${last.source})</span><br/>` : "") +
-    (est || "") +
-    (per.season ? `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
+    `<span class="m est">${e.end} 추정 ${unit} ${per.metric === "ev" ? num(e.eps) : e.eps}
+       <small>(${e.source})</small></span>`).join("");
+
+  let html = last
+    ? `<span class="m">가장 최근 계단 — 발표 <b>${last.announced}</b> ·
+       재무정보 기준일 <b>${last.basis_end}</b> · 향후 4분기 ${unit}
+       ${per.metric === "ev" ? num(last.eps) : last.eps}
+       (추정 ${last.estimated}분기, ${last.source})</span><br/>`
+    : "";
+  html += est || "";
+
+  if (per.metric === "ev") {
+    const L = per.latest;
+    if (L) {
+      const parts = Object.entries(L.parts || {})
+        .map(([k, v]) => `${k} ${num(v)}`).join(" · ");
+      html += `<br/><span class="m">EV 구성(${L.end} 재무상태표) —
+        발행주식수 <b>${num(L.shares)}</b> · 차입금 <b>${num(L.debt)}</b> ·
+        현금성 <b>${num(L.cash)}</b> · 기타(비지배·우선주) ${num(L.other)}
+        → <b>순부채 ${num(L.net_debt)}</b></span>` +
+        (parts ? `<br/><span class="m small">${parts}</span>` : "");
+    }
+    const gone = [
+      ...(per.missing || []).map((n) => `${n}(전 기간 없음)`),
+      ...((L && L.absent) || []).map((n) => `${n}(이 분기만 없음)`),
+    ];
+    if (gone.length) {
+      html += `<br/><span class="m season warn">EV 에 <b>안 들어간 항목</b>:
+        ${gone.join(", ")} — 0 으로 채우지 않고 뺐습니다.
+        <a href="#" class="basis-link">산정 기준 보기</a></span>`;
+    }
+    if (per.live_shares) {
+      const L2 = per.live_shares;
+      html += `<br/><span class="m season warn">가장 최근 구간만 <b>오늘 주식수</b>로
+        계산했습니다 — 분기말 ${num(L2.from)} → 오늘 <b>${num(L2.to)}</b>
+        (${(L2.change * 100).toFixed(1)}%). 분기말 이후 증자·자사주 소각이 있으면
+        그 구간 시총이 틀어지기 때문입니다. <b>과거 구간은 그대로</b> 그때의
+        주식수를 씁니다.</span>`;
+    }
+    if (per.estimate_note) {
+      html += `<br/><span class="m season warn">${md(per.estimate_note)}
+        ${per.margin_why && per.margin_why.quarters
+          ? `(최근 ${per.margin_why.quarters}분기 · 최저 ${(per.margin_why.low * 100).toFixed(1)}%
+             ~ 최고 ${(per.margin_why.high * 100).toFixed(1)}%)` : ""}</span>`;
+    }
+    html += `<br/><span class="m small">EBITDA 출처: ${per.ebitda_source || "—"}</span>`;
+  } else if (per.kr_fill) {
+    // 국장은 컨센 지평이 좁아서 **무엇으로 채웠는지**가 곧 신뢰도다.
+    const f = per.kr_fill;
+    const bits = Object.entries(f).filter(([, n]) => n)
+      .map(([k, n]) => `${k} ${n}분기`);
+    html += `<br/><span class="m season ${f["직전 해 × 성장률"] ? "warn" : "ok"}">` +
+      `추정 분기를 채운 방법: <b>${bits.join(" · ") || "없음"}</b>` +
+      (per.kr_growth ? ` · 성장률 ${per.kr_growth}배` : "") +
+      (per.kr_growth_capped
+        ? ` <b>(올해 성장률 ${per.kr_raw_growth}배는 내년까지 이어 쓰기엔 지나쳐
+            성장 없음으로 물러섰습니다)</b>` : "") +
+      ` <a href="#" class="basis-link">산정 기준 보기</a></span>`;
+    if (per.season) {
+      html += `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
         `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
         (per.season.mode === "계절성"
           ? ` (1Q ${(per.season.weights["1"] * 100).toFixed(0)}% · ` +
             `2Q ${(per.season.weights["2"] * 100).toFixed(0)}% · ` +
             `3Q ${(per.season.weights["3"] * 100).toFixed(0)}% · ` +
-            `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%, ` +
-            `과거 ${per.season.why.years_used}개 회계연도)`
-          : ` — ${per.season.why.reason || ""}`) +
-        ` <a href="#" id="basis-link">산정 기준 보기</a></span>` : "") +
-    (per.consensus_sources && per.consensus_sources.length
-      ? `<br/><span class="m">컨센 출처: ${per.consensus_sources.join(", ")}</span>` : "");
-  const link = document.getElementById("basis-link");
-  if (link) link.onclick = (e) => { e.preventDefault(); openModal("basis"); };
+            `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%)`
+          : ` — ${(per.season.why || {}).reason || ""}`) + `</span>`;
+    }
+  } else if (per.season) {
+    html += `<br/><span class="m season ${per.season.mode === "계절성" ? "ok" : "warn"}">` +
+      `연간 컨센 → 분기 배분: <b>${per.season.mode}</b>` +
+      (per.season.mode === "계절성"
+        ? ` (1Q ${(per.season.weights["1"] * 100).toFixed(0)}% · ` +
+          `2Q ${(per.season.weights["2"] * 100).toFixed(0)}% · ` +
+          `3Q ${(per.season.weights["3"] * 100).toFixed(0)}% · ` +
+          `4Q ${(per.season.weights["4"] * 100).toFixed(0)}%, ` +
+          `과거 ${per.season.why.years_used}개 회계연도)`
+        : ` — ${per.season.why.reason || ""}`) +
+      ` <a href="#" class="basis-link">산정 기준 보기</a></span>`;
+  }
+  if (per.consensus_sources && per.consensus_sources.length) {
+    html += `<br/><span class="m">컨센 출처: ${per.consensus_sources.join(", ")}</span>`;
+  }
+  $("marks").innerHTML = html;
+  document.querySelectorAll("#marks .basis-link").forEach((a) =>
+    a.onclick = (e) => { e.preventDefault(); openModal("basis"); });
+}
+
+/* 범례는 **매번 다시 쓴다.**
+ *
+ * 예전에는 wire() 안에 있었는데, wire() 는 한 번만 도는 함수라(리스너가 겹쳐
+ * 쌓이면 휠 한 번에 여러 번 확대된다) EPS 기준을 바꿔도 범례는 옛것 그대로였다.
+ */
+function renderLegend(per) {
+  const ev = per.metric === "ev";
+  const name = ev ? "12M forward EV/EBITDA" : "12M forward PER";
+  $("legend").innerHTML = `
+    <span><i style="border-color:var(--price)"></i>주가 (왼쪽 축)</span>
+    <span><i style="border-color:var(--per)"></i>${name} — 확정 실적 (오른쪽 축)</span>
+    <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>${name} — ${
+      ev ? "가정치 섞임(매출 컨센 × 마진)" : "컨센 섞임"}</span>
+    <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>
+    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>
+    ${!ev && per.eps_basis_label
+      ? `<span class="ctrl-note">EPS 기준: <b>${per.eps_basis_label}</b>` +
+        ` · ${per.eps_quarters}분기</span>` : ""}
+    ${ev && per.margin !== null && per.margin !== undefined
+      ? `<span class="ctrl-note">EBITDA 마진(최근 중앙값): <b>${(per.margin * 100).toFixed(1)}%</b></span>` : ""}`;
+}
+
+/* 시장 고르기. 티커 체계가 달라서 서로 남은 입력을 지운다 —
+ * "005930" 을 미장에서, "NVDA" 를 국장에서 찾는 건 늘 실패다. */
+function syncMarket() {
+  document.querySelectorAll(".mk").forEach((b) =>
+    b.classList.toggle("on", b.dataset.market === MARKET));
+  $("q").placeholder = isKR() ? "종목코드 여섯 자리 (예: 005930)" : "티커 입력 (예: NVDA)";
+}
+
+function setMarket(m) {
+  if (MARKET === m) return;
+  MARKET = m;
+  syncMarket();
+  $("q").value = "";
+  $("q").focus();
 }
 
 function syncButtons() {
@@ -611,7 +893,10 @@ function wire() {
   $("per-down").onclick = () => panPer(-1);
   $("per-zin").onclick = () => zoomPer(0.5);
   $("per-zout").onclick = () => zoomPer(2);
-  $("per-reset").onclick = () => { VIEW.perLo = PER_FLOOR; VIEW.perHi = PER_CEIL; redraw(); };
+  $("per-reset").onclick = () => {
+    const ax = axisOf(PER_DATA);
+    VIEW.perLo = ax[0]; VIEW.perHi = ax[1]; redraw();
+  };
   $("per-auto").onclick = () => {
     const v = [];
     for (let i = VIEW.i0; i <= VIEW.i1; i++) {
@@ -660,9 +945,11 @@ function wire() {
     const i = toIdx(ev.clientX);
     if (i < VIEW.i0 || i > VIEW.i1) { tip.classList.add("hidden"); return; }
     const p = PER_DATA.per_confirmed[i], q = PER_DATA.per_estimated[i];
+    const nm = PER_DATA.metric === "ev" ? "fwd EV/EBITDA" : "fwd PER";
+    const mix = PER_DATA.metric === "ev" ? "가정 섞임" : "컨센 섞임";
     tip.innerHTML = `<b>${PER_DATA.dates[i]}</b><br/>주가 ${PER_DATA.close[i]}<br/>` +
-      (p !== null && p !== undefined ? `fwd PER <b>${p}</b> (확정)`
-       : q !== null && q !== undefined ? `fwd PER <b>${q}</b> (컨센 섞임)` : "fwd PER —");
+      (p !== null && p !== undefined ? `${nm} <b>${p}</b> (확정)`
+       : q !== null && q !== undefined ? `${nm} <b>${q}</b> (${mix})` : `${nm} —`);
     tip.classList.remove("hidden");
     const r = $("plot").getBoundingClientRect();
     tip.style.left = Math.min(r.width - 170, ev.clientX - r.left + 12) + "px";
@@ -684,15 +971,6 @@ function wire() {
     clampView(); redraw();
   });
 
-  $("legend").innerHTML = `
-    <span><i style="border-color:var(--price)"></i>주가 (왼쪽 축)</span>
-    <span><i style="border-color:var(--per)"></i>12M forward PER — 확정 실적 (오른쪽 축)</span>
-    <span><i style="border-color:var(--per-est);border-top-style:dashed"></i>12M forward PER — 컨센 섞임</span>
-    <span><i style="border-color:#64748b;border-top-style:dashed"></i>실적발표일</span>
-    <span class="ctrl-note">끌어서 이동 · 휠로 기간 확대</span>
-    ${PER_DATA.eps_basis_label
-      ? `<span class="ctrl-note">EPS 기준: <b>${PER_DATA.eps_basis_label}</b>` +
-        ` · ${PER_DATA.eps_quarters}분기</span>` : ""}`;
 }
 
 /* --------------------------------------------------------------------- 모달 */
@@ -742,16 +1020,25 @@ cd SUH_DH</pre>
 <b>우클릭 → "Git Bash Here"</b>
 <br/>(윈도우 11이면 우클릭 메뉴에서 <b>"추가 옵션 표시"</b> 를 먼저 눌러야 나옵니다)
 <br/><br/>
-제대로 열렸으면 프롬프트 끝이 이렇게 보입니다:
-<pre>~/OneDrive/Desktop/주식/코딩/SUH_DH (claude/funny-carson-ent3s7)
+제대로 열렸으면 프롬프트 끝이 이렇게 보입니다(괄호 안은 지금 서 있는 브랜치):
+<pre>~/OneDrive/Desktop/주식/코딩/SUH_DH (브랜치이름)
 $</pre>
 
 <h4>2. 최신 코드 받기</h4>
 <pre>git pull</pre>
 <div class="warn">
-<code>Already up to date.</code> 인데 바뀐 게 안 보이면 <b>다른 브랜치</b>에 있는
-것입니다. <code>git branch --show-current</code> 로 확인하세요 —
-<code>claude/funny-carson-ent3s7</code> 이어야 합니다.
+<b><code>Already up to date.</code> 인데 바뀐 게 안 보이면 브랜치 문제입니다.</b>
+<code>git pull</code> 은 <b>지금 서 있는 브랜치</b>만 따라갑니다. 새 작업이 다른
+브랜치에 있으면 pull 은 "받을 게 없다" 고 답하고, 서버를 아무리 다시 띄워도
+옛 코드가 돕니다.
+<pre>git branch --show-current   # 지금 어디에 서 있나
+git fetch --all
+git branch -r --sort=-committerdate | head   # 최근에 올라간 브랜치들</pre>
+다른 브랜치로 옮기려면:
+<pre>git checkout -B &lt;브랜치이름&gt; origin/&lt;브랜치이름&gt;</pre>
+<b>지금 서버가 어느 브랜치·커밋으로 도는지는 화면이 말해 줍니다</b> — 종목을
+조회하면 이름 줄 끝에 <code>서버 &lt;브랜치&gt; &lt;해시&gt;</code> 가 붙습니다.
+그게 GitHub 에서 본 최신 커밋과 다르면 아직 그 코드가 아닙니다.
 </div>
 
 <h4>3. 서버 띄우기</h4>
@@ -767,6 +1054,17 @@ PowerShell 쪽은 바로 프롬프트로 돌아와서 "안 돌고 있나?" 싶�
 검은 창에 있어서 <b>그 창을 닫으면 서버가 죽습니다.</b> Git Bash 에서 바로
 띄우면 <b>창이 하나</b>라 헷갈릴 일이 없습니다.
 </div>
+
+<h4>3-1. 국장(🇰🇷)을 쓰려면 — DART 키 한 줄</h4>
+<p>미장은 키가 필요 없습니다. <b>국장만</b> DART 무료 API 키가 필요합니다
+(<code>opendart.fss.or.kr</code> → 가입 → 인증키 신청, 1분·무료).
+받은 키를 서버 띄우기 <b>전에</b> 한 줄 넣으세요.</p>
+<pre>export DART_API_KEY=여기에받은키
+./run.sh</pre>
+<p class="muted">창을 닫으면 사라집니다. 매번 치기 싫으면 <code>SUH_DH</code> 폴더의
+<code>~/.bashrc</code> 에 그 줄을 넣어 두면 됩니다. 키를 안 넣고 국장을 조회하면
+화면이 "DART_API_KEY 가 없습니다" 라고 말해 줍니다 — 조용히 빈 화면이 되지는
+않습니다.</p>
 
 <h4>4. 브라우저에서 열기 — <code>http://</code> 를 꼭</h4>
 <pre>http://localhost:8000/quarterly/</pre>
@@ -784,6 +1082,25 @@ Git Bash 창에서 <b>Ctrl + C</b>.
 <pre>Ctrl + C
 git pull
 ./run.sh</pre>
+<div class="warn">
+<b>"다시 띄웠는데 왜 그대로지"</b> 의 원인은 거의 둘입니다.
+<ol>
+  <li><b>서버 창이 두 개</b>입니다. 한쪽만 껐고 브라우저는 옛 코드가 도는 쪽을
+      보고 있습니다. 이제 <code>./run.sh</code> 가 먼저 확인해서
+      <b>"이미 …에서 서버가 돌고 있습니다"</b> 라고 말하고 멈춥니다.</li>
+  <li><b>브라우저가 옛 화면을 캐시</b>하고 있습니다 →
+      <b>Ctrl + Shift + R</b>(강력 새로고침).</li>
+</ol>
+둘 다 아니면 화면 맨 위 종목 이름 줄에 <b>⚠ 서버가 옛 코드로 돌고 있습니다</b>
+가 뜹니다 — 코드 파일이 서버보다 몇 분 새것인지까지 적혀 나옵니다.
+</div>
+
+<h4>지금 도는 서버가 새 코드인지 한 줄로 확인</h4>
+<pre>curl -s http://127.0.0.1:8000/api/health</pre>
+<p><code>"backend"</code> 안의 <code>branch</code>·<code>rev</code>(커밋 해시)와
+<code>stale</code> 을 보세요. <code>"stale": true</code> 면 <b>파일이 서버보다 새것</b> — 재시작이
+필요합니다. <code>backend</code> 항목 자체가 없으면 그것도 옛 코드입니다.
+화면 맨 위 종목 이름 줄에도 <b>서버 &lt;해시&gt;</b> 로 같이 뜹니다.</p>
 
 <h4>PowerShell 로 하고 싶다면</h4>
 됩니다. 다만 <b>파이썬이 두 개</b>라서 준비가 한 번 필요합니다. PowerShell 의
@@ -824,7 +1141,7 @@ pip install -r requirements.txt
 찍힙니다. 실적 컨콜 프로그램만 안 뜨는 것이고 <b>이 페이지와는 무관합니다.</b>
 `],
 
-  basis: ["산정 기준 — EPS · EV · EBITDA · 계절성 배분", `
+  basis: ["산정 기준 — EPS · EV · EBITDA · 계절성 배분 · 국장", `
 <p>숫자를 어떻게 만들었는지 전부 적어 둡니다. <b>기준이 바뀌면 값이 바뀝니다.</b>
 바꾸고 싶은 곳이 있으면 말씀해 주세요 — 상수는 한군데 모아 뒀습니다.</p>
 
@@ -865,33 +1182,153 @@ pip install -r requirements.txt
   <li><b>은행·보험은 영업이익 개념이 없어</b> EBITDA 도 만들지 않습니다.</li>
 </ul>
 
-<h4>EV — 만드는 중입니다. 기준은 이렇게 잡습니다</h4>
-<pre>EV = 시가총액
-   + 총차입금
-   − 현금성자산
-   + 비지배지분
-   + 우선주</pre>
+<h4>EV/EBITDA — 어떻게 만드나</h4>
+<pre>EV(t) = 주가(t) × 발행주식수
+      + 총차입금 − 현금성자산 + 비지배지분 + 우선주
+
+12M forward EV/EBITDA = EV(t) ÷ (t 이후 4개 분기 EBITDA 합)</pre>
+<p>재무상태표는 분기에 한 번 바뀌므로 <b>PER 과 같은 실적발표일에 계단을 밟고</b>,
+그 사이에는 주가만 움직입니다. 분기말에 밟으면 아직 공개되지 않은 재무상태표로
+그 사이 주가를 나누게 됩니다.</p>
 <table class="basis">
 <tr><th>항목</th><th>포함</th><th>비고</th></tr>
-<tr><td>시가총액</td><td>주가 × 보통주 발행주식수</td>
-    <td>가중평균이 아니라 <b>기말 발행주식수</b></td></tr>
-<tr><td>장기차입금</td><td>✅ 유동·비유동 전부</td><td></td></tr>
-<tr><td><b>전환사채</b></td><td>✅ 포함</td>
-    <td>부채로 잡힌 장부금액. 전환 가정해 주식수에 더하지는 <b>않습니다</b></td></tr>
-<tr><td><b>단기사채·CP</b></td><td>✅ 포함</td><td>이자부 부채입니다</td></tr>
-<tr><td><b>리스부채</b></td><td>✅ 포함</td>
-    <td>ASC842 이후 재무상태표에 올라오므로 차입금으로 봅니다.
-        <b>단 EBITDA 에서 리스비용을 되돌리지는 않아</b> 이 조합은 리스가 큰
-        회사(유통·항공)의 EV/EBITDA 를 <b>높게</b> 만듭니다</td></tr>
+<tr><td>시가총액</td><td>주가 × <b>기말 발행주식수</b></td>
+    <td><code>CommonStockSharesOutstanding</code> → <code>CommonStockSharesIssued</code>
+        → 표지의 <code>dei:EntityCommonStockSharesOutstanding</code> 순.
+        가중평균주식수가 <b>아닙니다</b></td></tr>
+<tr><td>장기차입금</td><td>✅ 유동·비유동 전부</td>
+    <td><code>LongTermDebtNoncurrent</code> / <code>…Current</code></td></tr>
+<tr><td><b>전환사채</b></td><td>✅ 포함 — <b>금액으로 판정</b>해서 더합니다</td>
+    <td>대개 <code>LongTermDebtNoncurrent</code> 안에 이미 들어 있어 또 더하면
+        <b>이중계상</b>입니다. 그렇다고 늘 빼면 반대로 누락됩니다 — 실측(SMCI)에서
+        장·단기 합계 4.06B 과 전환사채 4.66B 이 <b>별개로</b> 잡혔고, 둘을 더해야
+        야후 값과 맞았습니다. 그래서 <b>합계 ≥ 전환사채면 안에 있다고 보고 빼고,
+        합계 &lt; 전환사채면 별개로 보고 더합니다</b> — 합계가 부분보다 작을 수는
+        없다는 산수 하나에 기대는 규칙이라 태그 이름 추측보다 튼튼합니다.
+        전환을 가정해 주식수에 더하지는 <b>않습니다</b></td></tr>
+<tr><td><b>단기사채·CP</b></td><td>✅ 포함</td>
+    <td><code>ShortTermBorrowings</code> / <code>CommercialPaper</code> — 이자부 부채</td></tr>
+<tr><td><b>운용리스부채</b></td><td>✅ 포함</td>
+    <td>ASC842 이후 재무상태표에 올라오므로 차입금으로 봅니다</td></tr>
+<tr><td><b>금융리스부채</b></td><td>✅ 포함(중복이면 제외)</td>
+    <td>회사가 <code>LongTermDebtAndCapitalLeaseObligations</code> 를 썼다면 그 안에
+        이미 들어 있으므로 <b>따로 더하지 않습니다</b></td></tr>
 <tr><td>현금성자산</td><td>➖ 차감</td>
-    <td>현금 + <b>단기투자자산</b>까지. 장기투자·지분증권은 빼지 않습니다</td></tr>
-<tr><td>비지배지분</td><td>✅ 가산</td><td>장부금액</td></tr>
-<tr><td>우선주</td><td>✅ 가산</td><td>장부금액</td></tr>
+    <td>현금 + <b>단기투자자산</b>. 장기투자·지분증권은 빼지 않습니다.
+        실측(AAPL 2026-06-27)으로 이 조합이 야후 <code>totalCash</code> 와
+        <b>정확히 일치</b>했습니다</td></tr>
+<tr><td>비지배지분</td><td>✅ 가산</td>
+    <td><code>MinorityInterest</code> <b>하나만</b> 씁니다.
+        <code>StockholdersEquityIncluding…NoncontrollingInterest</code> 는 이름이
+        비슷하지만 <b>자본 총계</b>라, 쓰면 EV 가 자본만큼 부풀어 오릅니다</td></tr>
+<tr><td>우선주</td><td>✅ 가산</td>
+    <td><b>액면이 아니라 장부금액</b>입니다.
+        <code>PreferredStockIncludingAdditionalPaidInCapital</code> 을 먼저 쓰고
+        없으면 <code>PreferredStockValue</code>(액면). 액면만 보면 우선주가 있어도
+        0 으로 잡힙니다 — 실측(SMCI)에서 액면 0 · 장부 4.23B 이었고, 그 4.23B 이
+        야후 EV 와의 차이와 <b>정확히 같았습니다</b>.
+        상환우선주 등 <b>임시자본</b>(<code>TemporaryEquityCarryingAmount…</code>)도
+        따로 더합니다</td></tr>
 <tr><td>연금부채</td><td>❌ 제외</td><td>넣는 유파도 있지만 안 넣습니다</td></tr>
 </table>
-<p>과거 시점 EV 는 <b>그 시점 주가 × 그 분기말 주식수 + 그 분기말 부채·현금</b>
-으로 만듭니다. 분기 사이는 마지막으로 발표된 재무상태표를 유지합니다.
-<b>EBITDA 컨센은 무료 출처가 없어</b> EV/EBITDA 는 <b>과거 구간만</b> 그려집니다.</p>
+<p><b>개념마다 버킷을 두고, 한 버킷에서는 그 날짜에 잡히는 첫 태그 하나만
+씁니다.</b> 한 날짜에 태그 하나만 쓰는 것이 이중계상을 막는 규칙입니다.
+회사 전체에서 태그 하나를 골라 통째로 쓰면, <b>회사가 자금조달 수단을 바꾼
+구간이 통째로 0</b> 이 됩니다 — 실측(SMCI)에서 옛 은행 차입 태그가 버킷을
+차지하는 바람에 지금의 전환사채 9B 가 통째로 빠져 EV 가 야후보다 41% 작게
+나왔습니다. 날짜별로 우선순위를 다시 매기면 양쪽 구간이 다 맞고, 같은 날짜에
+합계와 전환사채가 둘 다 있으면 합계가 이기므로 이중계상도 그대로 막힙니다.</p>
+<p>분기말 <b>이전 100일</b> 안의 값만 그 분기 것으로 봅니다. <b>이후는 45일</b>
+까지만 엽니다 — 뒤로 한 분기를 열면 <b>다음 분기 재무상태표</b>가 끌려 들어와
+그 발표 시점에 몰랐던 값이 과거 차트에 새어 듭니다. 45일을 여는 건 표지(dei)의
+발행주식수가 제출일 기준이라 분기말보다 2~4주 늦게 찍히기 때문입니다(그건 그
+분기 보고서와 같이 공개되므로 발표 시점에 알 수 있습니다).</p>
+<div class="warn">
+<b>없는 항목은 0 으로 채우지 않습니다.</b> 회사마다 쓰는 태그가 천차만별입니다
+(실측: PLD 는 <code>LongTermDebt</code> 하나뿐이고 유동차입금·CP·전환사채·리스부채
+태그가 <b>아예 없습니다</b>). 무엇이 없었는지 차트 아래에 그대로 적어 둡니다.
+</div>
+<p>야후의 <code>totalDebt</code> 와는 <b>일부러 다릅니다</b> — 야후는 리스부채를
+빼고, 여기는 넣습니다(실측 AAPL 기준 12.5B 차이). <b>EBITDA 에서 리스비용을
+되돌리지는 않으므로</b> 리스가 큰 회사(유통·항공)의 EV/EBITDA 는 <b>높게</b>
+나옵니다. 야후의 분기 재무상태표는 7분기뿐이라 5년을 못 그립니다 — EDGAR 는
+59~70분기가 잡혀서 EDGAR 를 씁니다.</p>
+
+<h4>EV/EBITDA 의 점선 — <b>컨센이 아니라 가정</b>입니다</h4>
+<p><b>EBITDA 컨센을 주는 무료 출처가 없습니다</b>(야후·Alpha Vantage 에는 항목
+자체가 없고 FMP 는 유료). 그렇다고 가장 궁금한 최근 1년을 통째로 비워 둘 수는
+없어서, 이렇게 만듭니다.</p>
+<pre>① 매출 컨센을 <b>PER 과 똑같은 계절성 규칙</b>으로 분기에 나눈다
+② 마진 = 최근 8분기 (EBITDA ÷ 매출) 의 <b>중앙값</b>   ← 평균 아님
+③ 추정 분기 EBITDA = 분기 매출 컨센 × 마진</pre>
+<ul>
+  <li>그래서 점선 구간은 <b>컨센이 아니라 가정</b>입니다. 차트 아래에 쓰인 마진과
+      그 마진의 최근 최저~최고 범위를 같이 보세요 — 마진이 흔들리는 회사면
+      그만큼 빗나갑니다.</li>
+  <li>매출 컨센이 없거나 마진을 못 구하면 <b>점선을 아예 그리지 않습니다.</b></li>
+  <li>EBITDA 합이 0 이하이거나 EV 가 음수(순현금이 시총보다 큰 회사)면 그 구간의
+      배수를 <b>비웁니다</b> — 음수 배수는 읽는 사람을 속입니다.</li>
+  <li><b>은행·보험은 영업이익 개념이 없어</b> EBITDA 도, EV/EBITDA 도 만들지 않습니다.</li>
+</ul>
+
+<h4>국장(한국) — 재료가 어디서 오나</h4>
+<table class="basis">
+<tr><th></th><th>미장</th><th>국장</th></tr>
+<tr><td>분기 실적</td><td>EDGAR XBRL companyfacts</td>
+    <td>DART 정기보고서 <code>fnlttSinglAcntAll</code> (연결 CFS, 없으면 별도 OFS).
+        실측 5년 <b>18/20 보고서</b></td></tr>
+<tr><td>실적발표일</td><td>야후 <code>get_earnings_dates</code></td>
+    <td><b>거래소 〈연결재무제표기준영업(잠정)실적〉 공시일.</b> 정기보고서
+        접수일보다 <b>2~5주 빠릅니다</b>(실측: 에코프로비엠 잠정 2025-04-29 vs
+        분기보고서 2025-05-14). 없으면 정기보고서 접수일로 물러섭니다</td></tr>
+<tr><td>컨센서스</td><td>야후 — 분기 <b>2</b> + 연간 <b>2</b></td>
+    <td>네이버 — 분기 <b>1</b> + 연간 <b>1</b> (실측 2026-09-19).
+        대신 <b>영업이익 컨센이 나옵니다</b> — 미장에서는 무료로 못 구합니다</td></tr>
+<tr><td>주가</td><td>야후 일봉</td><td>네이버/KRX 일봉(FinanceDataReader)</td></tr>
+</table>
+<h5>국장에서 다르게 다루는 것</h5>
+<ul>
+  <li><b>손익의 <code>thstrm_amount</code> 는 당기 3개월</b>입니다(누적이 아닙니다).
+      실측으로 반기 누적 = 1분기 + 당기가 딱 맞습니다. 누적으로 착각하면 2·3분기가
+      부풀어 오릅니다.</li>
+  <li><b>사업보고서는 당기가 연간</b>이라 미장과 똑같이 <code>Q4 = 연간 − 3분기 누적</code>
+      으로 역산합니다.</li>
+  <li><b>현금흐름표는 누적</b>이라 차분합니다. 감가상각이 거기 있어 EBITDA 에
+      영향을 줍니다. 감가상각을 따로 싣지 않는 회사는 EBITDA 가 빕니다.</li>
+  <li>같은 이름이 여러 재무제표에 나옵니다(비지배지분은 BS·CIS·CF 에 다 있습니다).
+      그래서 계정을 고를 때 <b>어느 재무제표인지를 반드시 좁힙니다.</b></li>
+  <li>표준 계정코드(<code>ifrs-full_…</code>)를 이름보다 먼저 씁니다. 미장과 달리
+      회사가 태그를 갈아타지 않아 오히려 깔끔합니다.</li>
+</ul>
+<h5>컨센이 모자란 구간을 채우는 세 단계</h5>
+<p>12개월이면 네 분기가 필요한데 네이버는 <b>앞으로 한 분기와 한 회계연도</b>만
+줍니다. 그래서 뒤로 갈수록 가정이 세지고, 차트 아래에 <b>무엇으로 몇 분기를
+채웠는지</b>가 그대로 표시됩니다.</p>
+<pre>① 네이버 <b>분기 컨센</b>이 있는 분기는 그대로            (가정 없음)
+② 올해 <b>FY 컨센</b>의 잔여를 계절성 비중으로 배분      (미장과 같은 규칙)
+   잔여 = FY 컨센 − (확정 분기 합 + ①에서 배정한 합)
+③ <b>그다음 회계연도</b> 분기 = 같은 분기 1년 전 × 성장률  (<b>가정</b>)
+   성장률 g = 올해 FY 컨센 ÷ 작년 FY 실적 합</pre>
+<ul>
+  <li>③ 은 <b>컨센이 아니라 가정</b>입니다. 미장은 연간 컨센을 둘 주니 여기까지
+      갈 일이 없었는데, 국장은 하나뿐이라 안 그러면 <b>가장 최근 1년이 통째로
+      빕니다</b>. 성장률을 그대로 이어 쓴다는 뜻이라, 성장률이 꺾이는 해에는
+      빗나갑니다.</li>
+  <li><b>성장률이 0.5~2.0배 밖이면 성장 없음(1.0배)으로 물러섭니다.</b>
+      실측(삼성전자 2026-09-19)에서 올해 성장률이 <b>7.25배</b>로 나왔습니다 —
+      메모리 사이클 정점이라 실제로 그렇습니다. 그런데 그 배수를 내년에도 그대로
+      곱하면 2028년 분기 EPS 가 56만 원이 됩니다. 컨센이 한 번도 말한 적 없는
+      숫자이고, 한 해의 정점을 영구 성장률로 바꿔 쓰는 셈입니다. 그럴 땐 "그
+      수준이 유지된다" 로 두고 화면에 그렇게 적습니다 — 이 가정이 틀리면 forward
+      PER 이 <b>보수적으로(높게)</b> 나옵니다. 낙관 쪽으로 틀리는 것보다 낫습니다.
+      범위는 <code>app/krquarterly.py</code> 의 <code>GROWTH_BAND</code> 한 줄입니다.</li>
+  <li>③ 의 재료(1년 전 같은 분기)도 없으면 <b>그 분기는 비웁니다</b> — 지어내지
+      않습니다. 그러면 그 구간의 PER 선이 끊깁니다.</li>
+  <li>확정 합이 연간 컨센을 넘으면 미장과 똑같이 비우고 이유를 적습니다.</li>
+</ul>
+<p><b>EV/EBITDA 는 국장에 아직 없습니다.</b> 재료(차입금·리스부채·현금·비지배지분·
+우선주자본금)는 DART 전체 재무제표에 표준 계정코드로 다 있는 것을 확인했지만,
+발행주식수는 따로 받아야 해서(<code>stockTotqySttus</code>) 다음 차례입니다.</p>
 
 <h4>계절성 배분 — 연간 컨센을 분기에 나누는 법</h4>
 <p>야후는 분기 컨센을 <b>두 개</b>만 줍니다. 12개월을 채우려면 나머지는 연간
@@ -973,7 +1410,7 @@ pip install -r requirements.txt
 향후 4분기 EPS 합이 <b>0 이하면 PER 을 내지 않습니다</b>. 적자 구간의 PER 은
 음수로 나와 차트도 독해도 망가뜨립니다. 차트에서 선이 끊긴 자리가 그곳입니다.
 `],
-  src: ["실적과 컨센을 어디서 가져오나", `
+  src: ["실적과 컨센을 어디서 가져오나 — 미장 · 국장", `
 <h4>실적 — EDGAR XBRL</h4>
 <code>data.sec.gov/api/xbrl/companyfacts</code> 에서 받습니다. 회사가 SEC 에 제출한
 원본이라 가장 신뢰할 수 있고 무료입니다. 미리 전 종목을 모으지 않고 <b>입력한
@@ -1009,6 +1446,27 @@ XBRL 에 없고(실측 4종목 전부 고유 태그 0개) 회사마다 무엇을
 
 <h4>주가</h4>
 야후 일봉 종가(최근 5년). 컨센이나 주가를 못 받아도 확정 구간은 그려집니다.
+
+<hr/>
+<h4>국장(한국)은 어디서 — <b>🇰🇷 한국</b> 토글</h4>
+<table class="basis">
+<tr><th></th><th>어디서</th><th>실측</th></tr>
+<tr><td>분기 실적</td><td>DART <code>fnlttSinglAcntAll</code> (연결 CFS, 없으면 별도 OFS)</td>
+    <td>5년 <b>18/20 보고서</b>. 주당이익·차입금·리스부채·현금·비지배지분까지
+        표준 계정코드로 옵니다</td></tr>
+<tr><td>실적발표일</td><td>DART 공시목록 —
+        <b>〈연결재무제표기준영업(잠정)실적〉</b> 접수일</td>
+    <td>정기보고서보다 <b>2~5주 빠릅니다</b>. 없으면 정기보고서 접수일</td></tr>
+<tr><td>컨센서스</td><td>네이버 모바일
+        <code>m.stock.naver.com/api/stock/{코드}/finance/{quarter|annual}</code></td>
+    <td>확정과 추정이 <b>한 응답에</b> 옵니다(<code>isConsensus</code>).
+        앞으로 <b>분기 1 · 연간 1</b> 뿐입니다 — 미장(야후)은 2·2</td></tr>
+<tr><td>주가</td><td>네이버/KRX(FinanceDataReader)</td><td>당일 종가가 바로 반영됩니다</td></tr>
+</table>
+<p><b>국장이 미장보다 나은 점도 있습니다 — 영업이익 컨센이 나옵니다.</b> 미장에서는
+야후·Alpha Vantage 에 항목 자체가 없고 FMP 는 유료라 비워 뒀던 칸입니다.</p>
+<p><b>키가 필요합니다.</b> DART 는 무료 API 키(<code>DART_API_KEY</code>)를 환경변수로
+읽습니다. 네이버는 키가 없습니다.</p>
 `],
 };
 
@@ -1027,7 +1485,11 @@ $("src-btn").addEventListener("click", () => openModal("src"));
 $("local-btn").addEventListener("click", () => openModal("local"));
 $("basis-btn").addEventListener("click", () => openModal("basis"));
 document.querySelectorAll(".eb").forEach((b) =>
-  b.addEventListener("click", () => showBasis(b.dataset.basis)));
+  b.addEventListener("click", () => setBasis(b.dataset.basis)));
+document.querySelectorAll(".mt").forEach((b) =>
+  b.addEventListener("click", () => showMetric(b.dataset.metric)));
+document.querySelectorAll(".mk").forEach((b) =>
+  b.addEventListener("click", () => setMarket(b.dataset.market)));
 $("edit-reset").addEventListener("click", () => {
   OVERRIDE = {};
   saveOverrides();
@@ -1047,5 +1509,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") $("modal").classList.add("hidden");
 });
 
-const initial = new URLSearchParams(location.search).get("t");
+const params = new URLSearchParams(location.search);
+if (params.get("m") === "kr") MARKET = "kr";
+syncMarket();
+const initial = params.get("t");
 if (initial) { $("q").value = initial; load(initial); }

@@ -210,3 +210,12 @@ def empty_forecast(reason: str) -> dict:
     """컨센을 어디서도 못 구하는 항목 — 칸은 만들되 없다고 쓴다."""
     return {"quarters": [], "years": [{"end": None, "val": None}] * YEAR_SLOTS,
             "source": "없음", "reason": reason}
+
+
+def revenue_estimates(con: dict) -> dict:
+    """매출 컨센을 ``forwardper.fill_estimates`` 가 먹는 모양으로.
+
+    EBITDA 컨센이 없어서 EV/EBITDA 의 점선 구간을 **매출 컨센 × 최근 마진**
+    으로 만든다(app/evebitda.py). 그 재료다.
+    """
+    return {k: v["avg"] for k, v in (con.get("revenue") or {}).items()}

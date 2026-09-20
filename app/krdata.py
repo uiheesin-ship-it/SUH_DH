@@ -29,10 +29,11 @@ def _empty(code: str) -> dict:
             "high": [], "low": [], "close": [], "volume": []}
 
 
-def _fetch_fdr(code: str) -> dict:
+def _fetch_fdr(code: str, days: int | None = None) -> dict:
     import FinanceDataReader as fdr
 
-    start = (datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    start = (datetime.now(timezone.utc)
+             - timedelta(days=days or LOOKBACK_DAYS)).strftime("%Y-%m-%d")
     try:
         df = fdr.DataReader(code, start)
     except Exception:
@@ -74,20 +75,29 @@ def _fetch_yahoo(code: str, market: str | None) -> dict:
     return _empty(code)
 
 
-def fetch_kr_bars(code: str, market: str | None = None) -> dict:
-    """Daily OHLCV for a Korean ticker (FDR first, Yahoo fallback), cached by code."""
+def fetch_kr_bars(code: str, market: str | None = None,
+                  days: int | None = None) -> dict:
+    """Daily OHLCV for a Korean ticker (FDR first, Yahoo fallback), cached by code.
+
+    ``days`` overrides the default lookback. The screeners only need ~2.2 years
+    (52-week high, SMA200, base window) and fetching more for every ticker would
+    be wasteful, but the 분기 실적/forward PER page draws **five years** for one
+    ticker at a time. The cache key carries the lookback so the two never share
+    a shortened series.
+    """
     code = str(code)
     if code.isdigit():
         code = code.zfill(6)
+    span = int(days or LOOKBACK_DAYS)
 
     def producer():
         if _demo():
             from .base import data as basedata
             return basedata._demo_bars(code)
-        data = _fetch_fdr(code)
+        data = _fetch_fdr(code, span)
         return data if data.get("close") else _fetch_yahoo(code, market)
 
-    return cache.get_or_set(f"krbars:{code}", BARS_TTL, producer,
+    return cache.get_or_set(f"krbars:{code}:{span}", BARS_TTL, producer,
                             cache_when=lambda d: bool(d and d.get("close")))
 
 
@@ -114,7 +124,8 @@ def fetch_kr_index(which: str) -> dict:
                             cache_when=lambda d: bool(d and d.get("close")))
 
 
-def kr_chart(code: str, market: str | None = None) -> dict:
+def kr_chart(code: str, market: str | None = None,
+             days: int | None = None) -> dict:
     """Chart payload (OHLCV + ma5/20/50/120) for the KR dashboard pages."""
-    chart = dict(fetch_kr_bars(code, market))
+    chart = dict(fetch_kr_bars(code, market, days))
     return attach_moving_averages(chart)
