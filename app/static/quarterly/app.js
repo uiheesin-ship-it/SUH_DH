@@ -1061,24 +1061,14 @@ PowerShell 쪽은 바로 프롬프트로 돌아와서 "안 돌고 있나?" 싶�
 <ol>
   <li><b>키 받기</b> — <code>opendart.fss.or.kr</code> 접속 → 회원가입 →
       <b>인증키 신청</b>. 메일로 <b>40자리 키</b>가 옵니다. 무료, 1분.</li>
-  <li><b>키 적어 두기</b> — <code>SUH_DH</code> 폴더에서 Git Bash 를 열고:
-      <pre>cp .env.example .env
-notepad .env</pre>
-      메모장이 열리면 <code>DART_API_KEY=</code> 뒤에 받은 키를 붙여 넣고
-      <b>Ctrl + S</b>. 파일이 이미 있으니 저장 위치를 묻지 않습니다.
-      <pre>DART_API_KEY=여기에받은40자리키</pre>
-      <div class="warn">
-      <b>저장 창이 떴다면</b> <code>cp</code> 를 건너뛴 것입니다. 메모장은 기본으로
-      <code>.txt</code> 를 붙여 <b><code>.env.txt</code></b> 를 만들고, 탐색기는
-      확장자를 숨겨서 눈으로는 <code>.env</code> 로 보입니다 — "분명히 저장했는데"
-      가 여기서 나옵니다. 그 창에서 <b>파일 이름에 따옴표까지</b>
-      <code>".env"</code> 로 적고 <b>파일 형식은 "모든 파일"</b> 로 두세요.
-      (이미 그렇게 됐다면 <code>./run.sh</code> 가 알아채고 알려 줍니다.)
-      </div>
-      <p class="muted">메모장이 번거로우면 Git Bash 에서 한 줄로:
-      <br/><code>printf 'DART_API_KEY=받은키\n' &gt; .env</code>
-      <br/>(Git Bash 에서 붙여넣기는 <b>마우스 오른쪽 클릭</b> 또는
-      <code>Shift + Insert</code>)</p></li>
+  <li><b>키 적어 두기</b> — <code>SUH_DH</code> 폴더에서 Git Bash 를 열고
+      <b>이 한 줄만</b> 치세요:
+      <pre>./set-dart-key.sh</pre>
+      <code>키를 붙여 넣고 Enter:</code> 가 뜨면 키를 붙여 넣고 Enter.
+      (Git Bash 에서 붙여넣기는 <b>마우스 오른쪽 클릭</b> 또는
+      <code>Shift + Insert</code>)
+      <br/>앞뒤 공백·따옴표·윈도우 줄끝이 묻어와도 떼어 내고, 40자가 아니면
+      되묻습니다. <b>키 값은 화면에 찍지 않습니다.</b></li>
   <li><b>다시 띄우기</b> — <pre>./run.sh</pre>
       맨 위에 이 두 줄이 찍히면 됐습니다(키 값 자체는 절대 안 찍습니다):
       <pre>.env 에서 환경변수 1개를 읽었습니다.
@@ -1091,6 +1081,18 @@ notepad .env</pre>
 키가 GitHub 에 올라갈 걱정은 안 하셔도 됩니다. 한 번 적어 두면 창을 닫았다 열어도
 <code>./run.sh</code> 가 매번 읽습니다.
 </div>
+<h5>굳이 손으로 적고 싶다면 — 메모장은 함정이 셋입니다</h5>
+<ol>
+  <li><b><code>notepad .env</code> 는 메모장을 닫을 때까지 Git Bash 를 붙잡습니다.</b>
+      그동안 친 명령이 전부 메모장 안으로 들어갑니다. 다 쓰면 <b>메모장을 닫아야</b>
+      터미널이 풀립니다.</li>
+  <li>파일 형식이 "텍스트 문서" 가 기본이라 <b><code>.env.txt</code></b> 가 됩니다.
+      저장 창이 뜨면 파일 이름에 <b>따옴표까지</b> <code>".env"</code>, 파일 형식은
+      <b>모든 파일</b>. (이미 그렇게 됐다면 <code>./run.sh</code> 가 알려 줍니다.)</li>
+  <li>줄끝에 보이지 않는 문자가 붙습니다 — 이건 읽을 때 떼어 냅니다.</li>
+</ol>
+<p class="muted">메모장 대신 한 줄로도 됩니다:
+<code>printf 'DART_API_KEY=받은키\n' &gt; .env</code></p>
 <p class="muted">한 번만 쓰고 말 거면 같은 창에서
 <code>export DART_API_KEY=받은키</code> 를 친 뒤 <code>./run.sh</code> 해도 됩니다.
 다만 <b>그 창을 닫으면 사라집니다.</b></p>
