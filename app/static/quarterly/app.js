@@ -18,6 +18,14 @@ const fmtBig = (v) => {
 };
 const fmtPct = (v) => (v === null || v === undefined ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%");
 
+/* 백엔드가 보내는 설명 문장의 **강조**를 굵게 바꾼다.
+ *
+ * 파이썬 쪽 문장은 로그·프로브에서도 그대로 읽히므로 마크다운 표기를 쓴다.
+ * 그런데 화면은 그걸 innerHTML 에 그냥 넣고 있어서 별표가 **그대로 찍혔다.**
+ * 여기서 한 번만 바꾼다. 우리 문장이라 이스케이프는 하지 않는다.
+ */
+const md = (t) => (t == null ? "" : String(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>"));
+
 /* 원화는 조·억으로 읽는다.
  *
  * 국장 금액을 B/M 로 보여 주면 읽을 수가 없다(삼성전자 분기 매출 86.06B 원).
@@ -111,7 +119,7 @@ function render(d) {
   if (isKR()) bits.push("단위 원");
   if (d.fiscal_year_end) bits.push(`결산 ${d.fiscal_year_end}`);
   let head = bits.join(" · ");
-  for (const n of d.notes || []) head += `<span class="warn">⚠ ${n}</span>`;
+  for (const n of d.notes || []) head += `<span class="warn">⚠ ${md(n)}</span>`;
 
   // 서버가 옛 코드로 돌고 있으면 화면이 스스로 말한다.
   //
@@ -128,11 +136,13 @@ function render(d) {
   }
   $("head").innerHTML = head;
 
+  // 표의 기준은 차트 기본값을 따른다. 응답에 차트가 없어도(표만 나오는 종목)
+  // 표 자체가 기준을 알고 있으므로 거기서 받는다.
+  BASIS = d.per_basis || (d.metrics && d.metrics["희석EPS"] || {}).basis || "gaap";
   renderMetrics(d.metrics || {}, d.forecast_note);
   $("table-sec").classList.remove("hidden");
 
   EV_DATA = d.ev || null;
-  BASIS = d.per_basis || "gaap";
   // 새 종목은 **처음부터** 본다. showBasis 는 보던 창을 지키는데(기준을 바꿔도
   // 카메라가 안 움직여야 하므로), 그게 종목을 바꿀 때까지 이어지면 안 된다.
   VIEW = null;
@@ -172,10 +182,23 @@ function growth(vals) {
 
 const YEAR_FALLBACK = ["올해", "내년", "내후년"];
 
+/* 기준이 여러 벌인 항목은 **고른 기준의 자료**를 쓴다.
+ *
+ * 희석EPS 가 그렇다. 차트는 진작 GAAP·조정을 따로 그렸는데 표는 한 줄이었고,
+ * 그 한 줄이 확정은 GAAP·추정은 조정 컨센이라 기준이 섞여 있었다 — 차트에서
+ * 없앤 바로 그 문제다. 기준은 차트 토글과 **같은 값**을 쓴다. 한 페이지에
+ * 기준이 두 개 떠 있으면 어느 쪽을 보고 있는지 알 수가 없다.
+ */
+function basisOf(m) {
+  if (!m.bases) return m;
+  return m.bases[BASIS] || m.bases[m.basis] || Object.values(m.bases)[0];
+}
+
 function renderMetrics(metrics, note) {
   const out = [];
   for (const label of Object.keys(metrics)) {
-    const m = metrics[label];
+    const m0 = metrics[label];
+    const m = { ...m0, ...basisOf(m0) };
     const qs = m.quarters || [];
     const est = m.estimates || { quarters: [], years: [] };
     const eq = est.quarters || [];
@@ -225,13 +248,25 @@ function renderMetrics(metrics, note) {
         return td(c, i, isPct ? pct(v) : fmt(v), cls);
       }).join("") + "</tr>";
 
-    const why = est.reason ? `<p class="note">⚠ ${est.reason}</p>` : "";
+    const why = est.reason ? `<p class="note">⚠ ${md(est.reason)}</p>` : "";
+    // 기준이 여러 벌이면 제목 옆에서 고른다. 차트 토글과 같은 값을 움직인다.
+    // 차트 토글과 **같은 순서**로 둔다 — 같은 개념이 자리를 바꾸면 눈이 헤맨다.
+    const ORDER = ["adjusted", "gaap"];
+    const names = Object.keys(m0.bases || {})
+      .sort((a, b) => (ORDER.indexOf(a) + 1 || 9) - (ORDER.indexOf(b) + 1 || 9));
+    const picker = names.length < 2 ? "" :
+      `<span class="mbasis">${names.map((n) =>
+        `<button class="mb${n === BASIS ? " on" : ""}" data-basis="${n}"
+           title="${(m0.bases[n].label || "").replace(/"/g, "")}">${
+          n === "adjusted" ? "조정" : n === "gaap" ? "GAAP" : n}</button>`).join("")}</span>`;
     out.push(`<div class="mtable">
-      <h3>${label} <span class="src">${m.source}</span>
+      <h3>${label} ${picker}<span class="src">${m.source}</span>
         ${est.source && est.source !== "없음"
           ? `<span class="src est-src">컨센: ${est.source}</span>` : ""}</h3>
-      ${m.note ? `<p class="note">⚠ ${m.note}</p>` : ""}
-      ${m.warning ? `<p class="note">⚠ ${m.warning}</p>` : ""}
+      ${m0.basis_note && names.length > 1
+        ? `<p class="note">${md(m0.basis_note)}</p>` : ""}
+      ${m.note ? `<p class="note">⚠ ${md(m.note)}</p>` : ""}
+      ${m.warning ? `<p class="note">⚠ ${md(m.warning)}</p>` : ""}
       ${why}
       <div class="scroll-hint">← 왼쪽으로 굴리면 과거 분기 · 오른쪽 끝이 컨센 칸입니다</div>
       <div class="table-wrap"><table>
@@ -247,7 +282,7 @@ function renderMetrics(metrics, note) {
       </table></div></div>`);
   }
   $("metrics").innerHTML =
-    (note ? `<p class="sec-desc forecast-note">${note}</p>` : "") + out.join("");
+    (note ? `<p class="sec-desc forecast-note">${md(note)}</p>` : "") + out.join("");
 
   // 표를 **오른쪽 끝으로 밀어 둔다.**
   //
@@ -255,9 +290,25 @@ function renderMetrics(metrics, note) {
   // 컨센 칸은 맨 오른쪽이라 한참 굴려야 나오고, 그래서 "추정치 칸이 안 보인다"
   // 가 된다. 최근 분기와 컨센이 먼저 보이는 게 맞다 — 과거를 보고 싶으면
   // 왼쪽으로 굴리면 된다.
-  document.querySelectorAll("#metrics .table-wrap").forEach((el) => {
-    el.scrollLeft = el.scrollWidth;
-  });
+  // **레이아웃이 끝난 뒤에** 민다. innerHTML 직후에는 scrollWidth 가 아직
+  // 제자리를 못 잡아 첫 로드에서만 안 밀리는 일이 있었다(그게 "추정치 칸이 안
+  // 보여" 의 남은 절반이었다). 다음 프레임에 한 번 더 민다.
+  const toRight = () => document.querySelectorAll("#metrics .table-wrap")
+    .forEach((el) => { el.scrollLeft = el.scrollWidth; });
+  toRight();
+  requestAnimationFrame(toRight);
+  document.querySelectorAll("#metrics .mb").forEach((b) =>
+    b.onclick = () => setBasis(b.dataset.basis));
+}
+
+/* 기준 하나를 페이지 전체에 건다 — 차트와 표가 따로 놀면 안 된다. */
+function setBasis(name) {
+  if (BASIS === name) return;
+  BASIS = name;
+  if (DATA) renderMetrics(DATA.metrics || {}, DATA.forecast_note);
+  if (BASES[name]) showBasis(name);
+  else document.querySelectorAll(".eb").forEach((b) =>
+    b.classList.toggle("on", b.dataset.basis === name));
 }
 
 /* ------------------------------------------------- 분기 EPS 손으로 고치기
@@ -698,7 +749,7 @@ function renderMarks(per) {
         주식수를 씁니다.</span>`;
     }
     if (per.estimate_note) {
-      html += `<br/><span class="m season warn">${per.estimate_note}
+      html += `<br/><span class="m season warn">${md(per.estimate_note)}
         ${per.margin_why && per.margin_why.quarters
           ? `(최근 ${per.margin_why.quarters}분기 · 최저 ${(per.margin_why.low * 100).toFixed(1)}%
              ~ 최고 ${(per.margin_why.high * 100).toFixed(1)}%)` : ""}</span>`;
@@ -1391,7 +1442,7 @@ $("src-btn").addEventListener("click", () => openModal("src"));
 $("local-btn").addEventListener("click", () => openModal("local"));
 $("basis-btn").addEventListener("click", () => openModal("basis"));
 document.querySelectorAll(".eb").forEach((b) =>
-  b.addEventListener("click", () => { BASIS = b.dataset.basis; showBasis(BASIS); }));
+  b.addEventListener("click", () => setBasis(b.dataset.basis)));
 document.querySelectorAll(".mt").forEach((b) =>
   b.addEventListener("click", () => showMetric(b.dataset.metric)));
 document.querySelectorAll(".mk").forEach((b) =>

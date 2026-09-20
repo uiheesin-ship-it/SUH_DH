@@ -162,6 +162,16 @@ body {
 .mtable h3 { margin: 0 0 4px; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
 .mtable .src { font-size: 11px; color: var(--muted); font-weight: 400; }
 .mtable .note { font-size: 11px; color: #fbbf24; margin: 0 0 6px; line-height: 1.6; }
+/* 항목 제목 옆의 기준 고르기(희석EPS 의 조정/GAAP). 차트 토글과 같은 값을 움직인다. */
+.mtable .mbasis { display: inline-flex; gap: 3px; align-self: center; }
+.mtable .mb {
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 11px; line-height: 1.5;
+}
+.mtable .mb:hover { border-color: var(--accent); color: var(--accent); }
+.mtable .mb.on {
+  background: var(--accent); color: #082f49; border-color: var(--accent); font-weight: 600;
+}
 .scroll-hint { font-size: 11px; color: var(--muted); margin: 0 0 4px; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 table { border-collapse: collapse; width: 100%; font-size: 12px; white-space: nowrap; }

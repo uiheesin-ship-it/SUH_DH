@@ -182,6 +182,53 @@ def test_revenue_and_eps_consensus_land_on_real_dates(monkeypatch):
     assert e["years"][-1]["val"] is None          # 내후년은 안 나온다
 
 
+# ------------------------------------------ 표의 EPS 도 기준마다 따로
+def test_eps_table_is_split_by_basis(monkeypatch):
+    """차트만 GAAP·조정을 나누고 표는 한 줄이었다 — 그 한 줄이 기준이 섞여 있었다.
+
+    확정은 GAAP(EDGAR), 추정은 조정 컨센(야후)이라 주식보상이 큰 회사는 그
+    경계에서 값이 껑충 뛴다. 차트에서 없앤 문제가 표에 남아 있었다.
+    """
+    wire(monkeypatch, con=FULL_CON)
+    m = quarterly.build("TEST")["metrics"]["희석EPS"]
+    assert set(m["bases"]) == {"gaap", "adjusted"}
+    assert m["basis"] == "adjusted"          # 컨센과 같은 기준이 기본
+
+
+def test_gaap_tab_has_no_consensus_and_says_why(monkeypatch):
+    """애널리스트는 GAAP 을 추정하지 않는다 — 조정 컨센을 붙이면 기준이 섞인다."""
+    wire(monkeypatch, con=FULL_CON)
+    g = quarterly.build("TEST")["metrics"]["희석EPS"]["bases"]["gaap"]["estimates"]
+    assert g["quarters"] == [] and g["source"] == "없음"
+    assert "GAAP" in g["reason"] and "조정" in g["reason"]
+
+
+def test_adjusted_tab_pairs_reported_eps_with_the_same_basis_consensus(monkeypatch):
+    wire(monkeypatch, con=FULL_CON)
+    a = quarterly.build("TEST")["metrics"]["희석EPS"]["bases"]["adjusted"]
+    assert a["quarters"], "조정 확정 계열이 비면 안 된다"
+    assert a["estimates"]["quarters"][0]["val"] == 1.5
+
+
+def test_top_level_eps_row_follows_the_default_basis(monkeypatch):
+    """기준을 모르는 클라이언트도 **섞이지 않은** 한 벌을 보게 한다."""
+    wire(monkeypatch, con=FULL_CON)
+    m = quarterly.build("TEST")["metrics"]["희석EPS"]
+    assert m["quarters"] == m["bases"][m["basis"]]["quarters"]
+    assert m["estimates"] == m["bases"][m["basis"]]["estimates"]
+
+
+def test_without_reported_eps_only_the_gaap_tab_exists(monkeypatch):
+    """야후 발표 EPS 가 없으면 조정 계열을 만들 수 없다 — 지어내지 않는다."""
+    con = dict(FULL_CON)
+    con["announcements"] = [{**a, "reported_eps": None}
+                            for a in FULL_CON["announcements"]]
+    wire(monkeypatch, con=con)
+    m = quarterly.build("TEST")["metrics"]["희석EPS"]
+    assert set(m["bases"]) == {"gaap"}
+    assert m["basis"] == "gaap"
+
+
 def test_net_income_consensus_is_eps_times_shares_and_labelled(monkeypatch):
     """순이익 컨센은 어디에도 없다 — EPS 컨센 × 주식수로 만들고 그렇게 적는다."""
     wire(monkeypatch, con=FULL_CON)
