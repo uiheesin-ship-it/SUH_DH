@@ -34,5 +34,10 @@ if curl -fsS -m 2 "http://${HOST}:${PORT}/api/health" >/dev/null 2>&1; then
   exit 1
 fi
 
+# 지금 어느 브랜치·커밋을 띄우는지 먼저 찍는다. "pull 했는데 왜 그대로지" 의
+# 진짜 원인이 대개 브랜치라서, 뜰 때마다 눈에 보이게 해 둔다.
+if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "브랜치 $(git rev-parse --abbrev-ref HEAD) · 커밋 $(git rev-parse --short HEAD)"
+fi
 echo "Open http://${HOST}:${PORT}"
 exec python3 -m uvicorn app.main:app --host "$HOST" --port "$PORT"

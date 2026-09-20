@@ -48,9 +48,18 @@ def test_캐시하지_않는다():
 
 
 def test_git_이_없어도_죽지_않는다(monkeypatch):
+    """zip 으로 받은 경우다. 리비전만 없어지고 stale 판정은 그대로 돈다."""
     monkeypatch.setattr(buildinfo.subprocess, "run",
                         lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError()))
-    assert buildinfo._rev() is None
+    assert buildinfo._git("rev-parse", "--short", "HEAD") is None
+    assert buildinfo.info()["stale"] is False
+
+
+def test_브랜치를_같이_알려_준다():
+    """`git pull` 은 지금 서 있는 브랜치만 따라간다 — 작업이 다른 브랜치에 있으면
+    pull 은 '받을 게 없다' 고 답하고 옛 코드가 계속 돈다. 어느 브랜치인지 보여야
+    그 자리에서 갈린다."""
+    assert buildinfo.info()["branch"]
 
 
 def test_pycache_는_세지_않는다():

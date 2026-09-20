@@ -117,7 +117,10 @@ function render(d) {
   if (d.cik) bits.push(`CIK ${d.cik}`);
   if (d.corp_code) bits.push(`DART ${d.corp_code}`);
   if (isKR()) bits.push("단위 원");
-  if (d.backend && d.backend.rev) bits.push(`서버 ${d.backend.rev}`);
+  if (d.backend && d.backend.rev) {
+    // 브랜치까지 적는다 — "pull 했는데 왜 그대로지" 의 진짜 원인이 대개 이것이다.
+    bits.push(`서버 ${d.backend.branch ? d.backend.branch + " " : ""}${d.backend.rev}`);
+  }
   if (d.fiscal_year_end) bits.push(`결산 ${d.fiscal_year_end}`);
   let head = bits.join(" · ");
   for (const n of d.notes || []) head += `<span class="warn">⚠ ${md(n)}</span>`;
@@ -1017,16 +1020,25 @@ cd SUH_DH</pre>
 <b>우클릭 → "Git Bash Here"</b>
 <br/>(윈도우 11이면 우클릭 메뉴에서 <b>"추가 옵션 표시"</b> 를 먼저 눌러야 나옵니다)
 <br/><br/>
-제대로 열렸으면 프롬프트 끝이 이렇게 보입니다:
-<pre>~/OneDrive/Desktop/주식/코딩/SUH_DH (claude/funny-carson-ent3s7)
+제대로 열렸으면 프롬프트 끝이 이렇게 보입니다(괄호 안은 지금 서 있는 브랜치):
+<pre>~/OneDrive/Desktop/주식/코딩/SUH_DH (브랜치이름)
 $</pre>
 
 <h4>2. 최신 코드 받기</h4>
 <pre>git pull</pre>
 <div class="warn">
-<code>Already up to date.</code> 인데 바뀐 게 안 보이면 <b>다른 브랜치</b>에 있는
-것입니다. <code>git branch --show-current</code> 로 확인하세요 —
-<code>claude/funny-carson-ent3s7</code> 이어야 합니다.
+<b><code>Already up to date.</code> 인데 바뀐 게 안 보이면 브랜치 문제입니다.</b>
+<code>git pull</code> 은 <b>지금 서 있는 브랜치</b>만 따라갑니다. 새 작업이 다른
+브랜치에 있으면 pull 은 "받을 게 없다" 고 답하고, 서버를 아무리 다시 띄워도
+옛 코드가 돕니다.
+<pre>git branch --show-current   # 지금 어디에 서 있나
+git fetch --all
+git branch -r --sort=-committerdate | head   # 최근에 올라간 브랜치들</pre>
+다른 브랜치로 옮기려면:
+<pre>git checkout -B &lt;브랜치이름&gt; origin/&lt;브랜치이름&gt;</pre>
+<b>지금 서버가 어느 브랜치·커밋으로 도는지는 화면이 말해 줍니다</b> — 종목을
+조회하면 이름 줄 끝에 <code>서버 &lt;브랜치&gt; &lt;해시&gt;</code> 가 붙습니다.
+그게 GitHub 에서 본 최신 커밋과 다르면 아직 그 코드가 아닙니다.
 </div>
 
 <h4>3. 서버 띄우기</h4>
@@ -1085,8 +1097,8 @@ git pull
 
 <h4>지금 도는 서버가 새 코드인지 한 줄로 확인</h4>
 <pre>curl -s http://127.0.0.1:8000/api/health</pre>
-<p><code>"backend"</code> 안의 <code>rev</code>(커밋 해시)와 <code>stale</code> 을
-보세요. <code>"stale": true</code> 면 <b>파일이 서버보다 새것</b> — 재시작이
+<p><code>"backend"</code> 안의 <code>branch</code>·<code>rev</code>(커밋 해시)와
+<code>stale</code> 을 보세요. <code>"stale": true</code> 면 <b>파일이 서버보다 새것</b> — 재시작이
 필요합니다. <code>backend</code> 항목 자체가 없으면 그것도 옛 코드입니다.
 화면 맨 위 종목 이름 줄에도 <b>서버 &lt;해시&gt;</b> 로 같이 뜹니다.</p>
 

@@ -27,19 +27,23 @@ APP_DIR = Path(__file__).resolve().parent
 STARTED = datetime.now(timezone.utc)
 
 
-def _rev() -> str | None:
-    """짧은 커밋 해시. git 이 없거나 zip 배포면 그냥 없다."""
+def _git(*args: str) -> str | None:
+    """git 한 줄. git 이 없거나 zip 배포면 그냥 없다."""
     try:
-        out = subprocess.run(["git", "-C", str(APP_DIR.parent), "rev-parse",
-                              "--short", "HEAD"],
+        out = subprocess.run(["git", "-C", str(APP_DIR.parent), *args],
                              capture_output=True, text=True, timeout=2)
     except Exception:  # noqa: BLE001
         return None
-    rev = (out.stdout or "").strip()
-    return rev or None
+    val = (out.stdout or "").strip()
+    return val or None
 
 
-REV = _rev()
+REV = _git("rev-parse", "--short", "HEAD")
+# **브랜치가 진짜 함정이었다.** `git pull` 은 지금 체크아웃된 브랜치를 따라간다.
+# 작업이 다른 브랜치에 있으면 pull 은 "Already up to date" 라고 답하고 아무것도
+# 안 바뀐다 — 재시작을 아무리 해도 옛 코드가 돈다. 어느 브랜치에 서 있는지
+# 화면이 말해 주면 그 자리에서 갈린다.
+BRANCH = _git("rev-parse", "--abbrev-ref", "HEAD")
 
 
 def code_mtime() -> datetime:
@@ -65,6 +69,7 @@ def info() -> dict:
     mtime = code_mtime()
     return {
         "rev": REV,
+        "branch": BRANCH,
         "started_at": STARTED.isoformat(timespec="seconds"),
         "code_mtime": mtime.isoformat(timespec="seconds"),
         # 파일이 서버보다 새것 = 받아만 놓고 다시 안 띄웠다.
