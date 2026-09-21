@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-09-20T17:13:47+00:00",
+    "updated": "2026-09-21T19:00:40+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4691,7 +4691,11 @@
       "20260917000296",
       "20260918000219",
       "20260918000313",
-      "20260918000488"
+      "20260918000488",
+      "20260921000083",
+      "20260921000222",
+      "20260921000275",
+      "20260921000287"
     ]
   },
   "companies": {
@@ -31775,6 +31779,54 @@
           "header": "수주잔고"
         }
       ]
+    },
+    "169330": {
+      "stock_code": "169330",
+      "corp_code": "00877174",
+      "name": "엠브레인",
+      "market": "KOSDAQ",
+      "sector": "시장조사 및 여론조사업",
+      "quarters": [
+        {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-09-21",
+          "rcept_no": "20260921000287",
+          "report_nm": "사업보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921000287",
+          "backlog_krw": 16288,
+          "backlog_raw": "16,288",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고 금액"
+        }
+      ],
+      "industry": "온라인 및 오프라인 리서치"
+    },
+    "093240": {
+      "stock_code": "093240",
+      "corp_code": "00441243",
+      "name": "형지엘리트",
+      "market": "KOSPI",
+      "sector": "봉제의복 제조업",
+      "quarters": [
+        {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-09-21",
+          "rcept_no": "20260921000083",
+          "report_nm": "사업보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921000083",
+          "backlog_krw": 586537,
+          "backlog_raw": "586,537",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "학생복,스포츠의류,작업복 제조,도매"
     }
   }
 }
