@@ -1,9 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/markets/stocks/articles/broadcom-vs-marvell-one-ai-133852173.html",
-"https://www.cnbc.com/2026/09/08/these-dividend-stocks-could-catch-a-tailwind-from-data-center-pushback.html",
-"https://www.bloomberg.com/news/articles/2026-09-08/massachusetts-will-require-new-data-centers-to-use-clean-energy",
-"https://www.bloomberg.com/news/articles/2026-09-08/google-blackstone-venture-faces-delays-at-data-center-sites",
 "https://www.bloomberg.com/news/videos/2026-09-08/qualcomm-cfo-on-amazon-ai-deal-data-center-strategy-video",
 "https://finance.yahoo.com/markets/stocks/articles/taiwan-semiconductor-manufacturing-company-tsm-142602670.html",
 "https://www.bloomberg.com/news/articles/2026-09-08/stock-market-today-dow-s-p-live-updates",
@@ -499,7 +495,11 @@
 "https://www.bloomberg.com/news/videos/2026-09-23/physical-ai-could-multiply-gdp-morgan-stanley-s-jonas-video",
 "https://www.bloomberg.com/news/videos/2026-09-23/ai-agents-fuel-a-new-cybersecurity-boom-video",
 "https://www.bloomberg.com/news/videos/2026-09-23/bessemer-anthropic-has-been-consistent-on-ai-safety-video",
-"https://www.cnbc.com/2026/09/23/altman-amodei-un-ai-safety.html"
+"https://www.cnbc.com/2026/09/23/altman-amodei-un-ai-safety.html",
+"https://asia.nikkei.com/business/tech/semiconductors/japan-s-edgecortix-looks-to-work-with-spacex-on-space-data-center-chips",
+"https://www.datacenterdynamics.com/en/news/ionq-to-deploy-first-quantum-computer-at-nvidias-accelerated-quantum-research-center/",
+"https://www.cnbc.com/2026/09/23/metas-standoff-with-amazon-over-muse-comes-ahead-of-meta-connect.html",
+"https://www.bloomberg.com/news/videos/2026-09-23/toner-there-s-a-lot-of-upside-to-ai-if-we-do-it-right-video"
 ],
-"updated": "2026-09-23T21:16:41+00:00"
+"updated": "2026-09-23T23:53:34+00:00"
 }
