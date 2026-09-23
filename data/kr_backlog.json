@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-09-22T17:53:32+00:00",
+    "updated": "2026-09-23T18:11:01+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4699,7 +4699,12 @@
       "20260921000435",
       "20260922000230",
       "20260922000499",
-      "20260922000530"
+      "20260922000530",
+      "20260923000170",
+      "20260923000252",
+      "20260923000468",
+      "20260923000536",
+      "20260923000617"
     ]
   },
   "companies": {
@@ -30268,6 +30273,20 @@
       "sector": "기타 금융업",
       "quarters": [
         {
+          "period": "2026-07",
+          "quarter": "2026 07월",
+          "rcept_dt": "2026-09-23",
+          "rcept_no": "20260923000617",
+          "report_nm": "분기보고서 (2026.07)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260923000617",
+          "backlog_krw": 3103904,
+          "backlog_raw": "3,103,904",
+          "unit": "GBP",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-04",
           "quarter": "2026 04월",
           "rcept_dt": "2026-08-19",
@@ -31842,10 +31861,10 @@
         {
           "period": "2026-06",
           "quarter": "2026 반기",
-          "rcept_dt": "2026-09-22",
-          "rcept_no": "20260921000435",
-          "report_nm": "사업보고서 (2026.06)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260921000435",
+          "rcept_dt": "2026-09-23",
+          "rcept_no": "20260923000252",
+          "report_nm": "[기재정정]사업보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260923000252",
           "backlog_krw": 28598000,
           "backlog_raw": "28,598",
           "unit": "천원",
