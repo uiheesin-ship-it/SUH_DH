@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-09-27T18:01:27+00:00",
+    "updated": "2026-09-28T20:23:50+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4704,7 +4704,18 @@
       "20260923000252",
       "20260923000468",
       "20260923000536",
-      "20260923000617"
+      "20260923000617",
+      "20260928000058",
+      "20260928000065",
+      "20260928000077",
+      "20260928000204",
+      "20260928000253",
+      "20260928000271",
+      "20260928000290",
+      "20260928000292",
+      "20260928000331",
+      "20260928000348",
+      "20260928000355"
     ]
   },
   "companies": {
@@ -9710,6 +9721,20 @@
       "market": "기타",
       "sector": "",
       "quarters": [
+        {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-09-28",
+          "rcept_no": "20260928000271",
+          "report_nm": "사업보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260928000271",
+          "backlog_krw": 1621,
+          "backlog_raw": "1,621",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -27764,6 +27789,20 @@
           "currency": null,
           "method": "total-row",
           "header": "계약잔액"
+        },
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-09-28",
+          "rcept_no": "20260928000253",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260928000253",
+          "backlog_krw": 11566610000,
+          "backlog_raw": "11,566,610",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
         }
       ],
       "industry": "CRM 소프트웨어"
@@ -31785,15 +31824,15 @@
       "corp_code": "01258428",
       "name": "프레스티지바이오로직스",
       "market": "KOSDAQ",
-      "sector": "",
+      "sector": "의약품 제조업",
       "quarters": [
         {
           "period": "2026-06",
           "quarter": "2026 반기",
-          "rcept_dt": "2026-09-18",
-          "rcept_no": "20260918000488",
-          "report_nm": "사업보고서 (2026.06)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260918000488",
+          "rcept_dt": "2026-09-28",
+          "rcept_no": "20260928000204",
+          "report_nm": "[기재정정]사업보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260928000204",
           "backlog_krw": 26598,
           "backlog_raw": "26,598",
           "unit": "원",
@@ -31801,7 +31840,8 @@
           "method": "single-row",
           "header": "수주잔고"
         }
-      ]
+      ],
+      "industry": "바이오시밀러 제조"
     },
     "169330": {
       "stock_code": "169330",
