@@ -1,14 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/technology/ai/articles/forget-nvda-peter-thiels-419-213011744.html",
-"https://www.cnbc.com/2026/09/12/ai-data-centers-catastrophe-bonds-insurance.html",
-"https://www.bloomberg.com/news/articles/2026-09-12/china-s-ai-industry-pivots-to-agents-from-models-report-says",
-"https://www.bloomberg.com/news/articles/2026-09-12/trump-brushes-off-ai-doomsaying-to-safeguard-us-lead-over-china",
-"https://www.bloomberg.com/news/articles/2026-09-13/china-s-data-regulator-plans-standards-push-for-embodied-ai",
-"https://www.datacenterdynamics.com/en/opinions/ai-has-changed-the-data-centers-job-description/",
-"https://finance.yahoo.com/technology/ai/articles/oracle-just-added-30-billion-111550996.html",
-"https://finance.yahoo.com/technology/ai/articles/ai-data-centers-track-fuel-113000003.html",
-"https://www.datacenterdynamics.com/en/opinions/from-pilot-to-production-direct-liquid-cooling-deployment-risks-in-ai-data-center-cooling/",
 "https://www.bloomberg.com/news/articles/2026-09-13/anthropic-s-ai-warning-may-weigh-on-chips-but-trade-seen-intact",
 "https://www.bloomberg.com/news/articles/2026-09-13/xi-pitches-his-ai-vision-at-brics-summit-as-china-duels-with-us",
 "https://www.datacenterdynamics.com/en/opinions/from-grid-constraint-to-grid-asset-rethinking-the-path-to-data-center-power/",
@@ -499,7 +490,16 @@
 "https://www.bloomberg.com/news/articles/2026-09-29/nvidia-anthropic-ceos-to-attend-trump-johnson-lunch-on-ai-risks",
 "https://www.bloomberg.com/news/articles/2026-09-29/ai-faces-6-trillion-test-to-justify-data-centers-bain-says",
 "https://www.cnbc.com/2026/09/29/samsung-investment-nvidia-kkr-ai-helix-digital.html",
-"https://www.bloomberg.com/news/videos/2026-09-29/ai-data-centers-face-scrutiny-in-australia-video"
+"https://www.bloomberg.com/news/videos/2026-09-29/ai-data-centers-face-scrutiny-in-australia-video",
+"https://www.datacenterdynamics.com/en/marketwatch/the-pace-of-power-has-changed-future-proofing-power-distribution-in-the-ai-era/",
+"https://www.datacenterdynamics.com/en/opinions/power-savings-pue-and-the-potential-of-millions-of-gallons-of-saved-water-the-power-of-phononics-dynamic-thermal-control/",
+"https://www.bloomberg.com/news/articles/2026-09-29/uk-must-accelerate-data-center-build-out-ai-minister-says",
+"https://www.datacenterdynamics.com/en/news/simaai-raises-150m-at-145bn-valuation-for-development-of-physical-ai-hardware/",
+"https://www.datacenterdynamics.com/en/news/schneider-electric-and-equinix-trial-software-defined-switchgear-for-data-centers/",
+"https://www.datacenterdynamics.com/en/news/ai-chip-startup-memryx-and-lenovo-have-signed-a-memorandum-of-understanding-mou-to-deploy-locally-operated-edge-ai-solutions-across-saudi-arabia-and-support-the-kingdoms-vision-2030-strategy-the-agreement-builds-on-joint-platform-deployments-already-o/",
+"https://www.bloomberg.com/news/videos/2026-09-29/bloomberg-brief-09-29-2026-video",
+"https://www.bloomberg.com/news/articles/2026-09-29/uk-data-center-turns-to-gas-as-burnham-moves-to-fix-grid-delays",
+"https://www.datacenterdynamics.com/en/news/plans-filed-for-400mw-data-center-campus-outside-melbourne-australia/"
 ],
-"updated": "2026-09-29T08:55:14+00:00"
+"updated": "2026-09-29T15:29:05+00:00"
 }
