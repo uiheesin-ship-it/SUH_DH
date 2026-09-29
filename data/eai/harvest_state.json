@@ -1480,7 +1480,19 @@
       "skipped": 239,
       "budget_exhausted": false,
       "worklist_done": true
+    },
+    {
+      "run": "2026-09-29T22:46:51Z",
+      "requests_used": 1,
+      "collected": [],
+      "empty": [
+        "HD_2026Q2"
+      ],
+      "errors": [],
+      "skipped": 239,
+      "budget_exhausted": false,
+      "worklist_done": true
     }
   ],
-  "updated": "2026-09-28T23:36:31Z"
+  "updated": "2026-09-29T22:46:51Z"
 }
