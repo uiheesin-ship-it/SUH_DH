@@ -94,20 +94,34 @@ def publish_scan(dash: dict, site_path: Path, repo_path: Path,
         write_json(site_path, dash)
         write_json(repo_path, dash)
         return True
-    prev_uni = 0
     try:
         prev = json.loads(repo_path.read_text(encoding="utf-8"))
-        prev_uni = prev.get("universe_size") or 0
     except Exception:
-        prev_uni = 0
+        prev = {}
+    prev_uni = prev.get("universe_size") or 0
     collapsed = bool(prev_uni > 0 and new_uni < prev_uni * float(min_universe_frac))
     if new_count > 0 and not collapsed:
+        # Healthy scan — publish it and clear any prior stale marker.
+        for k in ("stale", "stale_reason", "last_attempt", "last_attempt_universe",
+                  "last_attempt_count"):
+            dash.pop(k, None)
         write_json(site_path, dash)
         write_json(repo_path, dash)
         return True
+    # Hiccup — keep the previous good snapshot but MARK it stale so the UI can
+    # show a small "not updated" note next to the refresh time. The kept data
+    # (stocks / universe_size) is unchanged, so the collapse baseline stays honest;
+    # a later healthy scan clears the marker.
     why = "0 results" if new_count == 0 else f"universe collapsed {new_uni} vs prev {prev_uni}"
-    print(f"  scan hiccup ({why}) — keeping committed {repo_path.name}")
-    shutil.copyfile(repo_path, site_path)
+    print(f"  scan hiccup ({why}) — keeping committed {repo_path.name}, marked stale")
+    kept = dict(prev)
+    kept["stale"] = True
+    kept["stale_reason"] = why
+    kept["last_attempt"] = dash.get("built")
+    kept["last_attempt_universe"] = new_uni
+    kept["last_attempt_count"] = new_count
+    write_json(site_path, kept)
+    write_json(repo_path, kept)
     return False
 
 

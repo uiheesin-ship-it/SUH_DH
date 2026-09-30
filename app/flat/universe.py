@@ -236,4 +236,7 @@ def get_candidates(cfg: dict) -> list[dict]:
     etf_cap = int(uni.get("max_etf_candidates", 700))
     stocks = [r for r in filtered if not r.get("is_etf")]
     etfs = [r for r in filtered if r.get("is_etf")]
-    return _sample(stocks, cap) + _sample(etfs, etf_cap)
+    fresh = _sample(stocks, cap) + _sample(etfs, etf_cap)
+    # Reuse the last-good universe if Finviz throttled this fetch into a collapse.
+    from .. import universe_cache
+    return universe_cache.reconcile("flat", fresh)

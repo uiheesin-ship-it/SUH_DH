@@ -66,8 +66,25 @@ async function load() {
       + (data.nodata ? ` · 수신실패 ${data.nodata}` : "");
     $("#status").textContent =
       `${data.count}개 평평 베이스 (유니버스 ${data.universe_size}${extra}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
+    showStale(data);
   } catch (e) {
     renderError("데이터를 불러오지 못했습니다", e.message);
+  }
+}
+
+// Small "not updated" badge next to the refresh time when the last scan couldn't
+// refresh the data (e.g. Finviz throttled the universe fetch).
+function showStale(data) {
+  const sb = $("#stale-badge");
+  if (!sb) return;
+  if (data && data.stale) {
+    const la = data.last_attempt ? new Date(data.last_attempt).toLocaleString("ko-KR") : "";
+    sb.title = "데이터 공급원(Finviz) 일시 장애로 최신화 실패 — 마지막 정상 데이터를 표시 중입니다."
+      + (la ? ` 마지막 시도: ${la}` : "")
+      + (data.last_attempt_universe != null ? ` (그때 유니버스 ${data.last_attempt_universe})` : "");
+    sb.classList.remove("hidden");
+  } else {
+    sb.classList.add("hidden");
   }
 }
 

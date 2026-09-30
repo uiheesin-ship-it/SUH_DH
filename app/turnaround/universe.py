@@ -137,5 +137,9 @@ def get_candidates(cfg: dict) -> list[dict]:
     filtered.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
     if 0 < cap < len(filtered):
         step = len(filtered) / cap
-        return [filtered[int(i * step)] for i in range(cap)]
-    return filtered
+        fresh = [filtered[int(i * step)] for i in range(cap)]
+    else:
+        fresh = filtered
+    # Reuse the last-good universe if Finviz throttled this fetch into a collapse.
+    from .. import universe_cache
+    return universe_cache.reconcile("turnaround", fresh)

@@ -54,6 +54,10 @@ on:
       - "data/turnaround.json"
       # US ticker→exchange map (for TradingView export); committed by builds.
       - "data/us_exchanges.json"
+      # Last-good US Finviz universes (fallback when Finviz throttles the runner).
+      - "data/base_universe.json"
+      - "data/flat_universe.json"
+      - "data/turnaround_universe.json"
       # Last-good KOSPI/KOSDAQ universe (fallback when KRX blocks the runner).
       - "data/kr_universe.json"
       # Same for the persisted Korean 52-week-high snapshot.
@@ -128,10 +132,10 @@ jobs:
         # block the Pages deploy.
         continue-on-error: true
         run: |
-          if [ -n "$(git status --porcelain data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
+          if [ -n "$(git status --porcelain data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json
+            git add data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json
             git commit -m "chore: update dashboard data (news, highs, base, flat, turnaround, KR highs, KR base)"
             # The Telegram job commits to this same branch on its own cadence.
             # Retry, auto-resolving in favor of this fresh build.
