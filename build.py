@@ -72,17 +72,41 @@ def write_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
 
 
-def publish_scan(dash: dict, site_path: Path, repo_path: Path) -> bool:
+def publish_scan(dash: dict, site_path: Path, repo_path: Path,
+                 min_universe_frac: float = 0.5) -> bool:
     """Publish a scan result, but never clobber a good committed snapshot with an
-    empty one. Korean data (FDR/Naver) intermittently fails from the US build
-    server and returns 0 results; without this guard that 0 overwrites the last
-    good snapshot. Returns True if the fresh result was published.
+    empty OR COLLAPSED one. Two failure modes are guarded:
+
+    1. 0 results — Korean data (FDR/Naver) intermittently fails from the US build
+       server and returns 0; that 0 must not overwrite the last good snapshot.
+    2. Collapsed universe — Finviz occasionally 403s/throttles one of the
+       universe passes, so the candidate universe comes back a fraction of its
+       normal size (e.g. 222 vs the usual ~1700) and the screener publishes a
+       handful of names. If the new universe is below `min_universe_frac` of the
+       last good snapshot's universe, treat it as a data hiccup and keep the
+       committed snapshot instead of clobbering it.
+
+    Returns True if the fresh result was published.
     """
-    if (dash.get("count") or 0) > 0 or not repo_path.exists():
+    new_count = dash.get("count") or 0
+    new_uni = dash.get("universe_size") or 0
+    if not repo_path.exists():
         write_json(site_path, dash)
         write_json(repo_path, dash)
         return True
-    print(f"  scan returned 0 — keeping committed {repo_path.name} (data source hiccup)")
+    prev_uni = 0
+    try:
+        prev = json.loads(repo_path.read_text(encoding="utf-8"))
+        prev_uni = prev.get("universe_size") or 0
+    except Exception:
+        prev_uni = 0
+    collapsed = bool(prev_uni > 0 and new_uni < prev_uni * float(min_universe_frac))
+    if new_count > 0 and not collapsed:
+        write_json(site_path, dash)
+        write_json(repo_path, dash)
+        return True
+    why = "0 results" if new_count == 0 else f"universe collapsed {new_uni} vs prev {prev_uni}"
+    print(f"  scan hiccup ({why}) — keeping committed {repo_path.name}")
     shutil.copyfile(repo_path, site_path)
     return False
 
@@ -364,21 +388,23 @@ def main() -> None:
             from app import base as base_screener
 
             payload = base_screener.run_scan(progress=True)
-            write_json(SITE / "data" / "base.json", payload)
-            write_json(repo_base, payload)  # persist so push builds can reuse it
-            chart_limit = int(os.environ.get("SUH_DH_BASE_CHART_LIMIT", "60"))
-            for s in payload.get("stocks", [])[:chart_limit]:
-                t = s["ticker"]
-                cp = SITE / "data" / "chart" / f"{t}.json"
-                if cp.exists():
-                    continue
-                try:
-                    write_json(cp, charts.get_chart(t, "max"))
-                except Exception as e:
-                    print(f"  base chart {t} failed: {e}")
-                time.sleep(0.3)
-            print(f"  base screen: {payload.get('count')} setups "
-                  f"(universe {payload.get('universe_size')}).")
+            if publish_scan(payload, SITE / "data" / "base.json", repo_base):
+                chart_limit = int(os.environ.get("SUH_DH_BASE_CHART_LIMIT", "60"))
+                for s in payload.get("stocks", [])[:chart_limit]:
+                    t = s["ticker"]
+                    cp = SITE / "data" / "chart" / f"{t}.json"
+                    if cp.exists():
+                        continue
+                    try:
+                        write_json(cp, charts.get_chart(t, "max"))
+                    except Exception as e:
+                        print(f"  base chart {t} failed: {e}")
+                    time.sleep(0.3)
+                print(f"  base screen: {payload.get('count')} setups "
+                      f"(universe {payload.get('universe_size')}).")
+            else:
+                print(f"  base screen: universe collapsed ({payload.get('universe_size')}) "
+                      f"— kept previous snapshot.")
         except Exception as e:
             print(f"  base screen failed: {e}")
             if repo_base.exists():
