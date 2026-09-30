@@ -132,10 +132,16 @@ jobs:
         # block the Pages deploy.
         continue-on-error: true
         run: |
-          if [ -n "$(git status --porcelain data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json)" ]; then
+          FILES="data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json"
+          # Only stage files that actually exist — the *_universe.json snapshots
+          # aren't created until a healthy scan runs, and `git add` on a missing
+          # pathspec aborts the whole add (losing the real data changes).
+          EXIST=""
+          for f in $FILES; do [ -e "$f" ] && EXIST="$EXIST $f"; done
+          if [ -n "$EXIST" ] && [ -n "$(git status --porcelain $EXIST)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json
+            git add $EXIST
             git commit -m "chore: update dashboard data (news, highs, base, flat, turnaround, KR highs, KR base)"
             # The Telegram job commits to this same branch on its own cadence.
             # Retry, auto-resolving in favor of this fresh build.
