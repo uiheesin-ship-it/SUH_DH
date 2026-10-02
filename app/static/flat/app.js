@@ -65,7 +65,7 @@ async function load() {
     const extra = (data.insufficient ? ` · 데이터부족 ${data.insufficient}` : "")
       + (data.nodata ? ` · 수신실패 ${data.nodata}` : "");
     $("#status").textContent =
-      `${data.count}개 평평 베이스 (유니버스 ${data.universe_size}${extra}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
+      `${data.count}개 평평 베이스 (유니버스 ${data.universe_size}${extra})${data.data_asof ? " · 데이터 기준 " + data.data_asof : ""} · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
     showStale(data);
   } catch (e) {
     renderError("데이터를 불러오지 못했습니다", e.message);

@@ -68,7 +68,7 @@ async function load() {
                         : new Date().toLocaleTimeString("ko-KR");
     const dropTxt = data.dropped_count != null ? ` · 제외 ${data.dropped_count}` : "";
     $("#status").textContent =
-      `${data.count}개 종목 (유니버스 ${data.universe_size}${dropTxt}) · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
+      `${data.count}개 종목 (유니버스 ${data.universe_size}${dropTxt})${data.data_asof ? " · 데이터 기준 " + data.data_asof : ""} · ${STATIC ? "갱신 " + when + " · 매일 자동" : "업데이트 " + when}`;
     showStale(data);
   } catch (e) {
     renderError("데이터를 불러오지 못했습니다", e.message);

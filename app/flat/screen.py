@@ -302,8 +302,12 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     # Default order: Flatness Score desc (spec §13).
     records.sort(key=lambda r: (r.get("flatness_score") or 0), reverse=True)
 
+    data_asof = max((r.get("base_end_date") for r in records if r.get("base_end_date")),
+                    default=None)
+
     return {
         "built": built,
+        "data_asof": data_asof,
         "count": len(records),
         "universe_size": len(candidates),
         "universe_source": _uni_source("flat"),

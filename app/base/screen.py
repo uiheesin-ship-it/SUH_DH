@@ -338,8 +338,14 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
     records = [r for r in records if not r.get("low_vigor")]
     records.sort(key=_sort_key, reverse=False)
 
+    # Data as-of = latest price-bar date across the scan (what the numbers reflect),
+    # which can trail the scan-run time (built) by a day pre-close.
+    data_asof = max((((r.get("base") or {}).get("base_end_date")) for r in records
+                     if (r.get("base") or {}).get("base_end_date")), default=None)
+
     return {
         "built": built,
+        "data_asof": data_asof,
         "count": len(records),
         "universe_size": len(candidates),
         "universe_source": _uni_source("base"),
