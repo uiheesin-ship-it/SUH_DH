@@ -89,9 +89,14 @@ function showStale(data) {
   if (!sb) return;
   if (data && data.stale) {
     const la = data.last_attempt ? new Date(data.last_attempt).toLocaleString("ko-KR") : "";
-    sb.title = "데이터 공급원(Finviz) 일시 장애로 최신화 실패 — 마지막 정상 데이터를 표시 중입니다."
+    sb.textContent = "⚠ 업데이트 지연";
+    sb.title = "데이터 공급원(Finviz) 장애로 최신화 실패 — 마지막 정상 데이터를 표시 중입니다."
       + (la ? ` 마지막 시도: ${la}` : "")
       + (data.last_attempt_universe != null ? ` (그때 유니버스 ${data.last_attempt_universe})` : "");
+    sb.classList.remove("hidden");
+  } else if (data && (data.universe_source === "snapshot" || data.universe_source === "bootstrap")) {
+    sb.textContent = "⚠ 캐시 유니버스";
+    sb.title = "Finviz 유니버스 조회가 지연돼 마지막 정상 종목목록을 재사용했습니다. 가격·지표는 최신이고 종목 범위만 캐시 기준입니다.";
     sb.classList.remove("hidden");
   } else {
     sb.classList.add("hidden");

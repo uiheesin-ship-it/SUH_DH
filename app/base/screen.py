@@ -26,6 +26,14 @@ from . import data, detect, inbase, metrics, rs, scoring, sector
 from .config import load as load_config
 
 
+def _uni_source(name: str) -> str:
+    """Which tier produced this scan's universe: live / snapshot / bootstrap."""
+    try:
+        from .. import universe_cache
+        return universe_cache.last_source(name)
+    except Exception:
+        return "live"
+
 def _daily_range_pct(high, low, close) -> list[float]:
     h = np.asarray(high, dtype=float)
     l = np.asarray(low, dtype=float)
@@ -334,6 +342,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         "built": built,
         "count": len(records),
         "universe_size": len(candidates),
+        "universe_source": _uni_source("base"),
         "failures": failures,
         "dropped_count": len(dropped),
         "drop_reasons": drop_reasons,   # {reason: count}

@@ -30,6 +30,15 @@ from . import activity, bases, setup as setup_mod, trend_tag
 from .config import load as load_config
 
 
+def _uni_source(name: str) -> str:
+    """Which tier produced this scan's universe: live / snapshot / bootstrap."""
+    try:
+        from .. import universe_cache
+        return universe_cache.last_source(name)
+    except Exception:
+        return "live"
+
+
 def _avg_dollar_volume_20d(close, volume) -> float | None:
     if len(close) < 20 or len(volume) < 20:
         return None
@@ -297,6 +306,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         "built": built,
         "count": len(records),
         "universe_size": len(candidates),
+        "universe_source": _uni_source("flat"),
         "failures": failures,
         "insufficient": insufficient,
         "nodata": nodata,

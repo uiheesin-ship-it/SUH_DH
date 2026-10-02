@@ -37,6 +37,15 @@ from . import setup as setup_mod, triggers as trig_mod
 from .config import load as load_config
 
 
+def _uni_source(name: str) -> str:
+    """Which tier produced this scan's universe: live / snapshot / bootstrap."""
+    try:
+        from .. import universe_cache
+        return universe_cache.last_source(name)
+    except Exception:
+        return "live"
+
+
 def _demo() -> bool:
     return os.environ.get("SUH_DH_DEMO", "") not in ("", "0", "false", "False")
 
@@ -334,6 +343,7 @@ def run_scan(cfg: dict | None = None, limit: int | None = None,
         "built": built,
         "count": len(records),
         "universe_size": len(candidates),
+        "universe_source": _uni_source("turnaround"),
         "failures": failures,
         "insufficient": insufficient,
         "nodata": nodata,

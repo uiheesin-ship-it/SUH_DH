@@ -73,18 +73,21 @@ def write_json(path: Path, obj) -> None:
 
 
 def publish_scan(dash: dict, site_path: Path, repo_path: Path,
-                 min_universe_frac: float = 0.5) -> bool:
-    """Publish a scan result, but never clobber a good committed snapshot with an
-    empty OR COLLAPSED one. Two failure modes are guarded:
+                 min_universe: int = 150) -> bool:
+    """Publish a scan result, but never clobber a good committed snapshot with a
+    broken one. Two failure modes are guarded:
 
     1. 0 results — Korean data (FDR/Naver) intermittently fails from the US build
        server and returns 0; that 0 must not overwrite the last good snapshot.
-    2. Collapsed universe — Finviz occasionally 403s/throttles one of the
-       universe passes, so the candidate universe comes back a fraction of its
-       normal size (e.g. 222 vs the usual ~1700) and the screener publishes a
-       handful of names. If the new universe is below `min_universe_frac` of the
-       last good snapshot's universe, treat it as a data hiccup and keep the
-       committed snapshot instead of clobbering it.
+    2. Tiny universe — a scan whose candidate universe is below `min_universe`
+       (absolute floor) is a broken fetch, not a real screen.
+
+    NOTE: universe COLLAPSE is now handled upstream in app/universe_cache.py — a
+    throttled Finviz fetch is replaced with the last-good snapshot (or a bootstrap
+    seed) BEFORE the scan runs, so a healthy-but-smaller fallback universe reaches
+    here and SHOULD publish (fresh prices on a cached ticker list). Hence the guard
+    here is only an absolute-floor backstop, not a relative "vs previous" check
+    (which would wrongly reject a legitimate fallback universe).
 
     Returns True if the fresh result was published.
     """
@@ -98,10 +101,9 @@ def publish_scan(dash: dict, site_path: Path, repo_path: Path,
         prev = json.loads(repo_path.read_text(encoding="utf-8"))
     except Exception:
         prev = {}
-    prev_uni = prev.get("universe_size") or 0
-    collapsed = bool(prev_uni > 0 and new_uni < prev_uni * float(min_universe_frac))
-    if new_count > 0 and not collapsed:
-        # Healthy scan — publish it and clear any prior stale marker.
+    broken = bool(new_count <= 0 or (new_uni and new_uni < int(min_universe)))
+    if not broken:
+        # Healthy (or deliberate fallback) scan — publish it and clear any stale marker.
         for k in ("stale", "stale_reason", "last_attempt", "last_attempt_universe",
                   "last_attempt_count"):
             dash.pop(k, None)
@@ -110,9 +112,9 @@ def publish_scan(dash: dict, site_path: Path, repo_path: Path,
         return True
     # Hiccup — keep the previous good snapshot but MARK it stale so the UI can
     # show a small "not updated" note next to the refresh time. The kept data
-    # (stocks / universe_size) is unchanged, so the collapse baseline stays honest;
+    # (stocks / universe_size) is unchanged, so the baseline stays honest;
     # a later healthy scan clears the marker.
-    why = "0 results" if new_count == 0 else f"universe collapsed {new_uni} vs prev {prev_uni}"
+    why = "0 results" if new_count <= 0 else f"universe too small ({new_uni})"
     print(f"  scan hiccup ({why}) — keeping committed {repo_path.name}, marked stale")
     kept = dict(prev)
     kept["stale"] = True
