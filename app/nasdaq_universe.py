@@ -79,16 +79,26 @@ def _rows_from_payload(payload: dict) -> list[dict]:
 
 
 def _map_row(r: dict, *, is_etf: bool) -> dict | None:
-    """Map one Nasdaq screener row to a candidate dict. Returns None for rows
-    with no ticker or no market cap (unusable for the cap-based filters)."""
+    """Map one Nasdaq screener row to a candidate dict.
+
+    Stocks: require a ticker AND a positive market cap. ETFs report NET ASSETS,
+    not market cap, so the ETF screener row has no ``marketCap`` field — for ETFs
+    we require a ticker AND a parseable price instead, and leave ``market_cap``
+    None. Downstream that is safe: the min_market_cap filter guards on
+    ``mc is not None`` (so None-cap ETFs pass the cap floor), and the 20-day
+    dollar-volume gate in each screen.py still drops illiquid ETFs after bars are
+    fetched. Returns None for rows that fail their asset class's requirement."""
     sym = (r.get("symbol") or r.get("Symbol") or "").strip().upper()
     if not sym or "^" in sym or "/" in sym:   # drop warrants/units/odd classes
         return None
-    mc = _to_float(r.get("marketCap") or r.get("MarketCap"))
-    if mc is None or mc <= 0:
-        return None
     price = _to_float(r.get("lastsale") or r.get("lastSalePrice")
                       or r.get("lastSale") or r.get("price"))
+    mc = _to_float(r.get("marketCap") or r.get("MarketCap"))
+    if is_etf:
+        if price is None:
+            return None            # an ETF with no quote is unusable
+    elif mc is None or mc <= 0:
+        return None                # a stock must have a real market cap
     name = r.get("name") or r.get("companyName") or r.get("Name")
     sector = r.get("sector") or r.get("Sector") or "Unknown"
     industry = r.get("industry") or r.get("Industry")
@@ -114,20 +124,21 @@ def fetch(kind: str = "stocks") -> list[dict]:
     kind = "etf" if str(kind).lower() in ("etf", "etfs") else "stocks"
     url = _BASE.format(kind=kind)
     payload = None
+    err = None
     for attempt in range(_RETRIES):
         try:
             req = urllib.request.Request(url, headers=_HEADERS)
             with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
                 payload = _json.loads(resp.read().decode("utf-8", "replace"))
+            err = None
             break
-        except Exception:
+        except Exception as e:
             payload = None
+            err = type(e).__name__
             if attempt < _RETRIES - 1:
                 time.sleep(2 * (attempt + 1))   # 2s, 4s
-    if not payload:
-        return []
 
-    rows_raw = _rows_from_payload(payload)
+    rows_raw = _rows_from_payload(payload) if payload else []
     is_etf = (kind == "etf")
     out: list[dict] = []
     seen: set[str] = set()
@@ -137,4 +148,8 @@ def fetch(kind: str = "stocks") -> list[dict]:
             continue
         seen.add(rec["ticker"])
         out.append(rec)
+    # One-line diagnostic (captured in the CI build log) so the ETF/stocks path is
+    # self-verifying: distinguishes a blocked/error fetch from an empty/parsed one.
+    print(f"  nasdaq_universe.fetch({kind}): "
+          f"{'error=' + err if err else 'ok'} raw={len(rows_raw)} mapped={len(out)}")
     return out
