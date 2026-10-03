@@ -111,6 +111,28 @@ function standardize(M, n, cols, win) {
 }
 
 // 파일을 받은 직후 한 번만: 수익률 → 잔차 → 창별 표준화.
+/* 기준일로부터 지난 **거래일** 수(주말 제외, 공휴일은 안 센다 — 넉넉히 보는 쪽).
+ *
+ * 당일 종가는 미국장이 닫혀야 나오므로 1거래일까지는 정상이다. 2거래일을
+ * 넘어가면 수집이 멈춘 것이니 눈에 띄게 적는다. */
+function tradingDaysSince(asof) {
+  if (!asof) return null;
+  const a = new Date(asof + "T00:00:00Z"), now = new Date();
+  if (isNaN(a)) return null;
+  let n = 0;
+  for (const d = new Date(a); d < now; d.setUTCDate(d.getUTCDate() + 1)) {
+    const wd = d.getUTCDay();
+    if (wd !== 0 && wd !== 6) n++;              // 주말은 장이 없다 = 밀린 게 아니다
+  }
+  return Math.max(0, n - 1);                    // 기준일 당일은 세지 않는다
+}
+
+function staleBadge(asof) {
+  const n = tradingDaysSince(asof);
+  if (n === null || n <= 1) return "";          // 0~1거래일은 정상(당일 종가는 장 마감 후)
+  return ` <b class="stale">· ${n}거래일 지남 — 수집이 멈췄을 수 있습니다</b>`;
+}
+
 function prepare(raw) {
   const n = raw.tickers.length;
   const cols = raw.days;
@@ -418,8 +440,11 @@ async function load() {
                  `${(performance.now() - t0).toFixed(0)}ms`);
     $("#demo-badge").classList.toggle("hidden", !raw.demo);
     const when = raw.updated ? new Date(raw.updated).toLocaleString("ko-KR") : "";
-    $("#status").textContent =
-      `${raw.tickers.length.toLocaleString()}종목 전체와 비교 · 기준일 ${raw.asof || "—"} · 갱신 ${when}`;
+    $("#status").innerHTML =
+      `${raw.tickers.length.toLocaleString()}종목 전체와 비교 · 기준일 ${esc(raw.asof || "—")}` +
+      staleBadge(raw.asof) + ` · 갱신 ${esc(when)}` +
+      (raw.universe_source === "last-snapshot"
+        ? ` <b class="stale">· 유니버스를 못 받아 지난 종목 목록으로 돌렸습니다</b>` : "");
     let last = null;
     try { last = localStorage.getItem("suh_correl_last"); } catch (_) { /* 무시 */ }
     const initial = new URLSearchParams(location.search).get("t") || last;

@@ -54,12 +54,17 @@ jobs:
           python tools/correl_us.py \
             --limit "${{ github.event.inputs.limit || '0' }}" \
             --min-dollar-vol "${{ github.event.inputs.min_dollar_vol || '10' }}"
+      # 유니버스 폴백 파일도 같이 커밋한다.
+      #
+      # 이게 없어서 폴백이 **CI 에서 한 번도 뜨지 못했다.** 러너는 매번 빈
+      # 작업공간에서 시작하니, Finviz 가 막히는 날이면 "지난 유니버스를
+      # 재사용한다"는 코드가 읽을 파일 자체가 없었다(2026-10-01·10-03 연속 실패).
       - name: Commit JSON
         run: |
-          if [ -n "$(git status --porcelain data/correl.json)" ]; then
+          if [ -n "$(git status --porcelain data/correl.json data/correl_universe.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/correl.json
+            git add data/correl.json data/correl_universe.json
             git commit -m "data(correl): refresh US ticker correlations"
             for i in 1 2 3 4 5; do
               git push origin HEAD:claude/funny-carson-ent3s7 && break

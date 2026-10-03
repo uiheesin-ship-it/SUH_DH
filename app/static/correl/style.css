@@ -23,6 +23,8 @@ body {
 }
 .home-link:hover { color: var(--accent); border-color: var(--accent); }
 .status { color: var(--muted); font-size: 13px; }
+/* 자료가 오래됐다는 건 회색 글씨로 적으면 아무도 안 본다 — 실제로 못 봤다. */
+.status .stale { color: #fbbf24; font-weight: 600; }
 .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
 .badge.demo { background: #7c2d12; color: #fed7aa; }
 .hidden { display: none !important; }

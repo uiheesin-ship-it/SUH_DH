@@ -55,6 +55,7 @@ from app.correl import (  # noqa: E402
 
 OUT = ROOT / "data" / "correl.json"
 UNIVERSE_CACHE = ROOT / "data" / "correl_universe.json"   # Finviz 실패 시 폴백
+UNIVERSE_FROM_SNAPSHOT: list[bool] = []   # 지난 스냅샷에서 되세웠으면 True
 MARKET = "SPY"                     # 잔차를 구할 때 빼는 시장 대용치
 
 PERIOD = "1y"                      # 120일 창 + 여유. 단기 위주라 길게 받을 이유가 없다
@@ -83,6 +84,17 @@ def log(msg: str) -> None:
 
 
 # ------------------------------------------------------------ 1. 유니버스
+class Bail(RuntimeError):
+    """새 스냅샷을 못 만들고 끝낸다 — 기존 파일은 지키되 **빨간불로** 끝낸다.
+
+    예전엔 이 자리들이 전부 조용한 ``return`` 이었다. 스냅샷을 덮어쓰지 않는
+    건 맞지만 종료코드가 0 이라 깃허브가 초록불을 띄웠고, 2026-10-01·10-03
+    두 번 연속으로 아무것도 못 만들었는데 아무도 몰랐다. 사용자가 "업데이트가
+    안 되는데?" 하고 물어보고 나서야 드러났다. 조용한 실패는 실패가 아니라
+    **없는 기능**이다.
+    """
+
+
 def _save_universe(rows: list[dict]) -> None:
     UNIVERSE_CACHE.parent.mkdir(parents=True, exist_ok=True)
     UNIVERSE_CACHE.write_text(json.dumps(
@@ -95,6 +107,39 @@ def _load_universe() -> list[dict]:
         return []
     try:
         return json.loads(UNIVERSE_CACHE.read_text(encoding="utf-8")).get("rows") or []
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _universe_from_snapshot() -> list[dict]:
+    """마지막 수단 — 지난 correl.json 에 남은 종목으로 유니버스를 되세운다.
+
+    폴백 파일(UNIVERSE_CACHE)이 깃에 없던 시절, CI 는 매번 빈 작업공간에서
+    시작하니 Finviz 가 막히는 날이면 폴백이 **한 번도 뜨지 못했다.** 실제로
+    2026-10-01·10-03 두 번 연속 그렇게 아무것도 못 만들고 끝났다. 이제
+    폴백 파일을 같이 커밋하지만, 그마저 없을 때를 위해 이 길을 둔다.
+
+    지난 스냅샷에는 **유동성을 통과한 종목만** 있다(7,962 중 3,027). 그래서
+    이걸로 돌리면 그날 새로 거래대금 기준을 넘긴 종목이 안 들어온다. 완전하지
+    않다는 뜻이고, 그래도 아무것도 못 만드는 것보다는 낫다 — 결과에
+    ``universe_source`` 로 그렇게 적는다.
+    """
+    if not OUT.exists():
+        return []
+    try:
+        d = json.loads(OUT.read_text(encoding="utf-8"))
+        schema = d.get("meta_schema") or []
+        at = {k: i for i, k in enumerate(schema)}
+        rows = []
+        for t, m in zip(d.get("tickers") or [], d.get("meta") or []):
+            def g(k, dflt=""):
+                i = at.get(k)
+                return m[i] if i is not None and i < len(m) else dflt
+            rows.append({"ticker": t, "name": g("name"), "sector": g("sector"),
+                         "industry": g("industry"),
+                         "market_cap": (g("mcap_musd", 0) or 0) * 1e6,
+                         "is_etf": bool(g("is_etf", 0))})
+        return rows
     except Exception:  # noqa: BLE001
         return []
 
@@ -159,9 +204,17 @@ def universe_rows() -> list[dict]:
     cached = _load_universe()
     if cached:
         log(f"  Finviz 가 막혀 지난 유니버스를 재사용합니다 ({len(cached)}종목)")
-    else:
-        log("  유니버스를 얻지 못했고 폴백 파일도 없습니다.")
-    return cached
+        return cached
+
+    snap = _universe_from_snapshot()
+    if snap:
+        log(f"  폴백 파일도 없어 지난 스냅샷에서 되세웁니다 ({len(snap)}종목) — "
+            f"그날 새로 유동성 기준을 넘긴 종목은 빠집니다")
+        UNIVERSE_FROM_SNAPSHOT.append(True)
+        return snap
+
+    log("  유니버스를 얻지 못했고 폴백 파일도, 지난 스냅샷도 없습니다.")
+    return []
 
 
 # ------------------------------------------------------------ 2. 가격 수신
@@ -327,8 +380,7 @@ def main() -> None:
     if limit:
         rows = rows[:limit]
     if not rows:
-        log("유니버스가 비었습니다. 중단.")
-        return
+        raise Bail("유니버스가 비었습니다(Finviz·폴백·지난 스냅샷 모두 실패).")
     meta_src = {r["ticker"]: r for r in rows}
     syms = sorted(meta_src)
     log(f"유니버스 {len(syms)}종목 (+ 시장 {MARKET})")
@@ -336,20 +388,18 @@ def main() -> None:
     log("가격 받는 중 ...")
     close, dvol = download(sorted(set(syms) | {MARKET}))
     if close is None or close.empty:
-        log("가격을 하나도 받지 못했습니다. 중단.")
-        return
+        raise Bail("가격을 하나도 받지 못했습니다.")
     log(f"  {close.shape[1]}종목 × {close.shape[0]}일 수신")
 
     if MARKET not in close.columns:
-        log(f"{MARKET} 가격을 못 받아 잔차를 구할 수 없습니다. 중단.")
-        return
+        raise Bail(f"{MARKET} 가격을 못 받아 잔차를 구할 수 없습니다.")
 
     # 레이트 리밋에 맞은 반쪽 결과를 조용히 덮어쓰지 않는다.
     gone = missing_anchors(close)
     if len(gone) > MAX_MISSING_ANCHORS:
-        log(f"대형주 {len(gone)}/{len(ANCHORS)}개를 못 받았습니다({', '.join(gone)}). "
-            f"레이트 리밋으로 보이므로 기존 스냅샷을 그대로 둡니다.")
-        return
+        raise Bail(f"대형주 {len(gone)}/{len(ANCHORS)}개를 못 받았습니다"
+                   f"({', '.join(gone)}). 레이트 리밋으로 보입니다 — "
+                   f"기존 스냅샷은 그대로 둡니다.")
     if gone:
         log(f"  참고: 대형주 {len(gone)}개 미수신({', '.join(gone)}) — 허용 범위 안")
 
@@ -358,8 +408,7 @@ def main() -> None:
     log(f"유동성 통과 {len(keep)}종목 "
         f"(가격 ≥ ${MIN_PRICE:.0f}, 거래대금 ≥ ${min_dv:.0f}M, 관측 ≥ {MIN_OBS}일)")
     if len(keep) < 50:
-        log("통과 종목이 너무 적습니다. 중단.")
-        return
+        raise Bail(f"유동성을 통과한 종목이 {len(keep)}개뿐입니다(50개 미만).")
 
     # 지난번보다 크게 줄었으면 수신이 덜 된 것이다 — 유동성 기준을 사용자가
     # 의도적으로 올린 경우가 아니면 기존 스냅샷을 지키는 쪽이 안전하다.
@@ -370,9 +419,9 @@ def main() -> None:
         except Exception:  # noqa: BLE001
             prev_n = 0
     if prev_n and len(keep) < prev_n * 0.7 and min_dv <= MIN_DOLLAR_VOL_M:
-        log(f"지난 스냅샷({prev_n}종목)보다 30% 넘게 줄었습니다({len(keep)}종목). "
-            f"수신 누락으로 보이므로 기존 스냅샷을 그대로 둡니다.")
-        return
+        raise Bail(f"지난 스냅샷({prev_n}종목)보다 30% 넘게 줄었습니다"
+                   f"({len(keep)}종목). 수신 누락으로 보입니다 — "
+                   f"기존 스냅샷은 그대로 둡니다.")
 
     import numpy as np
 
@@ -428,7 +477,8 @@ def main() -> None:
         "period": PERIOD,
         # 화면의 "유니버스" 설명이 이 숫자들을 그대로 읽는다 — 문서에 손으로 적어
         # 두면 기준을 바꿨을 때 설명만 옛날 값으로 남는다.
-        "universe_source": "flat-screener",   # 이평선 조건 없는 목록(상관 분석용)
+        "universe_source": ("last-snapshot" if UNIVERSE_FROM_SNAPSHOT
+                            else "flat-screener"),  # 이평선 조건 없는 목록(상관 분석용)
         "universe_raw": len(syms),            # 유동성 필터 전 후보 수
         "filters": {"min_price": MIN_PRICE, "min_dollar_vol_musd": min_dv,
                     "min_obs_days": MIN_OBS, "dollar_vol_window": 60},
@@ -451,4 +501,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Bail as e:
+        log(f"중단: {e}")
+        sys.exit(1)
