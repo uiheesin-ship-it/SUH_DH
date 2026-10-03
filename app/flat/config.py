@@ -36,6 +36,11 @@ DEFAULTS: dict[str, Any] = {
         # 122분이었다(예전 전체 스캔 35~106분, 수신 실패 0). 늘긴 늘었다.
         "max_candidates": 0,
         "max_etf_candidates": 0,
+        # Finviz가 러너 IP를 막아 유니버스가 붕괴하면(아래 min_healthy 미만) 명단을
+        # 다른 상류(Nasdaq API)에서 새로 받아 매일 갱신한다. ""로 두면 대체소스 끔.
+        "alt_source": "nasdaq",
+        # 이 수 미만이면 "붕괴"로 보고 대체소스→스냅샷→부트스트랩 순으로 폴백.
+        "min_healthy": 1500,
     },
     # Quality floor is market cap, not price. min_price is only a sub-$1
     # penny-stock data-noise guard; min_market_cap does the real filtering.

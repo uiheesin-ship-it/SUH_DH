@@ -3,15 +3,23 @@
 Finviz throttles/403s the datacenter (GitHub Actions) IP for the heavy stock-pass
 query, so the live universe comes back a fraction of its normal size (e.g. 222 vs
 the usual ~1,700) and the screener would shrink to a handful of names. To stop the
-screeners depending on a single source, get_candidates() runs through three tiers:
+screeners depending on a single source, get_candidates() runs through four tiers:
 
-  1. live    — the fresh Finviz fetch, when it looks healthy.
-  2. snapshot — the last-good universe we persisted from a healthy fetch, reused
-                when the live fetch collapses.
-  3. bootstrap— when there is no snapshot yet (Finviz has never succeeded since the
+  1. finviz   — the fresh Finviz fetch, when it looks healthy.
+  2. nasdaq   — when Finviz collapses, a fresh fetch from the alternate upstream
+                (api.nasdaq.com, see nasdaq_universe.py) rebuilt into a full daily
+                universe with the SAME exclusions. This keeps the 명단 updating
+                DAILY even while Finviz is blocked, instead of freezing the list.
+  3. snapshot — the last-good universe we persisted from a healthy fetch, reused
+                when BOTH upstreams collapse.
+  4. bootstrap— when there is no snapshot yet (no upstream has succeeded since the
                 feature shipped), seed one from the last-good committed screener
                 results (data/<name>.json) so the fallback is armed even before a
-                single healthy Finviz fetch — breaking the chicken-and-egg.
+                single healthy fetch — breaking the chicken-and-egg.
+
+Tiers 1–2 produce a FRESH universe (명단 + prices update daily); tiers 3–4 reuse
+the last-good ticker list but still fetch TODAY's bars downstream (prices update,
+명단 frozen). The scan self-heals to tier 1 the moment Finviz recovers.
 
 Only the ticker LIST is reused; fresh per-ticker bars are fetched downstream, so a
 fallback scan still produces TODAY's prices. The scan self-heals to a full, fresh
@@ -80,39 +88,45 @@ def _bootstrap_from_results(name: str) -> list[dict]:
 
 
 def last_source(name: str) -> str:
-    """'live' | 'snapshot' | 'bootstrap' for the most recent reconcile(name)."""
-    return _LAST_SOURCE.get(name, "live")
+    """'finviz' | 'nasdaq' | 'snapshot' | 'bootstrap' for the most recent
+    reconcile(name). ('live' is kept as a legacy alias for finviz.)"""
+    return _LAST_SOURCE.get(name, "finviz")
 
 
 def reconcile(name: str, fresh: list[dict], *,
-              min_frac: float = 0.5, min_floor: int = 300) -> list[dict]:
-    """Pick the candidate list to scan from the live fetch + persisted fallbacks.
+              source: str = "finviz", min_healthy: int = 300) -> list[dict]:
+    """Pick the candidate list to scan from the fresh fetch + persisted fallbacks.
 
-    Healthy live fetch (≥ min_floor AND ≥ min_frac of the last-good snapshot) is
-    used and persisted. A collapsed fetch falls back to the snapshot, or — if none
-    exists yet — bootstraps a seed from the last-good committed results and
-    persists that. Returns ``fresh`` only when there is nothing better at all.
+    ``fresh`` is the best live universe the caller could assemble this run and
+    ``source`` names where it came from — "finviz" normally, or "nasdaq" when the
+    caller already fell back to the alternate upstream because Finviz collapsed.
+
+    A fetch is *healthy* iff ``len(fresh) >= min_healthy`` — an ABSOLUTE
+    per-screener floor (replaces the old relative "≥50% of snapshot" test, which
+    mis-rejected a differently-sized alternate source). A healthy fetch — from
+    EITHER upstream — is scanned and persisted as the new snapshot. A collapsed
+    fetch (both upstreams down) falls back to the last-good snapshot, or, if none
+    exists yet, bootstraps a seed from the last-good committed results. Returns
+    ``fresh`` only when there is nothing better at all.
     """
     fresh = fresh or []
-    snap = _load(name)
-    snap_n = len(snap)
-    collapsed = (len(fresh) < int(min_floor)
-                 or (snap_n > 0 and len(fresh) < snap_n * float(min_frac)))
-    if fresh and not collapsed:
+    floor = int(min_healthy)
+    if fresh and len(fresh) >= floor:
         _save(name, fresh)
-        _LAST_SOURCE[name] = "live"
+        _LAST_SOURCE[name] = source or "finviz"
         return fresh
+    snap = _load(name)
     if snap:
-        print(f"  {name} universe: live fetch collapsed ({len(fresh)}) — "
-              f"reusing last-good snapshot ({snap_n} names)")
+        print(f"  {name} universe: live fetch collapsed ({len(fresh)} < {floor}) — "
+              f"reusing last-good snapshot ({len(snap)} names)")
         _LAST_SOURCE[name] = "snapshot"
         return snap
     boot = _bootstrap_from_results(name)
     if boot:
-        print(f"  {name} universe: live fetch collapsed ({len(fresh)}) and no "
+        print(f"  {name} universe: live fetch collapsed ({len(fresh)} < {floor}) and no "
               f"snapshot — bootstrapping seed from last-good results ({len(boot)} names)")
         _save(name, boot)
         _LAST_SOURCE[name] = "bootstrap"
         return boot
-    _LAST_SOURCE[name] = "live"
+    _LAST_SOURCE[name] = source or "finviz"
     return fresh

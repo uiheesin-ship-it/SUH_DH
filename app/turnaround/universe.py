@@ -100,6 +100,23 @@ def _fetch_finviz(cfg: dict) -> list[dict]:
     return rows
 
 
+def _from_nasdaq(cfg: dict) -> list[dict]:
+    """Rebuild the turnaround candidate universe from the Nasdaq screener
+    (alternate upstream) when Finviz is throttled. ETFs and REITs are excluded
+    outright, same as the Finviz path. Returns [] when Nasdaq is also
+    unreachable."""
+    from .. import nasdaq_universe
+
+    rows: list[dict] = []
+    for r in nasdaq_universe.fetch("stocks"):
+        if _looks_like_fund(r.get("company"), r.get("industry")):
+            continue
+        if _looks_like_reit(r.get("company"), r.get("industry")):
+            continue
+        rows.append(r)
+    return rows
+
+
 def get_candidates(cfg: dict) -> list[dict]:
     if _demo():
         return list(DEMO_UNIVERSE)
@@ -118,28 +135,38 @@ def get_candidates(cfg: dict) -> list[dict]:
     min_mcap = float(cfg["min_market_cap"])
     min_price = float(cfg["min_price"])
 
-    filtered = []
-    for r in rows:
-        mc = r.get("market_cap")
-        px = r.get("price")
-        if min_mcap and mc is not None and mc < min_mcap:
-            continue
-        if px is not None and px < min_price:
-            continue
-        if not include_adr and (r.get("country") or "USA") != "USA":
-            continue
-        filtered.append(r)
-
     # Even market-cap sampling so a truncated universe isn't all mega-cap.
     cap = int(uni.get("max_candidates", 3000))
     if os.environ.get("SUH_DH_TURNAROUND_LIMIT"):
         cap = int(os.environ["SUH_DH_TURNAROUND_LIMIT"])
-    filtered.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
-    if 0 < cap < len(filtered):
-        step = len(filtered) / cap
-        fresh = [filtered[int(i * step)] for i in range(cap)]
-    else:
-        fresh = filtered
-    # Reuse the last-good universe if Finviz throttled this fetch into a collapse.
+
+    def _finalize(cand_rows: list[dict]) -> list[dict]:
+        filtered = []
+        for r in cand_rows:
+            mc = r.get("market_cap")
+            px = r.get("price")
+            if min_mcap and mc is not None and mc < min_mcap:
+                continue
+            if px is not None and px < min_price:
+                continue
+            if not include_adr and (r.get("country") or "USA") != "USA":
+                continue
+            filtered.append(r)
+        filtered.sort(key=lambda r: r.get("market_cap") or 0, reverse=True)
+        if 0 < cap < len(filtered):
+            step = len(filtered) / cap
+            return [filtered[int(i * step)] for i in range(cap)]
+        return filtered
+
+    fresh = _finalize(rows)
+    source = "finviz"
+    min_healthy = int(uni.get("min_healthy", 800))
+    # If Finviz collapsed (throttled datacenter IP), rebuild a FRESH universe from
+    # the alternate upstream (Nasdaq) before falling back to the cached snapshot.
+    if len(fresh) < min_healthy and uni.get("alt_source", "nasdaq") == "nasdaq":
+        alt = _finalize(_from_nasdaq(cfg))
+        if len(alt) >= min_healthy:
+            fresh, source = alt, "nasdaq"
+    # Reuse the last-good snapshot/bootstrap if BOTH upstreams collapsed.
     from .. import universe_cache
-    return universe_cache.reconcile("turnaround", fresh)
+    return universe_cache.reconcile("turnaround", fresh, source=source, min_healthy=min_healthy)

@@ -38,12 +38,12 @@ from .config import load as load_config
 
 
 def _uni_source(name: str) -> str:
-    """Which tier produced this scan's universe: live / snapshot / bootstrap."""
+    """Which tier produced this scan's universe: finviz / nasdaq / snapshot / bootstrap."""
     try:
         from .. import universe_cache
         return universe_cache.last_source(name)
     except Exception:
-        return "live"
+        return "finviz"
 
 
 def _demo() -> bool:

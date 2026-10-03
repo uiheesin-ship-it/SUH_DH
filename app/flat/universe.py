@@ -184,6 +184,36 @@ def _sample(lst: list, n: int) -> list:
     return lst
 
 
+def _from_nasdaq(cfg: dict) -> list[dict]:
+    """Rebuild the flat candidate universe from the Nasdaq screener (alternate
+    upstream) when Finviz is throttled. Applies the SAME exclusions as the Finviz
+    path (funds, REITs unless included, leveraged/inverse ETFs) so the 명단 keeps
+    Finviz semantics. Returns [] when Nasdaq is also unreachable."""
+    from .. import nasdaq_universe
+
+    uni = cfg["universe"]
+    include_reit = bool(uni.get("include_reit", False))
+    rows: list[dict] = []
+    for r in nasdaq_universe.fetch("stocks"):
+        if _looks_like_fund(r.get("company"), r.get("industry")):
+            continue
+        is_reit = _looks_like_reit(r.get("company"), r.get("industry"))
+        if is_reit and not include_reit:
+            continue
+        r["is_reit"] = is_reit
+        rows.append(r)
+    if uni.get("include_etf"):
+        for r in nasdaq_universe.fetch("etf"):
+            if _is_leveraged(r.get("company"), r.get("ticker")):
+                continue
+            text = f"{r.get('company') or ''} {r.get('industry') or ''}".lower()
+            if any(w in text for w in _ETF_EXCLUDE_WORDS):
+                continue
+            r["is_reit"] = False
+            rows.append(r)
+    return rows
+
+
 def get_candidates(cfg: dict) -> list[dict]:
     if _demo():
         uni = cfg["universe"]
@@ -218,25 +248,36 @@ def get_candidates(cfg: dict) -> list[dict]:
     min_mcap = float(cfg["min_market_cap"])
     min_price = float(cfg["min_price"])
 
-    filtered = []
-    for r in rows:
-        mc = r.get("market_cap")
-        px = r.get("price")
-        if min_mcap and mc is not None and mc < min_mcap:
-            continue
-        if px is not None and px < min_price:
-            continue
-        if not include_adr and (r.get("country") or "USA") != "USA":
-            continue
-        filtered.append(r)
-
     cap = int(uni.get("max_candidates", 1500))
     if os.environ.get("SUH_DH_FLAT_LIMIT"):
         cap = int(os.environ["SUH_DH_FLAT_LIMIT"])
     etf_cap = int(uni.get("max_etf_candidates", 700))
-    stocks = [r for r in filtered if not r.get("is_etf")]
-    etfs = [r for r in filtered if r.get("is_etf")]
-    fresh = _sample(stocks, cap) + _sample(etfs, etf_cap)
-    # Reuse the last-good universe if Finviz throttled this fetch into a collapse.
+
+    def _finalize(cand_rows: list[dict]) -> list[dict]:
+        filtered = []
+        for r in cand_rows:
+            mc = r.get("market_cap")
+            px = r.get("price")
+            if min_mcap and mc is not None and mc < min_mcap:
+                continue
+            if px is not None and px < min_price:
+                continue
+            if not include_adr and (r.get("country") or "USA") != "USA":
+                continue
+            filtered.append(r)
+        stocks = [r for r in filtered if not r.get("is_etf")]
+        etfs = [r for r in filtered if r.get("is_etf")]
+        return _sample(stocks, cap) + _sample(etfs, etf_cap)
+
+    fresh = _finalize(rows)
+    source = "finviz"
+    min_healthy = int(uni.get("min_healthy", 1500))
+    # If Finviz collapsed (throttled datacenter IP), rebuild a FRESH universe from
+    # the alternate upstream (Nasdaq) before falling back to the cached snapshot.
+    if len(fresh) < min_healthy and uni.get("alt_source", "nasdaq") == "nasdaq":
+        alt = _finalize(_from_nasdaq(cfg))
+        if len(alt) >= min_healthy:
+            fresh, source = alt, "nasdaq"
+    # Reuse the last-good snapshot/bootstrap if BOTH upstreams collapsed.
     from .. import universe_cache
-    return universe_cache.reconcile("flat", fresh)
+    return universe_cache.reconcile("flat", fresh, source=source, min_healthy=min_healthy)

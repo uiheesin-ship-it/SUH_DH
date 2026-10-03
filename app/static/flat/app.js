@@ -83,12 +83,20 @@ function showStale(data) {
     sb.title = "데이터 공급원(Finviz) 장애로 최신화 실패 — 마지막 정상 데이터를 표시 중입니다."
       + (la ? ` 마지막 시도: ${la}` : "")
       + (data.last_attempt_universe != null ? ` (그때 유니버스 ${data.last_attempt_universe})` : "");
+    sb.classList.remove("info");
+    sb.classList.remove("hidden");
+  } else if (data && data.universe_source === "nasdaq") {
+    sb.textContent = "ℹ Nasdaq 유니버스";
+    sb.title = "Finviz 지연으로 명단을 Nasdaq에서 새로 받았습니다 — 가격·명단 모두 최신(매일 갱신)입니다.";
+    sb.classList.add("info");
     sb.classList.remove("hidden");
   } else if (data && (data.universe_source === "snapshot" || data.universe_source === "bootstrap")) {
     sb.textContent = "⚠ 캐시 유니버스";
-    sb.title = "Finviz 유니버스 조회가 지연돼 마지막 정상 종목목록을 재사용했습니다. 가격·지표는 최신이고 종목 범위만 캐시 기준입니다.";
+    sb.title = "Finviz·Nasdaq 유니버스 조회가 모두 지연돼 마지막 정상 종목목록을 재사용했습니다. 가격·지표는 최신이고 종목 범위만 캐시 기준입니다.";
+    sb.classList.remove("info");
     sb.classList.remove("hidden");
   } else {
+    sb.classList.remove("info");
     sb.classList.add("hidden");
   }
 }

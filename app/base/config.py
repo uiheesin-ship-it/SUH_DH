@@ -26,6 +26,13 @@ DEFAULTS: dict[str, Any] = {
         "finviz_price_above_sma200": True,
         "include_etf": True,      # add a tagged ETF pass (leveraged/inverse excluded)
         "max_etf_candidates": 700, # SEPARATE budget for ETFs (additive, not competing)
+        # Finviz가 러너 IP를 막아 유니버스가 붕괴하면(아래 min_healthy 미만) 명단을
+        # 다른 상류(Nasdaq API)에서 새로 받아 매일 갱신한다. ""로 두면 대체소스 끔.
+        "alt_source": "nasdaq",
+        # 이 수 미만이면 "붕괴"로 보고 대체소스→스냅샷→부트스트랩 순으로 폴백.
+        # 정상 Finviz/Nasdaq 유니버스는 이보다 훨씬 크고, Finviz 스로틀 붕괴는
+        # 수백 개 수준이라 그 사이를 가르는 절대 바닥값.
+        "min_healthy": 800,
     },
     # Quality floor is market cap, not price (matches the flat screener). The
     # $1 min_price is only a sub-$1 penny-stock data-noise guard; the above-SMA

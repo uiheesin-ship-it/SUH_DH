@@ -31,6 +31,11 @@ DEFAULTS: dict[str, Any] = {
         # 0 = 전수. 상한을 두면 기준 통과 종목이 임의로 잘린다(평평 쪽 주석 참고).
         # 실측 3,247 중 247개가 그렇게 빠지고 있었다.
         "max_candidates": 0,
+        # Finviz가 러너 IP를 막아 유니버스가 붕괴하면(아래 min_healthy 미만) 명단을
+        # 다른 상류(Nasdaq API)에서 새로 받아 매일 갱신한다. ""로 두면 대체소스 끔.
+        "alt_source": "nasdaq",
+        # 이 수 미만이면 "붕괴"로 보고 대체소스→스냅샷→부트스트랩 순으로 폴백.
+        "min_healthy": 800,
     },
     "min_price": 1.0,
     "min_market_cap": 300_000_000,
