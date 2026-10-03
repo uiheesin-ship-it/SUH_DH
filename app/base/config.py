@@ -25,7 +25,13 @@ DEFAULTS: dict[str, Any] = {
         "finviz_price_above_sma50": True,
         "finviz_price_above_sma200": True,
         "include_etf": True,      # add a tagged ETF pass (leveraged/inverse excluded)
-        "max_etf_candidates": 700, # SEPARATE budget for ETFs (additive, not competing)
+        "max_etf_candidates": 0,  # 0 = scan ALL ETFs (separate budget, additive). Not
+                                  # capped because the Nasdaq ETF rows carry no market
+                                  # cap (net-assets product), so a capped even-stride
+                                  # sample would drop big ETFs (e.g. IBIT) arbitrarily.
+                                  # ETF bars are shared with the flat scan, so the extra
+                                  # cost is small; illiquid ETFs are dropped by the
+                                  # dollar-volume gate in screen.py.
         # Finviz가 러너 IP를 막아 유니버스가 붕괴하면(아래 min_healthy 미만) 명단을
         # 다른 상류(Nasdaq API)에서 새로 받아 매일 갱신한다. ""로 두면 대체소스 끔.
         "alt_source": "nasdaq",
