@@ -512,3 +512,83 @@ def test_etf_rows_are_labelled_even_without_the_flag():
     etf = next(r for r in view["rows"] if r["ticker"] == "T1")
     assert etf["is_etf"] is True and etf["sector"] == "ETF"
     assert view["self"]["is_etf"] is False
+
+
+# ------------------------------------- 수집이 멈췄을 때: 폴백과 "조용한 성공"
+
+def _prev_json(tmp, n=60):
+    """지난 correl.json 흉내 — 종목과 meta 만 있으면 유니버스를 되세울 수 있다."""
+    return {
+        "meta_schema": ["name", "sector", "industry", "beta_x100",
+                        "mcap_musd", "dvol_musd", "is_etf"],
+        "tickers": [f"T{i}" for i in range(n)],
+        "meta": [[f"회사{i}", "Technology", "반도체", 100, 5000, 50, 0]
+                 for i in range(n)],
+    }
+
+
+def test_지난_스냅샷에서_유니버스를_되세운다(tmp_path, monkeypatch):
+    """폴백 파일이 깃에 없어 CI 에서 한 번도 안 떴다 — 마지막 보루를 둔다."""
+    cu = load_builder()
+    out = tmp_path / "correl.json"
+    out.write_text(json.dumps(_prev_json(tmp_path)), encoding="utf-8")
+    monkeypatch.setattr(cu, "OUT", out)
+    rows = cu._universe_from_snapshot()
+    assert len(rows) == 60
+    assert rows[0]["ticker"] == "T0"
+    assert rows[0]["sector"] == "Technology"
+    assert rows[0]["market_cap"] == 5000 * 1e6      # musd → 원 단위 복원
+    assert rows[0]["is_etf"] is False
+
+
+def test_스냅샷도_없으면_지어내지_않는다(tmp_path, monkeypatch):
+    cu = load_builder()
+    monkeypatch.setattr(cu, "OUT", tmp_path / "없는파일.json")
+    assert cu._universe_from_snapshot() == []
+
+
+def test_폴백_파일이_스냅샷보다_먼저다(tmp_path, monkeypatch):
+    """폴백에는 유동성에서 탈락한 종목까지 들어 있다 — 더 온전한 쪽을 먼저 쓴다."""
+    cu = load_builder()
+    cache = tmp_path / "correl_universe.json"
+    cache.write_text(json.dumps({"rows": [{"ticker": "KEEP"}]}), encoding="utf-8")
+    out = tmp_path / "correl.json"
+    out.write_text(json.dumps(_prev_json(tmp_path)), encoding="utf-8")
+    monkeypatch.setattr(cu, "UNIVERSE_CACHE", cache)
+    monkeypatch.setattr(cu, "OUT", out)
+    # Finviz 는 막힌 상태로 둔다(get_candidates 가 빈 목록을 돌려주는 상황)
+    monkeypatch.setattr(cu, "unsampled_flat_config",
+                        lambda base: (_ for _ in ()).throw(RuntimeError("finviz 403")))
+    rows = cu.universe_rows()
+    assert [r["ticker"] for r in rows] == ["KEEP"]
+
+
+def test_못_만들고_끝날_땐_빨간불로_끝낸다(tmp_path, monkeypatch):
+    """예전엔 전부 조용한 return 이라 워크플로가 초록불이었다.
+
+    2026-10-01·10-03 두 번 연속 아무것도 못 만들었는데 아무도 몰랐고, 사용자가
+    "업데이트가 안 되는데?" 하고 물어보고 나서야 드러났다. 조용한 실패는 실패가
+    아니라 없는 기능이다.
+    """
+    cu = load_builder()
+    monkeypatch.setattr(cu, "UNIVERSE_CACHE", tmp_path / "없음.json")
+    monkeypatch.setattr(cu, "OUT", tmp_path / "없음2.json")
+    monkeypatch.setattr(cu, "universe_rows", lambda: [])
+    monkeypatch.setattr(cu.sys, "argv", ["correl_us.py"])
+    with pytest.raises(cu.Bail) as e:
+        cu.main()
+    assert "유니버스가 비었습니다" in str(e.value)
+
+
+def test_기존_스냅샷은_그대로_둔다(tmp_path, monkeypatch):
+    """빨간불로 끝내되 **덮어쓰지는 않는다** — 반쪽 결과가 올라가면 더 나쁘다."""
+    cu = load_builder()
+    out = tmp_path / "correl.json"
+    before = json.dumps(_prev_json(tmp_path))
+    out.write_text(before, encoding="utf-8")
+    monkeypatch.setattr(cu, "OUT", out)
+    monkeypatch.setattr(cu, "universe_rows", lambda: [])
+    monkeypatch.setattr(cu.sys, "argv", ["correl_us.py"])
+    with pytest.raises(cu.Bail):
+        cu.main()
+    assert out.read_text(encoding="utf-8") == before
