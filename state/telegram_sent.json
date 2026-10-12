@@ -1,15 +1,5 @@
 {
 "sent": [
-"https://www.cnbc.com/2026/09/22/trump-un-speech-today.html",
-"https://www.cnbc.com/2026/09/22/anthropic-openai-cheaper-ai-models.html",
-"https://finance.yahoo.com/markets/stocks/articles/sitime-corporation-sitm-surged-strong-141359726.html",
-"https://finance.yahoo.com/technology/ai/articles/bloom-energy-surges-ai-hyperscalers-141646925.html",
-"https://finance.yahoo.com/technology/live/tech-stocks-today-oura-files-ipo-paperwork-nvidias-huang-pushes-back-on-ai-doomsday-talk-144918730.html",
-"https://www.cnbc.com/2026/09/22/a-top-chip-stock-analyst-sees-big-things-for-nvidia-broadcom-how-his-case-aligns-with-ours.html",
-"https://www.cnbc.com/2026/09/22/qualcomm-releases-android-chip-built-for-ai-amid-memory-shortage.html",
-"https://finance.yahoo.com/technology/ai/articles/intel-amd-shares-surge-ai-155000741.html",
-"https://www.datacenterdynamics.com/en/news/bdx-breaks-ground-on-ai-campus-2-in-jatiluhur-indonesia/",
-"https://www.cnbc.com/2026/09/22/altman-amodei-unga-ai-safety.html",
 "https://www.cnbc.com/2026/09/22/nvidia-options-are-doing-something-unusual-ahead-of-two-catalysts-heres-how-one-trader-is-playing-it.html",
 "https://www.bloomberg.com/news/articles/2026-09-23/alibaba-to-add-data-centers-in-europe-middle-east-in-ai-push",
 "https://www.cnbc.com/2026/09/23/korean-solar-stocks-jump-as-curbs-on-china-expected-to-stay-in-place.html",
@@ -499,7 +489,17 @@
 "https://www.bloomberg.com/news/videos/2026-10-12/lg-s-cho-on-latest-ai-powered-forecasting-tools-video",
 "https://www.ft.com/content/17a207f4-1563-48af-91e3-14bac89ab4b8?syn-25a6b1a6=1",
 "https://www.cnbc.com/2026/10/12/tiktok-ceo-bytedance-ai-scientific-breakthroughs.html",
-"https://www.bloomberg.com/news/articles/2026-10-12/it-distributor-asbis-targets-data-centers-and-ai-to-sustain-476-stock-rally"
+"https://www.bloomberg.com/news/articles/2026-10-12/it-distributor-asbis-targets-data-centers-and-ai-to-sustain-476-stock-rally",
+"https://www.bloomberg.com/news/articles/2026-10-12/deepseek-backs-ex-tencent-ai-scientist-s-400-million-robot-lab",
+"https://www.datacenterdynamics.com/en/news/googles-jacqueline-dory-prescott-named-data-center-portfolio-lead-at-anthropic/",
+"https://www.datacenterdynamics.com/en/news/amd-unveils-cpu-only-helion-rack-to-support-agentic-ai-workloads/",
+"https://www.bloomberg.com/news/articles/2026-10-12/microsoft-prepares-to-put-gigawatts-of-its-chips-in-data-centers",
+"https://www.cnbc.com/2026/10/12/intel-broadcom-ceos-warn-capital-crunch-could-become-ai-bottleneck.html",
+"https://www.datacenterdynamics.com/en/news/supermicro-contractor-ting-wei-willy-sun-pleads-guilty-to-four-counts-associated-with-nvidia-chip-smuggling-charges/",
+"https://www.datacenterdynamics.com/en/whitepapers/dc-arc-flash-analysis/",
+"https://www.bloomberg.com/news/videos/2026-10-12/why-financing-markets-might-be-a-bottleneck-for-ai-video",
+"https://www.datacenterdynamics.com/en/news/echion-partners-with-proper-voltage-to-develop-16mw-ups-for-ai-data-centers/",
+"https://www.cnbc.com/2026/10/12/microsoft-will-mainly-use-its-maia-chips-for-ai-inference.html"
 ],
-"updated": "2026-10-12T08:48:54+00:00"
+"updated": "2026-10-12T18:44:22+00:00"
 }
