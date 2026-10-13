@@ -1,15 +1,5 @@
 {
 "sent": [
-"https://finance.yahoo.com/markets/stocks/articles/alphabet-drops-4-meta-edges-165741579.html",
-"https://www.investors.com/research/nvidia-nvda-stock-trump-china-ai-chip/?src=A00220&yptr=yahoo",
-"https://www.investors.com/news/technology/google-stock-tpu-blackstone-cloud-growth-nvidia/?src=A00220&yptr=yahoo",
-"https://www.cnbc.com/2026/09/23/trump-xi-meeting-ai-safety-chips-us-china-dialogue.html",
-"https://www.bloomberg.com/news/videos/2026-09-23/opinion-nvidia-is-shaping-the-rules-for-ai-video",
-"https://www.bloomberg.com/news/videos/2026-09-23/senator-mark-kelly-to-introduce-new-ai-workforce-bill-video",
-"https://www.bloomberg.com/news/videos/2026-09-23/bloomberg-tech-9-23-2026-video",
-"https://www.bloomberg.com/news/videos/2026-09-23/physical-ai-could-multiply-gdp-morgan-stanley-s-jonas-video",
-"https://www.bloomberg.com/news/videos/2026-09-23/ai-agents-fuel-a-new-cybersecurity-boom-video",
-"https://www.bloomberg.com/news/videos/2026-09-23/bessemer-anthropic-has-been-consistent-on-ai-safety-video",
 "https://www.cnbc.com/2026/09/23/altman-amodei-un-ai-safety.html",
 "https://asia.nikkei.com/business/tech/semiconductors/japan-s-edgecortix-looks-to-work-with-spacex-on-space-data-center-chips",
 "https://www.datacenterdynamics.com/en/news/ionq-to-deploy-first-quantum-computer-at-nvidias-accelerated-quantum-research-center/",
@@ -499,7 +489,17 @@
 "https://www.bloomberg.com/news/videos/2026-10-13/chip-selloff-deepens-as-investors-question-ai-trade-video",
 "https://www.datacenterdynamics.com/en/news/vivopower-starts-construction-at-42mw-mo-i-rana-data-center-in-norway/",
 "https://www.datacenterdynamics.com/en/news/ntt-to-build-63bn-data-center-for-anthropic-in-japan-report/",
-"https://www.bloomberg.com/news/articles/2026-10-13/power-and-talent-biggest-ai-bottlenecks-say-data-center-firms"
+"https://www.bloomberg.com/news/articles/2026-10-13/power-and-talent-biggest-ai-bottlenecks-say-data-center-firms",
+"https://www.bloomberg.com/news/articles/2026-10-13/tencent-kicks-off-5-billion-bond-sale-to-finance-ai-spending",
+"https://www.datacenterdynamics.com/en/news/naver-cloud-and-fpt-partner-on-ai-buildout-in-asia-pacific/",
+"https://www.datacenterdynamics.com/en/news/legrand-to-integrate-karman-ai-platform-into-data-center-pdus-and-power-shelves/",
+"https://www.datacenterdynamics.com/en/whitepapers/fire-protection-in-data-center-construction/",
+"https://www.datacenterdynamics.com/en/news/microchip-technology-updates-its-networking-and-storage-products-to-better-support-ai-and-hpc-workloads/",
+"https://www.datacenterdynamics.com/en/news/scaleway-plans-gpu-cluster-deployments-in-sweden-and-copenhagen/",
+"https://www.bloomberg.com/news/articles/2026-10-13/nvidia-s-huang-plans-2-billion-in-europe-ai-deals-in-next-week",
+"https://www.datacenterdynamics.com/en/news/google-data-center-strategic-sourcing-exec-heads-to-openai/",
+"https://www.bloomberg.com/news/videos/2026-10-13/open-interest-10-13-2026-video",
+"https://www.bloomberg.com/news/videos/2026-10-13/bloomberg-tech-10-13-2026-video"
 ],
-"updated": "2026-10-13T16:17:10+00:00"
+"updated": "2026-10-13T21:26:07+00:00"
 }
