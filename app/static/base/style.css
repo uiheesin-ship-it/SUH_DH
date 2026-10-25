@@ -121,6 +121,9 @@ button.star { background: none; border: none; color: #fbbf24; cursor: pointer; f
 td.score b { font-size: 14px; }
 td.notes { white-space: normal; color: var(--muted); font-size: 11px; max-width: 260px; }
 td.etf { color: var(--accent); }
+td.sector { white-space: nowrap; }
+td.industry { color: var(--muted); font-size: 11px; max-width: 200px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* grade / alert / pivot badges */
 .g-prime { background: #14532d; color: #86efac; }

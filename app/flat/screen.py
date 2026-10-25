@@ -28,6 +28,7 @@ from ..base import data as basedata
 from ..base import metrics as bmetrics
 from . import activity, bases, setup as setup_mod, trend_tag
 from .config import load as load_config
+from ..sector_map import canonical_sector
 
 
 def _uni_source(name: str) -> str:
@@ -148,8 +149,8 @@ def _build_record(cand: dict, bars: dict, cfg: dict, spy: dict | None = None) ->
         "ticker": cand["ticker"],
         "company_name": cand.get("company"),
         "security_type": _security_type(cand),
-        "sector": cand.get("sector"),
-        "industry": cand.get("industry"),
+        "sector": canonical_sector(cand.get("sector")),   # 대섹터 (canonical Finviz name)
+        "industry": cand.get("industry"),                 # 중섹터 — source name as-is
         "is_reit": bool(cand.get("is_reit")),
         "is_etf": bool(cand.get("is_etf")),
         "current_price": round(price, 4),

@@ -203,6 +203,8 @@ const COL_FILTER = {
   pivot_status:      { type: "cat", label: (v) => v },
   base_depth:        { type: "num", scale: 100, unit: "%" },
   sector_etf:        { type: "cat", label: (v) => v },
+  sector:            { type: "cat", label: (v) => v },
+  industry:          { type: "cat", label: (v) => v },
 };
 let colFilters = {};   // key -> {min,max} (num) or {allowed:[...]} (cat)
 
@@ -331,7 +333,8 @@ const COLS = [
   ["distance_to_pivot", "pivot거리", true],
   ["pivot_status", "pivot", false],
   ["base_depth", "베이스", true],
-  ["sector_etf", "섹터ETF", false],
+  ["sector", "대섹터", false],
+  ["industry", "중섹터", false],
   ["notes", "메모", false],
 ];
 
@@ -395,7 +398,8 @@ function render() {
       <td><span class="badge ${p}">${esc(s.pivot?.pivot_status || "-")}</span></td>
       <td class="num">${s.base?.base_depth == null ? "-"
             : (s.base.base_depth * 100).toFixed(0) + "% / " + (s.base.base_length_days ?? "-") + "d"}</td>
-      <td class="etf">${esc(s.sector_etf || "-")}</td>
+      <td class="sector">${esc(s.sector || "-")}</td>
+      <td class="industry" title="${esc(s.industry || "")}">${esc(s.industry || "-")}</td>
       <td class="notes">${esc(s.notes || "")}</td>
     </tr>`;
   }).join("");

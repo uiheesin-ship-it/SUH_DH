@@ -24,6 +24,7 @@ import numpy as np
 
 from . import data, detect, inbase, metrics, rs, scoring, sector
 from .config import load as load_config
+from ..sector_map import canonical_sector
 
 
 def _uni_source(name: str) -> str:
@@ -181,15 +182,18 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     # The stock-vs-sector-ETF comparison is meaningless for an ETF itself, so
     # skip the mapping for ETFs (sector_action then returns a neutral 0.5).
     is_etf = bool(cand.get("is_etf"))
-    etf = None if is_etf else sector.resolve_etf(cand["ticker"], cand.get("sector"), sector_map)
+    # Canonical (Finviz-style) 대섹터 — makes the SPDR ETF map match regardless of
+    # whether the universe came from Finviz or the Nasdaq alternate source.
+    sec_canon = canonical_sector(cand.get("sector"))
+    etf = None if is_etf else sector.resolve_etf(cand["ticker"], sec_canon, sector_map)
     etf_bars = benches.get(etf) if etf else None
     sect = sector.sector_action(ret_3m, etf, etf_bars, spy_ret_3m, cfg)
 
     return {
         "ticker": cand["ticker"],
         "company_name": cand.get("company"),
-        "sector": cand.get("sector"),
-        "industry": cand.get("industry"),
+        "sector": sec_canon,                 # 대섹터 (canonical Finviz name)
+        "industry": cand.get("industry"),    # 중섹터 — source name as-is (no mapping)
         "current_price": round(price, 4),
         "market_cap": cand.get("market_cap"),
         "avg_dollar_volume_20d": round(adv20, 0) if adv20 is not None else None,

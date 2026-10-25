@@ -177,6 +177,7 @@ const COL_FILTER = {
   beta:              { type: "num", scale: 1, unit: "" },
   adr_pct:           { type: "num", scale: 1, unit: "%" },
   sector:            { type: "cat", label: (v) => v },
+  industry:          { type: "cat", label: (v) => v },
 };
 let colFilters = {};   // key -> {min,max} (num) or {allowed:[...]} (cat)
 
@@ -316,7 +317,8 @@ const COLS = [
   ["rs_pct_12m", "RS 12개월", true],
   ["beta", "β", true],
   ["adr_pct", "ADR%", true],
-  ["sector", "섹터", false],
+  ["sector", "대섹터", false],
+  ["industry", "중섹터", false],
 ];
 
 function render() {
@@ -368,7 +370,8 @@ function render() {
       <td class="num col-rs">${fmtNum(s.rs_pct_12m, 0)}</td>
       <td class="num${s.beta != null && s.beta < 0.8 ? " lowbeta" : ""}">${fmtNum(s.beta, 2)}</td>
       <td class="num${s.adr_pct != null && s.adr_pct < 2 ? " lowbeta" : ""}">${s.adr_pct == null ? "-" : fmtNum(s.adr_pct, 1) + "%"}</td>
-      <td class="etf">${esc(s.sector || "-")}</td>
+      <td class="sector">${esc(s.sector || "-")}</td>
+      <td class="industry" title="${esc(s.industry || "")}">${esc(s.industry || "-")}</td>
     </tr>`;
   }).join("");
 
