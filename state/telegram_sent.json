@@ -1,15 +1,5 @@
 {
 "sent": [
-"https://www.bloomberg.com/news/articles/2026-10-12/deepseek-backs-ex-tencent-ai-scientist-s-400-million-robot-lab",
-"https://www.datacenterdynamics.com/en/news/googles-jacqueline-dory-prescott-named-data-center-portfolio-lead-at-anthropic/",
-"https://www.datacenterdynamics.com/en/news/amd-unveils-cpu-only-helion-rack-to-support-agentic-ai-workloads/",
-"https://www.bloomberg.com/news/articles/2026-10-12/microsoft-prepares-to-put-gigawatts-of-its-chips-in-data-centers",
-"https://www.cnbc.com/2026/10/12/intel-broadcom-ceos-warn-capital-crunch-could-become-ai-bottleneck.html",
-"https://www.datacenterdynamics.com/en/news/supermicro-contractor-ting-wei-willy-sun-pleads-guilty-to-four-counts-associated-with-nvidia-chip-smuggling-charges/",
-"https://www.datacenterdynamics.com/en/whitepapers/dc-arc-flash-analysis/",
-"https://www.bloomberg.com/news/videos/2026-10-12/why-financing-markets-might-be-a-bottleneck-for-ai-video",
-"https://www.datacenterdynamics.com/en/news/echion-partners-with-proper-voltage-to-develop-16mw-ups-for-ai-data-centers/",
-"https://www.cnbc.com/2026/10/12/microsoft-will-mainly-use-its-maia-chips-for-ai-inference.html",
 "https://asia.nikkei.com/business/business-deals/japan-s-omron-to-buy-us-based-onlogic-for-630m-in-physical-ai-push",
 "https://www.datacenterdynamics.com/en/news/nebius-signs-loi-with-volt-for-data-center-capacity-in-rotterdam-the-netherlands/",
 "https://www.datacenterdynamics.com/en/news/softbank-eyes-possible-ai-data-center-project-in-borneo/",
@@ -499,7 +489,17 @@
 "https://www.cnbc.com/2026/10/29/microsoft-google-ai-capex-estimates.html",
 "https://www.bloomberg.com/news/articles/2026-10-29/hsbc-seeks-to-hedge-data-center-debt-with-credit-risk-insurance",
 "https://www.datacenterdynamics.com/en/news/cerebras-chips-have-shorter-lifespans-than-statements-suggest-short-seller-report-claims/",
-"https://www.datacenterdynamics.com/en/news/akamai-launches-ai-inference-service/"
+"https://www.datacenterdynamics.com/en/news/akamai-launches-ai-inference-service/",
+"https://asia.nikkei.com/business/tech/semiconductors/ai-boom-soaring-memory-prices-lift-japan-s-chip-exports-41",
+"https://www.datacenterdynamics.com/en/videos/dcd-studio-powering-ai-data-centers-from-space-with-abdullah-al-shakari-overview-energy/",
+"https://www.datacenterdynamics.com/en/news/google-share-price-slumps-as-ai-data-center-build-out-drives-9bn-negative-cashflow/",
+"https://www.ft.com/content/f2de9f3c-3290-4e87-bbc2-55430025f2ab?syn-25a6b1a6=1",
+"https://www.bloomberg.com/news/videos/2026-10-29/the-agentic-enterprise-starts-with-your-network-video",
+"https://www.datacenterdynamics.com/en/news/marwynn-plots-up-to-500m-ai-data-center-and-solar-farm-in-grenada/",
+"https://www.bloomberg.com/news/videos/2026-10-29/the-cyber-race-goes-agentic-video",
+"https://www.bloomberg.com/news/articles/2026-10-29/canada-nvidia-back-cohere-in-round-at-over-20-billion-value",
+"https://www.bloomberg.com/news/videos/2026-10-29/marvell-in-talks-to-buy-nvidia-backed-lumentum-video",
+"https://www.datacenterdynamics.com/en/news/700mw-data-center-project-proposed-outside-lansing-michigan/"
 ],
-"updated": "2026-10-29T16:43:59+00:00"
+"updated": "2026-10-29T21:38:10+00:00"
 }
