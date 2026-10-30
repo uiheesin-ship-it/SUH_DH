@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-10-29T19:23:01+00:00",
+    "updated": "2026-10-30T18:58:27+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4940,7 +4940,18 @@
       "20261029000321",
       "20261029000393",
       "20261029000449",
-      "20261029000602"
+      "20261029000602",
+      "20261030000286",
+      "20261030000325",
+      "20261030000348",
+      "20261030000371",
+      "20261030000399",
+      "20261030000404",
+      "20261030000438",
+      "20261030000442",
+      "20261030000662",
+      "20261030000675",
+      "20261030000728"
     ]
   },
   "companies": {
@@ -16631,6 +16642,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-06",
+          "quarter": "2026 반기",
+          "rcept_dt": "2026-10-30",
+          "rcept_no": "20261030000662",
+          "report_nm": "[기재정정]반기보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261030000662",
+          "backlog_krw": 66,
+          "backlog_raw": "66",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -20966,10 +20991,10 @@
         {
           "period": "2026-06",
           "quarter": "2026 반기",
-          "rcept_dt": "2026-08-19",
-          "rcept_no": "20260819000378",
+          "rcept_dt": "2026-10-30",
+          "rcept_no": "20261030000399",
           "report_nm": "[기재정정]반기보고서 (2026.06)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260819000378",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261030000399",
           "backlog_krw": 897281,
           "backlog_raw": "897,281",
           "unit": "원",
@@ -32237,6 +32262,20 @@
           "backlog_krw": 17388650,
           "backlog_raw": "17,388,650",
           "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔액"
+        },
+        {
+          "period": "2026-03",
+          "quarter": "2026 1Q",
+          "rcept_dt": "2026-10-30",
+          "rcept_no": "20261030000728",
+          "report_nm": "[기재정정]분기보고서 (2026.03)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261030000728",
+          "backlog_krw": 16734392,
+          "backlog_raw": "16,734,392",
+          "unit": "RMB",
           "currency": null,
           "method": "total-row",
           "header": "수주잔액"
