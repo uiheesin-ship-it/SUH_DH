@@ -21,7 +21,11 @@ DEFAULTS: dict[str, Any] = {
     "universe": {
         "source": "finviz",
         "include_adr": True,
-        "max_candidates": 3000,   # raised: no share-vol filter -> bigger universe
+        "max_candidates": 0,      # 0 = scan ALL stocks. A cap even-samples the cap
+                                  # range and arbitrarily drops qualifying names
+                                  # (VLO/MPC/HES were lost from the ~3,469-name
+                                  # Nasdaq universe at 3000). Bars are shared with
+                                  # the flat scan, so the extra cost is small.
         "finviz_price_above_sma50": True,
         "finviz_price_above_sma200": True,
         "include_etf": True,      # add a tagged ETF pass (leveraged/inverse excluded)
