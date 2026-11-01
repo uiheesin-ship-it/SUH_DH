@@ -22,7 +22,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app import charts, earnings, kr, news, screener
+from app import charts, earnings, highs_extra, kr, news, screener
 
 ROOT = Path(__file__).parent
 SITE = ROOT / "site"
@@ -757,6 +757,7 @@ def main() -> None:
     print(f"  {len(stocks)} tickers found.")
 
     fetched = 0
+    ath_cache = highs_extra.load_ath()   # ticker -> all-time-high price (persisted)
     for s in stocks[:LIMIT]:
         ticker = s["ticker"]
         if not frozen:
@@ -768,6 +769,9 @@ def main() -> None:
         try:
             chart = charts.get_chart(ticker, "max")
             write_json(SITE / "data" / "chart" / f"{ticker}.json", chart)
+            peak = highs_extra.ath_from_chart(chart)   # refresh the ATH cache
+            if peak is not None:
+                ath_cache[ticker] = peak
             # 전일대비 fallback from close when Finviz gave '-' (market closed).
             if s.get("change_pct") is None:
                 closes = [c for c in (chart.get("close") or []) if c is not None]
@@ -779,6 +783,17 @@ def main() -> None:
         if fetched % 20 == 0:
             print(f"  ... {fetched} processed")
         time.sleep(0.3)  # be gentle with Yahoo
+
+    # Persist the refreshed ATH cache and (re)flag every row (turnover + ATH)
+    # against it, then record today's bucket for the 신고가 추이 charts.
+    highs_extra.save_ath(ath_cache)
+    all_rows = _all_stocks(dashboard)
+    highs_extra.annotate_rows(all_rows, ath=ath_cache, demo=dashboard.get("demo", False))
+    if not frozen and dashboard.get("count"):
+        hist = highs_extra.update_history(all_rows)
+        write_json(SITE / "data" / "highs_history.json", hist)
+    elif highs_extra.HISTORY_PATH.exists():
+        shutil.copyfile(highs_extra.HISTORY_PATH, SITE / "data" / "highs_history.json")
 
     # Stocks beyond the limit still appear in the list (without reason/chart).
     write_json(SITE / "data" / "highs.json", dashboard)

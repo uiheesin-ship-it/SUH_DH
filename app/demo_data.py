@@ -13,30 +13,30 @@ from datetime import datetime, timedelta, timezone
 
 # Raw rows mimic the normalized output of the Finviz "New High" screener.
 DEMO_ROWS = [
-    # ticker, company, sector, industry, market_cap, price, change(%)
-    ("NVDA", "NVIDIA Corporation", "Technology", "Semiconductors", 3.21e12, 131.26, 3.42),
-    ("AVGO", "Broadcom Inc.", "Technology", "Semiconductors", 1.15e12, 245.10, 2.10),
-    ("TSM", "Taiwan Semiconductor", "Technology", "Semiconductors", 9.80e11, 188.55, 1.85),
-    ("MU", "Micron Technology", "Technology", "Semiconductor Memory", 1.42e11, 128.40, 4.95),
-    ("LRCX", "Lam Research", "Technology", "Semiconductor Equipment", 9.60e10, 78.20, 2.30),
-    ("AAPL", "Apple Inc.", "Technology", "Consumer Electronics", 3.30e12, 214.29, 1.10),
-    ("MSFT", "Microsoft Corporation", "Technology", "Software - Infrastructure", 3.35e12, 449.78, 0.95),
-    ("LLY", "Eli Lilly and Company", "Healthcare", "Drug Manufacturers - General", 8.30e11, 915.40, 2.75),
-    ("NVO", "Novo Nordisk A/S", "Healthcare", "Drug Manufacturers - General", 5.60e11, 142.30, 1.60),
-    ("ISRG", "Intuitive Surgical", "Healthcare", "Medical Instruments", 1.55e11, 432.10, 3.05),
-    ("FCX", "Freeport-McMoRan", "Basic Materials", "Copper", 6.80e10, 49.85, 5.20),
-    ("NEM", "Newmont Corporation", "Basic Materials", "Gold", 5.10e10, 44.20, 2.90),
-    ("XOM", "Exxon Mobil Corporation", "Energy", "Oil & Gas Integrated", 4.60e11, 116.80, 1.40),
-    ("JPM", "JPMorgan Chase & Co.", "Financial", "Banks - Diversified", 5.80e11, 202.15, 0.80),
-    ("V", "Visa Inc.", "Financial", "Credit Services", 5.40e11, 275.60, 1.25),
-    ("WMT", "Walmart Inc.", "Consumer Defensive", None, 5.50e11, 68.40, 1.05),
-    ("COST", "Costco Wholesale", "Consumer Defensive", "Discount Stores", 3.60e11, 845.20, 0.70),
+    # ticker, company, sector, industry, market_cap, price, change(%), volume
+    ("NVDA", "NVIDIA Corporation", "Technology", "Semiconductors", 3.21e12, 131.26, 3.42, 285_000_000),
+    ("AVGO", "Broadcom Inc.", "Technology", "Semiconductors", 1.15e12, 245.10, 2.10, 22_000_000),
+    ("TSM", "Taiwan Semiconductor", "Technology", "Semiconductors", 9.80e11, 188.55, 1.85, 14_000_000),
+    ("MU", "Micron Technology", "Technology", "Semiconductor Memory", 1.42e11, 128.40, 4.95, 32_000_000),
+    ("LRCX", "Lam Research", "Technology", "Semiconductor Equipment", 9.60e10, 78.20, 2.30, 11_000_000),
+    ("AAPL", "Apple Inc.", "Technology", "Consumer Electronics", 3.30e12, 214.29, 1.10, 48_000_000),
+    ("MSFT", "Microsoft Corporation", "Technology", "Software - Infrastructure", 3.35e12, 449.78, 0.95, 18_000_000),
+    ("LLY", "Eli Lilly and Company", "Healthcare", "Drug Manufacturers - General", 8.30e11, 915.40, 2.75, 3_200_000),
+    ("NVO", "Novo Nordisk A/S", "Healthcare", "Drug Manufacturers - General", 5.60e11, 142.30, 1.60, 7_500_000),
+    ("ISRG", "Intuitive Surgical", "Healthcare", "Medical Instruments", 1.55e11, 432.10, 3.05, 1_600_000),
+    ("FCX", "Freeport-McMoRan", "Basic Materials", "Copper", 6.80e10, 49.85, 5.20, 19_000_000),
+    ("NEM", "Newmont Corporation", "Basic Materials", "Gold", 5.10e10, 44.20, 2.90, 12_000_000),
+    ("XOM", "Exxon Mobil Corporation", "Energy", "Oil & Gas Integrated", 4.60e11, 116.80, 1.40, 15_000_000),
+    ("JPM", "JPMorgan Chase & Co.", "Financial", "Banks - Diversified", 5.80e11, 202.15, 0.80, 9_000_000),
+    ("V", "Visa Inc.", "Financial", "Credit Services", 5.40e11, 275.60, 1.25, 6_000_000),
+    ("WMT", "Walmart Inc.", "Consumer Defensive", None, 5.50e11, 68.40, 1.05, 17_000_000),
+    ("COST", "Costco Wholesale", "Consumer Defensive", "Discount Stores", 3.60e11, 845.20, 0.70, 2_100_000),
 ]
 
 
 def demo_new_highs() -> list[dict]:
     rows = []
-    for ticker, company, sector, industry, mcap, price, change in DEMO_ROWS:
+    for ticker, company, sector, industry, mcap, price, change, volume in DEMO_ROWS:
         rows.append(
             {
                 "ticker": ticker,
@@ -46,6 +46,7 @@ def demo_new_highs() -> list[dict]:
                 "market_cap": mcap,
                 "price": price,
                 "change_pct": change,
+                "volume": volume,
             }
         )
     return rows

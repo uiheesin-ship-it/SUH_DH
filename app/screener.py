@@ -149,6 +149,7 @@ def _fetch_live() -> list[dict]:
                 "market_cap": _to_float(r.get("Market Cap")),
                 "price": _to_float(r.get("Price")),
                 "change_pct": _normalize_change(r.get("Change")),
+                "volume": _to_float(r.get("Volume")),
             }
         )
     return rows
@@ -224,6 +225,8 @@ def group_by_sector(rows: list[dict]) -> list[dict]:
 
 def get_dashboard() -> dict:
     rows = fetch_new_highs()
+    from . import highs_extra
+    highs_extra.annotate_rows(rows, demo=_demo())   # turnover + ATH flag
     return {
         "count": len(rows),
         "sectors": group_by_sector(rows),

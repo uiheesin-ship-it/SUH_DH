@@ -72,9 +72,37 @@ function fmtPct(v) {
   return (v > 0 ? "+" : "") + v.toFixed(2) + "%";
 }
 function fmtPrice(v) { return v == null ? "-" : "$" + v.toFixed(2); }
+// Abbreviated magnitude (1.29T / 750.71B / 877.99M) for 시총 · 거래대금.
+function fmtAbbr(v) {
+  if (v == null) return null;
+  if (v >= 1e12) return (v / 1e12).toFixed(2) + "T";
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + "B";
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + "M";
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + "K";
+  return v.toFixed(0);
+}
+function fmtMoney(v) { const a = fmtAbbr(v); return a == null ? "-" : "$" + a; }
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Flatten a sector's stocks (sub-industries + loose) sorted by market cap.
+function sectorStocks(sec) {
+  let arr = [];
+  (sec.industries || []).forEach((ind) => { arr = arr.concat(ind.stocks || []); });
+  arr = arr.concat(sec.stocks || []);
+  arr.sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
+  return arr;
+}
+function allStocks(data) {
+  let arr = [];
+  (data.sectors || []).forEach((sec) => { arr = arr.concat(sectorStocks(sec)); });
+  return arr;
+}
+function avgChange(stocks) {
+  const v = stocks.map((s) => s.change_pct).filter((x) => x != null);
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
 // ---------- favorites (★) ----------
@@ -97,9 +125,9 @@ function todayStr() {
 function starCellInner(ticker) {
   const since = loadFavs()[ticker];
   const on = !!since;
-  return `<button class="star${on ? " on" : ""}" title="${on ? "즐겨찾기 해제" : "즐겨찾기"}"
-      onclick="toggleFav('${esc(ticker)}')">${on ? "★" : "☆"}</button>` +
-    (on ? `<div class="star-date">${esc(since)}</div>` : "");
+  const tip = on ? `즐겨찾기 해제 (추가일 ${since})` : "즐겨찾기 추가";
+  return `<button class="star${on ? " on" : ""}" title="${esc(tip)}"
+      onclick="toggleFav('${esc(ticker)}')">${on ? "★" : "☆"}</button>`;
 }
 function toggleFav(ticker) {
   const favs = loadFavs();
@@ -179,61 +207,211 @@ function renderError(msg, detail) {
   $("#status").textContent = "오류";
 }
 
-function stockRow(s) {
-  const cls = (s.change_pct ?? 0) >= 0 ? "chg-up" : "chg-down";
-  return `<tr data-ticker="${esc(s.ticker)}">
-    <td class="star-cell" data-star="${esc(s.ticker)}">${starCellInner(s.ticker)}</td>
-    <td>
-      <button class="ticker-link" onclick="openChart('${esc(s.ticker)}','${esc(s.company || "")}')">${esc(s.ticker)}</button>
-      <div class="company">${esc(s.company || "")}</div>
-    </td>
-    <td class="num ${cls}">${fmtPct(s.change_pct)}</td>
-    <td class="num">${fmtPrice(s.price)}</td>
-    <td class="num">${fmtCap(s.market_cap)}</td>
-    <td class="desc" data-desc="${esc(s.ticker)}"><span class="pending">설명 불러오는 중…</span></td>
-    <td class="reason" data-reason="${esc(s.ticker)}"><span class="pending">상승 이유 불러오는 중…</span></td>
-  </tr>`;
+// ---------- list rendering (sector cards) ----------
+let lastDashboard = null;
+let historyData = { days: [] };
+const SECTOR_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ef4444",
+  "#14b8a6", "#ec4899", "#eab308", "#64748b", "#06b6d4"];
+
+function stockRow(s, extra) {
+  const up = (s.change_pct ?? 0) >= 0;
+  const chgCls = up ? "chg-up" : "chg-down";
+  const ath = s.ath ? `<span class="ath" title="사상 최고가">ATH</span>` : "";
+  const cls = extra ? " extra" : "";
+  return `<tr class="hl-row${cls}" data-ticker="${esc(s.ticker)}">
+      <td class="c-name">
+        <span class="star-cell" data-star="${esc(s.ticker)}">${starCellInner(s.ticker)}</span>
+        <button class="ticker-link" onclick="openChart('${esc(s.ticker)}','${esc(s.company || "")}')">${esc(s.ticker)}</button>
+        ${ath}
+        <span class="company" title="${esc(s.company || "")}">${esc(s.company || "")}</span>
+        <button class="exp" title="사업개요 · 상승 이유" onclick="toggleDetail(this,'${esc(s.ticker)}')">▸</button>
+      </td>
+      <td class="num">${fmtPrice(s.price)}</td>
+      <td class="num ${chgCls}">${fmtPct(s.change_pct)}</td>
+      <td class="num">${fmtMoney(s.market_cap)}</td>
+      <td class="num">${fmtMoney(s.turnover)}</td>
+    </tr>
+    <tr class="detail${cls}" data-detail="${esc(s.ticker)}" hidden>
+      <td colspan="5">
+        <div class="desc" data-desc="${esc(s.ticker)}"><span class="pending">사업 개요 불러오는 중…</span></div>
+        <div class="reason" data-reason="${esc(s.ticker)}"><span class="pending">상승 이유 불러오는 중…</span></div>
+      </td>
+    </tr>`;
 }
 
-function stockTable(stocks) {
-  return `<table>
-    <colgroup>
-      <col class="c-star"><col class="c-ticker"><col class="c-chg"><col class="c-price">
-      <col class="c-cap"><col class="c-desc"><col class="c-reason">
-    </colgroup>
-    <thead><tr>
-      <th class="star-th" title="즐겨찾기">★</th>
-      <th>티커</th><th class="num">전일대비</th><th class="num">가격</th>
-      <th class="num">시총</th><th>사업 개요</th><th>상승 이유 (뉴스 · 실적)</th>
-    </tr></thead>
-    <tbody>${stocks.map(stockRow).join("")}</tbody>
-  </table>`;
+function sectorCard(sec, stocks) {
+  const avg = avgChange(stocks);
+  const avgCls = (avg ?? 0) >= 0 ? "chg-up" : "chg-down";
+  const top = stocks.slice(0, 5), rest = stocks.slice(5);
+  const body = top.map((s) => stockRow(s, false)).join("") +
+    rest.map((s) => stockRow(s, true)).join("");
+  const more = rest.length
+    ? `<button class="more" onclick="toggleMore(this)">+${rest.length}개 더보기 ▾</button>` : "";
+  return `<section class="scard" data-sector="${esc(sec.sector)}">
+    <div class="scard-head">
+      <span class="scard-name">${esc(sec.sector)}</span>
+      <span class="scard-count">${stocks.length}종목</span>
+      <span class="scard-avg ${avgCls}">평균 ${fmtPct(avg)}</span>
+      <button class="scard-finviz" title="이 섹터 종목 차트를 Finviz에서 모아보기" onclick="sectorFinviz(this)">📊</button>
+    </div>
+    <table class="shl">
+      <colgroup><col class="c-nm"><col class="c-pr"><col class="c-ch"><col class="c-mc"><col class="c-to"></colgroup>
+      <thead><tr>
+        <th>종목</th><th class="num">현재가</th><th class="num">등락률</th>
+        <th class="num">시가총액</th><th class="num">거래대금</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    ${more}
+  </section>`;
 }
 
 function render(data) {
+  lastDashboard = data;
   if (!data.sectors || !data.sectors.length) {
-    $("#content").innerHTML = `<div class="loading">오늘 52주 신고가 종목이 없습니다.</div>`;
+    $("#content").innerHTML = `<section id="trend" class="trend"></section>
+      <div class="loading">오늘 52주 신고가 종목이 없습니다.</div>`;
+    refreshTrends();
     return;
   }
-  const html = data.sectors.map((sec, i) => {
-    const inner =
-      sec.industries.map((ind) => `
-        <div class="industry">
-          <div class="industry-name">${esc(ind.industry)} · ${ind.count}</div>
-          ${stockTable(ind.stocks)}
-        </div>`).join("") +
-      (sec.stocks.length ? `<div class="industry">${stockTable(sec.stocks)}</div>` : "");
-    return `<section class="sector ${i > 2 ? "collapsed" : ""}">
-      <div class="sector-head" onclick="this.parentNode.classList.toggle('collapsed')">
-        <span class="caret">▼</span>
-        <span class="sector-name">${esc(sec.sector)}</span>
-        <span class="sector-meta">${sec.count}종목 · 시총합 ${fmtCap(sec.market_cap)}</span>
-      </div>
-      <div class="sector-body">${inner}</div>
-    </section>`;
-  }).join("");
-  $("#content").innerHTML = html;
+  // Sector cards ordered by breadth (today's new-high count), tie-break by size.
+  const cards = data.sectors
+    .map((sec) => ({ sec, stocks: sectorStocks(sec) }))
+    .sort((a, b) => b.stocks.length - a.stocks.length ||
+      (b.sec.market_cap || 0) - (a.sec.market_cap || 0));
+  const grid = cards.map((c) => sectorCard(c.sec, c.stocks)).join("");
+  $("#content").innerHTML = `<section id="trend" class="trend"></section>
+    <div id="sector-grid">${grid}</div>`;
   loadReasons(data.sectors);
+  refreshTrends();
+}
+
+// row/card interactions
+function toggleDetail(btn, ticker) {
+  const card = btn.closest(".scard");
+  const d = card && card.querySelector(`tr.detail[data-detail="${CSS.escape(ticker)}"]`);
+  if (!d) return;
+  const show = d.hidden;
+  d.hidden = !show;
+  btn.classList.toggle("open", show);
+}
+function toggleMore(btn) {
+  const card = btn.closest(".scard");
+  const on = card.classList.toggle("expanded");
+  const n = card.querySelectorAll("tr.hl-row.extra").length;
+  btn.innerHTML = on ? "접기 ▴" : `+${n}개 더보기 ▾`;
+}
+window.toggleDetail = toggleDetail;
+window.toggleMore = toggleMore;
+
+// ---------- 신고가 추이 (trends) ----------
+async function refreshTrends() {
+  try {
+    const r = await fetchData("highs_history.json");
+    if (r.ok) { const j = await r.json(); if (j && j.days) historyData = j; }
+  } catch (_) { /* no history yet — the panels show an accumulation note */ }
+  const el = document.getElementById("trend");
+  if (el) renderTrends(el);
+}
+
+function renderTrends(el) {
+  const data = lastDashboard || { sectors: [] };
+  const stocks = allStocks(data);
+  const today = {
+    count: data.count ?? stocks.length,
+    ath: stocks.filter((s) => s.ath).length,
+    avg: avgChange(stocks),
+    sectors: (data.sectors || []).length,
+  };
+  const days = historyData.days || [];
+  let delta = null;
+  if (days.length >= 2) delta = today.count - (days[days.length - 2].count || 0);
+  const dtxt = delta == null ? "" :
+    `<span class="tdelta ${delta >= 0 ? "up" : "down"}">전일 ${delta >= 0 ? "+" : ""}${delta}</span>`;
+  const n = days.length;
+  const tiles = `<div class="tiles">
+    <div class="tile"><div class="tval">${today.count}</div><div class="tlbl">오늘 신고가 ${dtxt}</div></div>
+    <div class="tile"><div class="tval">${today.ath}</div><div class="tlbl">사상 최고가 (ATH)</div></div>
+    <div class="tile"><div class="tval ${(today.avg ?? 0) >= 0 ? "chg-up" : "chg-down"}">${fmtPct(today.avg)}</div><div class="tlbl">평균 등락률</div></div>
+    <div class="tile"><div class="tval">${today.sectors}</div><div class="tlbl">섹터 수</div></div>
+  </div>`;
+  const panels = `<div class="trend-grid">
+    <div class="panel">
+      <div class="panel-h">최근 60거래일 신고가 추이 <span class="muted">· 누적 ${n}일</span></div>
+      <div id="trend-count" class="plot"></div>
+      ${n < 8 ? `<div class="trend-note">추이 데이터는 영업일마다 자동 누적됩니다 (현재 ${n}일). 며칠간 쌓이면 흐름이 뚜렷해집니다.</div>` : ""}
+    </div>
+    <div class="panel">
+      <div class="panel-h">섹터별 신고가 <span class="muted">· 오늘 · 최근 ${Math.min(Math.max(n, 1), 14)}일 추이</span></div>
+      <div id="trend-sectors" class="sector-trend"></div>
+    </div>
+  </div>`;
+  el.innerHTML = tiles + panels;
+  plotTrendCount(days);
+  renderSectorTrend(days, data);
+}
+
+function plotTrendCount(days) {
+  const host = document.getElementById("trend-count");
+  if (!host || !window.Plotly) return;
+  if (!days.length) { host.innerHTML = `<div class="trend-empty">아직 추이 데이터가 없습니다.</div>`; return; }
+  const last = days.slice(-60);
+  const x = last.map((d) => d.date);
+  const ath = last.map((d) => d.ath || 0);
+  const other = last.map((d) => Math.max((d.count || 0) - (d.ath || 0), 0));
+  const traces = [
+    { x, y: other, name: "신고가", type: "bar", marker: { color: "#3b82f6" } },
+    { x, y: ath, name: "ATH", type: "bar", marker: { color: "#f59e0b" } },
+  ];
+  const layout = {
+    barmode: "stack", paper_bgcolor: "#0f172a", plot_bgcolor: "#0f172a",
+    font: { color: "#cbd5e1", size: 10 }, showlegend: true,
+    legend: { orientation: "h", y: 1.18, x: 0, font: { size: 10 } },
+    margin: { l: 34, r: 8, t: 14, b: 40 },
+    xaxis: { type: "category", gridcolor: "#1e293b", nticks: 8, tickangle: -45 },
+    yaxis: { gridcolor: "#1e293b", rangemode: "tozero", title: { text: "종목수", font: { size: 10 } } },
+  };
+  Plotly.newPlot("trend-count", traces, layout,
+    { displayModeBar: false, responsive: true });
+}
+
+function sparkline(vals, color) {
+  const w = 60, h = 18, n = vals.length || 1;
+  const max = Math.max(1, ...vals), bw = w / n;
+  const bars = vals.map((v, i) => {
+    const bh = Math.max(1, Math.round((v / max) * (h - 2)));
+    return `<rect x="${(i * bw).toFixed(1)}" y="${h - bh}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${bh}" fill="${color}" opacity="0.85"/>`;
+  }).join("");
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+function renderSectorTrend(days, data) {
+  const host = document.getElementById("trend-sectors");
+  if (!host) return;
+  const cur = {};
+  (data.sectors || []).forEach((sec) => {
+    const ss = sectorStocks(sec);
+    cur[sec.sector] = { count: ss.length, avg: avgChange(ss) };
+  });
+  const names = Object.keys(cur).sort((a, b) => cur[b].count - cur[a].count).slice(0, 10);
+  if (!names.length) { host.innerHTML = `<div class="trend-empty">데이터 없음</div>`; return; }
+  const last = days.slice(-14);
+  const maxCount = Math.max(1, ...names.map((nm) => cur[nm].count));
+  host.innerHTML = names.map((nm, i) => {
+    const series = last.map((d) => (d.sectors && d.sectors[nm]) || 0);
+    const color = SECTOR_COLORS[i % SECTOR_COLORS.length];
+    const c = cur[nm];
+    const w = Math.round((c.count / maxCount) * 100);
+    const avgCls = (c.avg ?? 0) >= 0 ? "chg-up" : "chg-down";
+    return `<div class="st-row">
+      <span class="st-dot" style="background:${color}"></span>
+      <span class="st-name" title="${esc(nm)}">${esc(nm)}</span>
+      <span class="st-bar"><span style="width:${w}%;background:${color}"></span></span>
+      <span class="st-count">${c.count}</span>
+      <span class="st-spark">${sparkline(series, color)}</span>
+      <span class="st-avg ${avgCls}">${fmtPct(c.avg)}</span>
+    </div>`;
+  }).join("");
 }
 
 // ---------- reasons + descriptions (static: embedded, live: lazy) ----------
@@ -483,22 +661,34 @@ function rescaleY(ev) {
 })();
 
 // ---------- events ----------
-// Open the CURRENTLY EXPANDED sector(s)' tickers in Finviz's Charts view (v=210),
-// so you can eyeball many charts on one page. Reads live from the DOM at click
-// time, so it always reflects whichever sectors are open right now.
-function openFinvizCharts() {
-  const tickers = [];
-  document.querySelectorAll("#content .sector:not(.collapsed) tr[data-ticker]").forEach((tr) => {
-    const t = tr.getAttribute("data-ticker");
-    if (t && !tickers.includes(t)) tickers.push(t);
-  });
-  if (!tickers.length) {
-    alert("펼친 섹터가 없습니다. 보고 싶은 섹터를 펼친 뒤 눌러주세요.");
-    return;
-  }
-  const url = "https://finviz.com/screener.ashx?v=210&t=" + tickers.map(encodeURIComponent).join(",");
+// Open a set of tickers in Finviz's Charts view (v=210) — many charts, one page.
+function openFinvizList(tickers) {
+  const uniq = [...new Set(tickers.filter(Boolean))];
+  if (!uniq.length) { alert("표시할 종목이 없습니다."); return; }
+  const url = "https://finviz.com/screener.ashx?v=210&t=" + uniq.map(encodeURIComponent).join(",");
   window.open(url, "_blank", "noopener");
 }
+
+// Global button: every ticker currently VISIBLE in the grid (top-of-card by
+// default, plus any sector you expanded with 더보기).
+function openFinvizCharts() {
+  const tickers = [];
+  document.querySelectorAll("#sector-grid tr.hl-row[data-ticker]").forEach((tr) => {
+    if (tr.offsetParent !== null) tickers.push(tr.getAttribute("data-ticker"));
+  });
+  if (!tickers.length) { alert("표시된 종목이 없습니다."); return; }
+  openFinvizList(tickers);
+}
+
+// Per-card button: that sector's tickers (including ones under 더보기).
+function sectorFinviz(btn) {
+  const card = btn.closest(".scard");
+  if (!card) return;
+  const tickers = [...card.querySelectorAll("tr.hl-row[data-ticker]")]
+    .map((tr) => tr.getAttribute("data-ticker"));
+  openFinvizList(tickers);
+}
+window.sectorFinviz = sectorFinviz;
 $("#finviz-charts-btn").addEventListener("click", openFinvizCharts);
 $("#refresh-btn").addEventListener("click", () => loadDashboard(true));
 $("#chart-close").addEventListener("click", closeChart);

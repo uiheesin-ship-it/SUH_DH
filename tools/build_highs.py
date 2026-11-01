@@ -93,6 +93,14 @@ def main() -> None:
     (data_dir / "meta.json").write_text(
         json.dumps({"built": built, "count": dashboard.get("count", 0)}, ensure_ascii=False),
         encoding="utf-8")
+    # Record today's bucket for the 신고가 추이 charts (turnover + ATH were already
+    # annotated by get_dashboard against the committed data/ath.json cache).
+    try:
+        from app import highs_extra
+        if dashboard.get("count"):
+            highs_extra.update_history(_all_stocks(dashboard))
+    except Exception as e:
+        print(f"  history update failed: {e}")
     print(f"highs refreshed: {dashboard.get('count', 0)} stocks, "
           f"{enriched} reasons, built {built}")
 

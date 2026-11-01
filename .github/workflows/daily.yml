@@ -73,6 +73,10 @@ on:
       # served to the page via raw, so its frequent commits must not loop the build.
       - "data/highs.json"
       - "data/meta.json"
+      # New-high history (추이 charts) + ATH cache — committed by builds and the
+      # fast highs.yml workflow; read via raw, so they must not loop the build.
+      - "data/highs_history.json"
+      - "data/ath.json"
       # And the market-breadth series/view committed by breadth.yml — the page
       # reads them via raw, so those daily commits must not loop the build.
       - "data/breadth_us.json"
@@ -132,7 +136,7 @@ jobs:
         # block the Pages deploy.
         continue-on-error: true
         run: |
-          FILES="data/news.json data/highs.json data/meta.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json"
+          FILES="data/news.json data/highs.json data/meta.json data/highs_history.json data/ath.json data/base.json data/flat.json data/turnaround.json data/base_universe.json data/flat_universe.json data/turnaround_universe.json data/us_exchanges.json data/kr_universe.json data/krhighs.json data/krhighs60.json data/krbase.json"
           # Only stage files that actually exist — the *_universe.json snapshots
           # aren't created until a healthy scan runs, and `git add` on a missing
           # pathspec aborts the whole add (losing the real data changes).
