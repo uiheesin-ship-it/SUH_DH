@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-11-01T18:43:00+00:00",
+    "updated": "2026-11-02T22:33:25+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -4951,7 +4951,10 @@
       "20261030000442",
       "20261030000662",
       "20261030000675",
-      "20261030000728"
+      "20261030000728",
+      "20261102000075",
+      "20261102000181",
+      "20261102000187"
     ]
   },
   "companies": {
@@ -32255,13 +32258,13 @@
         {
           "period": "2026-06",
           "quarter": "2026 반기",
-          "rcept_dt": "2026-08-25",
-          "rcept_no": "20260825000446",
-          "report_nm": "반기보고서 (2026.06)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260825000446",
+          "rcept_dt": "2026-11-02",
+          "rcept_no": "20261102000187",
+          "report_nm": "[기재정정]반기보고서 (2026.06)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261102000187",
           "backlog_krw": 17388650,
           "backlog_raw": "17,388,650",
-          "unit": "원",
+          "unit": "RMB",
           "currency": null,
           "method": "total-row",
           "header": "수주잔액"
@@ -32275,6 +32278,20 @@
           "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261030000728",
           "backlog_krw": 16734392,
           "backlog_raw": "16,734,392",
+          "unit": "RMB",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔액"
+        },
+        {
+          "period": "2025-12",
+          "quarter": "2025 연간",
+          "rcept_dt": "2026-11-02",
+          "rcept_no": "20261102000181",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261102000181",
+          "backlog_krw": 17472122,
+          "backlog_raw": "17,472,122",
           "unit": "RMB",
           "currency": null,
           "method": "total-row",
