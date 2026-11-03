@@ -189,6 +189,17 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
     etf_bars = benches.get(etf) if etf else None
     sect = sector.sector_action(ret_3m, etf, etf_bars, spy_ret_3m, cfg)
 
+    # --- 52주 신고가 판정 + 전일대비/거래대금 (국장과 달리 Finviz 'New High'
+    # 시그널에 의존하지 않고, 이 스캔이 이미 받아 둔 일봉으로 직접 계산한다.
+    # Finviz가 러너를 막아도 신고가 목록이 멈추지 않도록 하기 위함) ---
+    chg_pct = round((close[-1] / close[-2] - 1) * 100, 2) if len(close) >= 2 and close[-2] else None
+    last_vol = volume[-1] if volume else None
+    turnover = round(price * last_vol, 2) if last_vol else None
+    # "신고가" = 오늘 종가가 직전 252거래일 종가 최고치보다 높음(종가 기준 신고가).
+    # 장중 고가를 찍고 음봉 마감한 종목이 섞이지 않도록 종가 기준을 쓴다.
+    prior_closes = [c for c in close[-253:-1] if c is not None]
+    new_high_52w = bool(prior_closes and close[-1] >= max(prior_closes))
+
     return {
         "ticker": cand["ticker"],
         "company_name": cand.get("company"),
@@ -196,6 +207,12 @@ def _build_record(cand: dict, bars: dict, benches: dict, cfg: dict,
         "industry": cand.get("industry"),    # 중섹터 — source name as-is (no mapping)
         "current_price": round(price, 4),
         "market_cap": cand.get("market_cap"),
+        # 52주 신고가 페이지용 필드
+        "change_pct": chg_pct,
+        "last_volume": last_vol,
+        "turnover": turnover,
+        "new_high_52w": new_high_52w,
+        "last_bar_date": dates[-1] if dates else None,
         "avg_dollar_volume_20d": round(adv20, 0) if adv20 is not None else None,
         # structure levels (for the chart overlay)
         "sma50": sma50, "sma150": sma150, "sma200": sma200,

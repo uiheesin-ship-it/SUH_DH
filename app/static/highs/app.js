@@ -105,6 +105,43 @@ function avgChange(stocks) {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
+// ---------- data freshness ----------
+// The list is derived from the (Finviz-independent) base scan, which carries a
+// data_asof date. If that falls more than ~1 trading day behind the current US
+// trading day, flag it next to the update time so a stale/frozen list is obvious.
+function usTodayStr() {
+  // en-CA formats as YYYY-MM-DD; America/New_York = US market calendar day.
+  try { return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }); }
+  catch (_) { return new Date().toISOString().slice(0, 10); }
+}
+function bizDaysBetween(aStr, bStr) {
+  const a = new Date(aStr + "T00:00:00Z"), b = new Date(bStr + "T00:00:00Z");
+  if (isNaN(a) || isNaN(b)) return null;
+  let n = 0; const d = new Date(a);
+  while (d < b) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const wd = d.getUTCDay();
+    if (wd !== 0 && wd !== 6) n++;   // skip Sat/Sun (holidays ignored)
+  }
+  return n;
+}
+function renderFreshness(data) {
+  const el = $("#freshness");
+  if (!el) return;
+  const asof = data && data.data_asof;
+  if (!asof) { el.textContent = ""; el.className = "freshness"; el.title = ""; return; }
+  const gap = bizDaysBetween(asof, usTodayStr());
+  if (gap != null && gap >= 2) {
+    el.textContent = `⚠ 데이터 지연 · 기준 ${asof} (약 ${gap}거래일 전)`;
+    el.className = "freshness stale";
+    el.title = "신고가 목록이 최신 거래일보다 늦습니다. 데이터 소스(기반 스캔)가 갱신되면 자동으로 해소됩니다.";
+  } else {
+    el.textContent = `· 데이터 기준 ${asof}`;
+    el.className = "freshness ok";
+    el.title = "";
+  }
+}
+
 // ---------- favorites (★) ----------
 // Per-browser bookmarks kept in localStorage: { TICKER: "YYYY-MM-DD" } where the
 // date is when the star was (re)turned on. A starred ticker keeps its star and
@@ -268,6 +305,7 @@ function sectorCard(sec, stocks) {
 
 function render(data) {
   lastDashboard = data;
+  renderFreshness(data);
   if (!data.sectors || !data.sectors.length) {
     $("#content").innerHTML = `<section id="trend" class="trend"></section>
       <div class="loading">오늘 52주 신고가 종목이 없습니다.</div>`;

@@ -233,36 +233,22 @@ def main() -> None:
     stamp = built.replace("-", "").replace(":", "").replace("+0000", "")[:15]
     print(f"Stamping assets with ?v={stamp} ... {stamp_assets(SITE, stamp)} html files")
 
-    # --- US 52-week highs, published FIRST (fix #1) --------------------------
-    # The new-high LIST is cheap (one Finviz fetch) and is the thing that changes
-    # intraday, so publish it up front — before the heavy base/flat/KR scans — so
-    # it is never blocked by, or lost to a failure in, those steps. We write the
-    # repo copy too (data/highs.json, data/meta.json); the standalone highs.yml
-    # workflow commits the same files far more often, and the static page reads
-    # them via raw.githubusercontent so the list refreshes without a Pages
-    # redeploy. Per-ticker reasons + charts are still enriched at the END of the
-    # build (they're slow and change slowly).
+    # --- US 52-week highs: keep the last committed list visible up front ------
+    # The list is now derived from the base scan (see the enrichment pass near
+    # the end of this build) instead of Finviz's "New High" signal, which kept
+    # getting the runner blocked. The base scan is heavy and runs later, so here
+    # we just carry the previously committed list into the site so the page is
+    # never momentarily empty; it's replaced with the fresh base-derived list at
+    # the end of the build.
     try:
         repo_highs = DATA / "highs.json"
-        if screener.highs_frozen() and repo_highs.exists():
-            # Korean daytime: keep the committed overnight-session list; don't
-            # rescan (that would show the near-empty closed-market list).
+        if repo_highs.exists():
             shutil.copyfile(repo_highs, SITE / "data" / "highs.json")
-            repo_meta = DATA / "meta.json"
-            if repo_meta.exists():
-                shutil.copyfile(repo_meta, SITE / "data" / "meta.json")
-            print("  US highs frozen (Korean daytime) — reusing committed highs.json")
-        else:
-            early = screener.get_dashboard()
-            early["built"] = built
-            write_json(SITE / "data" / "highs.json", early)
-            write_json(DATA / "highs.json", early)
-            meta = {"built": built, "count": early.get("count", 0)}
-            write_json(SITE / "data" / "meta.json", meta)
-            write_json(DATA / "meta.json", meta)
-            print(f"  early highs list published: {early.get('count', 0)} stocks.")
+        repo_meta = DATA / "meta.json"
+        if repo_meta.exists():
+            shutil.copyfile(repo_meta, SITE / "data" / "meta.json")
     except Exception as e:
-        print(f"  early highs list failed: {e}")
+        print(f"  carrying committed highs.json forward failed: {e}")
 
     # Earnings-AI (컨콜 투자 테마): publish the committed snapshot (data/eai/*.json,
     # produced by the eai.yml workflow which runs the LLM pipeline). The main
@@ -719,60 +705,62 @@ def main() -> None:
     except Exception as e:
         print(f"  breadth publish failed: {e}")
 
-    # US 52-week highs: re-fetch and enrich with per-ticker reasons + charts
-    # (the slow part). The bare list was already published up front; this pass
-    # replaces it with the reason/chart-enriched version.
-    print(f"Fetching 52-week highs (limit={LIMIT}) ...")
+    # US 52-week highs — DERIVED FROM THE BASE SCAN (Finviz-independent), then
+    # enriched per-ticker with reasons + charts + true ATH. Finviz's "New High"
+    # signal kept getting the runner blocked, freezing the list; the base scan
+    # already has the bars and its universe survives a Finviz block, so we read
+    # the new-high flag it writes (today's close ≥ prior-252-session closing high).
+    print("Building 52-week highs from the base scan ...")
+    from app import ushighs
     repo_highs = DATA / "highs.json"
-    frozen = screener.highs_frozen() and repo_highs.exists()
-    if frozen:
-        # Korean daytime: reuse the committed overnight list (reasons/change
-        # already embedded); just (re)build its charts so clicking still works.
+    base_payload = {}
+    try:
+        base_site = SITE / "data" / "base.json"
+        if base_site.exists():
+            base_payload = json.loads(base_site.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"  could not read base.json: {e}")
+
+    derived = ushighs.has_support(base_payload)
+    if derived:
+        dashboard = ushighs.dashboard_from_base(base_payload)
+        dashboard["built"] = built
+        print(f"  {dashboard.get('count')} new highs (data as of {dashboard.get('data_asof')}).")
+    elif repo_highs.exists():
+        # base.json predates the new-high flag (first build after the upgrade):
+        # keep the last committed list so the page isn't emptied. The next heavy
+        # base scan produces the real base-derived list.
         dashboard = json.loads(repo_highs.read_text(encoding="utf-8"))
-        print(f"  frozen (Korean daytime) — reusing committed list ({dashboard.get('count', 0)} stocks).")
+        print(f"  base.json has no new-high flag yet — reusing committed list "
+              f"({dashboard.get('count', 0)} stocks).")
     else:
-        try:
-            dashboard = screener.get_dashboard()
-            dashboard["built"] = built
-        except Exception as e:
-            # Finviz 가 러너를 막는 일이 있다(실측: 2026-09-15 빌드 내내 차단).
-            # 여기서 예외가 새면 **앞선 스캔 수십 분치가 통째로 버려진다** —
-            # 빌드가 죽어 커밋 단계까지 못 가기 때문이다. 이 재수집은 이미
-            # 발행한 목록에 종목별 사유·차트를 덧입히는 단계일 뿐이므로,
-            # 실패하면 그 목록을 그대로 두고 넘어간다.
-            print(f"  52-week highs fetch failed: {e}")
-            site_highs = SITE / "data" / "highs.json"
-            src = site_highs if site_highs.exists() else repo_highs
-            if src.exists():
-                dashboard = json.loads(src.read_text(encoding="utf-8"))
-                print(f"  falling back to the published list "
-                      f"({dashboard.get('count', 0)} stocks, no reason/chart enrichment).")
-            else:
-                dashboard = {"count": 0, "stocks": [], "built": built,
-                             "error": "52-week highs unavailable", "detail": str(e)}
-                print("  no published or committed list to fall back to — leaving it empty.")
+        dashboard = {"count": 0, "sectors": [], "stocks": [], "built": built,
+                     "data_asof": None, "source": "base-scan",
+                     "note": "base scan has not produced the new-high list yet."}
+        print("  no base new-high support and no committed list — leaving it empty.")
+
     stocks = _all_stocks(dashboard)
     # Most important (largest) names first so we never run out of budget on them.
     stocks.sort(key=lambda s: s.get("market_cap") or 0, reverse=True)
-    print(f"  {len(stocks)} tickers found.")
+    print(f"  {len(stocks)} tickers in the list.")
 
     fetched = 0
-    ath_cache = highs_extra.load_ath()   # ticker -> all-time-high price (persisted)
     for s in stocks[:LIMIT]:
         ticker = s["ticker"]
-        if not frozen:
-            try:
-                s["reason"] = charts.get_reason(ticker)
-            except Exception as e:
-                print(f"  reason {ticker} failed: {e}")
-                s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
+        try:
+            s["reason"] = charts.get_reason(ticker)
+        except Exception as e:
+            print(f"  reason {ticker} failed: {e}")
+            s["reason"] = {"news": [], "earnings_recent": False, "earnings_date": None}
         try:
             chart = charts.get_chart(ticker, "max")
             write_json(SITE / "data" / "chart" / f"{ticker}.json", chart)
-            peak = highs_extra.ath_from_chart(chart)   # refresh the ATH cache
-            if peak is not None:
-                ath_cache[ticker] = peak
-            # 전일대비 fallback from close when Finviz gave '-' (market closed).
+            # True ATH (사상 최고가): latest close vs the full-range peak close/high.
+            peak = highs_extra.ath_from_chart(chart)
+            price = s.get("price")
+            if peak is not None and price is not None:
+                s["ath"] = price >= peak * highs_extra.ATH_EPS
+            # 전일대비 fallback from close if missing.
             if s.get("change_pct") is None:
                 closes = [c for c in (chart.get("close") or []) if c is not None]
                 if len(closes) >= 2 and closes[-2]:
@@ -784,25 +772,23 @@ def main() -> None:
             print(f"  ... {fetched} processed")
         time.sleep(0.3)  # be gentle with Yahoo
 
-    # Persist the refreshed ATH cache and (re)flag every row (turnover + ATH)
-    # against it, then record today's bucket for the 신고가 추이 charts.
-    highs_extra.save_ath(ath_cache)
+    # Record today's bucket for the 신고가 추이 charts (only for a fresh list).
     all_rows = _all_stocks(dashboard)
-    highs_extra.annotate_rows(all_rows, ath=ath_cache, demo=dashboard.get("demo", False))
-    if not frozen and dashboard.get("count"):
+    if derived and dashboard.get("count"):
         hist = highs_extra.update_history(all_rows)
         write_json(SITE / "data" / "highs_history.json", hist)
     elif highs_extra.HISTORY_PATH.exists():
         shutil.copyfile(highs_extra.HISTORY_PATH, SITE / "data" / "highs_history.json")
 
-    # Stocks beyond the limit still appear in the list (without reason/chart).
     write_json(SITE / "data" / "highs.json", dashboard)
-    if not frozen:
-        write_json(DATA / "highs.json", dashboard)  # repo copy for raw fetch
-        meta = {"built": built, "count": dashboard.get("count", 0), "charts": fetched}
+    if derived:
+        write_json(DATA / "highs.json", dashboard)   # repo copy for raw fetch
+        meta = {"built": built, "count": dashboard.get("count", 0), "charts": fetched,
+                "data_asof": dashboard.get("data_asof"), "source": "base-scan"}
         write_json(SITE / "data" / "meta.json", meta)
         write_json(DATA / "meta.json", meta)
-    print(f"Done. Built {built}, {fetched} charts, site -> {SITE}")
+    print(f"Done. Built {built}, {fetched} charts, source={dashboard.get('source')}, "
+          f"data_asof={dashboard.get('data_asof')}, site -> {SITE}")
 
 
 if __name__ == "__main__":

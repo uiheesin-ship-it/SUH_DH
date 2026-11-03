@@ -60,6 +60,17 @@ def _fill_change_from_close(s: dict) -> None:
 
 
 def main() -> None:
+    # The 52-week-high list is now produced by the heavy build from the base
+    # scan (Finviz-independent) — see app/ushighs.py — because Finviz keeps
+    # blocking the runner. So this fast Finviz refresher is OFF by default: it
+    # would otherwise fail (Finviz returns nothing) or, if Finviz briefly
+    # answered, overwrite the richer base-derived list. Re-enable with
+    # SUH_DH_HIGHS_FINVIZ=1 only if Finviz access is restored.
+    if os.environ.get("SUH_DH_HIGHS_FINVIZ", "") != "1":
+        print("highs.yml no-op: 52주 신고가는 base 스캔에서 생성됩니다 "
+              "(SUH_DH_HIGHS_FINVIZ=1 로 Finviz 경로 재활성화 가능).")
+        return
+
     from app.screener import highs_frozen
 
     data_dir = ROOT / "data"
@@ -71,7 +82,13 @@ def main() -> None:
         return
 
     built = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    dashboard = screener.get_dashboard()
+    try:
+        dashboard = screener.get_dashboard()
+    except Exception as e:
+        # Finviz blocks the runner often; don't fail the job or clobber the
+        # base-derived list — just leave the committed highs.json in place.
+        print(f"highs.yml: Finviz fetch failed, leaving committed list: {e}")
+        return
     dashboard["built"] = built
 
     stocks = _all_stocks(dashboard)
