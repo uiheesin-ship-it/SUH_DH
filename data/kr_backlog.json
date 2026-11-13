@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-11-12T21:22:38+00:00",
+    "updated": "2026-11-13T21:28:44+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -5255,7 +5255,257 @@
       "20261112000739",
       "20261112000741",
       "20261112000742",
-      "20261112000743"
+      "20261112000743",
+      "20261113000024",
+      "20261113000029",
+      "20261113000046",
+      "20261113000060",
+      "20261113000079",
+      "20261113000086",
+      "20261113000111",
+      "20261113000132",
+      "20261113000156",
+      "20261113000158",
+      "20261113000162",
+      "20261113000208",
+      "20261113000218",
+      "20261113000224",
+      "20261113000245",
+      "20261113000289",
+      "20261113000324",
+      "20261113000337",
+      "20261113000341",
+      "20261113000353",
+      "20261113000379",
+      "20261113000380",
+      "20261113000381",
+      "20261113000386",
+      "20261113000459",
+      "20261113000466",
+      "20261113000472",
+      "20261113000475",
+      "20261113000480",
+      "20261113000483",
+      "20261113000490",
+      "20261113000497",
+      "20261113000503",
+      "20261113000527",
+      "20261113000535",
+      "20261113000537",
+      "20261113000546",
+      "20261113000554",
+      "20261113000557",
+      "20261113000572",
+      "20261113000577",
+      "20261113000581",
+      "20261113000598",
+      "20261113000616",
+      "20261113000638",
+      "20261113000641",
+      "20261113000648",
+      "20261113000656",
+      "20261113000661",
+      "20261113000666",
+      "20261113000680",
+      "20261113000681",
+      "20261113000715",
+      "20261113000727",
+      "20261113000737",
+      "20261113000744",
+      "20261113000750",
+      "20261113000759",
+      "20261113000766",
+      "20261113000776",
+      "20261113000804",
+      "20261113000820",
+      "20261113000856",
+      "20261113000862",
+      "20261113000864",
+      "20261113000869",
+      "20261113000905",
+      "20261113000907",
+      "20261113000913",
+      "20261113000921",
+      "20261113000923",
+      "20261113000938",
+      "20261113000940",
+      "20261113000956",
+      "20261113000959",
+      "20261113001001",
+      "20261113001006",
+      "20261113001008",
+      "20261113001015",
+      "20261113001019",
+      "20261113001020",
+      "20261113001024",
+      "20261113001030",
+      "20261113001031",
+      "20261113001039",
+      "20261113001071",
+      "20261113001073",
+      "20261113001082",
+      "20261113001085",
+      "20261113001088",
+      "20261113001095",
+      "20261113001097",
+      "20261113001104",
+      "20261113001106",
+      "20261113001113",
+      "20261113001123",
+      "20261113001128",
+      "20261113001134",
+      "20261113001136",
+      "20261113001148",
+      "20261113001152",
+      "20261113001153",
+      "20261113001160",
+      "20261113001171",
+      "20261113001176",
+      "20261113001182",
+      "20261113001185",
+      "20261113001186",
+      "20261113001188",
+      "20261113001212",
+      "20261113001227",
+      "20261113001241",
+      "20261113001247",
+      "20261113001250",
+      "20261113001254",
+      "20261113001259",
+      "20261113001263",
+      "20261113001266",
+      "20261113001275",
+      "20261113001278",
+      "20261113001279",
+      "20261113001283",
+      "20261113001284",
+      "20261113001292",
+      "20261113001296",
+      "20261113001305",
+      "20261113001316",
+      "20261113001323",
+      "20261113001327",
+      "20261113001332",
+      "20261113001335",
+      "20261113001346",
+      "20261113001365",
+      "20261113001373",
+      "20261113001375",
+      "20261113001383",
+      "20261113001385",
+      "20261113001392",
+      "20261113001393",
+      "20261113001396",
+      "20261113001397",
+      "20261113001417",
+      "20261113001422",
+      "20261113001435",
+      "20261113001441",
+      "20261113001443",
+      "20261113001461",
+      "20261113001465",
+      "20261113001481",
+      "20261113001499",
+      "20261113001500",
+      "20261113001501",
+      "20261113001502",
+      "20261113001503",
+      "20261113001505",
+      "20261113001506",
+      "20261113001507",
+      "20261113001511",
+      "20261113001512",
+      "20261113001514",
+      "20261113001515",
+      "20261113001516",
+      "20261113001517",
+      "20261113001518",
+      "20261113001519",
+      "20261113001520",
+      "20261113001521",
+      "20261113001522",
+      "20261113001523",
+      "20261113001524",
+      "20261113001525",
+      "20261113001528",
+      "20261113001529",
+      "20261113001532",
+      "20261113001534",
+      "20261113001535",
+      "20261113001536",
+      "20261113001539",
+      "20261113001542",
+      "20261113001544",
+      "20261113001546",
+      "20261113001547",
+      "20261113001549",
+      "20261113001550",
+      "20261113001551",
+      "20261113001552",
+      "20261113001555",
+      "20261113001557",
+      "20261113001558",
+      "20261113001559",
+      "20261113001561",
+      "20261113001563",
+      "20261113001564",
+      "20261113001565",
+      "20261113001566",
+      "20261113001567",
+      "20261113001568",
+      "20261113001569",
+      "20261113001570",
+      "20261113001572",
+      "20261113001573",
+      "20261113001576",
+      "20261113001578",
+      "20261113001579",
+      "20261113001580",
+      "20261113001581",
+      "20261113001582",
+      "20261113001583",
+      "20261113001584",
+      "20261113001586",
+      "20261113001591",
+      "20261113001592",
+      "20261113001594",
+      "20261113001595",
+      "20261113001596",
+      "20261113001597",
+      "20261113001599",
+      "20261113001600",
+      "20261113001601",
+      "20261113001602",
+      "20261113001605",
+      "20261113001606",
+      "20261113001612",
+      "20261113001616",
+      "20261113001619",
+      "20261113001622",
+      "20261113001625",
+      "20261113001626",
+      "20261113001628",
+      "20261113001633",
+      "20261113001636",
+      "20261113001640",
+      "20261113001645",
+      "20261113001649",
+      "20261113001665",
+      "20261113001667",
+      "20261113001668",
+      "20261113001670",
+      "20261113001677",
+      "20261113001682",
+      "20261113001683",
+      "20261113001684",
+      "20261113001686",
+      "20261113001688",
+      "20261113001690",
+      "20261113001691",
+      "20261113001692",
+      "20261113001693",
+      "20261113001695",
+      "20261113001696"
     ]
   },
   "companies": {
@@ -5360,6 +5610,20 @@
       "market": "KOSPI",
       "sector": "전자부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001375",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001375",
+          "backlog_krw": 908972500000000,
+          "backlog_raw": "9,089,725",
+          "unit": "억원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -5708,6 +5972,20 @@
       "market": "KOSPI",
       "sector": "1차 비철금속 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001247",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001247",
+          "backlog_krw": 37980000000,
+          "backlog_raw": "37,980",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -6310,6 +6588,20 @@
       "sector": "기타 금융업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000598",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000598",
+          "backlog_krw": 681661000000,
+          "backlog_raw": "681,661",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -6874,6 +7166,20 @@
       "sector": "비료, 농약 및 살균, 살충제 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000554",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000554",
+          "backlog_krw": 56440000000,
+          "backlog_raw": "56,440",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -7019,6 +7325,20 @@
       "market": "KOSPI",
       "sector": "전자부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001104",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001104",
+          "backlog_krw": 145000,
+          "backlog_raw": "145",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -7352,6 +7672,20 @@
       "sector": "비료, 농약 및 살균, 살충제 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001443",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001443",
+          "backlog_krw": 850241000000,
+          "backlog_raw": "850,241",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -7497,6 +7831,20 @@
       "market": "KOSPI",
       "sector": "건축기술, 엔지니어링 및 관련 기술 서비스업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001594",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001594",
+          "backlog_krw": 1910691000000,
+          "backlog_raw": "1,910,691",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기초계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -8048,6 +8396,20 @@
       "sector": "토목 건설업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001417",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001417",
+          "backlog_krw": 3853644000000,
+          "backlog_raw": "3,853,644",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -8141,6 +8503,20 @@
       "market": "KOSPI",
       "sector": "플라스틱제품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000648",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000648",
+          "backlog_krw": 23063,
+          "backlog_raw": "23,063",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -8357,6 +8733,20 @@
       "market": "KOSPI",
       "sector": "기타 금융업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001565",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001565",
+          "backlog_krw": 356811000000,
+          "backlog_raw": "356,811",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -8758,6 +9148,20 @@
       "sector": "기타 금융업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001263",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001263",
+          "backlog_krw": 13187000000,
+          "backlog_raw": "13,187",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -9036,6 +9440,20 @@
       "sector": "의료용품 및 기타 의약 관련제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001071",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001071",
+          "backlog_krw": 772581,
+          "backlog_raw": "772,581",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-10-01",
@@ -9220,6 +9638,20 @@
       "sector": "전동기, 발전기 및 전기 변환 · 공급 · 제어 장치 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001305",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001305",
+          "backlog_krw": 344,
+          "backlog_raw": "344",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-09-30",
@@ -9306,6 +9738,20 @@
       "sector": "구조용 금속제품, 탱크 및 증기발생기 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000337",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000337",
+          "backlog_krw": 1061277000000,
+          "backlog_raw": "1,061,277",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기초계약잔액"
+        },
+        {
           "period": "2025-12",
           "quarter": "2025 연간",
           "rcept_dt": "2026-07-24",
@@ -9353,6 +9799,20 @@
       "market": "KOSPI",
       "sector": "시멘트, 석회, 플라스터 및 그 제품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000661",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000661",
+          "backlog_krw": 105759000000,
+          "backlog_raw": "105,759",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "계약 잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -9447,6 +9907,20 @@
       "market": "KOSDAQ",
       "sector": "알코올음료 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001128",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001128",
+          "backlog_krw": 18256012,
+          "backlog_raw": "18,256,012",
+          "unit": "LPG",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -9838,6 +10312,20 @@
       "sector": "전자부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000666",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000666",
+          "backlog_krw": 10461858000000,
+          "backlog_raw": "10,461,858",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -9889,6 +10377,20 @@
       "market": "KOSPI",
       "sector": "기타 금융업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001241",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001241",
+          "backlog_krw": 1171970000000,
+          "backlog_raw": "1,171,970",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "전기말 수주잔액(2025.12.31)"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -10088,9 +10590,23 @@
       "stock_code": "005030",
       "corp_code": "00124151",
       "name": "부산주공",
-      "market": "KOSPI",
+      "market": "기타",
       "sector": "자동차 신품 부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001323",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001323",
+          "backlog_krw": 15979,
+          "backlog_raw": "15,979",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -10188,20 +10704,6 @@
           "currency": null,
           "method": "total-row",
           "header": "수주잔고"
-        },
-        {
-          "period": "2023-12",
-          "quarter": "2023 연간",
-          "rcept_dt": "2025-05-21",
-          "rcept_no": "20250521000331",
-          "report_nm": "[기재정정]사업보고서 (2023.12)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20250521000331",
-          "backlog_krw": 67047,
-          "backlog_raw": "67,047",
-          "unit": "원",
-          "currency": null,
-          "method": "total-row",
-          "header": "수주잔고"
         }
       ],
       "industry": "자동차부품(엔진부품,조향장치부품,브레이장치부품,오토미셧부품) 제조,도매/부동산 임대"
@@ -10213,6 +10715,20 @@
       "market": "KOSPI",
       "sector": "전기업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000527",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000527",
+          "backlog_krw": 50000,
+          "backlog_raw": "50",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -10467,6 +10983,20 @@
       "sector": "1차 철강 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001097",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001097",
+          "backlog_krw": 5331558300000000,
+          "backlog_raw": "53,315,583",
+          "unit": "억원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -10665,6 +11195,20 @@
       "sector": "통신 및 방송 장비 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001284",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001284",
+          "backlog_krw": 3628,
+          "backlog_raw": "3,628",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-09-29",
@@ -10758,6 +11302,20 @@
       "market": "KOSDAQ",
       "sector": "동물용 사료 및 조제식품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000956",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000956",
+          "backlog_krw": 671024,
+          "backlog_raw": "671,024",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -11243,6 +11801,20 @@
       "sector": "기타 금융업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001397",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001397",
+          "backlog_krw": 454062000000,
+          "backlog_raw": "454,062",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -11417,6 +11989,20 @@
       "sector": "건물 건설업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000557",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000557",
+          "backlog_krw": 50189455000000,
+          "backlog_raw": "50,189,455",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-07-01",
@@ -11513,20 +12099,6 @@
           "currency": null,
           "method": "total-row",
           "header": "계약잔액"
-        },
-        {
-          "period": "2024-06",
-          "quarter": "2024 반기",
-          "rcept_dt": "2026-07-01",
-          "rcept_no": "20260701000495",
-          "report_nm": "[기재정정]반기보고서 (2024.06)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260701000495",
-          "backlog_krw": 4720054000000,
-          "backlog_raw": "4,720,054",
-          "unit": "백만원",
-          "currency": null,
-          "method": "total-row",
-          "header": "계약잔액"
         }
       ],
       "industry": "토목공사,건축공사,주택공사,산업플랜트공사,리모델링공사,시설물유지관리공사/산업설비설계,감리 용역,수출입/에너지관리 진단,연구개발"
@@ -11538,6 +12110,20 @@
       "market": "KOSDAQ",
       "sector": "시멘트, 석회, 플라스터 및 그 제품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000577",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000577",
+          "backlog_krw": 97786000,
+          "backlog_raw": "97,786",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -12019,6 +12605,20 @@
       "sector": "전자부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000913",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000913",
+          "backlog_krw": 546000000,
+          "backlog_raw": "546",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -12193,6 +12793,20 @@
       "sector": "나무제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000766",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000766",
+          "backlog_krw": 1825000000,
+          "backlog_raw": "1,825",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -12324,6 +12938,20 @@
       "sector": "플라스틱제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001346",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001346",
+          "backlog_krw": 3240000,
+          "backlog_raw": "USD 3,240,000",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "계약 잔액"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -12340,13 +12968,13 @@
         {
           "period": "2025-12",
           "quarter": "2025 연간",
-          "rcept_dt": "2026-03-16",
-          "rcept_no": "20260316001034",
-          "report_nm": "사업보고서 (2025.12)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260316001034",
-          "backlog_krw": 3600000,
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001266",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001266",
+          "backlog_krw": 3600000000,
           "backlog_raw": "USD 3,600,000",
-          "unit": "원",
+          "unit": "천원",
           "currency": null,
           "method": "single-row",
           "header": "계약 잔액"
@@ -12389,6 +13017,20 @@
           "backlog_krw": 3600000000000,
           "backlog_raw": "USD 3,600,000",
           "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "계약 잔액"
+        },
+        {
+          "period": "2024-12",
+          "quarter": "2024 연간",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001254",
+          "report_nm": "[기재정정]사업보고서 (2024.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001254",
+          "backlog_krw": 3600000000,
+          "backlog_raw": "USD 3,600,000",
+          "unit": "천원",
           "currency": null,
           "method": "single-row",
           "header": "계약 잔액"
@@ -12559,10 +13201,24 @@
     "009140": {
       "stock_code": "009140",
       "corp_code": "00102140",
-      "name": "경인전자",
+      "name": "케이아이이",
       "market": "KOSPI",
       "sector": "전자부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001335",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001335",
+          "backlog_krw": 2738,
+          "backlog_raw": "2,738",
+          "unit": "SET",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -12845,6 +13501,20 @@
       "market": "KOSPI",
       "sector": "봉제의복 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001186",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001186",
+          "backlog_krw": 46760,
+          "backlog_raw": "46,760",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -13485,6 +14155,20 @@
       "market": "KOSPI",
       "sector": "건물설비 설치 공사업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000386",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000386",
+          "backlog_krw": 223773548,
+          "backlog_raw": "223,773,548",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -14397,6 +15081,20 @@
       "sector": "",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000804",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000804",
+          "backlog_krw": 76818,
+          "backlog_raw": "76,818",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "최근결산기말 공사계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -14889,6 +15587,20 @@
       "sector": "기타 금속 가공제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000727",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000727",
+          "backlog_krw": 15999000,
+          "backlog_raw": "15,999",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기초 수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -15314,6 +16026,20 @@
       "market": "KOSPI",
       "sector": "기타 금융업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001279",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001279",
+          "backlog_krw": 22690635,
+          "backlog_raw": "22,690,635",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -15907,6 +16633,20 @@
       "sector": "",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000923",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000923",
+          "backlog_krw": 355000000,
+          "backlog_raw": "355",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -16282,6 +17022,20 @@
       "sector": "자동차 신품 부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000079",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000079",
+          "backlog_krw": 26646,
+          "backlog_raw": "26,646",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-14",
@@ -16550,6 +17304,20 @@
       "sector": "건물 건설업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000490",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000490",
+          "backlog_krw": 1903115000000,
+          "backlog_raw": "1,903,115",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-14",
@@ -16803,6 +17571,20 @@
       "market": "KOSPI",
       "sector": "전동기, 발전기 및 전기 변환 · 공급 · 제어 장치 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000503",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000503",
+          "backlog_krw": 75222,
+          "backlog_raw": "75,222",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -17246,6 +18028,20 @@
       "sector": "구조용 금속제품, 탱크 및 증기발생기 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001019",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001019",
+          "backlog_krw": -58604536,
+          "backlog_raw": "전기말 선수금(유동) 중, 당분기에 수익 인식한 금액은 58,604,536천원입니다.",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "계약 잔액"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-14",
@@ -17687,6 +18483,20 @@
       "market": "KOSDAQ",
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000497",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000497",
+          "backlog_krw": 5442,
+          "backlog_raw": "5,442",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -19400,6 +20210,20 @@
       "sector": "기타 정보 서비스업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001008",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001008",
+          "backlog_krw": 8195,
+          "backlog_raw": "8,195",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -19569,10 +20393,24 @@
     "031990": {
       "stock_code": "031990",
       "corp_code": "00110307",
-      "name": "대선조선",
+      "name": "에스비대선",
       "market": "기타",
       "sector": "",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000535",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000535",
+          "backlog_krw": 67224000,
+          "backlog_raw": "67,224",
+          "unit": "천원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -20339,6 +21177,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001441",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001441",
+          "backlog_krw": -1000,
+          "backlog_raw": "기말계약잔액(주1)",
+          "unit": "천원",
+          "currency": null,
+          "method": "single-row",
+          "header": "기초계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -20446,6 +21298,20 @@
       "market": "KOSPI",
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000856",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000856",
+          "backlog_krw": 9896527000000,
+          "backlog_raw": "9,896,527",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -20634,6 +21500,20 @@
       "sector": "플라스틱제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001088",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001088",
+          "backlog_krw": 27421000000,
+          "backlog_raw": "27,421",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -20727,6 +21607,20 @@
       "market": "기타",
       "sector": "",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000029",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000029",
+          "backlog_krw": 297,
+          "backlog_raw": "297",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -20981,6 +21875,20 @@
       "sector": "건물 건설업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001569",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001569",
+          "backlog_krw": 1602958000000,
+          "backlog_raw": "1,602,958",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "공사계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -21074,6 +21982,20 @@
       "market": "KOSDAQ",
       "sector": "반도체 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001095",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001095",
+          "backlog_krw": 12,
+          "backlog_raw": "12",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -21328,6 +22250,20 @@
       "market": "KOSDAQ",
       "sector": "전기 및 통신 공사업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000750",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000750",
+          "backlog_krw": 277472,
+          "backlog_raw": "277,472",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -21625,6 +22561,20 @@
       "sector": "회사 본부 및 경영 컨설팅 서비스업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000907",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000907",
+          "backlog_krw": 469444,
+          "backlog_raw": "469,444",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-14",
@@ -21704,6 +22654,20 @@
       "market": "KOSDAQ",
       "sector": "기초 화학물질 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000472",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000472",
+          "backlog_krw": 6187,
+          "backlog_raw": "6,187",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -21865,6 +22829,20 @@
       "sector": "구조용 금속제품, 탱크 및 증기발생기 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000681",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000681",
+          "backlog_krw": 84046,
+          "backlog_raw": "84,046",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -21944,6 +22922,20 @@
       "market": "KOSDAQ",
       "sector": "사업시설 유지·관리 서비스업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000158",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000158",
+          "backlog_krw": 6218,
+          "backlog_raw": "6,218",
+          "unit": "원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -22052,6 +23044,20 @@
       "market": "KOSDAQ",
       "sector": "제재 및 목재 가공업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000776",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000776",
+          "backlog_krw": 1824000000,
+          "backlog_raw": "1,824",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -22415,6 +23421,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000353",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000353",
+          "backlog_krw": 316000,
+          "backlog_raw": "316",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -22518,6 +23538,20 @@
       "market": "KOSDAQ",
       "sector": "컴퓨터 프로그래밍, 시스템 통합 및 관리업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000245",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000245",
+          "backlog_krw": 10000000,
+          "backlog_raw": "10",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -22984,6 +24018,20 @@
       "sector": "",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001039",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001039",
+          "backlog_krw": 553000,
+          "backlog_raw": "553",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -23062,6 +24110,20 @@
       "market": "KOSDAQ",
       "sector": "기타 금속 가공제품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000864",
+          "report_nm": "[첨부추가]분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000864",
+          "backlog_krw": 36900600000000,
+          "backlog_raw": "369,006",
+          "unit": "억원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "전기수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -23387,6 +24449,20 @@
       "sector": "기타 전기장비 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000921",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000921",
+          "backlog_krw": 443673135968,
+          "backlog_raw": "443,673,135,968",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -23494,6 +24570,20 @@
       "market": "KOSDAQ",
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000218",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000218",
+          "backlog_krw": 397,
+          "backlog_raw": "397",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -23805,6 +24895,20 @@
       "sector": "",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000224",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000224",
+          "backlog_krw": 6,
+          "backlog_raw": "6",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -23963,6 +25067,20 @@
       "market": "KOSPI",
       "sector": "건물 건설업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001461",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001461",
+          "backlog_krw": 54854991000000,
+          "backlog_raw": "54,854,991",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -24165,6 +25283,20 @@
       "market": "KOSPI",
       "sector": "항공기,우주선 및 부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001396",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001396",
+          "backlog_krw": -3000000,
+          "backlog_raw": "-3",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "기초계약잔액"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -24701,6 +25833,20 @@
       "sector": "전자부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001227",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001227",
+          "backlog_krw": 40562,
+          "backlog_raw": "40,562",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -25138,6 +26284,20 @@
       "market": "KOSDAQ",
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001393",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001393",
+          "backlog_krw": 197085,
+          "backlog_raw": "197,085",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -25605,6 +26765,20 @@
       "sector": "기타 금속 가공제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000638",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000638",
+          "backlog_krw": 748000,
+          "backlog_raw": "748",
+          "unit": "천원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -25699,6 +26873,20 @@
       "sector": "",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000820",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000820",
+          "backlog_krw": 17603,
+          "backlog_raw": "17,603",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-03",
           "quarter": "2026 1Q",
           "rcept_dt": "2026-05-15",
@@ -25778,6 +26966,20 @@
       "sector": "플라스틱제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001500",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001500",
+          "backlog_krw": 1035376000,
+          "backlog_raw": "1,035,376",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -25808,10 +27010,10 @@
         {
           "period": "2025-12",
           "quarter": "2025 연간",
-          "rcept_dt": "2026-03-23",
-          "rcept_no": "20260323001632",
-          "report_nm": "사업보고서 (2025.12)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323001632",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001383",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001383",
           "backlog_krw": 816429,
           "backlog_raw": "816,429",
           "unit": "원",
@@ -25965,6 +27167,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000289",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000289",
+          "backlog_krw": 5,
+          "backlog_raw": "A사 계약은 보고서 작성일 현재 전기 매출액기준 5%이상 개별 계약으로 별도 표기하였습니다.",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "공시서류 작성일 기준으로 프로젝트의 수주 잔액이 있는 프로젝트의 현황을 산출 하였으며, 수주금액=계약금액, 납품액=프로젝트 관련 납품/진행 금액, 미청구공사=진행율 적용후 미청구금액, 공사미수금 = 해당프로젝트 매출채권입니다"
+        },
         {
           "period": "2026-03",
           "quarter": "2026 1Q",
@@ -26408,6 +27624,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000046",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000046",
+          "backlog_krw": 183,
+          "backlog_raw": "183",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -26783,6 +28013,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000111",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000111",
+          "backlog_krw": 20815884,
+          "backlog_raw": "20,815,884",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -27911,6 +29155,20 @@
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000581",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000581",
+          "backlog_krw": 108213,
+          "backlog_raw": "108,213",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "전기말 수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-12",
@@ -27972,6 +29230,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000024",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000024",
+          "backlog_krw": 12564828,
+          "backlog_raw": "12,564,828",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -28073,6 +29345,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000208",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000208",
+          "backlog_krw": 8873000000,
+          "backlog_raw": "8,873",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-12",
@@ -28159,6 +29445,20 @@
       "sector": "펄프, 종이 및 판지 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001001",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001001",
+          "backlog_krw": 20000000,
+          "backlog_raw": "20",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28182,6 +29482,20 @@
       "market": "KOSDAQ",
       "sector": "기타 전문 도매업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001573",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001573",
+          "backlog_krw": 223850000,
+          "backlog_raw": "223,850",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -28207,6 +29521,20 @@
       "sector": "화학섬유 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001182",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001182",
+          "backlog_krw": 115062000000,
+          "backlog_raw": "115,062",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28230,6 +29558,20 @@
       "market": "KOSDAQ",
       "sector": "기타 전기장비 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000905",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000905",
+          "backlog_krw": 170000,
+          "backlog_raw": "0.170",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -28255,6 +29597,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000466",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000466",
+          "backlog_krw": 14101985000,
+          "backlog_raw": "14,101,985",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28279,6 +29635,20 @@
       "sector": "전자부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001465",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001465",
+          "backlog_krw": 148000000,
+          "backlog_raw": "148",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28302,6 +29672,20 @@
       "market": "KOSDAQ",
       "sector": "반도체 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001031",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001031",
+          "backlog_krw": 1808000000,
+          "backlog_raw": "1,808",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -28351,6 +29735,20 @@
       "sector": "전기 및 통신 공사업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001006",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001006",
+          "backlog_krw": 231541078,
+          "backlog_raw": "231,541,078",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28375,6 +29773,20 @@
       "sector": "기타 전문 도매업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001020",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001020",
+          "backlog_krw": 364298950,
+          "backlog_raw": "364,298,950",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "기초공사계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28398,6 +29810,20 @@
       "market": "KOSDAQ",
       "sector": "전자부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000938",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000938",
+          "backlog_krw": 469444,
+          "backlog_raw": "469,444",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -28537,6 +29963,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000060",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000060",
+          "backlog_krw": 116,
+          "backlog_raw": "116",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28637,6 +30077,20 @@
       "sector": "전자부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001365",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001365",
+          "backlog_krw": 10444816540000,
+          "backlog_raw": "10,444,817",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28660,6 +30114,20 @@
       "market": "KOSDAQ",
       "sector": "자동차 신품 부품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001250",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001250",
+          "backlog_krw": 84544426,
+          "backlog_raw": "84,544,426",
+          "unit": "원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -28747,6 +30215,20 @@
       "sector": "자연과학 및 공학 연구개발업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000656",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000656",
+          "backlog_krw": 238475016,
+          "backlog_raw": "238,475,016",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고 금액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-13",
@@ -28770,6 +30252,20 @@
       "market": "KOSDAQ",
       "sector": "측정, 시험, 항해, 제어 및 기타 정밀기기 제조업; 광학기기 제외",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001327",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001327",
+          "backlog_krw": 63633000,
+          "backlog_raw": "63,633",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "전기말수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -29019,6 +30515,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001171",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001171",
+          "backlog_krw": 7736,
+          "backlog_raw": "7,736",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "전기말 수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -29114,6 +30624,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000572",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000572",
+          "backlog_krw": 15455148000,
+          "backlog_raw": "15,455,148",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -29225,6 +30749,20 @@
       "sector": "기타 금속 가공제품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001668",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001668",
+          "backlog_krw": 4000000,
+          "backlog_raw": "4",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-10-19",
@@ -29272,6 +30810,20 @@
       "market": "KOSDAQ",
       "sector": "전동기, 발전기 및 전기 변환 · 공급 · 제어 장치 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000680",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000680",
+          "backlog_krw": 83,
+          "backlog_raw": "83",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -29382,6 +30934,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001316",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001316",
+          "backlog_krw": 29576000000,
+          "backlog_raw": "29,576",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -29406,6 +30972,20 @@
       "sector": "전동기, 발전기 및 전기 변환 · 공급 · 제어 장치 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001584",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001584",
+          "backlog_krw": 42474000000,
+          "backlog_raw": "42,474",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -29429,6 +31009,20 @@
       "market": "KOSPI",
       "sector": "토목 건설업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001106",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001106",
+          "backlog_krw": 25943047000000,
+          "backlog_raw": "25,943,047",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -29515,6 +31109,20 @@
       "market": "KOSDAQ",
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001373",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001373",
+          "backlog_krw": 417443,
+          "backlog_raw": "417,443",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -29770,6 +31378,20 @@
       "sector": "건물 건설업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001082",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001082",
+          "backlog_krw": 25783397000000,
+          "backlog_raw": "25,783,397",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-18",
@@ -29818,6 +31440,20 @@
       "sector": "",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001332",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001332",
+          "backlog_krw": 98771,
+          "backlog_raw": "98,771",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -29864,6 +31500,20 @@
       "market": "KOSDAQ",
       "sector": "측정, 시험, 항해, 제어 및 기타 정밀기기 제조업; 광학기기 제외",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001547",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001547",
+          "backlog_krw": 2176033618000000057344,
+          "backlog_raw": "2,176,033,618",
+          "unit": "조원",
+          "currency": null,
+          "method": "total-row",
+          "header": "계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30032,6 +31682,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001188",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001188",
+          "backlog_krw": 47369,
+          "backlog_raw": "47,369",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30249,6 +31913,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001136",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001136",
+          "backlog_krw": 15360874000,
+          "backlog_raw": "15,360,874",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30272,6 +31950,20 @@
       "market": "KOSDAQ",
       "sector": "자연과학 및 공학 연구개발업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001591",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001591",
+          "backlog_krw": 25657000000,
+          "backlog_raw": "25,657",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고 금액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30297,6 +31989,20 @@
       "sector": "건물 건설업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001579",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001579",
+          "backlog_krw": 60751000000,
+          "backlog_raw": "60,751",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30320,6 +32026,20 @@
       "market": "KOSDAQ",
       "sector": "컴퓨터 프로그래밍, 시스템 통합 및 관리업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001283",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001283",
+          "backlog_krw": 74395392000,
+          "backlog_raw": "74,395,392",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기초계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30345,6 +32065,20 @@
       "sector": "절연선 및 케이블 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001153",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001153",
+          "backlog_krw": 58527589000000,
+          "backlog_raw": "58,527,589",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30368,6 +32102,20 @@
       "market": "KOSPI",
       "sector": "1차 철강 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001602",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001602",
+          "backlog_krw": 36856,
+          "backlog_raw": "36,856",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30416,6 +32164,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001176",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001176",
+          "backlog_krw": 11163000000,
+          "backlog_raw": "11,163",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30513,6 +32275,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000475",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000475",
+          "backlog_krw": 16107292000,
+          "backlog_raw": "16,107,292",
+          "unit": "천원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30585,6 +32361,20 @@
       "sector": "기타 전기장비 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001275",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001275",
+          "backlog_krw": 69564148,
+          "backlog_raw": "69,564,148",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30632,6 +32422,20 @@
       "market": "KOSDAQ",
       "sector": "기타 금속 가공제품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001212",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001212",
+          "backlog_krw": 893,
+          "backlog_raw": "893",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30753,6 +32557,20 @@
       "sector": "자동차 신품 부품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000537",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000537",
+          "backlog_krw": 132308,
+          "backlog_raw": "132,308",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30777,6 +32595,20 @@
       "sector": "자연과학 및 공학 연구개발업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000381",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000381",
+          "backlog_krw": 404,
+          "backlog_raw": "404",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30800,6 +32632,20 @@
       "market": "KOSDAQ",
       "sector": "통신 및 방송 장비 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000341",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000341",
+          "backlog_krw": 47234,
+          "backlog_raw": "47,234",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -30897,6 +32743,20 @@
       "sector": "기타 금융업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001385",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001385",
+          "backlog_krw": 229681369047000000,
+          "backlog_raw": "229,681,369,047",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "계약잔액"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30945,6 +32805,20 @@
       "sector": "의약품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001073",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001073",
+          "backlog_krw": 16052,
+          "backlog_raw": "16,052",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -30992,6 +32866,20 @@
       "market": "KOSDAQ",
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001296",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001296",
+          "backlog_krw": 12,
+          "backlog_raw": "12",
+          "unit": "원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "주2) 상기 수주현황에는 해외 수주 프로젝트도 포함된 바, 원화 환산 적용 환율 차이로 원화 기준의 수주총액, 기납품액, 수주잔고 금액이 다소 상이할 수 있습니다."
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -31064,6 +32952,20 @@
       "market": "KOSPI",
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000737",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000737",
+          "backlog_krw": 4142700000000,
+          "backlog_raw": "41,427",
+          "unit": "억원",
+          "currency": null,
+          "method": "total-row",
+          "header": "전기이월 수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -31280,6 +33182,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001583",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001583",
+          "backlog_krw": 496,
+          "backlog_raw": "496",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -31327,6 +33243,20 @@
       "market": "KOSDAQ",
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001278",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001278",
+          "backlog_krw": 5,
+          "backlog_raw": "5",
+          "unit": "원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "주1) 상기 수주현황에는 해외 수주 프로젝트도 포함된 바, 원화 환산 적용 환율 차이로 원화 기준의 수주총액, 기납품액, 수주잔고 금액이 다소 상이할 수 있습니다."
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -31424,6 +33354,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001392",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001392",
+          "backlog_krw": 3000000,
+          "backlog_raw": "3",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -31496,6 +33440,20 @@
       "sector": "일반 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001113",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001113",
+          "backlog_krw": 55101000000,
+          "backlog_raw": "55,101",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -31543,6 +33501,20 @@
       "market": "KOSDAQ",
       "sector": "그외 기타 제품 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001649",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001649",
+          "backlog_krw": 33990000000,
+          "backlog_raw": "33,990",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -31740,6 +33712,20 @@
       "sector": "전동기, 발전기 및 전기 변환 · 공급 · 제어 장치 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001435",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001435",
+          "backlog_krw": 8378000000,
+          "backlog_raw": "8,378",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -31763,6 +33749,20 @@
       "market": "KOSDAQ",
       "sector": "컴퓨터 프로그래밍, 시스템 통합 및 관리업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000869",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000869",
+          "backlog_krw": 7346167000000,
+          "backlog_raw": "7,346,167",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -31811,6 +33811,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000156",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000156",
+          "backlog_krw": 106,
+          "backlog_raw": "106",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -31970,6 +33984,20 @@
       "sector": "컴퓨터 프로그래밍, 시스템 통합 및 관리업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001148",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001148",
+          "backlog_krw": 117,
+          "backlog_raw": "117",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32018,6 +34046,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001518",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001518",
+          "backlog_krw": 250,
+          "backlog_raw": "250",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32041,6 +34083,20 @@
       "market": "KOSDAQ",
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000940",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000940",
+          "backlog_krw": 545340,
+          "backlog_raw": "545,340",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32089,6 +34145,20 @@
       "market": "KOSDAQ",
       "sector": "기계장비 및 관련 물품 도매업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000324",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000324",
+          "backlog_krw": 80,
+          "backlog_raw": "80.16MW",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32258,6 +34328,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000759",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000759",
+          "backlog_krw": 10880000000,
+          "backlog_raw": "10,880",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주 잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32330,6 +34414,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000862",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000862",
+          "backlog_krw": 40,
+          "backlog_raw": "40",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32353,6 +34451,20 @@
       "market": "KOSPI",
       "sector": "의료용 기기 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000959",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000959",
+          "backlog_krw": 3305588000000,
+          "backlog_raw": "3,305,588",
+          "unit": "백만원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32426,6 +34538,20 @@
       "sector": "측정, 시험, 항해, 제어 및 기타 정밀기기 제조업; 광학기기 제외",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001534",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001534",
+          "backlog_krw": 2186821000,
+          "backlog_raw": "2,186,821",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32449,6 +34575,20 @@
       "market": "KOSDAQ",
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000086",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000086",
+          "backlog_krw": 92478500,
+          "backlog_raw": "92,478,500",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32497,6 +34637,20 @@
       "market": "KOSDAQ",
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000744",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000744",
+          "backlog_krw": 2652,
+          "backlog_raw": "2,652",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32642,6 +34796,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000616",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000616",
+          "backlog_krw": 27996137000,
+          "backlog_raw": "27,996,137",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32689,6 +34857,20 @@
       "sector": "소프트웨어 개발 및 공급업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001185",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001185",
+          "backlog_krw": 3414,
+          "backlog_raw": "3,414",
+          "unit": "원",
+          "currency": null,
+          "method": "row-sum",
+          "header": "수주 잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32712,6 +34894,20 @@
       "market": "KOSDAQ",
       "sector": "측정, 시험, 항해, 제어 및 기타 정밀기기 제조업; 광학기기 제외",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001481",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001481",
+          "backlog_krw": 1303,
+          "backlog_raw": "1302.7",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고 금액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32833,6 +35029,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001134",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001134",
+          "backlog_krw": 38906000000,
+          "backlog_raw": "38,906",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -32856,6 +35066,20 @@
       "market": "KOSDAQ",
       "sector": "측정, 시험, 항해, 제어 및 기타 정밀기기 제조업; 광학기기 제외",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000132",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000132",
+          "backlog_krw": 0,
+          "backlog_raw": "0",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -32967,6 +35191,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000641",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000641",
+          "backlog_krw": 337610,
+          "backlog_raw": "337,610",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -33014,6 +35252,20 @@
       "market": "KOSPI",
       "sector": "1차 철강 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000380",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000380",
+          "backlog_krw": 681661000000,
+          "backlog_raw": "681,661",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -33111,6 +35363,20 @@
       "sector": "그외 기타 전문, 과학 및 기술 서비스업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000162",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000162",
+          "backlog_krw": 160259000000,
+          "backlog_raw": "160,259",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-08-14",
@@ -33134,6 +35400,20 @@
       "market": "KOSDAQ",
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001564",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001564",
+          "backlog_krw": 3385,
+          "backlog_raw": "3,385",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -33235,6 +35515,20 @@
       "sector": "의약품 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001422",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001422",
+          "backlog_krw": 15468000,
+          "backlog_raw": "15,468",
+          "unit": "천원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-09-28",
@@ -33258,6 +35552,20 @@
       "market": "KOSDAQ",
       "sector": "시장조사 및 여론조사업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001015",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001015",
+          "backlog_krw": 18214,
+          "backlog_raw": "18,214",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고 금액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -33355,6 +35663,20 @@
       "sector": "특수 목적용 기계 제조업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113000379",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113000379",
+          "backlog_krw": 11681,
+          "backlog_raw": "11,681",
+          "unit": "원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-09-29",
@@ -33440,6 +35762,20 @@
       "market": "KOSDAQ",
       "sector": "구조용 금속제품, 탱크 및 증기발생기 제조업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001030",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001030",
+          "backlog_krw": 0,
+          "backlog_raw": "0",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -33537,6 +35873,20 @@
       "sector": "기타 과학기술 서비스업",
       "quarters": [
         {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001292",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001292",
+          "backlog_krw": 10509753000000,
+          "backlog_raw": "10,509,753",
+          "unit": "백만원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        },
+        {
           "period": "2026-06",
           "quarter": "2026 반기",
           "rcept_dt": "2026-10-29",
@@ -33560,6 +35910,20 @@
       "market": "KOSDAQ",
       "sector": "컴퓨터 프로그래밍, 시스템 통합 및 관리업",
       "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001259",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001259",
+          "backlog_krw": 5329809499000,
+          "backlog_raw": "5,329,809,499",
+          "unit": "천원",
+          "currency": null,
+          "method": "total-row",
+          "header": "기초계약잔액"
+        },
         {
           "period": "2026-06",
           "quarter": "2026 반기",
@@ -33935,6 +36299,78 @@
         }
       ],
       "industry": "딥러닝 기반 인공지능(AI) 카메라 영상인식 소프트웨어"
+    },
+    "417030": {
+      "stock_code": "417030",
+      "corp_code": "01588897",
+      "name": "니어스랩",
+      "market": "KOSDAQ",
+      "sector": "소프트웨어 개발 및 공급업",
+      "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001670",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001670",
+          "backlog_krw": 5787,
+          "backlog_raw": "5,787",
+          "unit": "원",
+          "currency": null,
+          "method": "total-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "KAiDEN, XAiDEN, 풍력발전기 점검 솔루션"
+    },
+    "142210": {
+      "stock_code": "142210",
+      "corp_code": "00879020",
+      "name": "유니트론텍",
+      "market": "KOSDAQ",
+      "sector": "자동차 부품 및 내장품 판매업",
+      "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001665",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001665",
+          "backlog_krw": null,
+          "backlog_raw": "USD 1,000,000",
+          "unit": "USD",
+          "currency": "USD",
+          "method": "single-row",
+          "header": "계약잔액"
+        }
+      ],
+      "industry": "메모리/비메모리반도체, 디스플레이 모듈"
+    },
+    "333430": {
+      "stock_code": "333430",
+      "corp_code": "01396676",
+      "name": "일승",
+      "market": "KOSDAQ",
+      "sector": "선박 및 보트 건조업",
+      "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-13",
+          "rcept_no": "20261113001511",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261113001511",
+          "backlog_krw": 28292000000,
+          "backlog_raw": "28,292",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "수주잔고"
+        }
+      ],
+      "industry": "환경장비"
     }
   }
 }
