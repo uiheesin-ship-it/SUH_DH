@@ -1,0 +1,57 @@
+name: DART export & FX exposure
+
+# Pulls 수출/내수 매출 비중 and 원재료 매입 외화(USD) 비중 from the latest periodic
+# report (사업/반기/분기보고서) for the given tickers via OpenDART, writing keyword
+# snippets + a best-effort export ratio to data/dart_export_fx.json. Run from the
+# Actions tab. Needs the repo secret DART_API_KEY.
+on:
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "6-digit codes, comma-separated"
+        required: true
+        default: "007660,357780"
+      dart_key:
+        description: "OpenDART API key (blank = DART_API_KEY secret)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/funny-carson-ent3s7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Collect export/FX from DART
+        env:
+          DART_API_KEY: ${{ github.event.inputs.dart_key != '' && github.event.inputs.dart_key || secrets.DART_API_KEY }}
+        run: |
+          python tools/dart_export_fx.py "${{ github.event.inputs.tickers }}"
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-export-fx
+          path: data/dart_export_fx.json
+      - name: Commit JSON
+        run: |
+          if [ -n "$(git status --porcelain data/dart_export_fx.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/dart_export_fx.json
+            git commit -m "data(dart): export & FX exposure snippets"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:claude/funny-carson-ent3s7 && break
+              git fetch origin claude/funny-carson-ent3s7
+              git rebase -X ours origin/claude/funny-carson-ent3s7 || git rebase --abort
+              sleep 3
+            done
+          else
+            echo "No changes."
+          fi
