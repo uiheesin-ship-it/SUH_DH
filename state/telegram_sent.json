@@ -1,15 +1,5 @@
 {
 "sent": [
-"https://www.cnbc.com/2026/10/27/jim-cramer-ai-trade-financing-risks.html",
-"https://www.bloomberg.com/news/articles/2026-10-27/sk-hynix-profit-jumps-seven-fold-to-soothe-doubts-over-ai-rush",
-"https://www.cnbc.com/2026/10/28/sk-hynix-third-quarter-profit.html",
-"https://www.bloomberg.com/news/videos/2026-10-28/sk-hynix-posts-record-profit-amid-ai-rush-video",
-"https://www.bloomberg.com/news/articles/2026-10-28/asmpt-sales-jump-49-on-ai-demand-as-chip-unit-misses-estimate",
-"https://www.bloomberg.com/news/articles/2026-10-27/stock-market-today-dow-s-p-live-updates",
-"https://www.bloomberg.com/news/articles/2026-10-28/nvidia-backed-firm-launches-3-1-billion-gpu-loan-into-market",
-"https://www.bloomberg.com/news/articles/2026-10-28/openai-plans-to-buy-google-s-chips-as-part-of-its-ai-build-out",
-"https://www.ft.com/content/44c35ed7-aa46-4d45-91f5-2773f00ae6be",
-"https://asia.nikkei.com/business/technology/artificial-intelligence/ai-server-supplier-dongshan-precision-falls-short-in-hong-kong-listing2",
 "https://www.bloomberg.com/news/articles/2026-10-28/ge-vernova-agrees-to-pay-9-billion-to-acquire-trench-group",
 "https://www.cnbc.com/2026/10/28/google-alters-cloud-playbook-turning-to-partners-to-sell-more-ai-chips.html",
 "https://www.bloomberg.com/news/videos/2026-10-28/ai-data-center-debt-may-test-credit-market-fortress-video",
@@ -499,7 +489,17 @@
 "https://www.bloomberg.com/news/articles/2026-11-19/copper-rebounds-after-rout-as-physical-tightness-persists",
 "https://www.bloomberg.com/news/articles/2026-11-19/india-startup-sells-deepseek-access-while-pursuing-sovereign-ai",
 "https://www.bloomberg.com/news/articles/2026-11-19/wallenberg-investments-takes-minority-stake-in-ai-firm-algoryx",
-"https://www.bloomberg.com/news/articles/2026-11-19/is-china-winning-the-artificial-intelligence-race-that-matters"
+"https://www.bloomberg.com/news/articles/2026-11-19/is-china-winning-the-artificial-intelligence-race-that-matters",
+"https://www.bloomberg.com/news/articles/2026-11-19/imf-s-chief-is-warning-ai-correction-has-little-bit-more-to-go",
+"https://www.cnbc.com/2026/11/19/data-center-electricity-demand-iea.html",
+"https://www.datacenterdynamics.com/en/news/non-profit-claims-60-of-anthropics-mapped-us-data-center-power-demand-is-tied-to-natural-gas/",
+"https://www.datacenterdynamics.com/en/news/openai-claims-its-models-have-delivered-chip-design-improvements-across-both-in-house-and-amd-designed-hardware/",
+"https://www.datacenterdynamics.com/en/news/data-center-powered-by-huawei-ascend-chips-launches-in-china/",
+"https://www.datacenterdynamics.com/en/whitepapers/from-gpu-to-sla-backstops-the-next-step-in-neocloud-finance/",
+"https://www.datacenterdynamics.com/en/research/dcd-survey-airflow-management/",
+"https://www.datacenterdynamics.com/en/news/everpure-revenues-surge-51-as-ai-demand-drives-more-hyperscaler-wins/",
+"https://www.bloomberg.com/news/videos/2026-11-19/open-interest-11-19-2026-video",
+"https://www.bloomberg.com/news/articles/2026-11-19/nscale-s-bytedance-deal-faces-scrutiny-under-us-chip-curbs"
 ],
-"updated": "2026-11-19T08:40:32+00:00"
+"updated": "2026-11-20T00:49:07+00:00"
 }
