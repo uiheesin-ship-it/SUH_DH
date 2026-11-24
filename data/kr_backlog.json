@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "updated": "2026-11-22T20:56:38+00:00",
+    "updated": "2026-11-24T01:28:36+00:00",
     "note": "수주잔고는 정기보고서 본문 '수주상황' 표에서 추출한 근사치입니다. 표 양식이 회사마다 달라 오차가 있을 수 있으니 각 행의 출처(DART) 링크로 확인하세요. 최초 데이터는 `python tools/kr_dart_backlog.py --backfill` (DART_API_KEY 필요, kr-backlog 워크플로)로 채웁니다.",
     "seen": [
       "20250509000035",
@@ -7629,7 +7629,12 @@
       "20261120000463",
       "20261120000490",
       "20261120000540",
-      "20261120000604"
+      "20261120000604",
+      "20261123000065",
+      "20261123000121",
+      "20261123000228",
+      "20261123000239",
+      "20261123000284"
     ]
   },
   "companies": {
@@ -24289,13 +24294,13 @@
         {
           "period": "2025-12",
           "quarter": "2025 연간",
-          "rcept_dt": "2026-03-13",
-          "rcept_no": "20260313000041",
-          "report_nm": "사업보고서 (2025.12)",
-          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260313000041",
-          "backlog_krw": 8539,
+          "rcept_dt": "2026-11-23",
+          "rcept_no": "20261123000228",
+          "report_nm": "[기재정정]사업보고서 (2025.12)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261123000228",
+          "backlog_krw": 8539000000,
           "backlog_raw": "8,539",
-          "unit": "원",
+          "unit": "백만원",
           "currency": null,
           "method": "total-row",
           "header": "수주잔고"
@@ -43764,6 +43769,29 @@
           "currency": null,
           "method": "total-row",
           "header": "수주잔고"
+        }
+      ]
+    },
+    "493260": {
+      "stock_code": "493260",
+      "corp_code": "01658035",
+      "name": "옵토닉스",
+      "market": "KOSDAQ",
+      "sector": "",
+      "quarters": [
+        {
+          "period": "2026-09",
+          "quarter": "2026 3Q",
+          "rcept_dt": "2026-11-23",
+          "rcept_no": "20261123000284",
+          "report_nm": "분기보고서 (2026.09)",
+          "source": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261123000284",
+          "backlog_krw": -2026930000000,
+          "backlog_raw": "(기준일: 2026년 9월 30일)",
+          "unit": "백만원",
+          "currency": null,
+          "method": "single-row",
+          "header": "[제품별 수주잔고 현황]"
         }
       ]
     }
